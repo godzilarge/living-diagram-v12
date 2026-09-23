@@ -1,0 +1,263 @@
+{
+  "aggregates": [],
+  "checks": [],
+  "coverage": [
+    {
+      "hostname": "sw-a",
+      "status": "success",
+      "topics": {
+        "aggregates": "absent",
+        "cdp": "absent",
+        "ha": "absent",
+        "interfaces": "success",
+        "lldp": "success",
+        "system": "absent"
+      }
+    },
+    {
+      "hostname": "sw-b",
+      "status": "success",
+      "topics": {
+        "aggregates": "absent",
+        "cdp": "absent",
+        "ha": "absent",
+        "interfaces": "success",
+        "lldp": "success",
+        "system": "absent"
+      }
+    }
+  ],
+  "ha_clusters": [],
+  "interfaces": [
+    {
+      "access_vlan": null,
+      "admin_status": "up",
+      "aggregate": null,
+      "allowed_vlans": [
+        {
+          "first": 10,
+          "last": 20
+        },
+        {
+          "first": 100,
+          "last": 100
+        }
+      ],
+      "description": "C1|sw-b|Ethernet1/1|",
+      "description_parsed": {
+        "criticality": "C1",
+        "neighbor": "sw-b",
+        "options": null,
+        "port": "Ethernet1/1"
+      },
+      "duplex": "full",
+      "hostname": "sw-a",
+      "ip_addresses": [],
+      "last_change_age_seconds": 3600,
+      "mac_address": "00:00:5e:00:53:01",
+      "media": "10Gbase-SR",
+      "name": "Ethernet1/1",
+      "native_vlan": 1,
+      "oper_reason": null,
+      "oper_status": "up",
+      "parent_interface": null,
+      "roles": [],
+      "speed_mbps": 10000,
+      "switchport_mode": "trunk",
+      "type": "physical",
+      "virtual_context": null,
+      "vlan_id": null,
+      "vrf": null
+    },
+    {
+      "access_vlan": null,
+      "admin_status": "up",
+      "aggregate": null,
+      "allowed_vlans": [
+        {
+          "first": 10,
+          "last": 20
+        },
+        {
+          "first": 100,
+          "last": 100
+        }
+      ],
+      "description": "C1|sw-a|Ethernet1/1|",
+      "description_parsed": {
+        "criticality": "C1",
+        "neighbor": "sw-a",
+        "options": null,
+        "port": "Ethernet1/1"
+      },
+      "duplex": "full",
+      "hostname": "sw-b",
+      "ip_addresses": [],
+      "last_change_age_seconds": 3600,
+      "mac_address": "00:00:5e:00:53:02",
+      "media": "10Gbase-SR",
+      "name": "Ethernet1/1",
+      "native_vlan": 1,
+      "oper_reason": null,
+      "oper_status": "up",
+      "parent_interface": null,
+      "roles": [],
+      "speed_mbps": 10000,
+      "switchport_mode": "trunk",
+      "type": "physical",
+      "virtual_context": null,
+      "vlan_id": null,
+      "vrf": null
+    }
+  ],
+  "links": [
+    {
+      "a": {
+        "hostname": "sw-a",
+        "interface": "Ethernet1/1"
+      },
+      "aggregate_a": null,
+      "aggregate_b": null,
+      "b": {
+        "hostname": "sw-b",
+        "interface": "Ethernet1/1"
+      },
+      "evidence": [
+        {
+          "remote_raw": {
+            "name": "sw-b",
+            "port": "Ethernet1/1"
+          },
+          "remote_resolved": {
+            "hostname": "sw-b",
+            "interface": "Ethernet1/1"
+          },
+          "resolution": "hostname",
+          "source": "description",
+          "witness": {
+            "hostname": "sw-a",
+            "interface": "Ethernet1/1"
+          }
+        },
+        {
+          "remote_raw": {
+            "name": "sw-a",
+            "port": "Ethernet1/1"
+          },
+          "remote_resolved": {
+            "hostname": "sw-a",
+            "interface": "Ethernet1/1"
+          },
+          "resolution": "hostname",
+          "source": "description",
+          "witness": {
+            "hostname": "sw-b",
+            "interface": "Ethernet1/1"
+          }
+        },
+        {
+          "remote_raw": {
+            "name": "sw-b",
+            "port": "Ethernet1/1"
+          },
+          "remote_resolved": {
+            "hostname": "sw-b",
+            "interface": "Ethernet1/1"
+          },
+          "resolution": "hostname",
+          "source": "lldp",
+          "witness": {
+            "hostname": "sw-a",
+            "interface": "Ethernet1/1"
+          }
+        },
+        {
+          "remote_raw": {
+            "name": "sw-a",
+            "port": "Ethernet1/1"
+          },
+          "remote_resolved": {
+            "hostname": "sw-a",
+            "interface": "Ethernet1/1"
+          },
+          "resolution": "hostname",
+          "source": "lldp",
+          "witness": {
+            "hostname": "sw-b",
+            "interface": "Ethernet1/1"
+          }
+        }
+      ],
+      "kind": "cable",
+      "oper": "up",
+      "speed_mbps": 10000,
+      "status": "confirmed"
+    }
+  ],
+  "mlag_domains": [],
+  "nodes": [
+    {
+      "collection": "success",
+      "evidence": null,
+      "hostname": "sw-a",
+      "kind": "device",
+      "model": "N9K-C93180YC-FX",
+      "os_name": "NX-OS",
+      "os_version": "10.4.2",
+      "reported_hostname": "sw-a",
+      "serial_number": "SN-A",
+      "site": "paris-dc1",
+      "stack": null,
+      "type": "switch",
+      "uptime_seconds": 9000,
+      "vendor": "cisco",
+      "virtual_contexts": []
+    },
+    {
+      "collection": "success",
+      "evidence": null,
+      "hostname": "sw-b",
+      "kind": "device",
+      "model": "N9K-C93180YC-FX",
+      "os_name": "NX-OS",
+      "os_version": "10.4.2",
+      "reported_hostname": "sw-b",
+      "serial_number": "SN-B",
+      "site": "paris-dc1",
+      "stack": null,
+      "type": "switch",
+      "uptime_seconds": 9000,
+      "vendor": "cisco",
+      "virtual_contexts": []
+    }
+  ],
+  "report": {
+    "applied_normalizations": {},
+    "counts": {
+      "aggregates": 0,
+      "checks": 0,
+      "ha_clusters": 0,
+      "interfaces": 2,
+      "links": 1,
+      "mlag_domains": 0,
+      "nodes": 2
+    },
+    "residual_normalizations": {},
+    "unparseable_descriptions": 0,
+    "unresolved_names": []
+  },
+  "snapshot_version": "1.0.0",
+  "source": {
+    "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "collector_run_id": "66db3f0e9a1c2b0012f4a7d1",
+    "contract_version": "1.0.0",
+    "exporter_version": "0.1.0",
+    "infrastructure": "infra-lab",
+    "produced_at": "2026-09-10T02:20:11Z",
+    "run": {
+      "end_datetime": "2026-09-10T02:14:32Z",
+      "start_datetime": "2026-09-10T02:00:00Z",
+      "status": "completed"
+    }
+  }
+}

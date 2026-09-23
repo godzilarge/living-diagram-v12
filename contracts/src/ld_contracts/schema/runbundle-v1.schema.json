@@ -1,0 +1,1568 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://living-diagram.internal/contracts/runbundle-v1.schema.json",
+  "title": "RunBundle",
+  "$defs": {
+    "AdminStatus": {
+      "enum": [
+        "up",
+        "down"
+      ],
+      "title": "AdminStatus",
+      "type": "string"
+    },
+    "Aggregate": {
+      "additionalProperties": false,
+      "description": "Un agrégat (Port-channel, bond, aggregate) et l'état de chacun de ses membres.\n\nSources typiques : `show port-channel summary` + `show vpc` (NX-OS), `show etherchannel summary` (IOS),\n`diagnose netlink aggregate name <nom>` (FortiOS), `show bonding group <id>` (Gaia). Un document par agrégat.",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du device, identique octet pour octet à `devices[].hostname`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "name": {
+          "description": "Nom canonique de l'agrégat, identique à `interfaces[].name`.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "oper_status": {
+          "$ref": "#/$defs/LinkStatus",
+          "description": "État opérationnel de l'agrégat."
+        },
+        "protocol": {
+          "$ref": "#/$defs/AggregationProtocol",
+          "description": "Protocole d'agrégation. Statique d'un côté et LACP de l'autre : contrôle."
+        },
+        "lacp_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LacpMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Mode LACP ; null si non LACP ou non lu."
+        },
+        "min_links": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nombre minimal de membres actifs configuré ; null si non configuré ou non lu.",
+          "title": "Min Links"
+        },
+        "members": {
+          "description": "Membres configurés avec leur état effectif.",
+          "items": {
+            "$ref": "#/$defs/AggregateMember"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "mlag_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Identifiant vPC / MLAG / MC-LAG ; null si l'agrégat n'en fait pas partie, ou si non lu.",
+          "title": "Mlag Id"
+        },
+        "mlag_peer_link": {
+          "description": "true si l'agrégat est le peer-link du MLAG.",
+          "title": "Mlag Peer Link",
+          "type": "boolean"
+        },
+        "extras": {
+          "additionalProperties": true,
+          "description": "Détail brut vendeur (drapeaux, cohérence vPC…) ; jamais lu par B1.",
+          "title": "Extras",
+          "type": "object"
+        }
+      },
+      "required": [
+        "hostname",
+        "name",
+        "oper_status",
+        "protocol",
+        "members",
+        "mlag_peer_link"
+      ],
+      "title": "Aggregate",
+      "type": "object"
+    },
+    "AggregateMember": {
+      "additionalProperties": false,
+      "description": "Un membre d'agrégat et son état effectif.",
+      "properties": {
+        "name": {
+          "description": "Nom canonique du membre, identique à `interfaces[].name`.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/MemberStatus",
+          "description": "État effectif. `bundled` = trafic agrégé (P Cisco, collecting + distributing LACP) ; `suspended` (s) ; `standby` (H) ; `individual` (I) ; `down` (D, module retiré) ; `not_in_use` (M / w : min-links non atteint)."
+        }
+      },
+      "required": [
+        "name",
+        "status"
+      ],
+      "title": "AggregateMember",
+      "type": "object"
+    },
+    "AggregationProtocol": {
+      "enum": [
+        "lacp",
+        "static",
+        "pagp"
+      ],
+      "title": "AggregationProtocol",
+      "type": "string"
+    },
+    "CdpNeighbor": {
+      "additionalProperties": false,
+      "description": "Un voisin vu par CDP (Cisco, `show cdp neighbors detail`). Un document par (port local, voisin).",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du device local, identique octet pour octet à `devices[].hostname`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "local_interface": {
+          "description": "Port local, nom canonique identique à `interfaces[].name`.",
+          "minLength": 1,
+          "title": "Local Interface",
+          "type": "string"
+        },
+        "neighbor": {
+          "description": "Device-id annoncé, **domaine DNS retiré** et serial retiré (`HOSTNAME(SERIAL)` sur Nexus donne `HOSTNAME`).",
+          "minLength": 1,
+          "title": "Neighbor",
+          "type": "string"
+        },
+        "neighbor_interface": {
+          "description": "Port distant annoncé, brut (forme longue chez Cisco).",
+          "minLength": 1,
+          "title": "Neighbor Interface",
+          "type": "string"
+        },
+        "neighbor_capabilities": {
+          "description": "Capacités annoncées, jetons en minuscules `[a-z0-9_]` (`switch`, `router`, `igmp`…).",
+          "items": {
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          },
+          "title": "Neighbor Capabilities",
+          "type": "array"
+        },
+        "extras": {
+          "additionalProperties": true,
+          "description": "Détail brut vendeur ; jamais lu par B1.",
+          "title": "Extras",
+          "type": "object"
+        }
+      },
+      "required": [
+        "hostname",
+        "local_interface",
+        "neighbor",
+        "neighbor_interface",
+        "neighbor_capabilities"
+      ],
+      "title": "CdpNeighbor",
+      "type": "object"
+    },
+    "ChassisMember": {
+      "additionalProperties": false,
+      "description": "Un châssis membre d'un stack (topic system, `show switch` / `show version`).",
+      "properties": {
+        "slot": {
+          "description": "Numéro de membre dans le stack (switch number).",
+          "title": "Slot",
+          "type": "integer"
+        },
+        "serial": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Serial du membre ; null si non lu.",
+          "title": "Serial"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Référence matérielle du membre ; null si non lue.",
+          "title": "Model"
+        },
+        "role": {
+          "$ref": "#/$defs/ChassisRole",
+          "description": "Rôle du membre dans le stack."
+        },
+        "state": {
+          "$ref": "#/$defs/ChassisState",
+          "description": "État du membre. `removed` ou `provisioned` = membre attendu mais absent."
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Priorité d'élection ; null si non lue.",
+          "title": "Priority"
+        }
+      },
+      "required": [
+        "slot",
+        "role",
+        "state"
+      ],
+      "title": "ChassisMember",
+      "type": "object"
+    },
+    "ChassisRole": {
+      "enum": [
+        "active",
+        "standby",
+        "member",
+        "master"
+      ],
+      "title": "ChassisRole",
+      "type": "string"
+    },
+    "ChassisState": {
+      "enum": [
+        "ready",
+        "removed",
+        "provisioned",
+        "version_mismatch"
+      ],
+      "title": "ChassisState",
+      "type": "string"
+    },
+    "Counters": {
+      "additionalProperties": false,
+      "description": "Compteurs d'erreurs au moment de la collecte, cumulés depuis le dernier reset ; null par champ si non lu.",
+      "properties": {
+        "in_errors": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Erreurs en entrée.",
+          "title": "In Errors"
+        },
+        "out_errors": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Erreurs en sortie.",
+          "title": "Out Errors"
+        },
+        "crc": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Erreurs CRC en entrée ; leur hausse entre deux runs signale un câble ou un transceiver dégradé.",
+          "title": "Crc"
+        },
+        "in_discards": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rejets en entrée.",
+          "title": "In Discards"
+        },
+        "out_discards": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rejets en sortie.",
+          "title": "Out Discards"
+        }
+      },
+      "title": "Counters",
+      "type": "object"
+    },
+    "Device": {
+      "additionalProperties": false,
+      "description": "Un équipement de la table de référence `devices`.\n\nUn document par châssis physique : un stack est un seul document. La table **complète**\n(toutes infrastructures) est fournie dans le bundle : B1 y résout les voisins d'une autre\ninfrastructure (« externes connus ») et ne classe en stub que les noms qu'elle ignore.",
+      "properties": {
+        "hostname": {
+          "description": "Clé d'identité du device dans toutes les collections. C'est le nom configuré sur l'équipement, sans domaine DNS, et il est copié tel quel dans chaque document de topic.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "infrastructure": {
+          "description": "Infrastructure d'appartenance ; un device n'en a qu'une.",
+          "minLength": 1,
+          "title": "Infrastructure",
+          "type": "string"
+        },
+        "site": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Site géographique, partition de placement ; null si inconnu.",
+          "title": "Site"
+        },
+        "type": {
+          "$ref": "#/$defs/DeviceType",
+          "description": "Nature du boîtier. Ce n'est pas le rôle topologique (spine, cœur, accès), qui est inféré par B5."
+        },
+        "vendor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Constructeur en minuscules (`cisco`, `fortinet`, `checkpoint`) ; null si inconnu.",
+          "title": "Vendor"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Référence matérielle (`N9K-C93180YC-FX`, `FGT-600F`) ; null si inconnue.",
+          "title": "Model"
+        },
+        "os_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nom de l'OS tel que fourni par l'inventaire, non normalisé, pour affichage seulement. Aucune règle de B1 ne s'appuie sur une famille d'OS : un nom d'interface distant est résolu par recherche dans les `interfaces[]` du device résolu, sinon sur évidence CDP / LLDP / `vendor` (R1 de docs/05).",
+          "title": "Os Name"
+        },
+        "os_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Version d'OS selon l'inventaire ; null si inconnue.",
+          "title": "Os Version"
+        },
+        "serial_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Serial du châssis (membre maître pour un stack) ; null si inconnu. Identité de secours, jamais clé de jointure.",
+          "title": "Serial Number"
+        },
+        "extras": {
+          "additionalProperties": true,
+          "description": "Attributs libres de l'inventaire ; jamais lus par B1.",
+          "title": "Extras",
+          "type": "object"
+        }
+      },
+      "required": [
+        "hostname",
+        "infrastructure",
+        "type"
+      ],
+      "title": "Device",
+      "type": "object"
+    },
+    "DeviceTask": {
+      "additionalProperties": false,
+      "description": "Statut de collecte d'un device pour la run (document `collector_run_tasks_<id>`).\n\nUn topic **absent** de `status_per_subject` signifie « non supporté par la plateforme ou non\nsélectionné pour cette run » : B1 n'attend alors aucune donnée de ce device pour ce topic et\nn'émet aucun contrôle de réciprocité à son encontre (par exemple « lien vu d'un seul côté »).",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du device, identique octet pour octet à `devices[].hostname`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/DeviceTaskStatus",
+          "description": "Résultat global de la collecte sur ce device."
+        },
+        "status_per_subject": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SubjectStatus"
+          },
+          "description": "Résultat par topic. Clé = nom du topic : `interfaces`, `aggregates`, `lldp`, `cdp`, `system`, `ha`, ou leurs alias amont (`lldp_neighbors`, `cdp_neighbors`, `system_info`, `port_channels`). Vide pour un device injoignable.",
+          "title": "Status Per Subject",
+          "type": "object"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Erreur globale (connexion, authentification) ; null sinon.",
+          "title": "Error"
+        }
+      },
+      "required": [
+        "hostname",
+        "status",
+        "status_per_subject"
+      ],
+      "title": "DeviceTask",
+      "type": "object"
+    },
+    "DeviceTaskStatus": {
+      "enum": [
+        "success",
+        "partial",
+        "failed",
+        "unreachable"
+      ],
+      "title": "DeviceTaskStatus",
+      "type": "string"
+    },
+    "DeviceType": {
+      "enum": [
+        "switch",
+        "router",
+        "firewall",
+        "load_balancer",
+        "wireless_controller",
+        "server",
+        "other"
+      ],
+      "title": "DeviceType",
+      "type": "string"
+    },
+    "Duplex": {
+      "enum": [
+        "full",
+        "half",
+        "unknown"
+      ],
+      "title": "Duplex",
+      "type": "string"
+    },
+    "HaMember": {
+      "additionalProperties": false,
+      "description": "Un membre du cluster tel que vu depuis le device local.",
+      "properties": {
+        "name": {
+          "description": "Hostname du membre, clé de `devices` (les membres sont des devices).",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "serial": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Serial du membre ; null si non lu. Recoupe `devices[].serial_number`.",
+          "title": "Serial"
+        },
+        "role": {
+          "$ref": "#/$defs/HaRole",
+          "description": "Rôle du membre dans le cluster ; celui du device local se lit ici."
+        },
+        "state": {
+          "$ref": "#/$defs/HaState",
+          "description": "État du membre, celui du device local compris. `down`, ou absent alors qu'il était listé au run précédent : membre mort."
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Priorité HA ; null si non lue.",
+          "title": "Priority"
+        }
+      },
+      "required": [
+        "name",
+        "role",
+        "state"
+      ],
+      "title": "HaMember",
+      "type": "object"
+    },
+    "HaMode": {
+      "enum": [
+        "active_passive",
+        "active_active",
+        "standalone",
+        "other"
+      ],
+      "title": "HaMode",
+      "type": "string"
+    },
+    "HaRole": {
+      "enum": [
+        "primary",
+        "secondary",
+        "active",
+        "standby",
+        "member"
+      ],
+      "title": "HaRole",
+      "type": "string"
+    },
+    "HaState": {
+      "enum": [
+        "up",
+        "down",
+        "unknown"
+      ],
+      "title": "HaState",
+      "type": "string"
+    },
+    "HaStatus": {
+      "additionalProperties": false,
+      "description": "État de haute disponibilité vu depuis un membre (topic `ha`).\n\nSources typiques : `get system ha status` + `show system ha` (FortiOS) ; `cphaprob state` + `cphaprob -a if`\n(Gaia ClusterXL). Un document par device membre d'un cluster.\n\nLe rôle et l'état du device local se lisent dans `members`, où il figure obligatoirement : pas de champ à\npart (2026-09-14). Un device sans HA peut ne pas émettre de document ; s'il en émet un, il est `standalone`\net se liste seul.",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du device local, identique octet pour octet à `devices[].hostname`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/HaMode",
+          "description": "Mode du cluster."
+        },
+        "cluster_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nom ou identifiant de groupe du cluster ; null si absent.",
+          "title": "Cluster Name"
+        },
+        "members": {
+          "description": "Tous les membres du cluster, device local compris : `hostname` figure dans `members[].name`, octet pour octet et une seule fois, sinon le document est refusé. `standalone` : exactement un membre, le device lui-même, `role = member` (`state = up` s'il répond).",
+          "items": {
+            "$ref": "#/$defs/HaMember"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "heartbeat_interfaces": {
+          "description": "Interfaces locales dédiées au heartbeat ou à la synchronisation, noms canoniques ; liste vide si non lu. Rend le peering HA dessinable comme un lien documenté.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Heartbeat Interfaces",
+          "type": "array"
+        },
+        "extras": {
+          "additionalProperties": true,
+          "description": "Détail brut vendeur (état de synchronisation…) ; jamais lu par B1.",
+          "title": "Extras",
+          "type": "object"
+        }
+      },
+      "required": [
+        "hostname",
+        "mode",
+        "members",
+        "heartbeat_interfaces"
+      ],
+      "title": "HaStatus",
+      "type": "object"
+    },
+    "Interface": {
+      "additionalProperties": false,
+      "description": "Une interface du topic `interfaces`, physique ou logique.\n\nSources typiques : `show interfaces` (IOS / IOS-XE), `show interface` (NX-OS), `get system interface`\net `get system interface physical` (FortiOS), `show interface <nom>` (Gaia). Un document par interface.\nPour dessiner un L1, B1 n'a besoin que de : `name`, `type`, `description`, `admin_status`, `oper_status`,\n`oper_reason`, `speed_mbps`, `duplex`, `mac_address`, `parent_interface`, `virtual_context`.",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du device, identique octet pour octet à `devices[].hostname`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "name": {
+          "description": "Nom canonique de l'interface, identique dans tous les topics (`Ethernet1/1`, `port-channel10`, `x1`, `Vlan100`). Forme longue chez Cisco.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Description configurée, **brute**, jamais parsée par la collecte. Format attendu `criticité|device_voisin|port_voisin|options` ; null si vide. Le parseur vit dans B1.",
+          "title": "Description"
+        },
+        "type": {
+          "$ref": "#/$defs/InterfaceType",
+          "description": "Nature de l'interface. `subinterface` a un parent ; `svi` n'en a pas."
+        },
+        "admin_status": {
+          "$ref": "#/$defs/AdminStatus",
+          "description": "État administratif configuré."
+        },
+        "oper_status": {
+          "$ref": "#/$defs/OperStatus",
+          "description": "État opérationnel selon RFC 2863. `down` par défaut ; `not_present` seulement si un transceiver ou un module manque explicitement ; `unknown` si non lu ; `lower_layer_down` optionnel pour une sous-interface dont le parent est down (B1 sait le dériver)."
+        },
+        "oper_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Raison textuelle **brute** donnée par le vendeur (`notconnect`, `err-disabled`, `SFP not inserted`, `suspended by LACP`, `No operational members`…) ; null si `up` ou si le vendeur n'en donne pas.",
+          "title": "Oper Reason"
+        },
+        "speed_mbps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vitesse **opérationnelle** en Mbit/s, entier ; null si down ou inconnue.",
+          "title": "Speed Mbps"
+        },
+        "configured_speed_mbps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vitesse configurée en Mbit/s ; null = auto ou non lue.",
+          "title": "Configured Speed Mbps"
+        },
+        "auto_negotiate": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Autonégociation active ; null si inconnu.",
+          "title": "Auto Negotiate"
+        },
+        "duplex": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Duplex"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Duplex opérationnel ; null si non applicable ou non lu."
+        },
+        "mtu": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "MTU en octets ; null si non lu.",
+          "title": "Mtu"
+        },
+        "mac_address": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{2}(:[0-9a-f]{2}){5}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "MAC de l'interface, normalisée `aa:bb:cc:dd:ee:ff` minuscules ; null si absente.",
+          "title": "Mac Address"
+        },
+        "media": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Média ou transceiver (`10Gbase-SR`, `1000base-T`), chaîne brute ; null si inconnu.",
+          "title": "Media"
+        },
+        "last_change_age_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "const": "never",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Âge du dernier changement d'état opérationnel au moment de la collecte, en secondes (IF-MIB `ifLastChange`) ; `\"never\"` si l'état n'a pas changé depuis le dernier démarrage (RFC 2863 : `ifLastChange = 0`, état pris avant la dernière réinitialisation de l'agent ; NX-OS « Last link flapped: never ») ; null si non lu. Trois faits distincts : B1 lit `\"never\"` comme un âge ≥ `system.uptime_seconds`. Jamais de sentinelle numérique. Sert à détecter un flap entre deux runs.",
+          "title": "Last Change Age Seconds"
+        },
+        "parent_interface": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pour une sous-interface : nom canonique du parent ; null si sans objet ou non lu. Jamais utilisé pour l'appartenance à un agrégat (voir `aggregates`).",
+          "title": "Parent Interface"
+        },
+        "vlan_id": {
+          "anyOf": [
+            {
+              "maximum": 4094,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "VLAN d'une sous-interface ou d'une SVI ; null si sans objet ou non lu.",
+          "title": "Vlan Id"
+        },
+        "members": {
+          "description": "Pour un agrégat sans topic `aggregates` : noms canoniques des membres configurés, sans état. Liste vide sinon. `aggregates` fait foi quand il existe.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "ip_addresses": {
+          "description": "Adresses portées ; liste vide si aucune.",
+          "items": {
+            "$ref": "#/$defs/IpAddress"
+          },
+          "title": "Ip Addresses",
+          "type": "array"
+        },
+        "vrf": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Instance de routage de l'interface, trois cas. `\"default\"` : la **table globale**, nom réservé du contrat, en minuscules exactes ; c'est le nom natif sur NX-OS, EOS et IOS-XR, et la librairie de collecte y traduit les autres plateformes (tableau sous « `null` et valeurs réservées »). Tout autre texte : le nom de la VRF tel que configuré, casse conservée (`PROD`, `management`, `Mgmt-vrf`, `10`). null : non lu, ou sans objet (un port commuté `access` / `trunk` n'est dans aucune table de routage) ; **null ne veut jamais dire table globale**. Chaîne vide refusée. Une valeur égale à `default` à la casse ou aux blancs près est acceptée (sur NX-OS, `Default` est une VRF utilisateur légitime), jamais normalisée, et signalée (`vrf_default_case`). B1 s'en sert comme clé `(hostname, vrf)` : la table globale est une instance comme les autres, sans cas particulier.",
+          "title": "Vrf"
+        },
+        "virtual_context": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Partition virtuelle du châssis qui possède l'interface (VDOM, Virtual System VSX, VDC, context) ; null si le châssis n'est pas partitionné, ou si non lu : null ne distingue pas les deux (jeton réservé à décider avec la modélisation VSX).",
+          "title": "Virtual Context"
+        },
+        "switchport_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SwitchportMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Mode L2 **configuré, résolu** : `access` ou `trunk` (port commuté), `routed` (`no switchport`, port L3), `none` (lu, mais aucun des trois ne s'applique : `dot1q-tunnel`, `fex-fabric`, `private-vlan`, interface non Ethernet ; le mode brut va dans `extras`) ; null si non lu. Port en négociation DTP : le résultat négocié quand le lien est up, le mode administratif quand il est down. Jamais « down » : un port down garde son mode et ses VLAN (IOS affiche « Operational Mode: down », c'est « Administrative Mode » qui compte)."
+        },
+        "access_vlan": {
+          "anyOf": [
+            {
+              "maximum": 4094,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "VLAN d'un port `access` ; null sinon. Un trunk ne le porte pas, même si l'équipement affiche une valeur configurée inactive (IOS / NX-OS « Access Mode VLAN ») : renseigné hors mode `access` (`null` compris), le document est refusé. B1 y lit le VLAN non tagué du port (en trunk : `native_vlan`), comparé à celui de l'autre bout du câble.",
+          "title": "Access Vlan"
+        },
+        "native_vlan": {
+          "anyOf": [
+            {
+              "maximum": 4094,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "VLAN natif d'un trunk ; null sinon (renseigné hors mode `trunk`, `null` compris, le document est refusé).",
+          "title": "Native Vlan"
+        },
+        "allowed_vlans": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/VlanRange"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "VLAN autorisés sur un trunk : liste d'intervalles `{first, last}` d'entiers, VLAN unique = `first == last`, `all` = `[{\"first\": 1, \"last\": 4094}]`, `[]` = aucun (`switchport trunk allowed vlan none`) ; null sinon (renseigné hors mode `trunk`, `null` compris, le document est refusé). Ni ordre ni fusion des adjacents imposés au producteur (B1 canonise, R6) ; doublons et chevauchements refusés.",
+          "title": "Allowed Vlans"
+        },
+        "counters": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Counters"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Compteurs d'erreurs ; null si non collectés."
+        },
+        "extras": {
+          "additionalProperties": true,
+          "description": "Détail brut vendeur (`bia`, `bandwidth`, `encapsulation`…) ; jamais lu par B1.",
+          "title": "Extras",
+          "type": "object"
+        }
+      },
+      "required": [
+        "hostname",
+        "name",
+        "type",
+        "admin_status",
+        "oper_status",
+        "members",
+        "ip_addresses"
+      ],
+      "title": "Interface",
+      "type": "object"
+    },
+    "InterfaceType": {
+      "enum": [
+        "physical",
+        "aggregate",
+        "subinterface",
+        "svi",
+        "loopback",
+        "tunnel",
+        "management",
+        "other"
+      ],
+      "title": "InterfaceType",
+      "type": "string"
+    },
+    "IpAddress": {
+      "additionalProperties": false,
+      "description": "Une adresse IP portée par une interface.",
+      "properties": {
+        "address": {
+          "description": "Adresse sans masque, en texte : IPv4 pointée ou IPv6.",
+          "title": "Address",
+          "type": "string"
+        },
+        "prefix": {
+          "description": "Longueur de préfixe : 0 à 32 en IPv4, 0 à 128 en IPv6.",
+          "title": "Prefix",
+          "type": "integer"
+        },
+        "family": {
+          "description": "Famille, cohérente avec `address`.",
+          "enum": [
+            4,
+            6
+          ],
+          "title": "Family",
+          "type": "integer"
+        },
+        "role": {
+          "$ref": "#/$defs/IpRole",
+          "description": "`primary`, `secondary`, ou `virtual` pour une VIP VRRP / HSRP."
+        }
+      },
+      "required": [
+        "address",
+        "prefix",
+        "family",
+        "role"
+      ],
+      "title": "IpAddress",
+      "type": "object"
+    },
+    "IpRole": {
+      "enum": [
+        "primary",
+        "secondary",
+        "virtual"
+      ],
+      "title": "IpRole",
+      "type": "string"
+    },
+    "LacpMode": {
+      "enum": [
+        "active",
+        "passive"
+      ],
+      "title": "LacpMode",
+      "type": "string"
+    },
+    "LinkStatus": {
+      "enum": [
+        "up",
+        "down"
+      ],
+      "title": "LinkStatus",
+      "type": "string"
+    },
+    "LldpNeighbor": {
+      "additionalProperties": false,
+      "description": "Un voisin vu par LLDP sur un port local (`show lldp neighbors detail`).\n\nUn document par (port local, voisin vu). Les identifiants **distants** restent bruts : B1 les\nnormalise. Les identifiants **locaux** sont canoniques.",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du device local, identique octet pour octet à `devices[].hostname`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "local_interface": {
+          "description": "Port local, nom canonique identique à `interfaces[].name`.",
+          "minLength": 1,
+          "title": "Local Interface",
+          "type": "string"
+        },
+        "neighbor": {
+          "description": "System-name annoncé par le voisin, **domaine DNS retiré**, sans autre normalisation. Peut être inconnu de `devices` (stub) ; peut être une MAC (normalisée) ou une IP si le voisin n'annonce pas de nom.",
+          "minLength": 1,
+          "title": "Neighbor",
+          "type": "string"
+        },
+        "neighbor_interface": {
+          "description": "Port-id annoncé, **brut** : forme courte sur IOS (`Gi1/0/1`), longue sur NX-OS. Si le voisin annonce une MAC, elle est normalisée (`aa:bb:cc:dd:ee:ff`) : B1 la reconnaît à sa forme et la joint à `interfaces[].mac_address`. Seules trois notations sont reconnues comme MAC (`aa:bb:…`, `aa-bb-…`, `aabb.ccdd.eeff`) et refusées si non normalisées ; douze chiffres hexadécimaux sans séparateur restent un nom.",
+          "minLength": 1,
+          "title": "Neighbor Interface",
+          "type": "string"
+        },
+        "neighbor_capabilities": {
+          "description": "Capacités annoncées, jetons en minuscules `[a-z0-9_]` (`bridge`, `router`, `station`, `wlan_access_point`, `telephone`…). Seule information sur la nature d'un voisin non collecté.",
+          "items": {
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          },
+          "title": "Neighbor Capabilities",
+          "type": "array"
+        },
+        "extras": {
+          "additionalProperties": true,
+          "description": "Détail brut vendeur ; jamais lu par B1.",
+          "title": "Extras",
+          "type": "object"
+        }
+      },
+      "required": [
+        "hostname",
+        "local_interface",
+        "neighbor",
+        "neighbor_interface",
+        "neighbor_capabilities"
+      ],
+      "title": "LldpNeighbor",
+      "type": "object"
+    },
+    "MemberStatus": {
+      "enum": [
+        "bundled",
+        "suspended",
+        "standby",
+        "individual",
+        "down",
+        "not_in_use"
+      ],
+      "title": "MemberStatus",
+      "type": "string"
+    },
+    "OperStatus": {
+      "enum": [
+        "up",
+        "down",
+        "testing",
+        "unknown",
+        "dormant",
+        "not_present",
+        "lower_layer_down"
+      ],
+      "title": "OperStatus",
+      "type": "string"
+    },
+    "RunInfo": {
+      "additionalProperties": false,
+      "description": "La run de collecte amont dont le bundle est extrait (document `collector_runs`).",
+      "properties": {
+        "collector_run_id": {
+          "description": "Identifiant de la run amont. Avec `infrastructure`, clé d'idempotence de l'ingestion.",
+          "minLength": 1,
+          "title": "Collector Run Id",
+          "type": "string"
+        },
+        "collection_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nom libre de la campagne de collecte, tel que saisi à son lancement ; null si absent.",
+          "title": "Collection Name"
+        },
+        "start_datetime": {
+          "description": "Début de la run, ISO 8601 avec fuseau (UTC recommandé).",
+          "format": "date-time",
+          "title": "Start Datetime",
+          "type": "string"
+        },
+        "end_datetime": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fin de la run ; null si elle n'est pas terminée. B0 n'exporte que des runs terminées.",
+          "title": "End Datetime"
+        },
+        "status": {
+          "$ref": "#/$defs/RunStatus",
+          "description": "État global de la run."
+        }
+      },
+      "required": [
+        "collector_run_id",
+        "start_datetime",
+        "status"
+      ],
+      "title": "RunInfo",
+      "type": "object"
+    },
+    "RunStatus": {
+      "enum": [
+        "completed",
+        "partial",
+        "failed",
+        "running"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    },
+    "SubjectStatus": {
+      "additionalProperties": false,
+      "description": "Résultat de la collecte d'un topic sur un device.",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/TaskStatus",
+          "description": "Succès ou échec de la collecte de ce topic sur ce device."
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Début de la collecte de ce topic sur ce device ; null si non horodaté.",
+          "title": "Started At"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fin de la collecte ; null si non horodaté. Tient lieu de `collected_at` aux documents du topic.",
+          "title": "Ended At"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Message d'erreur brut du collecteur ; null si succès. Texte libre, nettoyé par l'anonymiseur.",
+          "title": "Error"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "SubjectStatus",
+      "type": "object"
+    },
+    "SwitchportMode": {
+      "enum": [
+        "access",
+        "trunk",
+        "routed",
+        "none"
+      ],
+      "title": "SwitchportMode",
+      "type": "string"
+    },
+    "SystemInfo": {
+      "additionalProperties": false,
+      "description": "Ce que l'équipement dit de lui-même (topic `system`).\n\nSources typiques : `show version`, `show switch`, `show inventory` (Cisco) ; `get system status`\n(FortiOS) ; `show version all`, `show asset all`, `vsx stat -v` (Gaia). Un document par device.",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du device, identique octet pour octet à `devices[].hostname`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "reported_hostname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nom que l'équipement affiche de lui-même (prompt, `show hostname`), tel quel ; null si non lu. Un écart avec `hostname` (hors casse) est un constat, jamais une correction.",
+          "title": "Reported Hostname"
+        },
+        "vendor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Constructeur selon l'équipement ; null si non lu.",
+          "title": "Vendor"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Référence matérielle selon l'équipement ; null si non lue.",
+          "title": "Model"
+        },
+        "os_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Version d'OS selon l'équipement ; null si non lue.",
+          "title": "Os Version"
+        },
+        "serial_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Serial du châssis selon l'équipement ; null si non lu.",
+          "title": "Serial Number"
+        },
+        "uptime_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Temps écoulé depuis le dernier redémarrage, en secondes ; null si non lu. Un reboot entre deux runs est un événement.",
+          "title": "Uptime Seconds"
+        },
+        "chassis_members": {
+          "description": "Membres d'un stack, un par châssis ; liste vide pour un standalone. Source du badge ×N.",
+          "items": {
+            "$ref": "#/$defs/ChassisMember"
+          },
+          "title": "Chassis Members",
+          "type": "array"
+        },
+        "virtual_contexts": {
+          "description": "Contextes virtuels hébergés (Virtual Systems VSX, VDOM…) ; liste vide sinon.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Virtual Contexts",
+          "type": "array"
+        },
+        "extras": {
+          "additionalProperties": true,
+          "description": "Détail brut vendeur ; jamais lu par B1.",
+          "title": "Extras",
+          "type": "object"
+        }
+      },
+      "required": [
+        "hostname",
+        "chassis_members",
+        "virtual_contexts"
+      ],
+      "title": "SystemInfo",
+      "type": "object"
+    },
+    "TaskStatus": {
+      "enum": [
+        "success",
+        "failed"
+      ],
+      "title": "TaskStatus",
+      "type": "string"
+    },
+    "VlanRange": {
+      "additionalProperties": false,
+      "description": "Un intervalle de VLAN autorisés sur un trunk, bornes incluses ; VLAN unique = `first == last`.",
+      "properties": {
+        "first": {
+          "description": "Premier VLAN de l'intervalle, inclus.",
+          "maximum": 4094,
+          "minimum": 1,
+          "title": "First",
+          "type": "integer"
+        },
+        "last": {
+          "description": "Dernier VLAN de l'intervalle, inclus ; égal à `first` pour un VLAN unique.",
+          "maximum": 4094,
+          "minimum": 1,
+          "title": "Last",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "first",
+        "last"
+      ],
+      "title": "VlanRange",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Le document unique échangé entre l'exportateur B0 et Living Diagram : une run, une infrastructure.\n\nToute section de topic peut être vide : un bundle se construit progressivement (devices, run, tasks,\ninterfaces d'abord ; un topic de plus à chaque étape).",
+  "properties": {
+    "contract_version": {
+      "description": "Version semver du contrat ; la version majeure doit être supportée.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "produced_at": {
+      "description": "Date de production du bundle par l'exportateur, ISO 8601 avec fuseau.",
+      "format": "date-time",
+      "title": "Produced At",
+      "type": "string"
+    },
+    "exporter_version": {
+      "description": "Version de l'exportateur B0 qui a produit le bundle.",
+      "minLength": 1,
+      "title": "Exporter Version",
+      "type": "string"
+    },
+    "infrastructure": {
+      "description": "Infrastructure dessinée, écrite une seule fois : les documents de topic ne la répètent pas. Le périmètre est celui de `devices` au moment de l'export ; seule `devices` déborde sur d'autres infrastructures.",
+      "minLength": 1,
+      "title": "Infrastructure",
+      "type": "string"
+    },
+    "run": {
+      "$ref": "#/$defs/RunInfo",
+      "description": "La run amont dont les topics sont extraits."
+    },
+    "devices": {
+      "description": "Table de référence **complète**, toutes infrastructures, telle que lue au moment de l'export.",
+      "items": {
+        "$ref": "#/$defs/Device"
+      },
+      "title": "Devices",
+      "type": "array"
+    },
+    "tasks": {
+      "description": "Statut de collecte par device et par topic, pour l'infrastructure.",
+      "items": {
+        "$ref": "#/$defs/DeviceTask"
+      },
+      "title": "Tasks",
+      "type": "array"
+    },
+    "interfaces": {
+      "description": "Topic `interfaces`, filtré sur l'infrastructure.",
+      "items": {
+        "$ref": "#/$defs/Interface"
+      },
+      "title": "Interfaces",
+      "type": "array"
+    },
+    "aggregates": {
+      "description": "Topic agrégats, filtré sur l'infrastructure.",
+      "items": {
+        "$ref": "#/$defs/Aggregate"
+      },
+      "title": "Aggregates",
+      "type": "array"
+    },
+    "lldp": {
+      "description": "Topic `lldp_neighbors`, filtré sur l'infrastructure.",
+      "items": {
+        "$ref": "#/$defs/LldpNeighbor"
+      },
+      "title": "Lldp",
+      "type": "array"
+    },
+    "cdp": {
+      "description": "Topic `cdp_neighbors`, filtré sur l'infrastructure.",
+      "items": {
+        "$ref": "#/$defs/CdpNeighbor"
+      },
+      "title": "Cdp",
+      "type": "array"
+    },
+    "system": {
+      "description": "Topic `system`, filtré sur l'infrastructure.",
+      "items": {
+        "$ref": "#/$defs/SystemInfo"
+      },
+      "title": "System",
+      "type": "array"
+    },
+    "ha": {
+      "description": "Topic `ha`, filtré sur l'infrastructure.",
+      "items": {
+        "$ref": "#/$defs/HaStatus"
+      },
+      "title": "Ha",
+      "type": "array"
+    },
+    "residual_normalizations": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "Compteur par règle de normalisation que B0 a dû appliquer faute de normalisation amont (`duplex_vendor_form`, `mac_dotted_to_colon`…). Doit tendre vers zéro.",
+      "title": "Residual Normalizations",
+      "type": "object"
+    }
+  },
+  "required": [
+    "contract_version",
+    "produced_at",
+    "exporter_version",
+    "infrastructure",
+    "run",
+    "devices",
+    "tasks",
+    "interfaces",
+    "aggregates",
+    "lldp",
+    "cdp",
+    "system",
+    "ha"
+  ],
+  "type": "object"
+}

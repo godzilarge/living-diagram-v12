@@ -1,0 +1,262 @@
+<title>Le chemin d'un bundle</title>
+<style>
+:root{
+  --bg:#F6F5F1;--surface:#FFFFFF;--lane:#F0EFE9;--ink:#1F2523;--ink2:#5B6461;--ink3:#5F6964;
+  --rule:#E2E4DE;--rule2:#BCC2BC;--accent:#0E5F6B;--accent-ink:#0E5F6B;--accent-soft:#E2EDEE;
+  --on-accent:#FFFFFF;--today:#9A4C12;--today-soft:#F6E7DA;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#14181A;--surface:#1D2427;--lane:#181E21;--ink:#E6EAE5;--ink2:#9AA5A0;--ink3:#939D98;
+    --rule:#252D30;--rule2:#46504F;--accent:#5FB9C3;--accent-ink:#7CCAD3;--accent-soft:#12333A;
+    --on-accent:#0E2A2E;--today:#E8A467;--today-soft:#3A2A1A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14181A;--surface:#1D2427;--lane:#181E21;--ink:#E6EAE5;--ink2:#9AA5A0;--ink3:#939D98;
+  --rule:#252D30;--rule2:#46504F;--accent:#5FB9C3;--accent-ink:#7CCAD3;--accent-soft:#12333A;
+  --on-accent:#0E2A2E;--today:#E8A467;--today-soft:#3A2A1A;
+}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:880px;margin:0 auto;padding-block:48px 80px;padding-inline:24px}
+.eyebrow{font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink)}
+h1{margin:10px 0 6px;font-size:32px;font-weight:650;letter-spacing:-.015em;text-wrap:balance}
+.meta{font:12px var(--mono);color:var(--ink3)}
+.thesis{max-width:66ch;color:var(--ink2);margin:16px 0 0}
+.thesis b{color:var(--ink)}
+h2{font-size:19px;font-weight:650;letter-spacing:-.01em;margin:52px 0 6px;text-wrap:balance}
+.h2sub{max-width:70ch;color:var(--ink2);font-size:13.5px;margin:0 0 18px}
+code{font:12.5px var(--mono);background:var(--lane);border-radius:3px;padding:1px 5px}
+
+/* ——— le chemin ——— */
+.path{display:grid;gap:0;position:relative}
+.step{display:grid;grid-template-columns:44px 1fr auto;gap:0 16px;align-items:start;padding:14px 0;
+  border-bottom:1px solid var(--rule);position:relative}
+.step:last-child{border-bottom:0}
+.num{width:30px;height:30px;border-radius:50%;background:var(--surface);border:1.5px solid var(--rule2);
+  display:grid;place-items:center;font:700 12.5px var(--mono);color:var(--ink2);margin-top:2px;position:relative;z-index:1}
+.step.done .num{border-color:var(--accent);color:var(--accent-ink)}
+.step.today .num{background:var(--today);border-color:var(--today);color:var(--on-accent)}
+.step.next .num{border-style:dashed}
+.step.you .num{border-style:dotted}
+.path::before{content:"";position:absolute;left:14.5px;top:22px;bottom:22px;width:1px;background:var(--rule2)}
+.what{font-weight:600;font-size:15px}
+.what code{font-size:12.5px}
+.detail{font-size:13.5px;color:var(--ink2);margin-top:3px;max-width:62ch}
+.where{font:11.5px var(--mono);color:var(--ink3);margin-top:5px}
+.pill{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;border-radius:999px;
+  padding:4px 10px;white-space:nowrap;margin-top:6px;border:1px solid transparent}
+.done .pill{background:var(--accent-soft);color:var(--accent-ink)}
+.today .pill{background:var(--today-soft);color:var(--today);border-color:var(--today)}
+.next .pill{border-color:var(--ink);color:var(--ink);border-style:dashed}
+.you .pill{border-color:var(--rule2);color:var(--ink3);border-style:dotted}
+.later .pill{border-color:var(--rule2);color:var(--ink3)}
+.later .num{color:var(--ink3)}
+
+/* ——— entrée / sortie ——— */
+.io{display:grid;grid-template-columns:1fr 32px 1fr;gap:14px;align-items:stretch}
+.box{background:var(--surface);border:1px solid var(--rule2);border-radius:8px;padding:14px 16px;min-width:0}
+.box h3{margin:0 0 2px;font-size:14px;font-weight:650}
+.box .sub{font:11.5px var(--mono);color:var(--ink3);margin-bottom:10px}
+.arrow{display:grid;place-items:center;font:700 18px var(--mono);color:var(--accent-ink)}
+pre{margin:0;font:12px/1.5 var(--mono);color:var(--ink);white-space:pre;overflow-x:auto;
+  background:var(--lane);border:1px solid var(--rule);border-radius:6px;padding:10px 12px}
+pre .k{color:var(--accent-ink)}
+pre .c{color:var(--ink3)}
+.io-note{font-size:13px;color:var(--ink2);max-width:70ch;margin-top:12px}
+@media (max-width:640px){
+  .io{grid-template-columns:1fr}
+  .arrow{transform:rotate(90deg);height:24px}
+  .step{grid-template-columns:44px 1fr}
+  .step .pill{grid-column:2;justify-self:start}
+}
+
+/* ——— tables ——— */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font:600 11px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);
+  text-align:left;padding:0 14px 8px 0;border-bottom:1px solid var(--rule2)}
+td{padding:9px 14px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+td.b{font:600 12.5px var(--mono);color:var(--accent-ink);white-space:nowrap}
+td.s{font:12px var(--mono);color:var(--ink2);white-space:nowrap}
+.next-box{margin-top:16px;background:var(--accent-soft);border-radius:8px;padding:14px 18px;font-size:13.5px;max-width:74ch}
+.next-box b{color:var(--accent-ink)}
+footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--rule2);font:12px var(--mono);color:var(--ink3)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Living Diagram v12 · avancement</div>
+  <h1>Le chemin d'un bundle</h1>
+  <div class="meta">état au 2026-09-22 · complément de l'artefact d'architecture</div>
+  <p class="thesis">Tu envoies un JSON qui décrit une infrastructure à un instant donné. Il est <b>validé</b>,
+  <b>rangé</b>, et depuis le 2026-09-20 <b>B1 sait le transformer en graphe</b> : des nœuds (les équipements) et des
+  câbles, déduits en croisant LLDP, CDP et les descriptions, chacun avec ses preuves. Ce graphe est maintenant
+  <b>rangé à côté du bundle</b> à chaque ingestion et servi par l'API. Et tu peux maintenant le <b>voir</b> :
+  <code>ld render bundle.json --out page.html</code> écrit une page HTML autonome, hors ligne, qui montre le graphe et,
+  pour chaque câble, les sources qui l'ont tracé. La suite : ton premier bundle réel, puis les agrégats et les
+  clusters de firewalls. Le pas à pas est dans <code>QUICKSTART.md</code>, à la racine du dépôt.</p>
+</header>
+
+<h2>Le chemin, étape par étape</h2>
+<p class="h2sub">Dans l'ordre où un bundle les traverse. Les trois premières étapes sont celles que tu as en tête ;
+les suivantes sont la raison d'être de l'application.</p>
+<div class="path">
+  <div class="step you">
+    <div class="num">1</div>
+    <div><div class="what">Ton exportateur produit <code>bundle.json</code></div>
+      <div class="detail">Une run de collecte, une infrastructure : devices, tasks, interfaces, agrégats, lldp, cdp, system, ha. Le format est le contrat d'entrée, <b>RunBundle v1</b>.</div>
+      <div class="where">chez toi, zone sécurisée · référence : contracts/CONTRAT.md partie A</div></div>
+    <span class="pill">chez toi</span>
+  </div>
+  <div class="step done">
+    <div class="num">2</div>
+    <div><div class="what">Tu l'envoies : <code>POST /api/ingest/bundles</code></div>
+      <div class="detail">Ou en ligne de commande, <code>ld ingest bundle.json</code>, même code. Jeton Bearer obligatoire.</div>
+      <div class="where">backend/src/ld_backend/api.py · cli.py</div></div>
+    <span class="pill">réalisé</span>
+  </div>
+  <div class="step done">
+    <div class="num">3</div>
+    <div><div class="what">Le contrat d'entrée le vérifie</div>
+      <div class="detail">Types stricts, identités uniques, périmètre de l'infrastructure. Refus (422) si le format n'est pas respecté ; constats non bloquants sinon (clé oubliée, membre d'agrégat inconnu…).</div>
+      <div class="where">contracts/src/ld_contracts/ (bundle.py, checks.py, defaults.py) · appelé par ingest.py</div></div>
+    <span class="pill">réalisé</span>
+  </div>
+  <div class="step done">
+    <div class="num">4</div>
+    <div><div class="what">Le bundle brut est archivé</div>
+      <div class="detail">Un dossier par (infrastructure, run) : le JSON tel que reçu, son empreinte, le rapport d'ingestion. Immuable : renvoyer le même bundle répond 200, un bundle différent pour la même run répond 409.</div>
+      <div class="where">backend/archive/&lt;infra&gt;/&lt;run&gt;/ · archive.py (début de B2)</div></div>
+    <span class="pill">réalisé</span>
+  </div>
+  <div class="step today">
+    <div class="num">5</div>
+    <div><div class="what">B1 transforme le bundle en graphe : le <b>snapshot</b></div>
+      <div class="detail">Résout les voisins cités par LLDP, CDP et les descriptions ; fusionne les témoignages en câbles (confirmé, observé seul, documenté seul) ; reconstruit agrégats, vPC, clusters HA ; émet les contrôles (désaccord description / LLDP, membre suspendu, device injoignable…). Fonction pure : même bundle, même snapshot, à l'octet.</div>
+      <div class="where">backend/src/ld_backend/correlate/ · règles R0 à R3 et R6 de docs/05 · revue et contre-revue dans docs/revues/ · agrégats, vPC, HA et contrôles d'état : étape 2</div></div>
+    <span class="pill">en cours · 2 étapes sur 3</span>
+  </div>
+  <div class="step done">
+    <div class="num">6</div>
+    <div><div class="what">Le contrat de sortie vérifie le snapshot</div>
+      <div class="detail">La forme exacte du graphe (nœuds, interfaces, liens avec leurs preuves, agrégats, domaines MLAG, clusters, contrôles, couverture, rapport). Plus strict que le contrat d'entrée : un snapshot incohérent est refusé, pas signalé, parce qu'un snapshot faux est un bug de B1, pas de la donnée. Il fixe aussi l'ordre des listes, donc les octets.</div>
+      <div class="where">contracts/src/ld_contracts/snapshot/ · CONTRAT.md partie B · ld-contracts validate --contract snapshot</div></div>
+    <span class="pill">réalisé</span>
+  </div>
+  <div class="step done">
+    <div class="num">7</div>
+    <div><div class="what">Le snapshot est archivé à côté du bundle, l'API le sert</div>
+      <div class="detail"><code>snapshot.json</code> dans le même dossier que le bundle, lu par <code>GET /api/snapshot?infrastructure=&amp;run_id=</code>. Si B1 échoue, l'ingestion réussit quand même : le bundle est archivé, la réponse dit <code>correlation: failed</code>. Le snapshot est le seul fichier remplaçable de l'archive : <code>ld correlate</code> le recalcule depuis le bundle, sans la base amont, quand une règle de B1 a été corrigée.</div>
+      <div class="where">backend/src/ld_backend/snapshots.py · ingest.py après archive.store · cli.py (ld correlate)</div></div>
+    <span class="pill">réalisé</span>
+  </div>
+  <div class="step today">
+    <div class="num">8</div>
+    <div><div class="what">Une page HTML montre le snapshot : <code>ld render</code></div>
+      <div class="detail">Voir avant de trancher (décision du 2026-09-20). Un seul fichier HTML, sans librairie ni réseau, ouvrable par double-clic. <code>ld render bundle.json --out page.html</code> valide, corrèle et dessine <b>sans archive ni serveur</b> : c'est ta boucle de mise au point d'exportateur. Quatre vues : le <b>graphe</b> (câbles verts confirmés, bleus observés seuls, orange pointillés documentés seuls ; cliquer un câble montre <b>les sources qui l'ont tracé</b> : qui témoigne, ce qu'il annonce, comment le nom a été résolu), les <b>contrôles</b>, la <b>qualité des données</b> (couverture par équipement et par topic, constats d'ingestion, descriptions non lues, voisins non résolus) et les <b>sources</b> (câbles par combinaison LLDP / CDP / description). La page contient tes données : elle ne sort pas de la zone sans anonymisation du bundle. Reste : la servir depuis le backend, puis y montrer agrégats et clusters HA.</div>
+      <div class="where">backend/src/ld_backend/render/ · mode d'emploi : QUICKSTART.md · un premier bundle réel : devices, tasks, interfaces, lldp, cdp suffisent</div></div>
+    <span class="pill">incrément A réalisé</span>
+  </div>
+  <div class="step later">
+    <div class="num">9</div>
+    <div><div class="what">Le moteur de diagramme le dessine pour de bon</div>
+      <div class="detail">Le moteur TypeScript (placement, routage, rendu, niveaux de détail), le diff entre deux runs (B3), la couche d'intention. Ses grosses décisions se prendront après avoir regardé des données réelles dans les pages de l'étape 8.</div>
+      <div class="where">engine/ · shell/ — phases 2 à 6</div></div>
+    <span class="pill">plus tard</span>
+  </div>
+</div>
+
+<h2>B1 : ce qui est fait, ce qui reste</h2>
+<p class="h2sub">B1 a été découpé en trois étapes. Une seule est écrite : aujourd'hui B1 sait tracer les câbles, pas encore
+reconstruire les agrégats, les vPC ni les clusters de firewalls. Il est branché depuis le 2026-09-20 : chaque
+ingestion produit son snapshot.</p>
+<div style="overflow-x:auto">
+<table>
+<tr><th>Étape</th><th>Contenu</th><th>État</th></tr>
+<tr><td class="b">1 · les câbles</td><td>Les nœuds (équipements collectés, équipements d'une autre infra, voisins inconnus), les interfaces, et les <b>câbles</b> avec leur statut (confirmé, observé seul, documenté seul) et leurs preuves (LLDP, CDP, descriptions). 13 contrôles sur 28 : voisin inconnu ou ambigu, désaccord entre description et observation, deux voisins sur un port, observation à sens unique, port qui se voit lui-même… Couverture par device, rapport. <b>Ajout du 2026-09-22</b> (premier cas réel de ton infra) : un voisin qui annonce en port-id le nom de son <b>agrégat</b> (FortiGate avec LLDP) est ramené au membre — observation inverse, membre unique, ou description — sinon le câble s'arrête à l'agrégat et un contrôle <code>remote_port_is_aggregate</code> le dit. Revue indépendante traitée le jour même. 13 contrôles sur 28.</td><td class="s">réalisé · 117 tests</td></tr>
+<tr><td class="b">3 · le branchement</td><td><b>Passé en premier</b> (décision du 2026-09-20). <code>snapshot.json</code> rangé à côté du bundle à chaque ingestion, <code>GET /api/snapshot</code> pour le lire, <code>ld correlate</code> pour le recalculer. Un échec de B1 ne fait pas échouer l'ingestion ; le snapshot est remplaçable, le bundle jamais.</td><td class="s">réalisé · 21 tests</td></tr>
+<tr><td class="b">tranche visible · les pages</td><td>Pas une étape de B1, mais ce qui permet de le lire : <code>ld render</code> écrit un fichier HTML autonome par run (graphe, sources de chaque câble, contrôles, qualité des données pour ajuster l'exportateur). <b>Incrément A fait</b>, rendu vérifié sur la fixture. Reste : la page servie par le backend, et l'incrément B (agrégats, clusters HA), qui attend les structures ci-dessous.</td><td class="s">incrément A réalisé et revu · 15 tests + 14 sous Node</td></tr>
+<tr><td class="b">2 · les structures</td><td>Aujourd'hui les sections <code>aggregates</code>, <code>mlag_domains</code> et <code>ha_clusters</code> du snapshot sont <b>vides</b>. À faire : les <b>agrégats</b> comme objets (membres, état dégradé, min-links, protocole), les <b>domaines vPC / MLAG</b> (peer-link, cohérence des deux côtés), les <b>clusters HA</b> (vue de chaque membre, liens de heartbeat), et leurs 8 contrôles. La partie HA et agrégats sera tirée dans la tranche visible, pour que tu voies tes firewalls avec leurs données HA.</td><td class="s">à coder</td></tr>
+<tr><td class="b">2 · les contrôles d'état</td><td>Ce qui compare les deux bouts d'un câble ou l'état d'un device : câble down, état ou vitesse différents aux deux bouts, VLAN natif différent, port documenté sans transceiver, device injoignable ou collecté partiellement. 7 contrôles. Puis le snapshot de référence <code>snapshot-minimal.json</code>, comparé à l'octet dans les tests.</td><td class="s">à coder</td></tr>
+<tr><td class="b">ensuite</td><td>Une troisième source de preuves : la <b>table MAC</b>, seule source observée pour tes firewalls, qui n'auront jamais de LLDP (rangs : LLDP / CDP, puis table MAC, puis description). À concevoir dans <code>docs/06</code> après le premier rendu. Une question ouverte : deux observations d'un même câble dont l'une ne donne qu'une MAC.</td><td class="s">à concevoir</td></tr>
+</table>
+</div>
+
+<h2>Ce que B1 fait, sur un exemple de la fixture</h2>
+<p class="h2sub">Le bundle dit des choses éparses sur chaque port. Le snapshot dit un fait sur un câble, avec ses preuves.</p>
+<div class="io">
+  <div class="box">
+    <h3>Entrée : le bundle</h3>
+    <div class="sub">contracts/fixtures/bundle-minimal.json · quatre documents parmi 18 interfaces, 6 lldp, 2 cdp</div>
+<pre><span class="c">// interfaces[] · sw-core-01</span>
+{ <span class="k">"name"</span>: "Ethernet1/1",
+  <span class="k">"description"</span>: "C1|sw-core-02|Ethernet1/1|",
+  <span class="k">"oper_status"</span>: "up", <span class="k">"speed_mbps"</span>: 10000 }
+
+<span class="c">// lldp[] · vu depuis sw-core-01</span>
+{ <span class="k">"local_interface"</span>: "Ethernet1/1",
+  <span class="k">"neighbor"</span>: "sw-core-02",
+  <span class="k">"neighbor_interface"</span>: "Ethernet1/1" }
+
+<span class="c">// lldp[] · vu depuis sw-core-02</span>
+{ <span class="k">"local_interface"</span>: "Ethernet1/1",
+  <span class="k">"neighbor"</span>: "sw-core-01", … }
+
+<span class="c">// cdp[] · vu depuis sw-core-01</span>
+{ <span class="k">"local_interface"</span>: "Ethernet1/1",
+  <span class="k">"neighbor"</span>: "sw-core-02", … }</pre>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box">
+    <h3>Sortie : le snapshot</h3>
+    <div class="sub">un lien, clé = ses deux bouts triés, jamais d'identifiant</div>
+<pre><span class="c">// links[]</span>
+{ <span class="k">"kind"</span>: "cable",
+  <span class="k">"a"</span>: { "hostname": "sw-core-01", "interface": "Ethernet1/1" },
+  <span class="k">"b"</span>: { "hostname": "sw-core-02", "interface": "Ethernet1/1" },
+  <span class="k">"status"</span>: "confirmed",   <span class="c">// observé ET documenté</span>
+  <span class="k">"oper"</span>: "up", <span class="k">"speed_mbps"</span>: 10000,
+  <span class="k">"aggregate_a"</span>: "port-channel10",
+  <span class="k">"aggregate_b"</span>: "port-channel10",
+  <span class="k">"evidence"</span>: [
+    { "source": "description", "witness": sw-core-01 … },
+    { "source": "description", "witness": sw-core-02 … },
+    { "source": "cdp",         "witness": sw-core-01 … },
+    { "source": "lldp",        "witness": sw-core-01 … },
+    { "source": "lldp",        "witness": sw-core-02 … } ] }
+
+<span class="c">// et, ailleurs dans le même fichier :</span>
+<span class="c">// nodes[] (sw-core-01, sw-core-02…), aggregates[],</span>
+<span class="c">// mlag_domains[] (vPC 20), checks[] (désaccords…)</span></pre>
+  </div>
+</div>
+<p class="io-note">Le port <code>Ethernet1/2</code> de la même fixture donne un câble <b>confirmé</b> mais avec un contrôle
+<code>description_disagrees_with_observed</code> : la description de <code>sw-core-02</code> cite <code>Ethernet1/9</code>, LLDP dit
+<code>Ethernet1/2</code>. L'observé dessine, le documenté commente, le désaccord est visible. Le plus petit snapshot valide est
+<code>contracts/fixtures/snapshot-skeleton.json</code>.</p>
+
+<h2>Où est quoi dans le dépôt</h2>
+<div style="overflow-x:auto">
+<table>
+<tr><th>Dossier</th><th>Rôle</th><th>État</th></tr>
+<tr><td class="b">contracts/</td><td>Les deux formulaires : <b>RunBundle</b> (ce qui entre, partie A de <code>CONTRAT.md</code>) et <b>Snapshot</b> (ce qui sort, partie B). Modèles Pydantic, JSON Schema, validateur, anonymiseur, fixtures. Ton exportateur n'utilise que la partie A.</td><td class="s">398 tests · 98 %</td></tr>
+<tr><td class="b">backend/</td><td>La porte d'entrée (<code>POST /api/ingest/bundles</code>, trois GET de lecture, CLI <code>ld</code>, archive disque) et <b>B1</b> dans <code>correlate/</code> : étape 1 écrite (nœuds, interfaces, câbles), revue deux fois. Reste à le <b>brancher</b> dans <code>ingest.py</code>, juste après l'archivage du bundle.</td><td class="s">187 tests · 99 %</td></tr>
+<tr><td class="b">docs/05</td><td>La conception de B1 : le modèle du snapshot, les règles R0 à R6 (identité, noms d'interfaces, descriptions, fusion, structures, contrôles, ordre canonique), dix scénarios de la fixture, plan de tests.</td><td class="s">validé le 2026-09-20</td></tr>
+<tr><td class="b">docs/revues/</td><td>Les rapports de revue indépendante, consignés tels que rendus, avec leur suivi et leurs sondes rejouables.</td><td class="s">5 rapports</td></tr>
+<tr><td class="b">engine/ · shell/</td><td>Le moteur de diagramme TypeScript et le shell React.</td><td class="s">pas encore créés</td></tr>
+</table>
+</div>
+
+<h2>Pourquoi le formulaire de sortie avant la machine</h2>
+<p class="h2sub">Trois raisons, dans l'ordre où elles comptent.</p>
+<div class="next-box">
+<b>1.</b> B1 s'écrit en TDD contre ce contrat : chaque test dit « le snapshot produit est valide et égal, à l'octet, au snapshot attendu ». Sans contrat, pas de « attendu ».<br>
+<b>2.</b> Le contrat porte les invariants qu'on ne veut jamais renégocier : pas de câble inventé, pas d'identifiant synthétique, listes triées, toute référence résolue. B1 ne peut pas les violer par accident, le type les refuse.<br>
+<b>3.</b> C'est la frontière avec le front : les types TypeScript du moteur seront générés depuis ce schéma, pas écrits à la main.
+</div>
+
+<footer>Prochaine étape : la tranche visible — brancher B1 (étape 7), puis les pages HTML de visualisation avec les sources de chaque
+élément (étape 8), à essayer sur un premier bundle réel. Ensuite seulement : B1 étape 2, table MAC, moteur.</footer>
+</div>

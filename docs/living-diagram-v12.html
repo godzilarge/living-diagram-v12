@@ -1,0 +1,592 @@
+<title>Living Diagram v12</title>
+<style>
+:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}
+</style>
+<style>
+:root{
+  --bg:#F6F5F1;--surface:#FFFFFF;--lane:#F0EFE9;--ink:#1F2523;--ink2:#5B6461;--ink3:#8A938F;
+  --rule:#E2E4DE;--rule2:#BCC2BC;--accent:#0E5F6B;--accent-ink:#0E5F6B;--accent-soft:#E2EDEE;
+  --on-accent:#FFFFFF;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#14181A;--surface:#1D2427;--lane:#181E21;--ink:#E6EAE5;--ink2:#9AA5A0;--ink3:#727C78;
+    --rule:#252D30;--rule2:#46504F;--accent:#5FB9C3;--accent-ink:#7CCAD3;--accent-soft:#12333A;
+    --on-accent:#0E2A2E;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14181A;--surface:#1D2427;--lane:#181E21;--ink:#E6EAE5;--ink2:#9AA5A0;--ink3:#727C78;
+  --rule:#252D30;--rule2:#46504F;--accent:#5FB9C3;--accent-ink:#7CCAD3;--accent-soft:#12333A;
+  --on-accent:#0E2A2E;
+}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans);
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:52px 24px 88px}
+.eyebrow{font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink)}
+h1{margin:10px 0 6px;font-size:34px;font-weight:650;letter-spacing:-.015em;text-wrap:balance}
+.meta{font:12px var(--mono);color:var(--ink3)}
+.thesis{max-width:70ch;color:var(--ink2);margin:18px 0 0}
+h2{font-size:20px;font-weight:650;letter-spacing:-.01em;margin:64px 0 6px}
+.h2sub{max-width:75ch;color:var(--ink2);font-size:13.5px;margin:0 0 20px}
+figure{margin:0}
+.fig-scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+.fig-scroll svg{display:block;min-width:860px;max-width:100%;height:auto}
+figcaption{font-size:13px;color:var(--ink2);max-width:78ch;margin-top:12px}
+figcaption b{color:var(--ink)}
+
+/* ——— SVG ——— */
+.lane-r{fill:var(--lane);stroke:var(--rule2);stroke-dasharray:5 4;stroke-width:1}
+.lane-in{fill:var(--lane);stroke:var(--ink2);stroke-width:1.2}
+.lane-motor{fill:var(--lane);stroke:var(--accent);stroke-width:1.4}
+.rg{font:600 10px var(--mono);letter-spacing:.08em;fill:var(--ink3)}
+.rg-a{fill:var(--accent-ink)}
+.bx{fill:var(--surface);stroke:var(--ink);stroke-width:1}
+.bxs{fill:var(--surface);stroke:var(--rule2);stroke-width:1}
+.t1{font:600 12.5px var(--sans);fill:var(--ink)}
+.t2{font:10.5px var(--mono);fill:var(--ink2)}
+.t3{font:10px var(--mono);fill:var(--ink2)}
+.t4{font:9.5px var(--mono);fill:var(--ink3)}
+.fl{stroke:var(--ink2);stroke-width:1.2;fill:none}
+.ah{fill:var(--ink2)}
+.chip{fill:var(--accent-soft)}
+.chip-t{font:600 9.5px var(--mono);fill:var(--accent-ink)}
+.mk{fill:var(--accent)}
+.mk-t{font:700 11px var(--sans);fill:var(--on-accent)}
+.front{stroke:var(--rule2);stroke-width:1.2;stroke-dasharray:7 5}
+
+/* ——— tables & bandes ——— */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font:600 10.5px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);
+  text-align:left;padding:0 14px 8px 0;border-bottom:1px solid var(--rule2)}
+td{padding:9px 14px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+td.b{font:600 12.5px var(--mono);color:var(--accent-ink);white-space:nowrap}
+td.p{font:12px var(--mono);color:var(--ink2)}
+td.ph{font:12px var(--mono);color:var(--ink3);white-space:nowrap}
+.mtx td{text-align:center;font:14px var(--mono);padding:9px 6px}
+.mtx td:first-child,.mtx th:first-child{text-align:left;font:13.5px var(--sans);padding-right:14px}
+.mtx .full{color:var(--accent-ink);font-weight:700}
+.mtx .part{color:var(--ink2)}
+.mtx .none{color:var(--ink3)}
+.legend{font:12px var(--mono);color:var(--ink2);margin-top:12px}
+.footnote{font-size:13px;color:var(--ink2);max-width:75ch;margin-top:10px}
+
+.layers{border:1px solid var(--rule2);border-radius:8px;overflow:hidden;background:var(--surface)}
+.layer{display:grid;grid-template-columns:56px 1.5fr .9fr .9fr;gap:18px;padding:14px 20px;
+  border-bottom:1px solid var(--rule);align-items:baseline}
+.layer:last-child{border-bottom:0}
+.layer.hd{padding:10px 20px;background:var(--lane)}
+.layer.hd span{font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.lnum{font:700 13px var(--mono);color:var(--accent-ink)}
+.lname{font-weight:600;font-size:14px}
+.ldesc{font-size:12.5px;color:var(--ink2);margin-top:2px}
+.lmeta{font:12px var(--mono);color:var(--ink2)}
+.invariants{margin-top:14px;background:var(--accent-soft);border-radius:8px;padding:14px 20px;
+  display:flex;flex-wrap:wrap;gap:8px 32px}
+.invariants code{font:600 12.5px var(--mono);color:var(--accent-ink);background:none}
+
+.chal{display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--rule2);border-radius:8px;padding:18px 22px;
+  display:grid;grid-template-columns:40px 1fr;gap:16px}
+.num{width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  display:grid;place-items:center;font:700 13px var(--sans)}
+.card h3{margin:2px 0 10px;font-size:15px;font-weight:650}
+.card p{margin:5px 0;font-size:13.5px;color:var(--ink2);max-width:80ch}
+.k{font:600 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink);
+  margin-right:7px}
+.card.plain{grid-template-columns:1fr}
+.codeb{font:12.5px var(--mono);background:var(--lane);border:1px solid var(--rule);border-radius:6px;
+  padding:12px 16px;overflow-x:auto;color:var(--ink);margin-top:10px;white-space:pre}
+.codeb .c2{color:var(--ink3)}
+footer{margin-top:72px;padding-top:18px;border-top:1px solid var(--rule2);
+  font:12px var(--mono);color:var(--ink3)}
+@media (max-width:720px){
+  .layer{grid-template-columns:44px 1fr;gap:6px 14px}
+  .layer .lmeta{grid-column:2}
+  .layer.hd{display:none}
+  h1{font-size:28px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Proposition d'architecture — à challenger</div>
+  <h1>Living Diagram v12</h1>
+  <div class="meta">révision 2026-09-20 (v8) · fondé sur docs/00 à 05 · réalisé : paquet ld-contracts (RunBundle v1 + Snapshot v1), route d'ingestion, B1 étape 1 (nœuds, interfaces, câbles), B1 branché (snapshot archivé, GET /api/snapshot), pages HTML de lecture (ld render) · mode d'emploi : QUICKSTART.md · prochaine brique : premier bundle réel, agrégats et clusters HA</div>
+  <p class="thesis">Une chaîne de <b>briques pures</b> qui transforme des collectes brutes en diagramme vivant.
+  Trois frontières structurantes : le schéma amont (absorbé par un seul module, B0), le réseau
+  (Python ⇄ TypeScript, un seul contrat JSON) et, dans le navigateur, la séparation entre le
+  <b>moteur de diagramme</b> (TS pur, sans framework) et le <b>shell React</b> (le chrome). Les cercles
+  numérotés sont les six décisions où je vous attends.</p>
+</header>
+
+<h2>Le pipeline complet</h2>
+<p class="h2sub">Le flux de données descend. Chaque brique est une fonction pure sur des structures
+immuables ; les gestes de l'utilisateur ne remontent jamais plus haut que nécessaire (voir la matrice
+d'invalidation plus bas).</p>
+
+<figure>
+<div class="fig-scroll">
+<svg viewBox="0 0 1040 1608" role="img"
+  aria-label="Pipeline d'architecture en deux zones. Hors Living Diagram, chez Orhan : la MongoDB amont (table devices, runs et collections par topic) et l'exportateur B0 qui assemble un RunBundle et le pousse vers la route d'ingestion. Dans Living Diagram : l'ingestion valide et archive le bundle, B1 corrèle et produit un snapshot, B2 archive bundles et snapshots, B3 diffe, B4 porte l'intention, une API REST sert le tout ; côté navigateur, un moteur TypeScript pur dialogue par commandes et événements avec un shell React. Six marqueurs numérotés signalent les décisions à challenger.">
+<defs>
+  <marker id="ah" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+    <polygon class="ah" points="0,0 8,3 0,6"/>
+  </marker>
+</defs>
+<text class="t4" x="968" y="16" text-anchor="end">pointillé = hors Living Diagram · trait plein = Living Diagram</text>
+<!-- ===== HORS LIVING DIAGRAM ===== -->
+<rect class="lane-r" x="32" y="24" width="976" height="304" rx="8"/>
+<text class="rg" x="48" y="46">HORS LIVING DIAGRAM — ZONE SÉCURISÉE, CÔTÉ ORHAN · MONGODB AMONT · EXPORTATEUR B0</text>
+<text class="t4" x="72" y="66">librairie de collecte (ntc-templates) : un topic = une commande = un modèle vendor-agnostique</text>
+<rect class="bx" x="72" y="76" width="285" height="92" rx="4"/>
+<text class="t1" x="92" y="100">devices — table de référence</text>
+<text class="t2" x="92" y="119">hostname · site · infrastructure · type</text>
+<text class="t2" x="92" y="135">vendor · model · os · serial</text>
+<text class="t4" x="92" y="152">hors run · représente le présent</text>
+<rect class="bx" x="377" y="76" width="285" height="92" rx="4"/>
+<text class="t1" x="397" y="100">collector_runs · tasks_&lt;id&gt;</text>
+<text class="t2" x="397" y="119">statut de la run · début · fin</text>
+<text class="t2" x="397" y="135">statut par device et par topic</text>
+<text class="t4" x="397" y="152">topic absent = rien à attendre</text>
+<rect class="bx" x="682" y="76" width="285" height="92" rx="4"/>
+<text class="t1" x="702" y="100">&lt;topic&gt;_&lt;collector_run_id&gt;</text>
+<text class="t2" x="702" y="119">interfaces · lldp · cdp · agrégats</text>
+<text class="t2" x="702" y="135">system · ha · (arp · mac · bgp…)</text>
+<text class="t4" x="702" y="152">une collection par topic et par run</text>
+<line class="fl" x1="214" y1="168" x2="214" y2="214" marker-end="url(#ah)"/>
+<text class="t3" x="226" y="195" text-anchor="start">lue à l'export</text>
+<line class="fl" x1="519" y1="168" x2="519" y2="214" marker-end="url(#ah)"/>
+<text class="t3" x="531" y="195" text-anchor="start">run terminée · couverture</text>
+<line class="fl" x1="824" y1="168" x2="824" y2="214" marker-end="url(#ah)"/>
+<text class="t3" x="836" y="195" text-anchor="start">filtrés par infrastructure</text>
+<rect class="bx" x="72" y="214" width="896" height="96" rx="4"/>
+<text class="t1" x="92" y="238">B0 · Lecture &amp; assemblage — exportateur séparé, seul module couplé au schéma amont</text>
+<rect class="chip" x="748" y="226" width="204" height="20" rx="10"/>
+<text class="chip-t" x="850" y="240" text-anchor="middle">adaptateur · zéro corrélation</text>
+<text class="t2" x="92" y="259">choisir la dernière run terminée → vérifier la couverture (tasks) → lire les topics filtrés par infrastructure</text>
+<text class="t2" x="92" y="276">joindre les topics → normalisation résiduelle, tracée → RunBundle (contrat v1) validé par ld-contracts</text>
+<text class="t4" x="92" y="295">pousse le RunBundle : POST /api/ingest/bundles (jeton Bearer) ou fichier + ld ingest · brique codée par Orhan dans sa zone</text>
+<line class="fl" x1="214" y1="310" x2="214" y2="428" marker-end="url(#ah)"/>
+<text class="t3" x="226" y="356" text-anchor="start">RunBundle JSON — un par (infrastructure, run)</text>
+<rect class="chip" x="528" y="346" width="440" height="22" rx="11"/>
+<text class="chip-t" x="748" y="361" text-anchor="middle">ld-contracts · paquet partagé des deux côtés : modèles, schéma, validateur</text>
+<!-- ===== LIVING DIAGRAM — BACKEND ===== -->
+<rect class="lane-in" x="32" y="392" width="976" height="552" rx="8"/>
+<text class="rg rg-a" x="48" y="414">LIVING DIAGRAM — BACKEND · PYTHON 3.14 · FASTAPI · ARCHIVE DISQUE EN V1, MONGODB ENSUITE</text>
+<rect class="bx" x="72" y="428" width="896" height="76" rx="4"/>
+<text class="t1" x="92" y="452">Ingestion · POST /api/ingest/bundles — la porte d'entrée</text>
+<rect class="chip" x="812" y="440" width="140" height="20" rx="10"/>
+<text class="chip-t" x="882" y="454" text-anchor="middle">réalisé · 83 tests</text>
+<text class="t2" x="92" y="472">valider (ld-contracts) → archiver le bundle brut dans B2 → rapport · 201 créé · 200 identique · 409 différent · 422 hors contrat</text>
+<text class="t4" x="92" y="490">CLI ld ingest sur le même code · B1 se branche ici, après l'archivage</text>
+<line class="fl" x1="214" y1="504" x2="214" y2="540" marker-end="url(#ah)"/>
+<text class="t3" x="226" y="526" text-anchor="start">bundle validé</text>
+<rect class="bx" x="72" y="544" width="896" height="124" rx="4"/>
+<text class="t1" x="92" y="568">B1 · Corrélation — fonction pure : RunBundle → snapshot</text>
+<rect class="chip" x="722" y="556" width="230" height="20" rx="10"/>
+<text class="chip-t" x="837" y="570" text-anchor="middle">2 étapes sur 3 · câbles, branché</text>
+<rect class="bxs" x="84" y="596" width="164" height="56" rx="3"/>
+<text class="t2" x="166" y="615" text-anchor="middle">évidences → claims</text>
+<text class="t4" x="166" y="630" text-anchor="middle">descriptions · lldp · cdp</text>
+<text class="t4" x="166" y="643" text-anchor="middle">ha · (mac · arp · bgp)</text>
+<line class="fl" x1="250" y1="624" x2="259" y2="624" marker-end="url(#ah)"/>
+<rect class="bxs" x="261" y="596" width="164" height="56" rx="3"/>
+<text class="t2" x="343" y="615" text-anchor="middle">identité</text>
+<text class="t4" x="343" y="630" text-anchor="middle">devices = référence</text>
+<text class="t4" x="343" y="643" text-anchor="middle">externes · stubs</text>
+<line class="fl" x1="427" y1="624" x2="436" y2="624" marker-end="url(#ah)"/>
+<rect class="bxs" x="438" y="596" width="164" height="56" rx="3"/>
+<text class="t2" x="520" y="615" text-anchor="middle">fusion + provenance</text>
+<text class="t4" x="520" y="630" text-anchor="middle">l'observé dessine</text>
+<text class="t4" x="520" y="643" text-anchor="middle">le documenté commente</text>
+<line class="fl" x1="604" y1="624" x2="613" y2="624" marker-end="url(#ah)"/>
+<rect class="bxs" x="615" y="596" width="164" height="56" rx="3"/>
+<text class="t2" x="697" y="615" text-anchor="middle">structures</text>
+<text class="t4" x="697" y="630" text-anchor="middle">agrégats · MLAG · HA</text>
+<text class="t4" x="697" y="643" text-anchor="middle">stacks · sous-interfaces</text>
+<line class="fl" x1="781" y1="624" x2="790" y2="624" marker-end="url(#ah)"/>
+<rect class="bxs" x="792" y="596" width="164" height="56" rx="3"/>
+<text class="t2" x="874" y="615" text-anchor="middle">contrôles + rapport</text>
+<text class="t4" x="874" y="630" text-anchor="middle">désaccords · non résolus</text>
+<text class="t4" x="874" y="643" text-anchor="middle">couverture par device</text>
+<line class="fl" x1="214" y1="668" x2="214" y2="704" marker-end="url(#ah)"/>
+<text class="t3" x="226" y="690" text-anchor="start">snapshot + contrôles + rapport</text>
+<rect class="bx" x="72" y="708" width="300" height="84" rx="4"/>
+<text class="t1" x="92" y="732">B2 · Archive (bundles + snapshots)</text>
+<text class="t2" x="92" y="752">immuable · un dossier par (infra, run)</text>
+<text class="t4" x="92" y="770">V1 : disque — le bundle y est déjà rangé</text>
+<rect class="bx" x="404" y="708" width="264" height="84" rx="4"/>
+<text class="t1" x="424" y="732">B3 · Diff</text>
+<text class="t2" x="424" y="752">deux snapshots A ↔ B</text>
+<text class="t4" x="424" y="770">changements typés métier</text>
+<rect class="bx" x="700" y="708" width="268" height="84" rx="4"/>
+<text class="t1" x="720" y="732">B4 · Intention</text>
+<text class="t2" x="720" y="752">patchs keyés identité stable</text>
+<text class="t4" x="720" y="770">jamais coordonnées ni run</text>
+<line class="fl" x1="372" y1="750" x2="400" y2="750" marker-end="url(#ah)"/>
+<line class="fl" x1="214" y1="792" x2="214" y2="844" marker-end="url(#ah)"/>
+<line class="fl" x1="536" y1="792" x2="536" y2="844" marker-end="url(#ah)"/>
+<line class="fl" x1="834" y1="794" x2="834" y2="842" marker-start="url(#ah)" marker-end="url(#ah)"/>
+<text class="t4" x="844" y="820">lecture · écriture</text>
+<rect class="bx" x="72" y="848" width="896" height="76" rx="4"/>
+<text class="t1" x="92" y="872">API REST — FastAPI</text>
+<text class="t2" x="92" y="892">GET snapshot ⊕ intention ⊕ contrôles · GET diff(A, B) · POST patchs d'intention · POST /api/ingest/bundles</text>
+<text class="t4" x="92" y="910">un seul contrat JSON versionné · types TypeScript générés depuis le schéma</text>
+<!-- ===== FRONTIÈRE RÉSEAU ===== -->
+<line class="front" x1="32" y1="990" x2="1008" y2="990"/>
+<text class="t4" x="520" y="980" text-anchor="middle">FRONTIÈRE RÉSEAU — CONTRAT PIVOT JSON · SCHÉMA VERSIONNÉ · TYPES TS GÉNÉRÉS</text>
+<line class="fl" x1="820" y1="924" x2="820" y2="1054" marker-end="url(#ah)"/>
+<text class="t3" x="832" y="1024">GET</text>
+<text class="t4" x="832" y="1038">TanStack Query</text>
+<line class="fl" x1="768" y1="1054" x2="768" y2="928" marker-end="url(#ah)"/>
+<text class="t3" x="756" y="1024" text-anchor="end">POST patchs</text>
+<text class="t4" x="756" y="1038" text-anchor="end">d'intention</text>
+<g transform="translate(0 202)">
+
+<!-- ===== MOTEUR ===== -->
+<rect class="lane-motor" x="32" y="852" width="576" height="524" rx="8"/>
+<text class="rg rg-a" x="48" y="874">MOTEUR DIAGRAMME — TYPESCRIPT PUR · ZÉRO FRAMEWORK · ZÉRO IO · HEADLESS</text>
+
+<rect class="bx" x="64" y="892" width="508" height="60" rx="4"/>
+<text class="t1" x="80" y="916">B5 · Analyse</text>
+<text class="t2" x="80" y="936">rôles inférés · groupes de redondance · zones dérivées</text>
+<line class="fl" x1="318" y1="952" x2="318" y2="988" marker-end="url(#ah)"/>
+<text class="t3" x="330" y="974">graphe enrichi</text>
+
+<rect class="bx" x="64" y="992" width="508" height="60" rx="4"/>
+<text class="t1" x="80" y="1016">B6 · Scène</text>
+<text class="t2" x="80" y="1036">projection par palier LOD — Zones · Faisceaux · Câbles</text>
+<line class="fl" x1="318" y1="1052" x2="318" y2="1088" marker-end="url(#ah)"/>
+<text class="t3" x="330" y="1074">entités visuelles · sans coordonnées</text>
+
+<rect class="bx" x="64" y="1092" width="508" height="60" rx="4"/>
+<text class="t1" x="80" y="1116">B7 · Placement</text>
+<text class="t2" x="80" y="1136">structure → stratégie par partition → coordonnées (seedées N−1 · pins)</text>
+<line class="fl" x1="318" y1="1152" x2="318" y2="1188" marker-end="url(#ah)"/>
+<text class="t3" x="330" y="1174">positions</text>
+
+<rect class="bx" x="64" y="1192" width="508" height="60" rx="4"/>
+<text class="t1" x="80" y="1216">B8 · Routage</text>
+<text class="t2" x="80" y="1236">ancres de ports · pistes · faisceaux · agrafes de canal</text>
+<line class="fl" x1="318" y1="1252" x2="318" y2="1288" marker-end="url(#ah)"/>
+<text class="t3" x="330" y="1274">display list · primitives + z + styles</text>
+
+<rect class="bx" x="64" y="1292" width="508" height="72" rx="4"/>
+<text class="t1" x="80" y="1316">B9 · Renderer SVG incrémental</text>
+<text class="t2" x="80" y="1336">patchs ciblés · culling viewport · hit-testing · drag · zoom</text>
+<text class="t2" x="80" y="1353">derrière interface — bascule Canvas possible sans refonte</text>
+
+<!-- ===== SHELL ===== -->
+<rect class="lane-in" x="688" y="852" width="320" height="524" rx="8"/>
+<text class="rg" x="704" y="874">SHELL — REACT 19 · CHROME UNIQUEMENT</text>
+
+<rect class="bx" x="712" y="892" width="272" height="52" rx="4"/>
+<text class="t1" x="728" y="914">URL = état de vue</text>
+<text class="t2" x="728" y="932">TanStack Router · vue partageable</text>
+<rect class="bx" x="712" y="966" width="272" height="52" rx="4"/>
+<text class="t1" x="728" y="988">Panneaux &amp; inspecteur</text>
+<text class="t2" x="728" y="1006">façade de ports · table de brassage</text>
+<rect class="bx" x="712" y="1040" width="272" height="52" rx="4"/>
+<text class="t1" x="728" y="1062">Timeline &amp; comparaison</text>
+<text class="t2" x="728" y="1080">diff peint sur la toile</text>
+<rect class="bx" x="712" y="1114" width="272" height="52" rx="4"/>
+<text class="t1" x="728" y="1136">Filtres &amp; vues nommées</text>
+<text class="t2" x="728" y="1154">grammaire field:value</text>
+<rect class="bx" x="712" y="1188" width="272" height="52" rx="4"/>
+<text class="t1" x="728" y="1210">Réconciliation</text>
+<text class="t2" x="728" y="1228">patchs orphelins · fusions</text>
+
+<!-- canal commandes / événements -->
+<text class="t3" x="644" y="976" text-anchor="middle">commandes + données</text>
+<text class="t4" x="644" y="990" text-anchor="middle">charger · palier</text>
+<line class="fl" x1="712" y1="1002" x2="578" y2="1002" marker-end="url(#ah)"/>
+<line class="fl" x1="576" y1="1072" x2="708" y2="1072" marker-end="url(#ah)"/>
+<text class="t3" x="644" y="1096" text-anchor="middle">événements</text>
+<text class="t4" x="644" y="1110" text-anchor="middle">sélection · viewport</text>
+
+</g>
+<!-- marqueurs de décision -->
+<circle class="mk" cx="72" cy="214" r="11"/><text class="mk-t" x="72" y="218" text-anchor="middle">6</text>
+<circle class="mk" cx="72" cy="544" r="11"/><text class="mk-t" x="72" y="548" text-anchor="middle">1</text>
+<circle class="mk" cx="700" cy="708" r="11"/><text class="mk-t" x="700" y="712" text-anchor="middle">2</text>
+<circle class="mk" cx="644" cy="1239" r="11"/><text class="mk-t" x="644" y="1243" text-anchor="middle">3</text>
+<circle class="mk" cx="64" cy="1294" r="11"/><text class="mk-t" x="64" y="1298" text-anchor="middle">4</text>
+<circle class="mk" cx="64" cy="1494" r="11"/><text class="mk-t" x="64" y="1498" text-anchor="middle">5</text>
+</svg>
+</div>
+<figcaption><b>Figure 1 — le pipeline.</b> Pointillé : hors Living Diagram, chez Orhan — la base amont et
+l'exportateur B0. Trait plein : Living Diagram, de la route d'ingestion au navigateur. Tout ce qui suit
+l'ingestion travaille sur un bundle archivé, donc rejouable sans la base amont. Pour lire les briques du milieu :
+B1 est l'appareil photo, le snapshot est la photo, B2 est l'album, B3 met deux photos côte à côte. Le moteur
+ne fait aucune entrée-sortie : le shell le nourrit par commandes et l'écoute par événements. Les cercles ① à ⑥
+marquent les six décisions détaillées en bas de page.</figcaption>
+</figure>
+
+<h2>Où en est la construction (2026-09-20)</h2>
+<div style="overflow-x:auto">
+<table>
+<tr><th>Brique</th><th>État</th><th>Preuve</th></tr>
+<tr><td class="b">Contrat RunBundle v1</td><td>réalisé — paquet <code>ld-contracts</code>, partie A de <code>CONTRAT.md</code> : modèles, JSON Schema versionné, validateur, anonymiseur, fixtures ; révisions actées jusqu'au 2026-09-19 (<code>lldp</code> / <code>cdp</code> à six champs, clé nullable absente comptée, <code>vrf</code> <code>"default"</code> = table globale) ; gel au premier bundle réel ingéré</td><td class="p">paquet ld-contracts : 398 tests · 98 % · revues indépendantes appliquées</td></tr>
+<tr><td class="b">Porte d'entrée</td><td>réalisé — <code>POST /api/ingest/bundles</code>, trois GET adressés par paramètres de requête, <code>/api/health</code>, CLI <code>ld ingest | runs | serve</code>, jeton Bearer en schéma OpenAPI ; testé de bout en bout sur instance réelle le 2026-09-19 (500 devices, 24 000 interfaces en moins de 2 s)</td><td class="p">83 tests · 97 %</td></tr>
+<tr><td class="b">Contrat Snapshot v1</td><td>réalisé le 2026-09-20 — <code>docs/05</code> validé (sept questions sur huit tranchées, la grammaire des descriptions reste ouverte, non bloquante) ; module <code>snapshot</code> de <code>ld-contracts</code>, partie B de <code>CONTRAT.md</code>, schéma versionné, <code>validate --contract snapshot</code> ; l'ordre canonique, les références et les cohérences structurelles sont vérifiés par le type : un snapshot incohérent est refusé, pas signalé</td><td class="p">revue indépendante appliquée (24 points) · squelette en forme canonique</td></tr>
+<tr><td class="b">B1 Corrélation</td><td><b>2 étapes sur 3 réalisées</b> le 2026-09-20 (les câbles, le branchement) — <code>backend/src/ld_backend/correlate/</code> et <code>snapshots.py</code>. <b>Fait</b> : nœuds, interfaces et <b>câbles</b> avec statut et preuves (R0 identité des voisins, R1 noms d'interfaces, R2 descriptions et claims, R3 fusion, R6 assemblage canonique), 12 contrôles sur 27 ; une revue puis une contre-revue appliquées (rapports et sondes dans <code>docs/revues/</code>) : plus aucune exception sur un bundle valide, snapshot identique à l'octet quel que soit l'ordre des documents et le processus. <b>Reste pour que B1 soit complet</b> : les <b>structures</b> R4, agrégats, domaines vPC / MLAG, clusters HA : ces trois sections du snapshot sont encore vides ; les <b>contrôles d'état</b> R5 (câble down, vitesse ou VLAN natif différents aux deux bouts, device injoignable…) ; le snapshot de référence comparé à l'octet. <b>Ensuite</b> : la table MAC comme troisième source (<code>lldp</code> / <code>cdp</code> &gt; <code>mac_table</code> &gt; <code>description</code>), et une question ouverte (deux observations d'un même câble dont l'une en MAC)</td><td class="p">235 tests · <code>correlate/</code> à 100 %</td></tr>
+<tr><td class="b">Tranche visible</td><td>en cours (décision du 2026-09-20) — voir avant de trancher. <b>Fait</b> : B1 branché, <code>snapshot.json</code> archivé à côté du bundle à chaque ingestion (un échec de B1 ne fait pas échouer l'ingestion ; le snapshot est remplaçable, le bundle jamais), <code>GET /api/snapshot</code>, <code>ld correlate</code> ; <b>pages HTML de lecture</b>, incrément A : <code>ld render</code> écrit un fichier autonome par run, sans librairie ni réseau, aussi depuis un simple fichier bundle sans archive (boucle de mise au point de l'exportateur) : graphe, <b>sources de chaque câble</b>, contrôles, qualité des données ; chaînes hostiles neutralisées (JSON échappé, jamais de HTML écrit depuis une donnée, CSP par empreinte) ; mode d'emploi dans <code>QUICKSTART.md</code>. <b>Reste</b> : la page servie par le backend, l'incrément B (agrégats, clusters HA : ce cluster vient des données HA), le premier bundle réel. Outil de lecture de B1 sur un vrai bundle, pas le moteur de diagramme : le pari « posséder la toile » reste ouvert. Dépend d'un premier exportateur minimal côté collecte (<code>devices</code>, <code>tasks</code>, <code>interfaces</code>, <code>lldp</code>, <code>cdp</code>)</td><td class="p">branchement et pages (incrément A) faits et revus · 235 tests</td></tr>
+</table>
+</div>
+
+<h2>Zoom sur B1 — de trois sources qui ne disent pas la même chose à un seul graphe</h2>
+<p class="h2sub">La corrélation ne lit jamais la base : elle reçoit un RunBundle et rend un snapshot.
+Six étages, chacun une fonction pure ; à droite, ce qui sort en plus du graphe et ce qui ne bouge jamais.</p>
+<figure>
+<div class="fig-scroll">
+<svg viewBox="0 0 1040 540" role="img"
+  aria-label="Zoom sur la corrélation B1 : six étages en colonne (identité, évidences transformées en claims, fusion par clé canonique, structures, contrôles d'intégrité, canonicalisation) ; à droite, les entrées du RunBundle, le rapport de corrélation et les invariants.">
+<defs>
+  <marker id="ah2" viewBox="0 0 8 6" refX="7" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+    <polygon class="ah" points="0,0 8,3 0,6"/>
+  </marker>
+</defs>
+
+<rect class="bx" x="72" y="24" width="620" height="62" rx="4"/>
+<text class="t1" x="88" y="46">1 · Identité</text>
+<text class="t2" x="88" y="63">index devices (table complète) · index (hostname, ifName) · liste devices figée dans le snapshot</text>
+<text class="t4" x="88" y="78">voisin cité : exact → casse (contrôle) → externe connu (autre infra) → stub</text>
+<line class="fl" x1="382" y1="86" x2="382" y2="106" marker-end="url(#ah2)"/>
+
+<rect class="bx" x="72" y="108" width="620" height="62" rx="4"/>
+<text class="t1" x="88" y="130">2 · Évidences → claims</text>
+<text class="t2" x="88" y="147">description = documenté · lldp / cdp = observé · table HA = cluster · members = agrégat</text>
+<text class="t4" x="88" y="162">claim = { a, b, source, confiance, réf brute } · mac · arp · bgp : émetteurs enfichables, plus tard</text>
+<line class="fl" x1="382" y1="170" x2="382" y2="190" marker-end="url(#ah2)"/>
+
+<rect class="bx" x="72" y="192" width="620" height="62" rx="4"/>
+<text class="t1" x="88" y="214">3 · Fusion</text>
+<text class="t2" x="88" y="231">clé canonique = endpoints triés · provenance combinée · désaccord ⇒ contrôle, jamais résolu en silence</text>
+<text class="t4" x="88" y="246">l'observé dessine le lien, le documenté commente le port · lien seulement documenté : gardé, confiance basse</text>
+<line class="fl" x1="382" y1="254" x2="382" y2="274" marker-end="url(#ah2)"/>
+
+<rect class="bx" x="72" y="276" width="620" height="62" rx="4"/>
+<text class="t1" x="88" y="298">4 · Structures</text>
+<text class="t2" x="88" y="315">agrégats (members + états) · sous-interfaces (parent) · clusters HA (table HA) · stacks (à trancher)</text>
+<text class="t4" x="88" y="330">numéros de Po device-locaux · peering HA rendu logique, jamais un câble inventé</text>
+<line class="fl" x1="382" y1="338" x2="382" y2="358" marker-end="url(#ah2)"/>
+
+<rect class="bx" x="72" y="360" width="620" height="62" rx="4"/>
+<text class="t1" x="88" y="382">5 · Contrôles d'intégrité</text>
+<text class="t2" x="88" y="399">mono-membre · desc ≠ lldp · vitesse / duplex / média aux deux bouts · flap entre runs · stub</text>
+<text class="t4" x="88" y="414">« vu d'un seul côté » seulement si l'autre bout est capable ET collecté (tasks) — sinon faux positif</text>
+<line class="fl" x1="382" y1="422" x2="382" y2="442" marker-end="url(#ah2)"/>
+
+<rect class="bx" x="72" y="444" width="620" height="62" rx="4"/>
+<text class="t1" x="88" y="466">6 · Canonicalisation</text>
+<text class="t2" x="88" y="483">tris stables · ids = identités, jamais auto-incrémentés · snapshot (schéma versionné) + rapport</text>
+<text class="t4" x="88" y="498">version du corrélateur dans le snapshot · rejouer une run ancienne = même bundle, même résultat</text>
+
+<rect class="bxs" x="724" y="24" width="244" height="146" rx="3"/>
+<text class="rg" x="740" y="44">ENTRÉES DU RUNBUNDLE</text>
+<text class="t2" x="740" y="66">devices — référence, lue à l'instant T</text>
+<text class="t2" x="740" y="84">run + tasks — statut device × topic</text>
+<text class="t2" x="740" y="102">interfaces ⨝ agrégats ⨝ system</text>
+<text class="t2" x="740" y="120">lldp · cdp · ha</text>
+<text class="t4" x="740" y="140">mac · arp · bgp — réservés (L2 / L3)</text>
+<text class="t4" x="740" y="156">documents plats, JSON pur, zéro IO</text>
+
+<rect class="bxs" x="724" y="192" width="244" height="130" rx="3"/>
+<text class="rg" x="740" y="212">RAPPORT DE CORRÉLATION</text>
+<text class="t2" x="740" y="234">descriptions non parsables (+ exemples)</text>
+<text class="t2" x="740" y="252">voisins non résolus · repli de casse</text>
+<text class="t2" x="740" y="270">claims par source · liens par provenance</text>
+<text class="t2" x="740" y="288">couverture : devices, topics manquants</text>
+<text class="t4" x="740" y="308">diffable comme le reste — la santé du diagramme</text>
+
+<rect class="chip" x="724" y="344" width="244" height="162" rx="3"/>
+<text class="rg rg-a" x="740" y="364">INVARIANTS</text>
+<text class="t2" x="740" y="386">même bundle ⇒ même snapshot, à l'octet</text>
+<text class="t2" x="740" y="404">le front n'invente rien</text>
+<text class="t2" x="740" y="422">jamais de câble inventé</text>
+<text class="t2" x="740" y="440">rien n'est résolu en silence</text>
+<text class="t2" x="740" y="458">extras : lu seulement sur clés déclarées</text>
+<text class="t2" x="740" y="476">normalisation résiduelle = dette tracée</text>
+<text class="t4" x="740" y="496">chaque étage testable sur fixtures JSON</text>
+</svg>
+</div>
+<figcaption><b>Figure 2 — l'intérieur de B1.</b> Les sources ne sont pas des liens, ce sont des
+<b>claims</b> ; la fusion en fait un lien avec provenance, ou un contrôle quand elles se contredisent.
+Le rapport de corrélation sort avec le snapshot et se diffe comme lui. Le modèle du snapshot, les règles R0 à R6 et les codes de contrôle sont détaillés dans <code>docs/05-snapshot-et-correlation.md</code> (validé le 2026-09-20) et le contrat de sortie est la partie B de <code>CONTRAT.md</code>.</figcaption>
+</figure>
+
+<h2>Qui fait quoi, en une ligne</h2>
+<div style="overflow-x:auto">
+<table>
+<tr><th>Brique</th><th>Responsabilité</th><th>Propriété non négociable</th><th>Phase</th></tr>
+<tr><td class="b">B0 Lecture &amp; assemblage</td><td><b>exportateur séparé, codé par Orhan dans la zone sécurisée</b> : choisit la dernière run <b>terminée</b>, vérifie sa couverture via <code>collector_run_tasks</code>, lit les collections par topic filtrées par infrastructure, joint les topics qui décrivent le même objet, normalise le résiduel, valide le <b>RunBundle</b> avec <code>ld-contracts</code> et le pousse sur <code>POST /api/ingest/bundles</code></td><td class="p">seul module couplé au schéma amont — zéro corrélation — jamais dans le dépôt Living Diagram</td><td class="ph">P0 contrat ✔ · P1 export</td></tr>
+<tr><td class="b">Ingestion (<code>backend/</code>)</td><td>la porte d'entrée : valide le bundle via <code>ld-contracts</code>, l'archive brut atomiquement (<code>archive/&lt;infra&gt;/&lt;run&gt;/</code>), rend le rapport ; 201 créé · 200 identique · 409 différent · 422 hors contrat ; CLI <code>ld ingest</code> sur le même code ; B1 se branche après l'archivage</td><td class="p">l'archive ne change jamais en silence — empreinte sur les données, pas sur l'enveloppe</td><td class="ph">P0 ✔ réalisé</td></tr>
+<tr><td class="b">B1 Corrélation</td><td>fonction pure RunBundle → snapshot : identité (devices = référence, résolution ordonnée des voisins, stubs), sources d'évidence <b>enfichables</b> émettant des claims — descriptions, LLDP, CDP, table HA, demain MAC/ARP/BGP — fusion avec provenance (observé / documenté / désaccord), structures (agrégats, sous-interfaces, clusters HA), contrôles, rapport</td><td class="p">déterministe — même bundle ⇒ même snapshot, garanti par le contrat de sortie</td><td class="ph">P0 contrat ✔ · P1 code</td></tr>
+<tr><td class="b">B2 Archive</td><td>stocke, par (infra, run), le snapshot <b>et le bundle brut</b> : l'historique et le rejeu ne dépendent plus de la rétention amont ni de la table devices vivante (V1 : archive disque, la partie bundle est réalisée)</td><td class="p">immuable · indépendant du schéma amont</td><td class="ph">P1</td></tr>
+<tr><td class="b">B3 Diff</td><td>compare deux snapshots → changements typés métier (link_moved, aggregation_degraded…)</td><td class="p">diff d'ensembles keyés identité — jamais de diff JSON générique</td><td class="ph">P1</td></tr>
+<tr><td class="b">B4 Intention</td><td>retouches humaines en patchs déclaratifs, mergés à l'affichage ; conflits surfacés, jamais résolus en silence</td><td class="p">keyée identité stable — jamais coordonnées ni run</td><td class="ph">P5</td></tr>
+<tr><td class="b">B5 Analyse</td><td>infère rôles, groupes de redondance et zones à partir du graphe et des attributs devices (type, site, modèle)</td><td class="p">le rôle est une sortie, pas une entrée</td><td class="ph">P3</td></tr>
+<tr><td class="b">B6 Scène</td><td>projette le graphe en entités visuelles selon le palier — Zones / Faisceaux / Câbles</td><td class="p">le LOD est une projection, pas un style</td><td class="ph">P2 · P6</td></tr>
+<tr><td class="b">B7 Placement</td><td>détecte la structure, choisit une stratégie par partition, pose les coordonnées</td><td class="p">stabilité inter-runs &gt; optimalité absolue</td><td class="ph">P3</td></tr>
+<tr><td class="b">B8 Routage</td><td>ancres de ports, pistes orthogonales, faisceaux, agrafes de canal</td><td class="p">membres d'un canal toujours adjacents</td><td class="ph">P2–P3</td></tr>
+<tr><td class="b">B9 Renderer</td><td>rend la display list en SVG par patchs ciblés ; hit-testing, drag, zoom</td><td class="p">incrémental — jamais de redraw complet</td><td class="ph">P2</td></tr>
+<tr><td class="b">Shell React</td><td>URL/vues, panneaux, inspecteur, timeline, filtres, réconciliation</td><td class="p">jamais dans le chemin chaud de la toile</td><td class="ph">P2 →</td></tr>
+</table>
+</div>
+
+<h2>Où normaliser, où assembler, où corréler</h2>
+<p class="h2sub">La librairie de collecte produit un modèle par commande et ne veut pas agréger — c'est
+sain. La règle qui en découle tient en trois colonnes ; tout ce qui reste dans la colonne du milieu
+sans y être prévu est une dette, tracée dans le rapport de corrélation.</p>
+<div style="overflow-x:auto">
+<table>
+<tr><th>Librairie de collecte — par topic, une commande</th><th>B0 — entre topics</th><th>B1 — entre devices</th></tr>
+<tr>
+<td>valeurs et unités : <code>duplex</code> full/half, statuts RFC 2863 + <code>oper_reason</code> brut, vitesses en entiers, MAC normalisée, <code>type</code> en énumération fermée, <code>vlan_id</code> extrait de l'encapsulation, compteurs structurés, <code>last_change</code> en secondes — tout cela sort de <b>la même commande</b> que le document actuel</td>
+<td>sélection de la run et couverture ; jointure des topics qui décrivent le même objet (l'agrégat de <code>show port-channel summary</code> greffé sur l'interface ; les membres de stack de <code>system</code> greffés sur le device) ; normalisation <b>résiduelle</b> uniquement</td>
+<td>tout ce qui demande deux équipements : résolution des voisins, fusion des claims, désaccords, contrôles de réciprocité et d'homogénéité, structures, diff</td>
+</tr>
+<tr>
+<td>ce qui manque encore n'est pas de l'agrégation mais des <b>topics</b> à une commande : agrégats avec état par membre, transceivers, mode switchport, adresses secondaires</td>
+<td>ne lit <code>extras</code> que sur clés déclarées ; ne devine jamais un vendeur : résout un nom d'interface distant par recherche dans les <code>interfaces[]</code> du device résolu, sinon par les évidences CDP / LLDP, sinon le laisse brut</td>
+<td>ne lit jamais la base ; ne connaît ni les noms de collections ni les runs</td>
+</tr>
+</table>
+</div>
+
+<h2>Les quatre couches de données</h2>
+<p class="h2sub">Ce que chaque couche possède, et les trois invariants qui empêchent l'historique,
+l'édition et la collecte de se marcher dessus.</p>
+<div class="layers">
+  <div class="layer hd"><span>Couche</span><span>Contenu</span><span>Propriétaire</span><span>Durée de vie</span></div>
+  <div class="layer"><span class="lnum">C0</span>
+    <span><span class="lname">Snapshot</span><div class="ldesc">le graphe collecté d'un run — liste devices figée, liens, canaux, provenance, statut de collecte par device et topic, rapport</div></span>
+    <span class="lmeta">Corrélation (Python)</span><span class="lmeta">immuable · par run</span></div>
+  <div class="layer"><span class="lnum">C1</span>
+    <span><span class="lname">Dérivé</span><div class="ldesc">rôles inférés, groupes de redondance, zones, contrôles d'intégrité</div></span>
+    <span class="lmeta">Analyse (déterministe)</span><span class="lmeta">recalculable · jamais stocké à la main</span></div>
+  <div class="layer"><span class="lnum">C2</span>
+    <span><span class="lname">Intention</span><div class="ldesc">positions pinnées, nœuds/liens manuels, masquages, notes, corrections de rôle</div></span>
+    <span class="lmeta">Utilisateur</span><span class="lmeta">longue vie · indépendante des runs</span></div>
+  <div class="layer"><span class="lnum">C3</span>
+    <span><span class="lname">Vue</span><div class="ldesc">zoom, focus, filtres, palier LOD, date / comparaison</div></span>
+    <span class="lmeta">Session</span><span class="lmeta">éphémère · dans l'URL</span></div>
+</div>
+<div class="invariants">
+  <code>rendu = f(C0 ⊕ C2, C3)</code>
+  <code>diff = C0(run A) ↔ C0(run B) — jamais C2</code>
+  <code>C2 keyée identités — jamais coordonnées</code>
+</div>
+
+<h2>Matrice d'invalidation</h2>
+<p class="h2sub">L'argument central contre le redraw complet : chaque geste ne retraverse que les
+étages nécessaires. C'est ce que le moteur doit garantir par construction.</p>
+<div style="overflow-x:auto">
+<table class="mtx">
+<tr><th>Geste</th><th>B5 Analyse</th><th>B6 Scène</th><th>B7 Placement</th><th>B8 Routage</th><th>B9 Rendu</th></tr>
+<tr><td>Survol / sélection / focus</td><td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="none">—</td><td class="part">◐ patch de style</td></tr>
+<tr><td>Drag d'un nœud (→ pin C2)</td><td class="none">—</td><td class="none">—</td><td class="part">◐ position</td><td class="part">◐ liens incidents</td><td class="part">◐</td></tr>
+<tr><td>Changement de palier LOD</td><td class="none">—</td><td class="full">●</td><td class="full">●</td><td class="full">●</td><td class="full">●</td></tr>
+<tr><td>Filtre (sous-graphe)</td><td class="none">—</td><td class="full">●</td><td class="full">● seedé</td><td class="full">●</td><td class="full">●</td></tr>
+<tr><td>Timeline / comparaison A↔B</td><td class="full">●</td><td class="full">●</td><td class="full">● seedé</td><td class="full">●</td><td class="full">●</td></tr>
+<tr><td>Nouveau run collecté</td><td class="full">●</td><td class="full">●</td><td class="full">● seedé N−1</td><td class="full">●</td><td class="full">●</td></tr>
+</table>
+</div>
+<div class="legend">● étage ré-exécuté &nbsp;·&nbsp; ◐ recalcul local &nbsp;·&nbsp; — intact</div>
+<p class="footnote">Contre-exemple : le prototype v11.5 reconstruit tout le SVG à chaque survol —
+l'équivalent d'une ligne entièrement noire, à chaque événement. Tenable à 18 équipements, pas à 300.</p>
+
+<h2>Bac à sable de données — infra critique oblige</h2>
+<p class="h2sub">Aucune donnée réelle ne sort de l'infrastructure : on réplique le <b>schéma</b> des
+tables, jamais leurs contenus. Deux étages de test, un générateur qui fabrique les pannes qu'on veut
+savoir détecter.</p>
+<div class="chal">
+  <div class="card plain"><div>
+    <h3>Tests unitaires de corrélation — sans MongoDB</h3>
+    <p>B1 est une fonction pure : RunBundle en entrée, snapshot en sortie. Les fixtures répliquent le
+    schéma réel de la base amont — un fichier par collection et par run : <code>devices</code>,
+    <code>collector_runs</code>, <code>collector_run_tasks_&lt;id&gt;</code>, <code>interfaces_&lt;id&gt;</code>,
+    <code>lldp_neighbors_&lt;id&gt;</code>… — et passent par B0 comme en production. Le déterminisme se
+    vérifie à l'octet près, sans base ni réseau.</p>
+  </div></div>
+  <div class="card plain"><div>
+    <h3>MongoDB éphémère en container — intégration</h3>
+    <p>Docker Compose (ou Testcontainers sous pytest) : une vraie MongoDB jetable, peuplée par un
+    <b>générateur de topologies synthétiques</b> à seed déterministe qui écrit le schéma réel — et qui
+    rejoue des <b>scénarios d'évolution</b> nommés : une suite de runs où un device apparaît, un lien
+    disparaît, un membre HA meurt. La démo timeline / diff est générée, pas bricolée. Valide la couche
+    d'accès (PyMongo Async), les index et l'API — puis le container est détruit.</p>
+  </div></div>
+  <div class="card plain"><div>
+    <h3>Le générateur injecte les pannes que les contrôles doivent attraper</h3>
+    <p>Chaque contrôle d'intégrité a son cas dans le corpus : description ≠ LLDP, Po mono-membre,
+    duplex mismatch, description malformée, voisin hors périmètre (stub), device injoignable, vitesses
+    hétérogènes dans un canal, membre HA mort, bascule active/passive entre deux runs. Les descriptions
+    suivent le format réel — dont un exemple volontairement périmé que LLDP contredit :</p>
+    <div class="codeb">&lt;criticité&gt;|&lt;device_voisin&gt;|&lt;port_voisin&gt;|&lt;options&gt;
+CRIT|dc-spine-01|Eth1/11|          <span class="c2">← concorde avec LLDP : lien « les deux »</span>
+HIGH|dc-leaf-101|Eth1/3|           <span class="c2">← LLDP voit dc-leaf-102 : désaccord → contrôle</span></div>
+  </div></div>
+</div>
+
+<h2>Les six décisions où me challenger</h2>
+<p class="h2sub">Les numéros renvoient aux marqueurs de la figure 1. Pour chacune : ce que je parie,
+ce que j'ai écarté, et où ça casse si j'ai tort.</p>
+<div class="chal">
+  <div class="card"><div class="num">1</div><div>
+    <h3>Corrélation déterministe, côté Python, au moment du run</h3>
+    <p><span class="k">Le pari</span>identité stable + tris canoniques ⇒ même entrée, même snapshot, octet pour octet — avec des sources d'évidence <b>enfichables</b> derrière une interface commune (descriptions, LLDP, CDP en V1 ; MAC/ARP s'ajoutent sans toucher au reste). Condition d'existence du diff et de la couche d'intention.</p>
+    <p><span class="k">Écarté</span>corréler à la volée côté front, à l'affichage — séduisant (pas de store), mais non rejouable et non auditable. Écarté aussi : corréler dans la librairie de collecte, qui doit rester un témoin fidèle de ce que chaque commande a dit.</p>
+    <p><span class="k">Si j'ai tort</span>diff bruité de faux changements, intentions orphelines, confiance des utilisateurs perdue — et elle ne revient pas.</p>
+  </div></div>
+  <div class="card"><div class="num">6</div><div>
+    <h3>Un seul module couplé au schéma amont, et un seul graphe pour tous les niveaux</h3>
+    <p><span class="k">Le pari</span>B0 absorbe seul les collections par run, la sélection de la run, les jointures entre topics. Il produit <b>un</b> RunBundle, B1 produit <b>un</b> snapshot aux arêtes typées (câble, segment L2, adjacence L3, session BGP) ; les diagrammes L1, L2, L3 sont des <b>vues</b> du même graphe, pas trois modèles.</p>
+    <p><span class="k">Écarté</span>un modèle JSON par niveau de diagramme, construit séparément : trois identités à réconcilier, trois diffs, trois couches d'intention qui divergent. Écarté aussi : demander à la librairie de collecte d'agréger plusieurs commandes.</p>
+    <p><span class="k">Si j'ai tort</span>B0 grossit en corrélateur déguisé — le garde-fou est mesurable : la normalisation résiduelle est listée dans le rapport, et doit tendre vers zéro à mesure que la librairie normalise ses topics.</p>
+  </div></div>
+  <div class="card"><div class="num">2</div><div>
+    <h3>Les retouches sont des patchs, jamais un fork du diagramme</h3>
+    <p><span class="k">Le pari</span>merge(C0, C2) recalculé à chaque affichage ; les conflits (patch orphelin, lien masqué revu par la collecte) sont montrés dans un panneau de réconciliation.</p>
+    <p><span class="k">Écarté</span>le modèle « figer puis éditer » : soit les retouches sont à refaire à chaque run, soit le diagramme cesse de suivre la réalité.</p>
+    <p><span class="k">Si j'ai tort</span>une sémantique de merge mal spécifiée résout des conflits en silence — le pire des deux mondes.</p>
+  </div></div>
+  <div class="card"><div class="num">3</div><div>
+    <h3>La toile appartient à un moteur TS pur ; React n'est que le shell</h3>
+    <p><span class="k">Le pari</span>le pattern des éditeurs sérieux (draw.io, Excalidraw, tldraw, Figma) : scène, hit-testing et invalidation hors du cycle de réconciliation React. Testable headless, exports et captures gratuits.</p>
+    <p><span class="k">Écarté</span>une lib de canvas React (React Flow & co.) — achète le socle mais réinstalle le framework dans le chemin chaud et impose ses conventions à nos rendus (agrafes, paliers, diff peint).</p>
+    <p><span class="k">Si j'ai tort</span>~2-4 semaines de socle (viewport, drag, sélection) qui dérapent — repli documenté : @xyflow/react 12.11, sans toucher aux briques B5–B8.</p>
+  </div></div>
+  <div class="card"><div class="num">4</div><div>
+    <h3>Placement maison (sur graphology) plutôt qu'un moteur générique</h3>
+    <p><span class="k">Le pari</span>nos formes (paires redondantes, éventails, bus, zones CMDB) et la stabilité seedée inter-runs valent un moteur dédié ; le placement est le cœur différenciant du produit.</p>
+    <p><span class="k">Écarté</span>elkjs 0.12 — le seul moteur OSS avec incrémental + pins + ports + partitions, mais licence EPL-2.0 à faire valider, et nos conventions resteraient à greffer dessus.</p>
+    <p><span class="k">Si j'ai tort</span>le coût du placement est sous-estimé — jalon d'évaluation explicite en phase 3, elkjs en option de repli si le juridique le blanchit.</p>
+  </div></div>
+  <div class="card"><div class="num">5</div><div>
+    <h3>SVG incrémental d'abord, derrière une interface de renderer</h3>
+    <p><span class="k">Le pari</span>à 500 nœuds / 1 500 liens, du SVG à invalidation ciblée + culling viewport tient la fluidité — avec texte net, debug DOM et export gratuits.</p>
+    <p><span class="k">Écarté</span>Canvas/WebGL d'emblée — plus rapide au plafond, mais texte, accessibilité et debug bien plus coûteux, pour un plafond dont on n'a probablement pas besoin.</p>
+    <p><span class="k">Si j'ai tort</span>la jauge de perf en phase 2 (socle toile sur fixtures) le dira tôt — la bascule Canvas passe par l'interface, sans refonte des briques amont.</p>
+  </div></div>
+</div>
+
+<footer>Acquis 2026-08-13 : hostname = clé d'identité · noms d'interfaces canoniques · format descriptions
+(criticité en premier champ) · stack = 1 nœud · cluster HA = 2 nœuds + cartouche nourri par la table HA, peering
+rendu logique, jamais un câble inventé. Acquis 2026-09-08 → 10 : plus de CMDB — table devices de référence
+(hostname, site, infrastructure, type, serial, modèle, OS) · runs incrémentales : collector_runs + tasks par
+device et topic + une collection par topic et par run · hostname copié depuis devices, domaine DNS retiré des
+voisins en amont · une run couvre tout le parc, filtrage par infrastructure · un device = une infra · pas de VDC,
+VSX Checkpoint présent. Acquis 2026-09-10 : contrat RunBundle v1 (ld-contracts) · route POST /api/ingest/bundles · 2026-09-14 : platform retiré de system
+· vendor / model conservés · /docs garde le CDN pour l'instant · 2026-09-18 : lldp / cdp réduits à six champs · 2026-09-19 : clé
+nullable absente comptée, vrf "default" = table globale, API consolidée sur instance réelle · 2026-09-20 : docs/05 validé, contrat
+Snapshot v1 (ld-contracts, partie B de CONTRAT.md), fixture corrigée (Po10 peer-link, vPC 20 vers le FortiGate), B1 étape 1 écrite et
+revue deux fois, deux refus ajoutés au contrat d'entrée (port membre de deux agrégats, slot de stack en double) ; LLDP jamais activé
+sur les firewalls, descriptions de production peu fiables ⇒ topic mac_table décidé sur le principe. Reste : tranche visible, puis B1 étape 2 ·
+grammaire des descriptions (échantillon anonymisé) · statuts exacts des tasks · VSX · niveau 3 du bouton d'actualisation ·
+le pari « posséder la toile » (décision ③).</footer>
+</div>

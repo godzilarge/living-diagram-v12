@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{{CSP}}">
+<title>{{TITLE}}</title>
+<style>{{STYLE}}</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Living Diagram <span class="brand-sub">lecture d'un snapshot</span></div>
+  <div class="run" id="run-meta"></div>
+  <div class="counts" id="run-counts"></div>
+</header>
+<nav class="tabs" id="tabs" role="tablist"></nav>
+<main>
+  <section class="view" id="view-graph">
+    <div class="canvas-wrap">
+      <div class="toolbar" id="graph-toolbar"></div>
+      <svg id="canvas" role="img" aria-label="Graphe des équipements et des câbles"></svg>
+      <div class="legend" id="graph-legend"></div>
+    </div>
+    <aside class="inspector" id="inspector" aria-live="polite"></aside>
+  </section>
+  <section class="view" id="view-checks" hidden></section>
+  <section class="view" id="view-quality" hidden></section>
+  <section class="view" id="view-sources" hidden></section>
+</main>
+<noscript><p class="fatal">Cette page a besoin de JavaScript : tout le rendu se fait dans le navigateur, sans réseau.</p></noscript>
+<script type="application/json" id="ld-data">{{DATA}}</script>
+<script id="ld-viewer">{{SCRIPT}}</script>
+</body>
+</html>

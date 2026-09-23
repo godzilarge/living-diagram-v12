@@ -1,0 +1,13 @@
+[
+    {
+        "hostname": "my_test_switch",
+        "os_name": "nxos",
+        "os_version": "10.4.2",
+        "infrastructure": "test",
+        "brand": "cisco",
+        "brand_model": "N9K-C93180",
+        "site": "new-york",
+        "serial_number": "XXXXXXXXXX",
+        "type": "switch"
+    }
+]

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "all-caps-body",
+        "value": "*",
+        "files": [
+          "docs/chemin-d-un-bundle.html"
+        ],
+        "createdAt": "2026-09-20T13:46:06.288Z",
+        "reason": "Claude (design) : les seuls textes en capitales sont des libellés courts (pastilles d'état ≤ 26 caractères, en-têtes de tableau, surtitre de 3 mots), aucun passage long ; usage conforme à la règle"
+      }
+    ]
+  }
+}

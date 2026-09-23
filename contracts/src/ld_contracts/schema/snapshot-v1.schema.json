@@ -1,0 +1,2238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://living-diagram.internal/contracts/snapshot-v1.schema.json",
+  "title": "Snapshot",
+  "$defs": {
+    "AdminStatus": {
+      "enum": [
+        "up",
+        "down"
+      ],
+      "title": "AdminStatus",
+      "type": "string"
+    },
+    "AggregateMember": {
+      "additionalProperties": false,
+      "description": "Un membre d'agrégat et son état effectif.",
+      "properties": {
+        "name": {
+          "description": "Nom canonique du membre, identique à `interfaces[].name`.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/MemberStatus",
+          "description": "État effectif. `bundled` = trafic agrégé (P Cisco, collecting + distributing LACP) ; `suspended` (s) ; `standby` (H) ; `individual` (I) ; `down` (D, module retiré) ; `not_in_use` (M / w : min-links non atteint)."
+        }
+      },
+      "required": [
+        "name",
+        "status"
+      ],
+      "title": "AggregateMember",
+      "type": "object"
+    },
+    "AggregateMembership": {
+      "additionalProperties": false,
+      "description": "Appartenance d'une interface à un agrégat.",
+      "properties": {
+        "name": {
+          "description": "Nom canonique de l'agrégat sur le même device.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "member_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MemberStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "État effectif selon `aggregates[]` ; null si l'appartenance vient de `interfaces[].members`."
+        }
+      },
+      "required": [
+        "name",
+        "member_status"
+      ],
+      "title": "AggregateMembership",
+      "type": "object"
+    },
+    "AggregateRef": {
+      "additionalProperties": false,
+      "description": "Référence à un agrégat.",
+      "properties": {
+        "kind": {
+          "const": "aggregate",
+          "description": "Discriminant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "hostname": {
+          "description": "Hostname de l'agrégat.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "name": {
+          "description": "Nom canonique de l'agrégat ; clé `(hostname, name)` de `aggregates[]`.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "hostname",
+        "name"
+      ],
+      "title": "AggregateRef",
+      "type": "object"
+    },
+    "AggregationProtocol": {
+      "enum": [
+        "lacp",
+        "static",
+        "pagp"
+      ],
+      "title": "AggregationProtocol",
+      "type": "string"
+    },
+    "ChassisRole": {
+      "enum": [
+        "active",
+        "standby",
+        "member",
+        "master"
+      ],
+      "title": "ChassisRole",
+      "type": "string"
+    },
+    "ChassisState": {
+      "enum": [
+        "ready",
+        "removed",
+        "provisioned",
+        "version_mismatch"
+      ],
+      "title": "ChassisState",
+      "type": "string"
+    },
+    "Check": {
+      "additionalProperties": false,
+      "description": "Un contrôle : ce que B1 a constaté, ou un constat du contrat d'entrée recopié (`origin = bundle`).",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/CheckCode",
+          "description": "Code du catalogue (docs/05 §4 et constats du RunBundle)."
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "description": "`error` (réseau cassé ou incohérent), `warning` (la donnée se contredit), `info`."
+        },
+        "origin": {
+          "$ref": "#/$defs/CheckOrigin",
+          "description": "`correlation` = émis par B1 ; `bundle` = constat du contrat recopié."
+        },
+        "refs": {
+          "description": "Éléments concernés, triés par (sorte, identité).",
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "aggregate": "#/$defs/AggregateRef",
+                "cluster": "#/$defs/ClusterRef",
+                "interface": "#/$defs/InterfaceRef",
+                "link": "#/$defs/LinkRef",
+                "node": "#/$defs/NodeRef"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/NodeRef"
+              },
+              {
+                "$ref": "#/$defs/InterfaceRef"
+              },
+              {
+                "$ref": "#/$defs/LinkRef"
+              },
+              {
+                "$ref": "#/$defs/AggregateRef"
+              },
+              {
+                "$ref": "#/$defs/ClusterRef"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Refs",
+          "type": "array"
+        },
+        "details": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Détail structuré propre au code (cibles, statuts, topics) ; valeurs JSON seulement.",
+          "title": "Details",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "origin",
+        "refs",
+        "details"
+      ],
+      "title": "Check",
+      "type": "object"
+    },
+    "CheckCode": {
+      "enum": [
+        "neighbor_name_case_differs",
+        "neighbor_resolved_by_reported_hostname",
+        "neighbor_resolved_by_address",
+        "neighbor_name_ambiguous",
+        "neighbor_unknown",
+        "remote_port_is_mac",
+        "remote_port_is_aggregate",
+        "description_unparseable",
+        "description_disagrees_with_observed",
+        "multiple_observed_neighbors",
+        "one_way_observation",
+        "self_observation",
+        "documented_not_observed",
+        "aggregate_member_not_bundled",
+        "aggregate_below_min_links",
+        "aggregate_protocol_mismatch",
+        "mlag_downstream_inconsistent",
+        "mlag_pair_direct_link",
+        "ha_member_down",
+        "ha_view_mismatch",
+        "heartbeat_link_not_observed",
+        "link_oper_mismatch",
+        "link_speed_mismatch",
+        "native_vlan_mismatch",
+        "link_down",
+        "documented_port_without_transceiver",
+        "device_unreachable",
+        "device_partial_collection",
+        "parent_interface_unknown",
+        "interface_member_unknown",
+        "aggregate_interface_unknown",
+        "aggregate_member_unknown",
+        "local_interface_unknown",
+        "ha_member_unknown",
+        "heartbeat_interface_unknown",
+        "vrf_default_case",
+        "reported_hostname_differs",
+        "device_without_task",
+        "documents_without_task"
+      ],
+      "title": "CheckCode",
+      "type": "string"
+    },
+    "CheckOrigin": {
+      "enum": [
+        "bundle",
+        "correlation"
+      ],
+      "title": "CheckOrigin",
+      "type": "string"
+    },
+    "ClusterRef": {
+      "additionalProperties": false,
+      "description": "Référence à un cluster HA, par ses membres.",
+      "properties": {
+        "kind": {
+          "const": "cluster",
+          "description": "Discriminant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "members": {
+          "description": "Hostnames des membres, triés, sans doublon ; clé de `ha_clusters[]`.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Members",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "members"
+      ],
+      "title": "ClusterRef",
+      "type": "object"
+    },
+    "CollectionStatus": {
+      "enum": [
+        "success",
+        "partial",
+        "failed",
+        "unreachable",
+        "not_collected"
+      ],
+      "title": "CollectionStatus",
+      "type": "string"
+    },
+    "Coverage": {
+      "additionalProperties": false,
+      "description": "Ce qui a été collecté sur un device en périmètre : « pas vu parce que non collecté », pas « n'existe pas ».",
+      "properties": {
+        "hostname": {
+          "description": "Device en périmètre, clé de `nodes[]` (sorte `device`).",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CollectionStatus",
+          "description": "Statut de la task, égal à `nodes[].collection` du device ; `not_collected` si aucune task."
+        },
+        "topics": {
+          "$ref": "#/$defs/TopicCoverage",
+          "description": "Statut par topic ; tous `absent` si `unreachable` ou `not_collected`."
+        }
+      },
+      "required": [
+        "hostname",
+        "status",
+        "topics"
+      ],
+      "title": "Coverage",
+      "type": "object"
+    },
+    "DeviceType": {
+      "enum": [
+        "switch",
+        "router",
+        "firewall",
+        "load_balancer",
+        "wireless_controller",
+        "server",
+        "other"
+      ],
+      "title": "DeviceType",
+      "type": "string"
+    },
+    "Duplex": {
+      "enum": [
+        "full",
+        "half",
+        "unknown"
+      ],
+      "title": "Duplex",
+      "type": "string"
+    },
+    "Endpoint": {
+      "additionalProperties": false,
+      "description": "Un bout de lien : un port d'un nœud. Pour un stub, le nom annoncé et le port annoncé (MAC comprise).",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du nœud, clé de `nodes[]`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "interface": {
+          "description": "Nom canonique du port ; pour un stub ou un port non résolu, tel qu'annoncé.",
+          "minLength": 1,
+          "title": "Interface",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hostname",
+        "interface"
+      ],
+      "title": "Endpoint",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "enum": [
+        "lldp",
+        "cdp",
+        "description"
+      ],
+      "title": "EvidenceSource",
+      "type": "string"
+    },
+    "EvidenceStatus": {
+      "enum": [
+        "confirmed",
+        "observed_only",
+        "documented_only"
+      ],
+      "title": "EvidenceStatus",
+      "type": "string"
+    },
+    "HaCluster": {
+      "additionalProperties": false,
+      "description": "Un cluster HA, clé = hostnames des membres triés.",
+      "properties": {
+        "members": {
+          "description": "Membres, triés par hostname.",
+          "items": {
+            "$ref": "#/$defs/HaClusterMember"
+          },
+          "minItems": 1,
+          "title": "Members",
+          "type": "array"
+        },
+        "mode": {
+          "$ref": "#/$defs/HaMode",
+          "description": "Mode du cluster."
+        },
+        "cluster_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Nom du cluster ; null si absent.",
+          "title": "Cluster Name"
+        },
+        "heartbeat_interfaces": {
+          "description": "Interfaces de heartbeat des membres, triées par (hostname, nom naturel).",
+          "items": {
+            "$ref": "#/$defs/HeartbeatInterface"
+          },
+          "title": "Heartbeat Interfaces",
+          "type": "array"
+        }
+      },
+      "required": [
+        "members",
+        "mode",
+        "cluster_name",
+        "heartbeat_interfaces"
+      ],
+      "title": "HaCluster",
+      "type": "object"
+    },
+    "HaClusterMember": {
+      "additionalProperties": false,
+      "description": "Un membre de cluster HA, vu par les documents `ha[]` qui le décrivent.",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du membre, clé de `nodes[]`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/HaRole",
+          "description": "Rôle retenu."
+        },
+        "state": {
+          "$ref": "#/$defs/HaState",
+          "description": "État retenu."
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Priorité HA ; null si non lue.",
+          "title": "Priority"
+        },
+        "reported_by": {
+          "description": "Devices dont le document `ha` décrit ce membre, triés.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Reported By",
+          "type": "array"
+        }
+      },
+      "required": [
+        "hostname",
+        "role",
+        "state",
+        "priority",
+        "reported_by"
+      ],
+      "title": "HaClusterMember",
+      "type": "object"
+    },
+    "HaMode": {
+      "enum": [
+        "active_passive",
+        "active_active",
+        "standalone",
+        "other"
+      ],
+      "title": "HaMode",
+      "type": "string"
+    },
+    "HaRole": {
+      "enum": [
+        "primary",
+        "secondary",
+        "active",
+        "standby",
+        "member"
+      ],
+      "title": "HaRole",
+      "type": "string"
+    },
+    "HaState": {
+      "enum": [
+        "up",
+        "down",
+        "unknown"
+      ],
+      "title": "HaState",
+      "type": "string"
+    },
+    "HeartbeatInterface": {
+      "additionalProperties": false,
+      "description": "Une interface de heartbeat d'un membre, et le câble qui la porte s'il est connu.",
+      "properties": {
+        "hostname": {
+          "description": "Membre propriétaire.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "interface": {
+          "description": "Nom canonique de l'interface.",
+          "minLength": 1,
+          "title": "Interface",
+          "type": "string"
+        },
+        "cable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LinkKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Clé du câble observé ou documenté ; null si aucun (jamais inventé)."
+        }
+      },
+      "required": [
+        "hostname",
+        "interface",
+        "cable"
+      ],
+      "title": "HeartbeatInterface",
+      "type": "object"
+    },
+    "InterfaceRef": {
+      "additionalProperties": false,
+      "description": "Référence à une interface.",
+      "properties": {
+        "kind": {
+          "const": "interface",
+          "description": "Discriminant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "hostname": {
+          "description": "Hostname de l'interface.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "name": {
+          "description": "Nom canonique de l'interface ; clé `(hostname, name)` de `interfaces[]`.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "hostname",
+        "name"
+      ],
+      "title": "InterfaceRef",
+      "type": "object"
+    },
+    "InterfaceRole": {
+      "enum": [
+        "heartbeat",
+        "mlag_peer_link"
+      ],
+      "title": "InterfaceRole",
+      "type": "string"
+    },
+    "InterfaceType": {
+      "enum": [
+        "physical",
+        "aggregate",
+        "subinterface",
+        "svi",
+        "loopback",
+        "tunnel",
+        "management",
+        "other"
+      ],
+      "title": "InterfaceType",
+      "type": "string"
+    },
+    "IpAddress": {
+      "additionalProperties": false,
+      "description": "Une adresse IP portée par une interface.",
+      "properties": {
+        "address": {
+          "description": "Adresse sans masque, en texte : IPv4 pointée ou IPv6.",
+          "title": "Address",
+          "type": "string"
+        },
+        "prefix": {
+          "description": "Longueur de préfixe : 0 à 32 en IPv4, 0 à 128 en IPv6.",
+          "title": "Prefix",
+          "type": "integer"
+        },
+        "family": {
+          "description": "Famille, cohérente avec `address`.",
+          "enum": [
+            4,
+            6
+          ],
+          "title": "Family",
+          "type": "integer"
+        },
+        "role": {
+          "$ref": "#/$defs/IpRole",
+          "description": "`primary`, `secondary`, ou `virtual` pour une VIP VRRP / HSRP."
+        }
+      },
+      "required": [
+        "address",
+        "prefix",
+        "family",
+        "role"
+      ],
+      "title": "IpAddress",
+      "type": "object"
+    },
+    "IpRole": {
+      "enum": [
+        "primary",
+        "secondary",
+        "virtual"
+      ],
+      "title": "IpRole",
+      "type": "string"
+    },
+    "JsonValue": {},
+    "LacpMode": {
+      "enum": [
+        "active",
+        "passive"
+      ],
+      "title": "LacpMode",
+      "type": "string"
+    },
+    "Link": {
+      "additionalProperties": false,
+      "description": "Une arête. V1 : `cable` seulement ; les autres sortes sont réservées aux vues L2 / L3.",
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/Endpoint",
+          "description": "Premier bout, le plus petit dans l'ordre (hostname, nom naturel du port)."
+        },
+        "b": {
+          "$ref": "#/$defs/Endpoint",
+          "description": "Second bout, strictement après `a`."
+        },
+        "kind": {
+          "$ref": "#/$defs/LinkKind",
+          "description": "Sorte d'arête."
+        },
+        "status": {
+          "$ref": "#/$defs/EvidenceStatus",
+          "description": "`confirmed` = observé et documenté ; `observed_only` ; `documented_only`. Dérivé des évidences."
+        },
+        "evidence": {
+          "description": "Témoignages, triés par (source, témoin, voisin résolu).",
+          "items": {
+            "$ref": "#/$defs/LinkEvidence"
+          },
+          "minItems": 1,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "oper": {
+          "$ref": "#/$defs/LinkOper",
+          "description": "`up` si les deux bouts sont up, `down` si l'un l'est, `unknown` sinon."
+        },
+        "speed_mbps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Vitesse commune aux deux bouts ; null si différente ou inconnue.",
+          "title": "Speed Mbps"
+        },
+        "aggregate_a": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Agrégat du bout `a` ; null sinon.",
+          "title": "Aggregate A"
+        },
+        "aggregate_b": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Agrégat du bout `b` ; null sinon.",
+          "title": "Aggregate B"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "kind",
+        "status",
+        "evidence",
+        "oper",
+        "speed_mbps",
+        "aggregate_a",
+        "aggregate_b"
+      ],
+      "title": "Link",
+      "type": "object"
+    },
+    "LinkEvidence": {
+      "additionalProperties": false,
+      "description": "Un témoignage à l'origine du lien : une opinion datée d'une source, jamais un lien à elle seule.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/EvidenceSource",
+          "description": "`lldp` et `cdp` = observé ; `description` = documenté."
+        },
+        "witness": {
+          "$ref": "#/$defs/Endpoint",
+          "description": "Le bout qui témoigne ; l'un des deux bouts du lien."
+        },
+        "remote_raw": {
+          "$ref": "#/$defs/RemoteRaw",
+          "description": "Ce que le témoin annonce, brut."
+        },
+        "remote_resolved": {
+          "$ref": "#/$defs/ResolvedRemote",
+          "description": "Le voisin après résolution (R0) et normalisation (R1)."
+        },
+        "resolution": {
+          "$ref": "#/$defs/Resolution",
+          "description": "Niveau de R0 qui a résolu le nom."
+        }
+      },
+      "required": [
+        "source",
+        "witness",
+        "remote_raw",
+        "remote_resolved",
+        "resolution"
+      ],
+      "title": "LinkEvidence",
+      "type": "object"
+    },
+    "LinkKey": {
+      "additionalProperties": false,
+      "description": "La clé d'un lien : ses deux bouts, triés. Jamais d'identifiant synthétique.",
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/Endpoint",
+          "description": "Premier bout, le plus petit dans l'ordre (hostname, nom naturel du port)."
+        },
+        "b": {
+          "$ref": "#/$defs/Endpoint",
+          "description": "Second bout, strictement après `a`."
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "title": "LinkKey",
+      "type": "object"
+    },
+    "LinkKind": {
+      "enum": [
+        "cable",
+        "l2_segment",
+        "l3_adjacency",
+        "bgp_session"
+      ],
+      "title": "LinkKind",
+      "type": "string"
+    },
+    "LinkOper": {
+      "enum": [
+        "up",
+        "down",
+        "unknown"
+      ],
+      "title": "LinkOper",
+      "type": "string"
+    },
+    "LinkRef": {
+      "additionalProperties": false,
+      "description": "Référence à un lien, par sa clé.",
+      "properties": {
+        "kind": {
+          "const": "link",
+          "description": "Discriminant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "a": {
+          "$ref": "#/$defs/Endpoint",
+          "description": "Premier bout du lien référencé."
+        },
+        "b": {
+          "$ref": "#/$defs/Endpoint",
+          "description": "Second bout, strictement après `a`."
+        }
+      },
+      "required": [
+        "kind",
+        "a",
+        "b"
+      ],
+      "title": "LinkRef",
+      "type": "object"
+    },
+    "LinkStatus": {
+      "enum": [
+        "up",
+        "down"
+      ],
+      "title": "LinkStatus",
+      "type": "string"
+    },
+    "MemberStatus": {
+      "enum": [
+        "bundled",
+        "suspended",
+        "standby",
+        "individual",
+        "down",
+        "not_in_use"
+      ],
+      "title": "MemberStatus",
+      "type": "string"
+    },
+    "MlagDomain": {
+      "additionalProperties": false,
+      "description": "Deux agrégats de deux devices distincts portant le même `mlag_id` (vPC, MC-LAG).",
+      "properties": {
+        "mlag_id": {
+          "description": "Identifiant partagé.",
+          "title": "Mlag Id",
+          "type": "integer"
+        },
+        "members": {
+          "description": "Les deux agrégats, triés par hostname.",
+          "items": {
+            "$ref": "#/$defs/MlagMember"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Members",
+          "type": "array"
+        },
+        "peer_link": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MlagMember"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "L'agrégat `mlag_peer_link` d'un des deux devices ; null si absent."
+        },
+        "downstream": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Device au bout des câbles des deux agrégats s'il est unique ; null sinon (contrôle).",
+          "title": "Downstream"
+        }
+      },
+      "required": [
+        "mlag_id",
+        "members",
+        "peer_link",
+        "downstream"
+      ],
+      "title": "MlagDomain",
+      "type": "object"
+    },
+    "MlagMember": {
+      "additionalProperties": false,
+      "description": "Un agrégat membre d'un domaine MLAG.",
+      "properties": {
+        "hostname": {
+          "description": "Device de l'agrégat.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "aggregate": {
+          "description": "Nom canonique de l'agrégat ; clé de `aggregates[]`.",
+          "minLength": 1,
+          "title": "Aggregate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hostname",
+        "aggregate"
+      ],
+      "title": "MlagMember",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "description": "Un nœud du graphe. `device` : en périmètre, décrit par `devices` et `system` ; `external` : présent dans\n`devices` mais d'une autre infrastructure, matérialisé parce qu'un voisin le cite ; `stub` : cité par une\névidence, inconnu de `devices`. Les stubs restent dans le snapshot, la vue décide de les montrer.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/NodeKind",
+          "description": "Sorte de nœud ; conditionne les champs admis. `device` : `collection` renseigné, `evidence` null, `type` renseigné. `external` : `evidence` renseigné, `collection` null, `type` renseigné, rien de `system` (`reported_hostname`, `uptime_seconds`, `stack` null, `virtual_contexts` vide). `stub` : `evidence` renseigné, tout le reste null ou vide, `hostname` en `casefold`."
+        },
+        "hostname": {
+          "description": "Clé, unique toutes sortes confondues (comparée sans la casse). Pour un stub : le nom annoncé, après `casefold`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeviceType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `devices` ; null pour un stub, requis sinon."
+        },
+        "vendor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `devices` ; null pour un stub ou si inconnu.",
+          "title": "Vendor"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `devices` ; null pour un stub ou si inconnu.",
+          "title": "Model"
+        },
+        "site": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `devices` ; null pour un stub ou si inconnu.",
+          "title": "Site"
+        },
+        "os_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `devices`, chaîne d'affichage ; null pour un stub ou si inconnu.",
+          "title": "Os Name"
+        },
+        "os_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `devices` ; null pour un stub ou si inconnue.",
+          "title": "Os Version"
+        },
+        "serial_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `devices` ; null pour un stub ou si inconnu.",
+          "title": "Serial Number"
+        },
+        "reported_hostname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `system[]` ; null si non collecté.",
+          "title": "Reported Hostname"
+        },
+        "uptime_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "De `system[]` ; null si non collecté.",
+          "title": "Uptime Seconds"
+        },
+        "virtual_contexts": {
+          "description": "De `system[]`, triés, sans doublon ; vide sinon.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Virtual Contexts",
+          "type": "array"
+        },
+        "stack": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stack"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Depuis `system[].chassis_members` ; null si standalone ou non collecté."
+        },
+        "collection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CollectionStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Statut de collecte, pour un `device` seulement (`not_collected` = en périmètre sans task)."
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NodeEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Témoignages, pour `external` et `stub` seulement."
+        }
+      },
+      "required": [
+        "kind",
+        "hostname",
+        "type",
+        "vendor",
+        "model",
+        "site",
+        "os_name",
+        "os_version",
+        "serial_number",
+        "reported_hostname",
+        "uptime_seconds",
+        "virtual_contexts",
+        "stack",
+        "collection",
+        "evidence"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "NodeEvidence": {
+      "additionalProperties": false,
+      "description": "Ce que les voisins disent d'un nœud `external` ou `stub` : la seule information disponible sur lui.",
+      "properties": {
+        "seen_by": {
+          "description": "Témoignages, triés par (hostname, port, source).",
+          "items": {
+            "$ref": "#/$defs/SeenBy"
+          },
+          "title": "Seen By",
+          "type": "array"
+        },
+        "capabilities": {
+          "description": "Union des capacités annoncées (`bridge`, `router`, `station`…), triée, sans doublon.",
+          "items": {
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        }
+      },
+      "required": [
+        "seen_by",
+        "capabilities"
+      ],
+      "title": "NodeEvidence",
+      "type": "object"
+    },
+    "NodeKind": {
+      "enum": [
+        "device",
+        "external",
+        "stub"
+      ],
+      "title": "NodeKind",
+      "type": "string"
+    },
+    "NodeRef": {
+      "additionalProperties": false,
+      "description": "Référence à un nœud.",
+      "properties": {
+        "kind": {
+          "const": "node",
+          "description": "Discriminant.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "hostname": {
+          "description": "Clé de `nodes[]`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "hostname"
+      ],
+      "title": "NodeRef",
+      "type": "object"
+    },
+    "OperStatus": {
+      "enum": [
+        "up",
+        "down",
+        "testing",
+        "unknown",
+        "dormant",
+        "not_present",
+        "lower_layer_down"
+      ],
+      "title": "OperStatus",
+      "type": "string"
+    },
+    "ParsedDescription": {
+      "additionalProperties": false,
+      "description": "La description `criticité|voisin|port|options` lue par B1 (R2) ; absente si non parsable.",
+      "properties": {
+        "criticality": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Champ 1, tel quel (vocabulaire non figé) ; null si vide.",
+          "title": "Criticality"
+        },
+        "neighbor": {
+          "description": "Champ 2 : nom du voisin documenté, brut.",
+          "minLength": 1,
+          "title": "Neighbor",
+          "type": "string"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Champ 3 : port du voisin, brut ; null si absent.",
+          "title": "Port"
+        },
+        "options": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Champ 4 : options, brutes ; null si absentes.",
+          "title": "Options"
+        }
+      },
+      "required": [
+        "criticality",
+        "neighbor",
+        "port",
+        "options"
+      ],
+      "title": "ParsedDescription",
+      "type": "object"
+    },
+    "RemoteRaw": {
+      "additionalProperties": false,
+      "description": "Le voisin tel qu'annoncé par la source, avant résolution et normalisation.",
+      "properties": {
+        "name": {
+          "description": "Nom (ou MAC, ou IP) du voisin, brut.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Port du voisin, brut ; null si la source n'en donne pas.",
+          "title": "Port"
+        }
+      },
+      "required": [
+        "name",
+        "port"
+      ],
+      "title": "RemoteRaw",
+      "type": "object"
+    },
+    "Report": {
+      "additionalProperties": false,
+      "description": "Le rapport de corrélation. Les clés nullables absentes du bundle n'y sont pas : elles décrivent la\nlivraison et vivent dans le rapport d'ingestion (décision 2026-09-19).",
+      "properties": {
+        "counts": {
+          "$ref": "#/$defs/SectionCounts",
+          "description": "Comptes par section."
+        },
+        "residual_normalizations": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Recopié du bundle : ce que B0 a dû normaliser.",
+          "title": "Residual Normalizations",
+          "type": "object"
+        },
+        "applied_normalizations": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Compteur par règle de B1 (`ifname_short_to_long`…) ; doit rester explicable.",
+          "title": "Applied Normalizations",
+          "type": "object"
+        },
+        "unresolved_names": {
+          "description": "Noms de voisins finis en stub, triés, sans doublon.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Unresolved Names",
+          "type": "array"
+        },
+        "unparseable_descriptions": {
+          "description": "Descriptions non vides que R2 n'a pas su lire.",
+          "minimum": 0,
+          "title": "Unparseable Descriptions",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "counts",
+        "residual_normalizations",
+        "applied_normalizations",
+        "unresolved_names",
+        "unparseable_descriptions"
+      ],
+      "title": "Report",
+      "type": "object"
+    },
+    "Resolution": {
+      "enum": [
+        "hostname",
+        "hostname_casefold",
+        "reported_hostname",
+        "address",
+        "stub"
+      ],
+      "title": "Resolution",
+      "type": "string"
+    },
+    "ResolvedRemote": {
+      "additionalProperties": false,
+      "description": "Le voisin après résolution (R0) et normalisation (R1) : toujours le device du bout opposé au témoin.",
+      "properties": {
+        "hostname": {
+          "description": "Device résolu ; celui du bout opposé au témoin.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "interface": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Port résolu ; null quand la description ne nomme pas de port (`C1|voisin|`) : l'accord avec l'observé se juge alors sur le device seul (R3), comme pour un port distant resté en MAC.",
+          "title": "Interface"
+        }
+      },
+      "required": [
+        "hostname",
+        "interface"
+      ],
+      "title": "ResolvedRemote",
+      "type": "object"
+    },
+    "RunStatus": {
+      "enum": [
+        "completed",
+        "partial",
+        "failed",
+        "running"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    },
+    "RunSummary": {
+      "additionalProperties": false,
+      "description": "La run amont, telle que le bundle la décrit.",
+      "properties": {
+        "start_datetime": {
+          "description": "Début de la run.",
+          "format": "date-time",
+          "title": "Start Datetime",
+          "type": "string"
+        },
+        "end_datetime": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fin de la run ; null si absente.",
+          "title": "End Datetime"
+        },
+        "status": {
+          "$ref": "#/$defs/RunStatus",
+          "description": "État global de la run."
+        }
+      },
+      "required": [
+        "start_datetime",
+        "end_datetime",
+        "status"
+      ],
+      "title": "RunSummary",
+      "type": "object"
+    },
+    "SectionCounts": {
+      "additionalProperties": false,
+      "description": "Taille de chaque section, vérifiée à la validation.",
+      "properties": {
+        "nodes": {
+          "description": "Nombre de nœuds.",
+          "minimum": 0,
+          "title": "Nodes",
+          "type": "integer"
+        },
+        "interfaces": {
+          "description": "Nombre d'interfaces.",
+          "minimum": 0,
+          "title": "Interfaces",
+          "type": "integer"
+        },
+        "links": {
+          "description": "Nombre de liens.",
+          "minimum": 0,
+          "title": "Links",
+          "type": "integer"
+        },
+        "aggregates": {
+          "description": "Nombre d'agrégats.",
+          "minimum": 0,
+          "title": "Aggregates",
+          "type": "integer"
+        },
+        "mlag_domains": {
+          "description": "Nombre de domaines MLAG.",
+          "minimum": 0,
+          "title": "Mlag Domains",
+          "type": "integer"
+        },
+        "ha_clusters": {
+          "description": "Nombre de clusters HA.",
+          "minimum": 0,
+          "title": "Ha Clusters",
+          "type": "integer"
+        },
+        "checks": {
+          "description": "Nombre de contrôles.",
+          "minimum": 0,
+          "title": "Checks",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "nodes",
+        "interfaces",
+        "links",
+        "aggregates",
+        "mlag_domains",
+        "ha_clusters",
+        "checks"
+      ],
+      "title": "SectionCounts",
+      "type": "object"
+    },
+    "SeenBy": {
+      "additionalProperties": false,
+      "description": "Un témoignage sur un nœud non collecté : qui l'a vu, sur quel port, par quelle source.",
+      "properties": {
+        "hostname": {
+          "description": "Device qui a vu le nœud.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "interface": {
+          "description": "Port local du témoin.",
+          "minLength": 1,
+          "title": "Interface",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/EvidenceSource",
+          "description": "Source du témoignage."
+        }
+      },
+      "required": [
+        "hostname",
+        "interface",
+        "source"
+      ],
+      "title": "SeenBy",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "error",
+        "warning",
+        "info"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "SnapshotAggregate": {
+      "additionalProperties": false,
+      "description": "Un agrégat, clé `(hostname, name)`, recopié de `aggregates[]` avec ses câbles et son état dégradé.",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du nœud.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "name": {
+          "description": "Nom canonique de l'agrégat.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "oper_status": {
+          "$ref": "#/$defs/LinkStatus",
+          "description": "État opérationnel de l'agrégat."
+        },
+        "protocol": {
+          "$ref": "#/$defs/AggregationProtocol",
+          "description": "Protocole d'agrégation."
+        },
+        "lacp_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LacpMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mode LACP ; null si non LACP ou non lu."
+        },
+        "min_links": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Minimum de membres actifs configuré ; null si non lu.",
+          "title": "Min Links"
+        },
+        "members": {
+          "description": "Membres et états, triés par nom naturel.",
+          "items": {
+            "$ref": "#/$defs/AggregateMember"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "mlag_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Identifiant vPC / MLAG ; null sinon.",
+          "title": "Mlag Id"
+        },
+        "mlag_peer_link": {
+          "description": "true si l'agrégat est le peer-link du MLAG.",
+          "title": "Mlag Peer Link",
+          "type": "boolean"
+        },
+        "cables": {
+          "description": "Clés des câbles de ses membres, triées ; forment un faisceau.",
+          "items": {
+            "$ref": "#/$defs/LinkKey"
+          },
+          "title": "Cables",
+          "type": "array"
+        },
+        "degraded": {
+          "description": "true si au moins un membre n'est pas `bundled`.",
+          "title": "Degraded",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "hostname",
+        "name",
+        "oper_status",
+        "protocol",
+        "lacp_mode",
+        "min_links",
+        "members",
+        "mlag_id",
+        "mlag_peer_link",
+        "cables",
+        "degraded"
+      ],
+      "title": "SnapshotAggregate",
+      "type": "object"
+    },
+    "SnapshotInterface": {
+      "additionalProperties": false,
+      "description": "Une interface, clé `(hostname, name)`. Les champs recopiés gardent le sens du RunBundle ; `null` y veut\ndire « pas de valeur ». Aucun `extras`, aucun compteur : le snapshot dessine, il n'audite pas.",
+      "properties": {
+        "hostname": {
+          "description": "Hostname du nœud, clé de `nodes[]`.",
+          "minLength": 1,
+          "title": "Hostname",
+          "type": "string"
+        },
+        "name": {
+          "description": "Nom canonique.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Description brute, conservée telle quelle ; null si vide.",
+          "title": "Description"
+        },
+        "description_parsed": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParsedDescription"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Description lue par R2 ; null si non parsable."
+        },
+        "type": {
+          "$ref": "#/$defs/InterfaceType",
+          "description": "Nature de l'interface."
+        },
+        "admin_status": {
+          "$ref": "#/$defs/AdminStatus",
+          "description": "État administratif."
+        },
+        "oper_status": {
+          "$ref": "#/$defs/OperStatus",
+          "description": "État opérationnel (RFC 2863)."
+        },
+        "oper_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Raison vendeur brute ; null si `up` ou non donnée.",
+          "title": "Oper Reason"
+        },
+        "speed_mbps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Vitesse opérationnelle en Mbit/s ; null si down ou inconnue.",
+          "title": "Speed Mbps"
+        },
+        "duplex": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Duplex"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Duplex opérationnel ; null si sans objet ou non lu."
+        },
+        "mac_address": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{2}(:[0-9a-f]{2}){5}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "MAC normalisée ; null si absente.",
+          "title": "Mac Address"
+        },
+        "media": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Média ou transceiver, brut ; null si inconnu.",
+          "title": "Media"
+        },
+        "parent_interface": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Parent d'une sous-interface ; null sinon.",
+          "title": "Parent Interface"
+        },
+        "virtual_context": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Partition virtuelle propriétaire ; null si aucune ou non lue.",
+          "title": "Virtual Context"
+        },
+        "last_change_age_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "const": "never",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Âge du dernier changement d'état ; `\"never\"` = aucun depuis le démarrage ; null si non lu.",
+          "title": "Last Change Age Seconds"
+        },
+        "vlan_id": {
+          "anyOf": [
+            {
+              "maximum": 4094,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "VLAN d'une sous-interface ou d'une SVI ; null sinon.",
+          "title": "Vlan Id"
+        },
+        "switchport_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SwitchportMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mode L2 configuré résolu ; null si non lu."
+        },
+        "access_vlan": {
+          "anyOf": [
+            {
+              "maximum": 4094,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "VLAN d'un port `access` ; null sinon.",
+          "title": "Access Vlan"
+        },
+        "native_vlan": {
+          "anyOf": [
+            {
+              "maximum": 4094,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "VLAN natif d'un trunk ; null sinon.",
+          "title": "Native Vlan"
+        },
+        "allowed_vlans": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/VlanRange"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "VLAN autorisés sur un trunk, forme canonique (R6) : intervalles triés par `first`, disjoints, adjacents fusionnés ; `[]` = aucun ; null si sans objet ou non lu.",
+          "title": "Allowed Vlans"
+        },
+        "ip_addresses": {
+          "description": "Adresses portées, triées par (famille, adresse, préfixe).",
+          "items": {
+            "$ref": "#/$defs/IpAddress"
+          },
+          "title": "Ip Addresses",
+          "type": "array"
+        },
+        "vrf": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`\"default\"` = table globale ; autre = VRF nommée ; null = non lu ou sans objet.",
+          "title": "Vrf"
+        },
+        "aggregate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AggregateMembership"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Agrégat dont l'interface est membre ; null sinon."
+        },
+        "roles": {
+          "description": "Rôles déduits par B1, triés, sans doublon ; vide sinon.",
+          "items": {
+            "$ref": "#/$defs/InterfaceRole"
+          },
+          "title": "Roles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "hostname",
+        "name",
+        "description",
+        "description_parsed",
+        "type",
+        "admin_status",
+        "oper_status",
+        "oper_reason",
+        "speed_mbps",
+        "duplex",
+        "mac_address",
+        "media",
+        "parent_interface",
+        "virtual_context",
+        "last_change_age_seconds",
+        "vlan_id",
+        "switchport_mode",
+        "access_vlan",
+        "native_vlan",
+        "allowed_vlans",
+        "ip_addresses",
+        "vrf",
+        "aggregate",
+        "roles"
+      ],
+      "title": "SnapshotInterface",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "D'où vient le snapshot : le bundle, identifié par son empreinte. Aucun horodatage propre à B1.",
+      "properties": {
+        "infrastructure": {
+          "description": "Infrastructure dessinée.",
+          "minLength": 1,
+          "title": "Infrastructure",
+          "type": "string"
+        },
+        "collector_run_id": {
+          "description": "Run amont.",
+          "minLength": 1,
+          "title": "Collector Run Id",
+          "type": "string"
+        },
+        "bundle_sha256": {
+          "description": "Empreinte SHA-256 du bundle archivé (hexadécimal minuscule).",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Bundle Sha256",
+          "type": "string"
+        },
+        "contract_version": {
+          "description": "Version du contrat RunBundle du bundle.",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "produced_at": {
+          "description": "`produced_at` du bundle.",
+          "format": "date-time",
+          "title": "Produced At",
+          "type": "string"
+        },
+        "exporter_version": {
+          "description": "`exporter_version` du bundle.",
+          "minLength": 1,
+          "title": "Exporter Version",
+          "type": "string"
+        },
+        "run": {
+          "$ref": "#/$defs/RunSummary",
+          "description": "Début, fin et statut de la run."
+        }
+      },
+      "required": [
+        "infrastructure",
+        "collector_run_id",
+        "bundle_sha256",
+        "contract_version",
+        "produced_at",
+        "exporter_version",
+        "run"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "Stack": {
+      "additionalProperties": false,
+      "description": "Le stack d'un nœud : source du badge ×N.",
+      "properties": {
+        "member_count": {
+          "description": "Nombre de membres, égal à la taille de `members`.",
+          "minimum": 1,
+          "title": "Member Count",
+          "type": "integer"
+        },
+        "members": {
+          "description": "Membres triés par `slot`.",
+          "items": {
+            "$ref": "#/$defs/StackMember"
+          },
+          "minItems": 1,
+          "title": "Members",
+          "type": "array"
+        }
+      },
+      "required": [
+        "member_count",
+        "members"
+      ],
+      "title": "Stack",
+      "type": "object"
+    },
+    "StackMember": {
+      "additionalProperties": false,
+      "description": "Un châssis membre d'un stack, recopié de `system[].chassis_members` ; toutes les clés écrites.",
+      "properties": {
+        "slot": {
+          "description": "Numéro de membre dans le stack.",
+          "title": "Slot",
+          "type": "integer"
+        },
+        "serial": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Serial du membre ; null si non lu.",
+          "title": "Serial"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Référence matérielle du membre ; null si non lue.",
+          "title": "Model"
+        },
+        "role": {
+          "$ref": "#/$defs/ChassisRole",
+          "description": "Rôle du membre dans le stack."
+        },
+        "state": {
+          "$ref": "#/$defs/ChassisState",
+          "description": "État du membre."
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Priorité d'élection ; null si non lue.",
+          "title": "Priority"
+        }
+      },
+      "required": [
+        "slot",
+        "serial",
+        "model",
+        "role",
+        "state",
+        "priority"
+      ],
+      "title": "StackMember",
+      "type": "object"
+    },
+    "SwitchportMode": {
+      "enum": [
+        "access",
+        "trunk",
+        "routed",
+        "none"
+      ],
+      "title": "SwitchportMode",
+      "type": "string"
+    },
+    "TopicCoverage": {
+      "additionalProperties": false,
+      "description": "Résultat de collecte par topic sur un device : `absent` = non demandé, rien à attendre.",
+      "properties": {
+        "interfaces": {
+          "$ref": "#/$defs/TopicStatus",
+          "description": "Topic `interfaces`."
+        },
+        "aggregates": {
+          "$ref": "#/$defs/TopicStatus",
+          "description": "Topic agrégats."
+        },
+        "lldp": {
+          "$ref": "#/$defs/TopicStatus",
+          "description": "Topic `lldp`."
+        },
+        "cdp": {
+          "$ref": "#/$defs/TopicStatus",
+          "description": "Topic `cdp`."
+        },
+        "system": {
+          "$ref": "#/$defs/TopicStatus",
+          "description": "Topic `system`."
+        },
+        "ha": {
+          "$ref": "#/$defs/TopicStatus",
+          "description": "Topic `ha`."
+        }
+      },
+      "required": [
+        "interfaces",
+        "aggregates",
+        "lldp",
+        "cdp",
+        "system",
+        "ha"
+      ],
+      "title": "TopicCoverage",
+      "type": "object"
+    },
+    "TopicStatus": {
+      "enum": [
+        "success",
+        "failed",
+        "absent"
+      ],
+      "title": "TopicStatus",
+      "type": "string"
+    },
+    "VlanRange": {
+      "additionalProperties": false,
+      "description": "Un intervalle de VLAN autorisés sur un trunk, bornes incluses ; VLAN unique = `first == last`.",
+      "properties": {
+        "first": {
+          "description": "Premier VLAN de l'intervalle, inclus.",
+          "maximum": 4094,
+          "minimum": 1,
+          "title": "First",
+          "type": "integer"
+        },
+        "last": {
+          "description": "Dernier VLAN de l'intervalle, inclus ; égal à `first` pour un VLAN unique.",
+          "maximum": 4094,
+          "minimum": 1,
+          "title": "Last",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "first",
+        "last"
+      ],
+      "title": "VlanRange",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Le graphe d'une run : nœuds, interfaces, arêtes typées, structures, contrôles, couverture, rapport.\n\nTout vient du bundle ou d'une règle déterministe de B1 : aucun horodatage propre, aucun identifiant\nsynthétique, aucune coordonnée. Même bundle ⇒ même snapshot, à l'octet (`canonical_json`).",
+  "properties": {
+    "snapshot_version": {
+      "description": "Version semver du contrat Snapshot, indépendante de celle du RunBundle.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Snapshot Version",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/Source",
+      "description": "Le bundle d'origine."
+    },
+    "nodes": {
+      "description": "Nœuds, triés par (sorte, hostname) ; hostname unique sans la casse.",
+      "items": {
+        "$ref": "#/$defs/Node"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "interfaces": {
+      "description": "Interfaces, triées par (hostname, nom naturel).",
+      "items": {
+        "$ref": "#/$defs/SnapshotInterface"
+      },
+      "title": "Interfaces",
+      "type": "array"
+    },
+    "links": {
+      "description": "Arêtes, triées par paire d'endpoints.",
+      "items": {
+        "$ref": "#/$defs/Link"
+      },
+      "title": "Links",
+      "type": "array"
+    },
+    "aggregates": {
+      "description": "Agrégats, triés par (hostname, nom naturel).",
+      "items": {
+        "$ref": "#/$defs/SnapshotAggregate"
+      },
+      "title": "Aggregates",
+      "type": "array"
+    },
+    "mlag_domains": {
+      "description": "Domaines MLAG, triés par (mlag_id, membres).",
+      "items": {
+        "$ref": "#/$defs/MlagDomain"
+      },
+      "title": "Mlag Domains",
+      "type": "array"
+    },
+    "ha_clusters": {
+      "description": "Clusters HA, triés par membres.",
+      "items": {
+        "$ref": "#/$defs/HaCluster"
+      },
+      "title": "Ha Clusters",
+      "type": "array"
+    },
+    "checks": {
+      "description": "Contrôles, triés par (code, références, détails).",
+      "items": {
+        "$ref": "#/$defs/Check"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "coverage": {
+      "description": "Un élément par nœud `device`, triés par hostname.",
+      "items": {
+        "$ref": "#/$defs/Coverage"
+      },
+      "title": "Coverage",
+      "type": "array"
+    },
+    "report": {
+      "$ref": "#/$defs/Report",
+      "description": "Comptes et normalisations."
+    }
+  },
+  "required": [
+    "snapshot_version",
+    "source",
+    "nodes",
+    "interfaces",
+    "links",
+    "aggregates",
+    "mlag_domains",
+    "ha_clusters",
+    "checks",
+    "coverage",
+    "report"
+  ],
+  "type": "object"
+}

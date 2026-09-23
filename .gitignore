@@ -1,0 +1,53 @@
+# Living Diagram v12 — fichiers hors dépôt
+#
+# Règle : rien de généré, rien de lourd, et surtout aucune donnée d'infra.
+# Le dépôt est public : tout ce qui n'est pas explicitement synthétique reste dehors.
+
+# --- Données : le premier vecteur de fuite -----------------------------------
+# Archive d'ingestion (bundles réels, snapshots, rapports) écrite par le backend
+# et par les tests de bout en bout. Ne doit jamais partir.
+archive/
+/backend/archive/
+
+# Pages produites par `ld render` : aussi sensibles que le bundle qui les nourrit
+# (anonymiser puis rendre pour sortir une capture). Aucun HTML légitime à la racine.
+/*.html
+
+# --- Environnements et caches Python ----------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- Couverture et rapports de test -----------------------------------------
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# --- Sondes de revue : on versionne les scripts, jamais leurs sorties --------
+# Les `sonde_*.py` rendent une revue rejouable ; les dossiers `tmp*` qu'elles
+# créent sont des sorties régénérables (jusqu'à 38 Mo pour la sonde de coût).
+docs/revues/sondes-*/tmp*/
+
+# --- Archives et gros binaires ----------------------------------------------
+# Un zip du projet lui-même a déjà bloqué un push (131 Mo > limite GitHub 100 Mo).
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# --- Outillage local ---------------------------------------------------------
+.impeccable/hook.cache.json
+
+# --- Éditeurs et système -----------------------------------------------------
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Note : `uv.lock` est versionné volontairement (déterminisme des dépendances).

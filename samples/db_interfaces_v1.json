@@ -1,0 +1,89 @@
+[
+    // EXEMPLE D'OUTPUT POUR UN SWITCH CISCO
+    {
+        "extras": {
+            "hardware_type": "10/100/1000/25000 Ethernet",
+            "mac_address": "aaaa.bbbb.cccc",
+            "bia": "aaaa.bbbb.cccc",
+            "bandwidth": "10000000 Kbit",
+            "delay": "10 usec",
+            "encapsulation": "ARPA",
+            "media_type": "10G"
+        },
+        "name": "Ethernet1/1",
+        "description": "CRITICAL|TODEVICE|TO_INTERFACE",
+        "oper_status": "up",
+        "type": "physical",
+        "mtu": 9000,
+        "address": "4.4.4.4",
+        "prefix": 31,
+        "vrf": None,
+        "domain": None,
+        "parent_interface": None,
+        "members": [],
+        "counters": [],
+        "admin_status": "up",
+        "negotiated_port_speed": None,
+        "port_speed": "10000",
+        "auto_negotiate": None,
+        "duplex": "full-duplex",
+        "last_change": "13week(s) 3day(s)",
+        "hostname": "MON_SWITCH",
+        "infrastructure": "infra_01"
+    }
+]
+// EXEMPLE D'OUTPUT POUR UN FIREWALL (FORTINET) AVEC NOTION DE PARENT INTERFACE (SUB INTERFACE)
+[
+    {
+        "extras": {},
+        "name": "SUB-INTF-VL400",
+        "description": "CRITICAL|TODEVICE|TO_INTERFACE",
+        "oper_status": "up",
+        "type": "VLAN",
+        "mtu": None,
+        "address": "1.1.1.1",
+        "prefix": 29,
+        "vrf": None,
+        "domain": "MON_VDOM",
+        "parent_interface": "x2",
+        "members": [],
+        "counters": None,
+        "admin_status": "up",
+        "negotiated_port_speed": None,
+        "port_speed": "1000",
+        "auto_negotiate": None,
+        "duplex": "full",
+        "last_change": None,
+        "hostname": "MON_FWIREWALL_01",
+        "infrastructure": "infra_01"
+    }
+]
+// EXEMPLE D'OUTPUT POUR UN FIREWALL (FORTINET) D'UN INTERFACE DE TYPE AGGRAGATE
+[
+    {
+        "extras": {},
+        "name": "PO-01",
+        "description": "CRITICAL|TODEVICE|TO_INTERFACE",
+        "oper_status": None,
+        "type": "aggregate",
+        "mtu": None,
+        "address": None,
+        "prefix": None,
+        "vrf": None,
+        "domain": "MON_VDOM",
+        "parent_interface": None,
+        "members": [
+            "x1",
+            "x2"
+        ],
+        "counters": None,
+        "admin_status": "up",
+        "negotiated_port_speed": None,
+        "port_speed": None,
+        "auto_negotiate": None,
+        "duplex": None,
+        "last_change": None,
+        "hostname": "MON_FWIREWALL_01",
+        "infrastructure": "infra_01"
+    }
+]

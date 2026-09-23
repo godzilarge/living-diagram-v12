@@ -1,0 +1,1070 @@
+{
+  "contract_version": "1.0.0",
+  "produced_at": "2026-09-10T02:20:11Z",
+  "exporter_version": "0.1.0",
+  "infrastructure": "infra-lab",
+  "run": {
+    "collector_run_id": "66db3f0e9a1c2b0012f4a7d1",
+    "collection_name": "lab nightly",
+    "start_datetime": "2026-09-10T02:00:00Z",
+    "end_datetime": "2026-09-10T02:14:32Z",
+    "status": "completed"
+  },
+  "devices": [
+    {
+      "hostname": "sw-core-01",
+      "infrastructure": "infra-lab",
+      "site": "paris-dc1",
+      "type": "switch",
+      "vendor": "cisco",
+      "model": "N9K-C93180YC-FX",
+      "os_name": "NX-OS",
+      "os_version": "10.4.2",
+      "serial_number": "FDO24011AAA",
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "infrastructure": "infra-lab",
+      "site": "paris-dc1",
+      "type": "switch",
+      "vendor": "cisco",
+      "model": "N9K-C93180YC-FX",
+      "os_name": "NX-OS",
+      "os_version": "10.4.2",
+      "serial_number": "FDO24011BBB",
+      "extras": {}
+    },
+    {
+      "hostname": "fw-edge-01",
+      "infrastructure": "infra-lab",
+      "site": "paris-dc1",
+      "type": "firewall",
+      "vendor": "fortinet",
+      "model": "FGT-600F",
+      "os_name": "FortiOS",
+      "os_version": "7.4.5",
+      "serial_number": "FG600F0001",
+      "extras": {}
+    },
+    {
+      "hostname": "fw-edge-02",
+      "infrastructure": "infra-lab",
+      "site": "paris-dc1",
+      "type": "firewall",
+      "vendor": "fortinet",
+      "model": "FGT-600F",
+      "os_name": "FortiOS",
+      "os_version": "7.4.5",
+      "serial_number": "FG600F0002",
+      "extras": {}
+    },
+    {
+      "hostname": "rt-wan-01",
+      "infrastructure": "infra-wan",
+      "site": "paris-dc1",
+      "type": "router",
+      "vendor": "cisco",
+      "model": "ASR1001-X",
+      "os_name": "IOS-XE",
+      "os_version": "17.9.4a",
+      "serial_number": "FXS2201Q0Z1",
+      "extras": {}
+    }
+  ],
+  "tasks": [
+    {
+      "hostname": "sw-core-01",
+      "status": "success",
+      "status_per_subject": {
+        "interfaces": {
+          "status": "success",
+          "started_at": "2026-09-10T02:03:10Z",
+          "ended_at": "2026-09-10T02:03:41Z",
+          "error": null
+        },
+        "lldp": {
+          "status": "success",
+          "started_at": "2026-09-10T02:03:41Z",
+          "ended_at": "2026-09-10T02:03:52Z",
+          "error": null
+        },
+        "cdp": {
+          "status": "success",
+          "started_at": "2026-09-10T02:03:52Z",
+          "ended_at": "2026-09-10T02:04:02Z",
+          "error": null
+        },
+        "aggregates": {
+          "status": "success",
+          "started_at": "2026-09-10T02:04:02Z",
+          "ended_at": "2026-09-10T02:04:10Z",
+          "error": null
+        },
+        "system": {
+          "status": "success",
+          "started_at": "2026-09-10T02:04:10Z",
+          "ended_at": "2026-09-10T02:04:14Z",
+          "error": null
+        }
+      },
+      "error": null
+    },
+    {
+      "hostname": "sw-core-02",
+      "status": "partial",
+      "status_per_subject": {
+        "interfaces": {
+          "status": "success",
+          "started_at": "2026-09-10T02:03:10Z",
+          "ended_at": "2026-09-10T02:03:39Z",
+          "error": null
+        },
+        "lldp": {
+          "status": "success",
+          "started_at": "2026-09-10T02:03:39Z",
+          "ended_at": "2026-09-10T02:03:50Z",
+          "error": null
+        },
+        "cdp": {
+          "status": "failed",
+          "started_at": "2026-09-10T02:03:50Z",
+          "ended_at": "2026-09-10T02:04:20Z",
+          "error": "command timeout on sw-core-02 (10.10.0.2)"
+        },
+        "aggregates": {
+          "status": "success",
+          "started_at": "2026-09-10T02:04:20Z",
+          "ended_at": "2026-09-10T02:04:27Z",
+          "error": null
+        },
+        "system": {
+          "status": "success",
+          "started_at": "2026-09-10T02:04:27Z",
+          "ended_at": "2026-09-10T02:04:31Z",
+          "error": null
+        }
+      },
+      "error": null
+    },
+    {
+      "hostname": "fw-edge-01",
+      "status": "success",
+      "status_per_subject": {
+        "interfaces": {
+          "status": "success",
+          "started_at": "2026-09-10T02:05:00Z",
+          "ended_at": "2026-09-10T02:05:20Z",
+          "error": null
+        },
+        "aggregates": {
+          "status": "success",
+          "started_at": "2026-09-10T02:05:20Z",
+          "ended_at": "2026-09-10T02:05:24Z",
+          "error": null
+        },
+        "ha": {
+          "status": "success",
+          "started_at": "2026-09-10T02:05:24Z",
+          "ended_at": "2026-09-10T02:05:27Z",
+          "error": null
+        },
+        "system": {
+          "status": "success",
+          "started_at": "2026-09-10T02:05:27Z",
+          "ended_at": "2026-09-10T02:05:30Z",
+          "error": null
+        }
+      },
+      "error": null
+    },
+    {
+      "hostname": "fw-edge-02",
+      "status": "unreachable",
+      "status_per_subject": {},
+      "error": "ssh: connect timeout"
+    }
+  ],
+  "interfaces": [
+    {
+      "hostname": "sw-core-01",
+      "name": "Ethernet1/1",
+      "description": "C1|sw-core-02|Ethernet1/1|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:11:22:01",
+      "media": "10Gbase-SR",
+      "last_change_age_seconds": 8121600,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "trunk",
+      "access_vlan": null,
+      "native_vlan": 1,
+      "allowed_vlans": [
+        {
+          "first": 10,
+          "last": 20
+        },
+        {
+          "first": 100,
+          "last": 100
+        }
+      ],
+      "counters": {
+        "in_errors": 0,
+        "out_errors": 0,
+        "crc": 0,
+        "in_discards": 0,
+        "out_discards": 0
+      },
+      "extras": {
+        "bia": "003a.9c11.2201"
+      }
+    },
+    {
+      "hostname": "sw-core-01",
+      "name": "Ethernet1/2",
+      "description": "C1|sw-core-02|Ethernet1/2|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:11:22:02",
+      "media": "10Gbase-SR",
+      "last_change_age_seconds": 8121600,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "trunk",
+      "access_vlan": null,
+      "native_vlan": 1,
+      "allowed_vlans": [
+        {
+          "first": 10,
+          "last": 20
+        },
+        {
+          "first": 100,
+          "last": 100
+        }
+      ],
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-01",
+      "name": "Ethernet1/3",
+      "description": "C2|fw-edge-01|x1|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:11:22:03",
+      "media": "10Gbase-SR",
+      "last_change_age_seconds": 3600,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "access",
+      "access_vlan": 100,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-01",
+      "name": "Ethernet1/4",
+      "description": "C3|rt-wan-01|GigabitEthernet0/0/0|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 1000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": true,
+      "duplex": "full",
+      "mtu": 1500,
+      "mac_address": "00:3a:9c:11:22:04",
+      "media": "1000base-T",
+      "last_change_age_seconds": 900000,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [
+        {
+          "address": "192.0.2.0",
+          "prefix": 31,
+          "family": 4,
+          "role": "primary"
+        }
+      ],
+      "vrf": "default",
+      "virtual_context": null,
+      "switchport_mode": "routed",
+      "access_vlan": null,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-01",
+      "name": "Ethernet1/5",
+      "description": null,
+      "type": "physical",
+      "admin_status": "down",
+      "oper_status": "not_present",
+      "oper_reason": "SFP not inserted",
+      "speed_mbps": null,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": null,
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:11:22:05",
+      "media": null,
+      "last_change_age_seconds": "never",
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": null,
+      "access_vlan": null,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-01",
+      "name": "port-channel10",
+      "description": "C1|sw-core-02|port-channel10|",
+      "type": "aggregate",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 20000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:11:22:01",
+      "media": null,
+      "last_change_age_seconds": 8121600,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [
+        "Ethernet1/1",
+        "Ethernet1/2"
+      ],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "trunk",
+      "access_vlan": null,
+      "native_vlan": 1,
+      "allowed_vlans": [
+        {
+          "first": 10,
+          "last": 20
+        },
+        {
+          "first": 100,
+          "last": 100
+        }
+      ],
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-01",
+      "name": "port-channel20",
+      "description": null,
+      "type": "aggregate",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:11:22:03",
+      "media": null,
+      "last_change_age_seconds": 3600,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [
+        "Ethernet1/3"
+      ],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "access",
+      "access_vlan": 100,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "name": "Ethernet1/1",
+      "description": "C1|sw-core-01|Ethernet1/1|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:33:44:01",
+      "media": "10Gbase-SR",
+      "last_change_age_seconds": 8121500,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "trunk",
+      "access_vlan": null,
+      "native_vlan": 1,
+      "allowed_vlans": [
+        {
+          "first": 10,
+          "last": 20
+        },
+        {
+          "first": 100,
+          "last": 100
+        }
+      ],
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "name": "Ethernet1/2",
+      "description": "C1|sw-core-01|Ethernet1/9|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "down",
+      "oper_reason": "suspended by LACP",
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:33:44:02",
+      "media": "10Gbase-SR",
+      "last_change_age_seconds": 120,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "trunk",
+      "access_vlan": null,
+      "native_vlan": 1,
+      "allowed_vlans": [
+        {
+          "first": 10,
+          "last": 20
+        },
+        {
+          "first": 100,
+          "last": 100
+        }
+      ],
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "name": "Ethernet1/3",
+      "description": "C3|srv-hyp-07|eno1|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:33:44:03",
+      "media": "10Gbase-SR",
+      "last_change_age_seconds": 500000,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "access",
+      "access_vlan": 20,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "name": "Ethernet1/4",
+      "description": "C2|fw-edge-01|x2|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:33:44:04",
+      "media": "10Gbase-SR",
+      "last_change_age_seconds": 3600,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "access",
+      "access_vlan": 100,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "name": "port-channel10",
+      "description": "C1|sw-core-01|port-channel10|",
+      "type": "aggregate",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:33:44:01",
+      "media": null,
+      "last_change_age_seconds": 120,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [
+        "Ethernet1/1",
+        "Ethernet1/2"
+      ],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "trunk",
+      "access_vlan": null,
+      "native_vlan": 1,
+      "allowed_vlans": [
+        {
+          "first": 10,
+          "last": 20
+        },
+        {
+          "first": 100,
+          "last": 100
+        }
+      ],
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "name": "port-channel20",
+      "description": null,
+      "type": "aggregate",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 9216,
+      "mac_address": "00:3a:9c:33:44:04",
+      "media": null,
+      "last_change_age_seconds": 3600,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [
+        "Ethernet1/4"
+      ],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": null,
+      "switchport_mode": "access",
+      "access_vlan": 100,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "fw-edge-01",
+      "name": "x1",
+      "description": "C2|sw-core-01|Ethernet1/3|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 1500,
+      "mac_address": "70:4c:a5:aa:bb:01",
+      "media": null,
+      "last_change_age_seconds": null,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": "root",
+      "switchport_mode": null,
+      "access_vlan": null,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "fw-edge-01",
+      "name": "x2",
+      "description": "C2|sw-core-02|Ethernet1/4|",
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 10000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 1500,
+      "mac_address": "70:4c:a5:aa:bb:02",
+      "media": null,
+      "last_change_age_seconds": null,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": "root",
+      "switchport_mode": null,
+      "access_vlan": null,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "fw-edge-01",
+      "name": "agg-core.400",
+      "description": null,
+      "type": "subinterface",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": null,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": null,
+      "mtu": 1500,
+      "mac_address": "70:4c:a5:aa:bb:01",
+      "media": null,
+      "last_change_age_seconds": null,
+      "parent_interface": "agg-core",
+      "vlan_id": 400,
+      "members": [],
+      "ip_addresses": [
+        {
+          "address": "198.51.100.9",
+          "prefix": 29,
+          "family": 4,
+          "role": "primary"
+        }
+      ],
+      "vrf": "default",
+      "virtual_context": "root",
+      "switchport_mode": null,
+      "access_vlan": null,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "fw-edge-01",
+      "name": "agg-core",
+      "description": null,
+      "type": "aggregate",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 20000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": null,
+      "duplex": "full",
+      "mtu": 1500,
+      "mac_address": "70:4c:a5:aa:bb:01",
+      "media": null,
+      "last_change_age_seconds": null,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [
+        "x1",
+        "x2"
+      ],
+      "ip_addresses": [],
+      "vrf": "default",
+      "virtual_context": "root",
+      "switchport_mode": null,
+      "access_vlan": null,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    },
+    {
+      "hostname": "fw-edge-01",
+      "name": "ha1",
+      "description": null,
+      "type": "physical",
+      "admin_status": "up",
+      "oper_status": "up",
+      "oper_reason": null,
+      "speed_mbps": 1000,
+      "configured_speed_mbps": null,
+      "auto_negotiate": true,
+      "duplex": "full",
+      "mtu": 1500,
+      "mac_address": "70:4c:a5:aa:bb:10",
+      "media": null,
+      "last_change_age_seconds": null,
+      "parent_interface": null,
+      "vlan_id": null,
+      "members": [],
+      "ip_addresses": [],
+      "vrf": null,
+      "virtual_context": "root",
+      "switchport_mode": null,
+      "access_vlan": null,
+      "native_vlan": null,
+      "allowed_vlans": null,
+      "counters": null,
+      "extras": {}
+    }
+  ],
+  "aggregates": [
+    {
+      "hostname": "sw-core-01",
+      "name": "port-channel10",
+      "oper_status": "up",
+      "protocol": "lacp",
+      "lacp_mode": "active",
+      "min_links": 1,
+      "members": [
+        {
+          "name": "Ethernet1/1",
+          "status": "bundled"
+        },
+        {
+          "name": "Ethernet1/2",
+          "status": "bundled"
+        }
+      ],
+      "mlag_id": null,
+      "mlag_peer_link": true,
+      "extras": {
+        "flags_raw": "Po10(SU)"
+      }
+    },
+    {
+      "hostname": "sw-core-01",
+      "name": "port-channel20",
+      "oper_status": "up",
+      "protocol": "lacp",
+      "lacp_mode": "active",
+      "min_links": 1,
+      "members": [
+        {
+          "name": "Ethernet1/3",
+          "status": "bundled"
+        }
+      ],
+      "mlag_id": 20,
+      "mlag_peer_link": false,
+      "extras": {
+        "flags_raw": "Po20(SU)"
+      }
+    },
+    {
+      "hostname": "sw-core-02",
+      "name": "port-channel10",
+      "oper_status": "up",
+      "protocol": "lacp",
+      "lacp_mode": "active",
+      "min_links": 1,
+      "members": [
+        {
+          "name": "Ethernet1/1",
+          "status": "bundled"
+        },
+        {
+          "name": "Ethernet1/2",
+          "status": "suspended"
+        }
+      ],
+      "mlag_id": null,
+      "mlag_peer_link": true,
+      "extras": {
+        "flags_raw": "Po10(SU)"
+      }
+    },
+    {
+      "hostname": "sw-core-02",
+      "name": "port-channel20",
+      "oper_status": "up",
+      "protocol": "lacp",
+      "lacp_mode": "active",
+      "min_links": 1,
+      "members": [
+        {
+          "name": "Ethernet1/4",
+          "status": "bundled"
+        }
+      ],
+      "mlag_id": 20,
+      "mlag_peer_link": false,
+      "extras": {
+        "flags_raw": "Po20(SU)"
+      }
+    },
+    {
+      "hostname": "fw-edge-01",
+      "name": "agg-core",
+      "oper_status": "up",
+      "protocol": "lacp",
+      "lacp_mode": "active",
+      "min_links": 1,
+      "members": [
+        {
+          "name": "x1",
+          "status": "bundled"
+        },
+        {
+          "name": "x2",
+          "status": "bundled"
+        }
+      ],
+      "mlag_id": null,
+      "mlag_peer_link": false,
+      "extras": {}
+    }
+  ],
+  "lldp": [
+    {
+      "hostname": "sw-core-01",
+      "local_interface": "Ethernet1/1",
+      "neighbor": "sw-core-02",
+      "neighbor_interface": "Ethernet1/1",
+      "neighbor_capabilities": [
+        "bridge",
+        "router"
+      ],
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-01",
+      "local_interface": "Ethernet1/2",
+      "neighbor": "sw-core-02",
+      "neighbor_interface": "Ethernet1/2",
+      "neighbor_capabilities": [
+        "bridge",
+        "router"
+      ],
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-01",
+      "local_interface": "Ethernet1/4",
+      "neighbor": "rt-wan-01",
+      "neighbor_interface": "Gi0/0/0",
+      "neighbor_capabilities": [
+        "router"
+      ],
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "local_interface": "Ethernet1/1",
+      "neighbor": "sw-core-01",
+      "neighbor_interface": "Ethernet1/1",
+      "neighbor_capabilities": [
+        "bridge",
+        "router"
+      ],
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "local_interface": "Ethernet1/2",
+      "neighbor": "sw-core-01",
+      "neighbor_interface": "Ethernet1/2",
+      "neighbor_capabilities": [
+        "bridge",
+        "router"
+      ],
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "local_interface": "Ethernet1/3",
+      "neighbor": "srv-hyp-07",
+      "neighbor_interface": "3c:ec:ef:12:34:56",
+      "neighbor_capabilities": [
+        "station"
+      ],
+      "extras": {}
+    }
+  ],
+  "cdp": [
+    {
+      "hostname": "sw-core-01",
+      "local_interface": "Ethernet1/1",
+      "neighbor": "sw-core-02",
+      "neighbor_interface": "Ethernet1/1",
+      "neighbor_capabilities": [
+        "switch",
+        "igmp"
+      ],
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-01",
+      "local_interface": "Ethernet1/4",
+      "neighbor": "rt-wan-01",
+      "neighbor_interface": "GigabitEthernet0/0/0",
+      "neighbor_capabilities": [
+        "router"
+      ],
+      "extras": {}
+    }
+  ],
+  "system": [
+    {
+      "hostname": "sw-core-01",
+      "reported_hostname": "sw-core-01",
+      "vendor": "cisco",
+      "model": "N9K-C93180YC-FX",
+      "os_version": "10.4(2)",
+      "serial_number": "FDO24011AAA",
+      "uptime_seconds": 9123456,
+      "chassis_members": [],
+      "virtual_contexts": [],
+      "extras": {}
+    },
+    {
+      "hostname": "sw-core-02",
+      "reported_hostname": "SW-CORE-02",
+      "vendor": "cisco",
+      "model": "N9K-C93180YC-FX",
+      "os_version": "10.4(2)",
+      "serial_number": "FDO24011BBB",
+      "uptime_seconds": 9123000,
+      "chassis_members": [],
+      "virtual_contexts": [],
+      "extras": {}
+    },
+    {
+      "hostname": "fw-edge-01",
+      "reported_hostname": "fw-edge-01",
+      "vendor": "fortinet",
+      "model": "FortiGate-600F",
+      "os_version": "v7.4.5",
+      "serial_number": "FG600F0001",
+      "uptime_seconds": 4000000,
+      "chassis_members": [],
+      "virtual_contexts": [
+        "root"
+      ],
+      "extras": {}
+    }
+  ],
+  "ha": [
+    {
+      "hostname": "fw-edge-01",
+      "mode": "active_passive",
+      "cluster_name": "EDGE-CLUSTER",
+      "members": [
+        {
+          "name": "fw-edge-01",
+          "serial": "FG600F0001",
+          "role": "primary",
+          "state": "up",
+          "priority": 200
+        },
+        {
+          "name": "fw-edge-02",
+          "serial": "FG600F0002",
+          "role": "secondary",
+          "state": "down",
+          "priority": 100
+        }
+      ],
+      "heartbeat_interfaces": [
+        "ha1"
+      ],
+      "extras": {
+        "sync_status": "out_of_sync"
+      }
+    }
+  ],
+  "residual_normalizations": {
+    "duplex_vendor_form": 3,
+    "mac_dotted_to_colon": 14
+  }
+}
