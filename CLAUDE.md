@@ -373,6 +373,55 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   (ni `null`, ni `unknown` : le champ est requis, une liste vide est un fait, un jeton inventé polluerait l'union) ;
   la page `ld render` masque aujourd'hui **tous** les stubs, le filtre par capacité de `docs/05` §2.1 reste à écrire.
   **En attente chez Orhan** : le FortiGate remonte-t-il ses propres voisins dans le topic `lldp` (rang 1 de R1-bis).
+- **Guide de collecte FortiOS pour `interfaces`** (2026-09-24, question d'Orhan : quelles commandes, dans quel ordre,
+  pour remplir le contrat en CLI ; périmètre réduit par lui au **vital**, clés à `null` acceptées).
+  `docs/guides-collecte/fortios-interfaces.md` : trois commandes vitales en `config global`
+  (`show full-configuration system interface` = inventaire et configuration ; `get system interface physical` = link,
+  vitesse, duplex ; `diagnose netlink interface list` = MAC, état des logiques, MTU, compteurs), deux optionnelles
+  (`diagnose hardware deviceinfo nic`, trois dialectes selon l'ASIC ; `get system interface transceiver`).
+  **Propositions à valider par Orhan** : table `set type` → `InterfaceType` ; `mac_address` = MAC courante (virtuelle
+  HA sur un cluster), gravée dans `extras` ; `members` réservé à `aggregate` / `redundant` (un hardware switch
+  fabriquerait un faux agrégat dans le repli de B1) ; la séquence se rejoue sur **chaque membre** d'un cluster HA ;
+  `description` (255 car.) porte la convention, pas `alias` (25 car.). `last_change_age_seconds` : aucune source CLI,
+  `null`. Rien de vérifié sur un FortiGate réel : fixtures ntc-templates 5.6 → 7.4 et base de connaissances Fortinet.
+- **B1 R4 écrite, pages incrément B, page servie par le backend** (2026-09-26 ; Orhan : « mon exportateur est
+  toujours en cours, avançons sur tout ce qu'on peut » ; trois briques annoncées avec leurs décisions avant le code,
+  chacune revue indépendamment). **R4** (`correlate/structures.py`, `correlate/ha.py`, après la fusion, avant
+  l'assemblage) : `aggregates[]` du snapshot ne reprend que les documents `aggregates[]` du bundle (un agrégat connu
+  par `interfaces[].members` seul n'a ni protocole ni statut : pas d'entrée, appartenance visible sur interfaces et
+  câbles) ; **la paire MLAG se reconnaît à son peer-link câblé** vers un device porteur de documents `aggregates[]`
+  (un numéro de vPC est local à son domaine, deux paires d'une même infra peuvent avoir chacune un vPC 20 ; repli :
+  même `mlag_id` sur exactement deux devices hors de toute paire ; un peer-link marqué n'est jamais candidat) ; HA :
+  un cluster par ensemble de membres, la vue propre d'un membre prime, mode et nom au premier rapporteur, désaccord
+  entre valeurs **lues** ⇒ `ha_view_mismatch` (`null` ne contredit rien), `ha_member_down` dès qu'un rapporteur le dit
+  (split-brain visible), membre d'une autre infrastructure ⇒ nœud `external` sans témoin, `standalone` conservé ;
+  heartbeat = l'unique câble du port, sinon `null` + `heartbeat_link_not_observed` (avec `candidates` si ambigu).
+  **Refus ajouté au contrat d'entrée** : `aggregate_member_duplicate` (le Snapshot refuse une liste de membres en
+  double). Revue consignée et traitée (`docs/revues/2026-09-26-b1-r4-structures.md` : 0 critique, 1 haut, 3 moyens,
+  7 bas). **Parqués, comportement prudent, à trancher avec Orhan** : même `mlag_id` deux fois sur un device ⇒ aucun
+  domaine (refus d'entrée `mlag_id_duplicate` proposé) ; peer-link marqué d'un seul côté ; une patte du vPC sans
+  câble ; `aggregate_protocol_mismatch` reste `error` sur un faisceau purement documenté (`details.cable_statuses`).
+  **Pages, incrément B** (`render/assets/js/structures.js`, modèle et graphe étendus) : une bande par faisceau
+  d'agrégat sous ses câbles (étiquette courte `peer-link` / `MLAG n`, complète quand éclairée), un cadre par cluster
+  HA (les membres s'attirent dans le placement, renfort 2.5), un halo par heartbeat, onglet **Structures**, panneaux
+  agrégat / faisceau / cluster avec leurs sources (document `aggregates` ou `ha`, couverture du topic), adresses
+  `#aggregate=` `#beam=` `#cluster=` par identité (bouts dans un ordre ou l'autre) ; rendu vérifié en Chromium. Revue
+  consignée et traitée (`docs/revues/2026-09-26-pages-increment-b.md` : 0 critique, 1 haut, 4 moyens, 8 bas ; sécurité
+  sans constat) : la page ne dit plus « protocoles différents » quand un bout n'a pas de document `aggregates`, un
+  équipement dans deux clusters les montre tous, un faisceau porte tous ses domaines MLAG, les câbles arrêtés à
+  l'agrégat lui-même se lisent depuis l'agrégat, la bande couvre l'éventail de ses câbles et l'étiquette est cliquable
+  au-dessus des câbles. **`GET /view`** (`render/shell.py`,
+  `shell.js`) : la même page sans donnée, servie sans jeton comme `/docs` ; **le jeton se saisit dans la page**
+  (`sessionStorage`, jamais dans l'adresse), snapshot et rapport lus par l'API, liste des runs sans `run_id`,
+  `connect-src 'self'` seule différence de CSP (la page autonome n'a aucun réseau, testé) ; testé sous Node avec un
+  `fetch` simulé et servi par uvicorn dans Chromium. Contrats 399 tests, backend 279, `correlate/` à 100 %.
+  **Organisation actée en fin de session** : Orhan se concentre sur les données de son exportateur et valide avec la
+  boucle de `QUICKSTART.md` (`ld-contracts validate --strict-findings`, `ld render`, onglet Qualité des données
+  d'abord) ; en parallèle, sans attendre le bundle réel : **B1 R5 + golden** (spécifiés, aucune décision de design),
+  puis le **générateur de topologies synthétiques** à graine avec scénarios d'évolution (condition de B3 et de la
+  jauge de performance), puis la **conception de B3** (document à valider comme `docs/05`, puis TDD sur le générateur).
+  Aussi possibles : `docs/06` (principe sans les volumes), guides de collecte par plateforme. Déconseillé avant le
+  premier bundle réel : moteur TS, archive Mongo, intention. Vraiment bloqué : gel du contrat, VSX, statuts des tasks.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -391,8 +440,9 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
 
 Phase 0 contrat pivot **livrée le 2026-09-20** (RunBundle v1 et Snapshot v1 dans `ld-contracts`, `CONTRAT.md`
 en deux parties entrée / sortie, `docs/05` validé) → **Phase 1a, la tranche visible (révision du 2026-09-20)** : B1
-étape 1 (fait) → branchement de B1 (fait) → pages HTML (incrément A fait : `ld render`) de visualisation avec les sources → premier bundle réel (exportateur
-minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 étape 2 (R4 / R5, golden), table MAC (`docs/06`), B2, B3,
+étape 1 (fait) → branchement de B1 (fait) → pages HTML (incréments A et B faits : `ld render`, `/view` ; R4 de B1
+tirée dans la tranche le 2026-09-26) de visualisation avec les sources → premier bundle réel (exportateur
+minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden, table MAC (`docs/06`), B2, B3,
 en TDD sur fixtures au format réel des collections → Phase 2 socle toile (jauge
 de perf 500 nœuds / 1 500 liens) → Phase 3 placement → Phase 4 timeline + diff peint →
 Phase 5 intention + réconciliation → Phase 6 LOD complet, vues nommées, overlays L2/L3.
@@ -407,8 +457,11 @@ Détail : `docs/00-analyse-fondation.md` §10.
 - `docs/05-snapshot-et-correlation.md` — **conception du snapshot (second contrat) et des règles de
   B1** (2026-09-10) : modèle, règles R0 à R6, codes de contrôle, dix scénarios de la fixture, huit
   questions. **Validé par Orhan le 2026-09-20 (sept questions sur huit tranchées, la 6 non bloquante).**
+- `docs/guides-collecte/` — guides **producteur** par plateforme (2026-09-24 : `fortios-interfaces.md`, commandes et chronologie
+  pour le topic `interfaces` sur FortiGate)
 - `docs/revues/` — rapports de revue indépendante consignés tels que rendus, avec leur suivi (2026-09-20 :
-  `2026-09-20-b1-etape-1.md`, sa contre-revue, `2026-09-20-branchement-b1.md`, `2026-09-20-pages-ld-render.md` ; 2026-09-22 : `2026-09-22-r1-bis-agregat-port-id.md`) et leurs sondes rejouables
+  `2026-09-20-b1-etape-1.md`, sa contre-revue, `2026-09-20-branchement-b1.md`, `2026-09-20-pages-ld-render.md` ; 2026-09-22 : `2026-09-22-r1-bis-agregat-port-id.md` ;
+  2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`) et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
 - `prompts.md` — échanges bruts du propriétaire (historique)
@@ -421,7 +474,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `src/ld_contracts/schema/`, contrôles référentiels, anonymiseur, CLI
   (`uv run ld-contracts validate|schema|anonymize`), fixture `fixtures/bundle-minimal.json`.
   Tests : `cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests`
-  (état 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
+  (état 2026-09-26 : 399 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4 ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
   2026-09-19 : 291 tests, 97 %, clé nullable absente lue comme `null` et comptée, `vrf` `"default"` = table globale, une passe de revue indépendante appliquée ; 2026-09-18 : 246 tests, `lldp` / `cdp` réduits à six champs et MAC reconnue à sa forme, une
   passe de revue indépendante appliquée ;
   2026-09-16 : `allowed_vlans` en liste d'intervalles (chevauchements refusés), `access_vlan` ajouté avec refus de cohérence VLAN / mode, `last_change_age_seconds` en `entier ≥ 0 | "never" | null`
@@ -441,11 +494,12 @@ Détail : `docs/00-analyse-fondation.md` §10.
   isolée). **B1 se branche dans `ingest.py` après `archive.store`.** **B1 étape 1 écrite le 2026-09-20**
   (`src/ld_backend/correlate/` : R0 à R3 et R6 ; scénarios 1, 2, 4, 5, 6, 7 et 10 de `docs/05` vérifiés ; état après
   la revue de l'étape 1 et sa contre-revue : 187 tests verts, `correlate/` couvert à 100 % ; R1-bis le 2026-09-22) ;
-  étape 2 = R4 / R5 + golden `snapshot-minimal.json` ; **étape 3 = branchement, fait le 2026-09-20** (`snapshots.py`,
-  `GET /api/snapshot`, `ld correlate` ; revue appliquée ; 220 tests, 99 %).
-- À venir : fin de la tranche visible (page servie par le backend, incrément B : agrégats et clusters HA, premier
-  bundle réel), puis B1 étape 2, table MAC, B2 → B4
-  dans `backend/`, `engine/` (moteur TS), `shell/` (React).
+  étape 2 = R4 / R5 + golden `snapshot-minimal.json` : **R4 écrite le 2026-09-26** (`structures.py`, `ha.py`, revue
+  traitée), R5 et golden à venir ; **étape 3 = branchement, fait le 2026-09-20** (`snapshots.py`,
+  `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages : incrément B et `GET /view` faits le 2026-09-26
+  (`render/shell.py`, `assets/js/structures.js`, `shell.js`). État : 279 tests, 99 %.
+- À venir : premier bundle réel dans les pages (fin de la tranche visible), puis B1 R5 et golden, table MAC
+  (`docs/06`), B2 → B4 dans `backend/`, `engine/` (moteur TS), `shell/` (React).
 
 ## Conventions de code (rappel des règles globales)
 

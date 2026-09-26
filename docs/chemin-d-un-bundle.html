@@ -89,14 +89,16 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--rule2);font:1
 <header>
   <div class="eyebrow">Living Diagram v12 · avancement</div>
   <h1>Le chemin d'un bundle</h1>
-  <div class="meta">état au 2026-09-22 · complément de l'artefact d'architecture</div>
+  <div class="meta">état au 2026-09-26 · complément de l'artefact d'architecture</div>
   <p class="thesis">Tu envoies un JSON qui décrit une infrastructure à un instant donné. Il est <b>validé</b>,
   <b>rangé</b>, et depuis le 2026-09-20 <b>B1 sait le transformer en graphe</b> : des nœuds (les équipements) et des
   câbles, déduits en croisant LLDP, CDP et les descriptions, chacun avec ses preuves. Ce graphe est maintenant
   <b>rangé à côté du bundle</b> à chaque ingestion et servi par l'API. Et tu peux maintenant le <b>voir</b> :
   <code>ld render bundle.json --out page.html</code> écrit une page HTML autonome, hors ligne, qui montre le graphe et,
-  pour chaque câble, les sources qui l'ont tracé. La suite : ton premier bundle réel, puis les agrégats et les
-  clusters de firewalls. Le pas à pas est dans <code>QUICKSTART.md</code>, à la racine du dépôt.</p>
+  pour chaque câble, les sources qui l'ont tracé. Depuis le 2026-09-26, B1 reconstruit aussi les <b>agrégats</b>, les
+  <b>domaines vPC / MLAG</b> et les <b>clusters HA</b>, la page les dessine (bandes sous les câbles, cadre autour des
+  membres d'un cluster, onglet Structures), et le backend la sert (<code>/view</code>, jeton saisi dans la page). La
+  suite : ton premier bundle réel. Le pas à pas est dans <code>QUICKSTART.md</code>, à la racine du dépôt.</p>
 </header>
 
 <h2>Le chemin, étape par étape</h2>
@@ -135,8 +137,8 @@ les suivantes sont la raison d'être de l'application.</p>
     <div class="num">5</div>
     <div><div class="what">B1 transforme le bundle en graphe : le <b>snapshot</b></div>
       <div class="detail">Résout les voisins cités par LLDP, CDP et les descriptions ; fusionne les témoignages en câbles (confirmé, observé seul, documenté seul) ; reconstruit agrégats, vPC, clusters HA ; émet les contrôles (désaccord description / LLDP, membre suspendu, device injoignable…). Fonction pure : même bundle, même snapshot, à l'octet.</div>
-      <div class="where">backend/src/ld_backend/correlate/ · règles R0 à R3 et R6 de docs/05 · revue et contre-revue dans docs/revues/ · agrégats, vPC, HA et contrôles d'état : étape 2</div></div>
-    <span class="pill">en cours · 2 étapes sur 3</span>
+      <div class="where">backend/src/ld_backend/correlate/ · règles R0 à R4 et R6 de docs/05 · revues dans docs/revues/ · reste : les contrôles d'état (R5) et le snapshot de référence</div></div>
+    <span class="pill">en cours · R5 reste</span>
   </div>
   <div class="step done">
     <div class="num">6</div>
@@ -155,9 +157,9 @@ les suivantes sont la raison d'être de l'application.</p>
   <div class="step today">
     <div class="num">8</div>
     <div><div class="what">Une page HTML montre le snapshot : <code>ld render</code></div>
-      <div class="detail">Voir avant de trancher (décision du 2026-09-20). Un seul fichier HTML, sans librairie ni réseau, ouvrable par double-clic. <code>ld render bundle.json --out page.html</code> valide, corrèle et dessine <b>sans archive ni serveur</b> : c'est ta boucle de mise au point d'exportateur. Quatre vues : le <b>graphe</b> (câbles verts confirmés, bleus observés seuls, orange pointillés documentés seuls ; cliquer un câble montre <b>les sources qui l'ont tracé</b> : qui témoigne, ce qu'il annonce, comment le nom a été résolu), les <b>contrôles</b>, la <b>qualité des données</b> (couverture par équipement et par topic, constats d'ingestion, descriptions non lues, voisins non résolus) et les <b>sources</b> (câbles par combinaison LLDP / CDP / description). La page contient tes données : elle ne sort pas de la zone sans anonymisation du bundle. Reste : la servir depuis le backend, puis y montrer agrégats et clusters HA.</div>
-      <div class="where">backend/src/ld_backend/render/ · mode d'emploi : QUICKSTART.md · un premier bundle réel : devices, tasks, interfaces, lldp, cdp suffisent</div></div>
-    <span class="pill">incrément A réalisé</span>
+      <div class="detail">Voir avant de trancher (décision du 2026-09-20). Un seul fichier HTML, sans librairie ni réseau, ouvrable par double-clic. <code>ld render bundle.json --out page.html</code> valide, corrèle et dessine <b>sans archive ni serveur</b> : c'est ta boucle de mise au point d'exportateur. Quatre vues : le <b>graphe</b> (câbles verts confirmés, bleus observés seuls, orange pointillés documentés seuls ; cliquer un câble montre <b>les sources qui l'ont tracé</b> : qui témoigne, ce qu'il annonce, comment le nom a été résolu), les <b>contrôles</b>, la <b>qualité des données</b> (couverture par équipement et par topic, constats d'ingestion, descriptions non lues, voisins non résolus) et les <b>sources</b> (câbles par combinaison LLDP / CDP / description). La page contient tes données : elle ne sort pas de la zone sans anonymisation du bundle. <b>Incrément B (2026-09-26)</b> : une bande par faisceau d'agrégat sous ses câbles (étiquetée peer-link ou MLAG), un cadre par cluster HA autour de ses membres, un halo sur un câble de heartbeat, un onglet <b>Structures</b> ; cliquer une bande ou un cadre montre l'agrégat, le faisceau ou le cluster avec ses membres, ses câbles et ses sources (le document aggregates ou ha de chaque équipement). Et la page est <b>servie par le backend</b> : <code>/view?infrastructure=&amp;run_id=</code>, sans jeton dans l'adresse, le jeton se saisit dans la page et reste dans l'onglet.</div>
+      <div class="where">backend/src/ld_backend/render/ · mode d'emploi : QUICKSTART.md · un premier bundle réel : devices, tasks, interfaces, lldp, cdp suffisent ; aggregates et ha en plus pour voir les structures</div></div>
+    <span class="pill">incréments A et B réalisés</span>
   </div>
   <div class="step later">
     <div class="num">9</div>
@@ -169,16 +171,16 @@ les suivantes sont la raison d'être de l'application.</p>
 </div>
 
 <h2>B1 : ce qui est fait, ce qui reste</h2>
-<p class="h2sub">B1 a été découpé en trois étapes. Une seule est écrite : aujourd'hui B1 sait tracer les câbles, pas encore
-reconstruire les agrégats, les vPC ni les clusters de firewalls. Il est branché depuis le 2026-09-20 : chaque
-ingestion produit son snapshot.</p>
+<p class="h2sub">B1 a été découpé en trois étapes. Les câbles (étape 1) et les structures (première moitié de l'étape 2 : agrégats,
+vPC, clusters HA) sont écrits ; restent les contrôles d'état et le snapshot de référence. Il est branché depuis le
+2026-09-20 : chaque ingestion produit son snapshot.</p>
 <div style="overflow-x:auto">
 <table>
 <tr><th>Étape</th><th>Contenu</th><th>État</th></tr>
 <tr><td class="b">1 · les câbles</td><td>Les nœuds (équipements collectés, équipements d'une autre infra, voisins inconnus), les interfaces, et les <b>câbles</b> avec leur statut (confirmé, observé seul, documenté seul) et leurs preuves (LLDP, CDP, descriptions). 13 contrôles sur 28 : voisin inconnu ou ambigu, désaccord entre description et observation, deux voisins sur un port, observation à sens unique, port qui se voit lui-même… Couverture par device, rapport. <b>Ajout du 2026-09-22</b> (premier cas réel de ton infra) : un voisin qui annonce en port-id le nom de son <b>agrégat</b> (FortiGate avec LLDP) est ramené au membre — observation inverse, membre unique, ou description — sinon le câble s'arrête à l'agrégat et un contrôle <code>remote_port_is_aggregate</code> le dit. Revue indépendante traitée le jour même. 13 contrôles sur 28.</td><td class="s">réalisé · 117 tests</td></tr>
 <tr><td class="b">3 · le branchement</td><td><b>Passé en premier</b> (décision du 2026-09-20). <code>snapshot.json</code> rangé à côté du bundle à chaque ingestion, <code>GET /api/snapshot</code> pour le lire, <code>ld correlate</code> pour le recalculer. Un échec de B1 ne fait pas échouer l'ingestion ; le snapshot est remplaçable, le bundle jamais.</td><td class="s">réalisé · 21 tests</td></tr>
-<tr><td class="b">tranche visible · les pages</td><td>Pas une étape de B1, mais ce qui permet de le lire : <code>ld render</code> écrit un fichier HTML autonome par run (graphe, sources de chaque câble, contrôles, qualité des données pour ajuster l'exportateur). <b>Incrément A fait</b>, rendu vérifié sur la fixture. Reste : la page servie par le backend, et l'incrément B (agrégats, clusters HA), qui attend les structures ci-dessous.</td><td class="s">incrément A réalisé et revu · 15 tests + 14 sous Node</td></tr>
-<tr><td class="b">2 · les structures</td><td>Aujourd'hui les sections <code>aggregates</code>, <code>mlag_domains</code> et <code>ha_clusters</code> du snapshot sont <b>vides</b>. À faire : les <b>agrégats</b> comme objets (membres, état dégradé, min-links, protocole), les <b>domaines vPC / MLAG</b> (peer-link, cohérence des deux côtés), les <b>clusters HA</b> (vue de chaque membre, liens de heartbeat), et leurs 8 contrôles. La partie HA et agrégats sera tirée dans la tranche visible, pour que tu voies tes firewalls avec leurs données HA.</td><td class="s">à coder</td></tr>
+<tr><td class="b">tranche visible · les pages</td><td>Pas une étape de B1, mais ce qui permet de le lire : <code>ld render</code> écrit un fichier HTML autonome par run (graphe, sources de chaque câble, contrôles, qualité des données pour ajuster l'exportateur). <b>Incrément A fait</b>, rendu vérifié sur la fixture. <b>Incrément B fait</b> (2026-09-26) : agrégats, faisceaux, domaines MLAG et clusters HA dessinés et inspectables, onglet Structures ; page servie par le backend sur <code>/view</code>, jeton saisi dans la page.</td><td class="s">incréments A et B réalisés et revus · 19 tests + 24 sous Node</td></tr>
+<tr><td class="b">2 · les structures</td><td><b>Écrit le 2026-09-26</b> (R4). Les <b>agrégats</b> comme objets (membres et statuts, dégradé, min-links, protocole, leurs câbles), les <b>domaines vPC / MLAG</b> (la paire se reconnaît à son peer-link câblé, parce qu'un numéro de vPC est local à son domaine ; aval commun ou contrôle ; peer-link mal étiqueté), les <b>clusters HA</b> (un cluster par ensemble de membres, la vue de chaque membre sur lui-même prime, heartbeats sans câble inventé), et leurs 8 contrôles. Un refus de plus dans le contrat d'entrée : un membre listé deux fois dans un agrégat. Revue indépendante traitée le jour même (0 critique, 1 haut, 3 moyens, 7 bas). Trois règles parquées, comportement visible, à trancher avec toi : même numéro de vPC deux fois sur un device (refus d'entrée proposé), peer-link marqué d'un seul côté, patte de vPC sans câble.</td><td class="s">réalisé · 27 tests</td></tr>
 <tr><td class="b">2 · les contrôles d'état</td><td>Ce qui compare les deux bouts d'un câble ou l'état d'un device : câble down, état ou vitesse différents aux deux bouts, VLAN natif différent, port documenté sans transceiver, device injoignable ou collecté partiellement. 7 contrôles. Puis le snapshot de référence <code>snapshot-minimal.json</code>, comparé à l'octet dans les tests.</td><td class="s">à coder</td></tr>
 <tr><td class="b">ensuite</td><td>Une troisième source de preuves : la <b>table MAC</b>, seule source observée pour tes firewalls, qui n'auront jamais de LLDP (rangs : LLDP / CDP, puis table MAC, puis description). À concevoir dans <code>docs/06</code> après le premier rendu. Une question ouverte : deux observations d'un même câble dont l'une ne donne qu'une MAC.</td><td class="s">à concevoir</td></tr>
 </table>
@@ -241,10 +243,10 @@ ingestion produit son snapshot.</p>
 <div style="overflow-x:auto">
 <table>
 <tr><th>Dossier</th><th>Rôle</th><th>État</th></tr>
-<tr><td class="b">contracts/</td><td>Les deux formulaires : <b>RunBundle</b> (ce qui entre, partie A de <code>CONTRAT.md</code>) et <b>Snapshot</b> (ce qui sort, partie B). Modèles Pydantic, JSON Schema, validateur, anonymiseur, fixtures. Ton exportateur n'utilise que la partie A.</td><td class="s">398 tests · 98 %</td></tr>
-<tr><td class="b">backend/</td><td>La porte d'entrée (<code>POST /api/ingest/bundles</code>, trois GET de lecture, CLI <code>ld</code>, archive disque) et <b>B1</b> dans <code>correlate/</code> : étape 1 écrite (nœuds, interfaces, câbles), revue deux fois. Reste à le <b>brancher</b> dans <code>ingest.py</code>, juste après l'archivage du bundle.</td><td class="s">187 tests · 99 %</td></tr>
+<tr><td class="b">contracts/</td><td>Les deux formulaires : <b>RunBundle</b> (ce qui entre, partie A de <code>CONTRAT.md</code>) et <b>Snapshot</b> (ce qui sort, partie B). Modèles Pydantic, JSON Schema, validateur, anonymiseur, fixtures. Ton exportateur n'utilise que la partie A.</td><td class="s">399 tests · 98 %</td></tr>
+<tr><td class="b">backend/</td><td>La porte d'entrée (<code>POST /api/ingest/bundles</code>, trois GET de lecture, <code>/view</code>, CLI <code>ld</code>, archive disque), <b>B1</b> dans <code>correlate/</code> (câbles et structures, branché dans <code>ingest.py</code>) et les pages de lecture dans <code>render/</code>.</td><td class="s">279 tests · 99 %</td></tr>
 <tr><td class="b">docs/05</td><td>La conception de B1 : le modèle du snapshot, les règles R0 à R6 (identité, noms d'interfaces, descriptions, fusion, structures, contrôles, ordre canonique), dix scénarios de la fixture, plan de tests.</td><td class="s">validé le 2026-09-20</td></tr>
-<tr><td class="b">docs/revues/</td><td>Les rapports de revue indépendante, consignés tels que rendus, avec leur suivi et leurs sondes rejouables.</td><td class="s">5 rapports</td></tr>
+<tr><td class="b">docs/revues/</td><td>Les rapports de revue indépendante, consignés tels que rendus, avec leur suivi et leurs sondes rejouables.</td><td class="s">7 rapports</td></tr>
 <tr><td class="b">engine/ · shell/</td><td>Le moteur de diagramme TypeScript et le shell React.</td><td class="s">pas encore créés</td></tr>
 </table>
 </div>
@@ -257,6 +259,6 @@ ingestion produit son snapshot.</p>
 <b>3.</b> C'est la frontière avec le front : les types TypeScript du moteur seront générés depuis ce schéma, pas écrits à la main.
 </div>
 
-<footer>Prochaine étape : la tranche visible — brancher B1 (étape 7), puis les pages HTML de visualisation avec les sources de chaque
-élément (étape 8), à essayer sur un premier bundle réel. Ensuite seulement : B1 étape 2, table MAC, moteur.</footer>
+<footer>Prochaine étape : ton premier bundle réel dans les pages (étape 8), on regarde, on corrige. Ensuite : les contrôles d'état de
+B1 (R5) et son snapshot de référence, la table MAC (docs/06), puis le moteur.</footer>
 </div>
