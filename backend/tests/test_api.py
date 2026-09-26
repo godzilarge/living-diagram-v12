@@ -177,7 +177,7 @@ def test_openapi_uses_a_bearer_security_scheme_not_a_header_parameter(client: Te
         for method, operation in item.items():
             names = [p["name"].lower() for p in operation.get("parameters", [])]
             assert "authorization" not in names, (path, method)
-            if path == "/api/health":  # seule route sans jeton : tout le reste lit ou écrit l'archive
+            if path in ("/api/health", "/view"):  # sans jeton : la coquille ne contient aucune donnée de run
                 assert "security" not in operation, (path, method)
             else:
                 assert operation["security"] == [{name: []}], (path, method)

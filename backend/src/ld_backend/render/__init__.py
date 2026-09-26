@@ -6,5 +6,6 @@ et la qualité des données, qui sert à mettre au point l'exportateur.
 
 from ld_backend.render.build import PageOutcome, page_from_archive, page_from_bundle
 from ld_backend.render.page import build_page_data, render_page
+from ld_backend.render.shell import render_shell
 
-__all__ = ["PageOutcome", "build_page_data", "page_from_archive", "page_from_bundle", "render_page"]
+__all__ = ["PageOutcome", "build_page_data", "page_from_archive", "page_from_bundle", "render_page", "render_shell"]

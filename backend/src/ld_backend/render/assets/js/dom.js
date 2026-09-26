@@ -13,6 +13,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
       else if (name === "onclick") element.addEventListener("click", value);
       else if (name === "oninput") element.addEventListener("input", value);
       else if (name === "onchange") element.addEventListener("change", value);
+      else if (name === "onsubmit") element.addEventListener("submit", value);
       else element.setAttribute(name, value === true ? "" : String(value));
     }
     for (const child of children.flat(Infinity)) {

@@ -111,7 +111,7 @@ td dl.kv { font-size: 12px; }
 .status-documented_only .link-line { stroke: var(--documented); stroke-dasharray: 7 5; }
 .link.oper-down .link-line { stroke-opacity: 0.45; }
 .link.selected .link-line { stroke-width: 4.5; }
-.link-mark, .node-badge { stroke: var(--ground); stroke-width: 1.5; }
+.link-mark, .node-badge { stroke: var(--ground); stroke-width: 1.5; pointer-events: none; }
 .link-mark.severity-error, .node-badge.severity-error { fill: var(--error); }
 .link-mark.severity-warning, .node-badge.severity-warning { fill: var(--warning); }
 .port-label { font-size: 9.5px; fill: var(--ink); paint-order: stroke; stroke: var(--ground); stroke-width: 3px; display: none; pointer-events: none; }
@@ -130,6 +130,29 @@ td dl.kv { font-size: 12px; }
 .node.match .node-shape { fill: var(--accent); }
 .node.match .node-tag { fill: var(--surface); }
 .has-selection .link:not(.selected):not(.related), .has-selection .node:not(.selected):not(.related) { opacity: 0.28; }
+.has-selection .beam:not(.selected):not(.related), .has-selection .cluster:not(.selected):not(.related) { opacity: 0.28; }
+
+/* les structures : une bande par faisceau d'agrégat sous ses câbles, un cadre par cluster HA, un halo par heartbeat */
+.beam-band { fill: none; stroke: var(--muted); stroke-opacity: 0.16; stroke-linecap: round; }
+.beam.peer-link .beam-band { stroke: var(--accent); }
+.beam.degraded .beam-band { stroke: var(--warning); stroke-opacity: 0.26; }
+.beam-hit { fill: none; stroke: transparent; stroke-linecap: round; pointer-events: stroke; cursor: pointer; }
+.beam-label-hit { fill: transparent; pointer-events: all; cursor: pointer; }
+.beam-label { font: 600 9.5px var(--mono); fill: var(--muted); text-anchor: middle; paint-order: stroke; stroke: var(--ground); stroke-width: 3px; pointer-events: none; }
+.beam.selected .beam-band, .beam.related .beam-band { stroke-opacity: 0.4; }
+.beam-tag.selected .beam-label { fill: var(--ink); }
+.has-selection .beam-tag:not(.selected):not(.related) { opacity: 0.28; }
+.cluster-hull { fill: var(--accent); fill-opacity: 0.06; stroke: var(--accent); stroke-opacity: 0.6; stroke-width: 1.2; stroke-dasharray: 6 4; cursor: pointer; }
+.cluster.selected .cluster-hull { fill-opacity: 0.12; stroke-opacity: 1; stroke-width: 2.5; stroke-dasharray: none; }
+.cluster-label { font: 600 10px var(--sans); fill: var(--accent); pointer-events: none; }
+.link-halo { fill: none; stroke: var(--accent); stroke-opacity: 0.22; stroke-width: 9; stroke-linecap: round; }
+.pill.member-bundled, .pill.state-up, .pill.degraded-false, .pill.oper-up { border-color: var(--confirmed); color: var(--confirmed); }
+.pill.member-suspended, .pill.member-standby, .pill.member-individual, .pill.member-not_in_use, .pill.degraded-true { border-color: var(--warning); color: var(--warning); }
+.pill.member-down, .pill.state-down { border-color: var(--error); color: var(--error); }
+.pill.role-peer-link, .pill.role-mlag, .pill.mode-active_passive, .pill.mode-active_active { border-color: var(--accent); color: var(--accent); }
+.legend-note .band { display: inline-block; width: 22px; height: 8px; border-radius: 4px; background: var(--muted); opacity: 0.3; }
+.legend-note .frame { display: inline-block; width: 18px; height: 12px; border: 1px dashed var(--accent); border-radius: 3px; }
+.legend-note .halo { display: inline-block; width: 22px; height: 0; border-top: 3px solid var(--confirmed); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 
 .legend-item { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 1px 10px; font-size: 12px; }
 .legend-item[aria-pressed="false"] { opacity: 0.45; text-decoration: line-through; }
@@ -141,6 +164,12 @@ td dl.kv { font-size: 12px; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
 .dot.severity-error { background: var(--error); }
 .dot.severity-warning { background: var(--warning); }
+
+.shell-form { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+.shell-form input { background: var(--ground); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; font-family: var(--mono); }
+.shell-message { margin: 0; padding: 8px 10px; border: 1px solid var(--warning); border-radius: 6px; color: var(--warning); background: var(--surface); max-width: 560px; }
+.pill.run-completed { border-color: var(--confirmed); color: var(--confirmed); }
+.pill.run-failed { border-color: var(--error); color: var(--error); }
 
 @media (max-width: 900px) {
   #view-graph { flex-direction: column; overflow: auto; }

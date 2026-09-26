@@ -186,7 +186,7 @@ backend/
                               test_review.py et test_review2.py (une sonde de revue = un test)
 ```
 
-## B1, la corrélation — étape 1
+## B1, la corrélation — étape 1, R1-bis, R4
 
 ```python
 from ld_contracts.bundle import RunBundle
@@ -204,8 +204,52 @@ Entrée : un `RunBundle` valide et l'empreinte SHA-256 de son archivage. Sortie 
 du contrat de sortie (`contracts/CONTRAT.md` partie B), qui refuse tout snapshot incohérent à la construction.
 Fonction pure : aucune horloge, aucune lecture disque, aucun identifiant synthétique ; les listes sont
 triées par les clés du contrat. L'étape 1 produit les nœuds (device, external, stub), les interfaces, les câbles
-avec leurs évidences et les contrôles R0 à R3, la couverture et le rapport ; `aggregates`, `mlag_domains`,
-`ha_clusters` et les contrôles R4 / R5 arrivent à l'étape 2.
+avec leurs évidences et les contrôles R0 à R3, la couverture et le rapport ; **R4** (2026-09-26) ajoute `aggregates`,
+`mlag_domains`, `ha_clusters` et leurs contrôles ; les contrôles d'état (R5) et le golden restent à écrire.
+
+### R4, les structures (2026-09-26)
+
+`structures.py` (agrégats, faisceaux, domaines MLAG) et `ha.py` (clusters), appelés après la fusion des câbles et
+avant l'assemblage. Décisions, annoncées avant le code :
+
+1. **`aggregates[]` du snapshot ne reprend que les documents `aggregates[]` du bundle.** Un agrégat connu seulement
+   par `interfaces[].members` (topic en échec) n'a pas d'entrée : le contrat exige un protocole et un statut par
+   membre, on n'invente rien ; son appartenance reste visible sur les interfaces (`aggregate.member_status = null`) et
+   sur les câbles (`aggregate_a` / `aggregate_b`). Les `cables` d'un agrégat sont les câbles qui touchent un de ses
+   membres ; un câble arrêté à l'agrégat lui-même (R1-bis indéterminé) n'en fait pas partie.
+2. **La paire MLAG se détermine par le peer-link câblé**, pas par le seul `mlag_id` : un numéro de vPC est local à
+   son domaine, deux paires de la même infra peuvent avoir chacune un vPC 20. Un agrégat `mlag_peer_link` dont les
+   câbles mènent à un seul autre device **porteur de documents `aggregates[]`** forme la paire (un peer-link vu vers
+   un stub ou un externe n'en forme pas : revue, H1) ; un device présent dans deux paires n'en garde aucune ; un
+   peer-link marqué n'est jamais candidat à un domaine, même s'il porte un `mlag_id` (revue, B1). Repli,
+   hors de toute paire : même `mlag_id` sur exactement deux devices. `peer_link` du domaine = l'agrégat marqué d'un
+   des deux devices, de préférence celui dont les câbles mènent à l'autre. `downstream` = le device au bout des câbles
+   des deux agrégats s'il est unique ; plusieurs ⇒ `mlag_downstream_inconsistent` ; aucun câble ⇒ `null`, sans
+   contrôle. Deux agrégats de même `mlag_id` câblés l'un à l'autre ⇒ `mlag_pair_direct_link`, pas de domaine.
+3. **HA : un cluster par ensemble de membres.** Pour le rôle, l'état et la priorité d'un membre, sa propre vue
+   prime ; le mode et le nom suivent le premier rapporteur (ordre des hostnames) ; tout désaccord entre valeurs
+   **lues** est un `ha_view_mismatch` (`details.field` : `mode`, `cluster_name`, `member`, ou `members` quand un
+   device est décrit dans deux clusters aux membres différents) ; **`null` ne contredit rien** et une valeur lue par un
+   autre rapporteur le remplace (revue, M2). Un membre absent de `devices` est retiré du cluster (constat
+   `ha_member_unknown` du contrat) ; un membre connu de `devices` sous une autre infrastructure devient un nœud
+   `external` sans témoin, comme un voisin d'une autre infra (revue, M1). Un `standalone` est conservé (c'est un fait ;
+   la page ne l'encadre pas). `ha_member_down` est émis **dès qu'un rapporteur dit `down`** (`details.reported_by` =
+   ceux qui le disent), l'état retenu restant la vue propre : un split-brain garde son erreur (revue, B5).
+4. **Heartbeat : jamais un câble inventé.** Le câble d'une interface de heartbeat est l'unique câble du port ; à
+   plusieurs, l'unique qui mène à un membre du cluster ; sinon `null` et `heartbeat_link_not_observed`, avec
+   `details.candidates` quand des câbles existent mais restent ambigus (revue, B2). `aggregate_protocol_mismatch` se
+   juge par faisceau (une paire d'agrégats reliés par au moins un câble) et dit de quoi ses câbles sont faits
+   (`details.cable_statuses` : `documented_only` seul pèse peu, les descriptions de production étant peu fiables) ;
+   `aggregate_member_not_bundled` référence l'agrégat et le port membre (la page le compte sur le câble du membre).
+   Parqués, comportement visible (revue, M3, B3, B6) : même `mlag_id` deux fois sur un device ⇒ aucun domaine (refus
+   d'entrée `mlag_id_duplicate` proposé à Orhan) ; peer-link marqué d'un seul côté ⇒ domaine formé, rôles d'un seul
+   côté ; une patte du vPC sans câble ⇒ `downstream` jugé sur l'autre.
+
+Au passage, un refus est entré dans le contrat d'entrée : `aggregate_member_duplicate` (un membre listé deux fois dans
+un document `aggregates`), parce que le Snapshot refuse une liste de membres en double. Tests :
+`tests/correlate/test_structures.py` (scénarios 2, 3, 8 de `docs/05`, une seconde paire de cœurs avec le même vPC 20,
+peer-link mal étiqueté, aval incohérent, vues HA divergentes, membre inconnu, standalone, ordre des documents).
+Revue indépendante : `docs/revues/2026-09-26-b1-r4-structures.md`.
 
 ### Le branchement (2026-09-20)
 
@@ -250,13 +294,18 @@ comprendre d'où vient chaque câble, et corriger l'exportateur ou les données.
 | `ld render --infrastructure X --run-id Y --out page.html` | la page du snapshot et du rapport **tels qu'archivés** ; sortie 1 si la run est inconnue ou sans snapshot |
 
 La page est un seul fichier (environ 60 Ko de visualiseur, plus les données : 90 Ko pour la fixture), ouvrable par
-double-clic, sans réseau. Quatre vues : **graphe** (nœuds par sorte, câbles par statut, deux câbles entre les mêmes
-équipements tracés séparément, clic ⇒ sources, contrôles, ports), **contrôles**, **qualité des données** (couverture
-device × topic, constats d'ingestion, descriptions non lues, voisins non résolus, normalisations), **sources**
-(câbles par combinaison de sources, filtrables par équipement). L'état de vue vit dans le fragment d'URL
-(`#view=quality`, `#node=sw-core-01`, `#stubs=1`, `#ports=1`, et `#link=` qui porte **l'identité** du câble, ses deux
-bouts, jamais son rang : l'adresse reste juste quand un export corrigé ajoute un voisin). Un paramètre illisible est
-ignoré. Un contrôle posé sur un port qui porte plusieurs câbles n'est compté que sur le câble que ses détails désignent.
+double-clic, sans réseau. Cinq vues : **graphe** (nœuds par sorte, câbles par statut, deux câbles entre les mêmes
+équipements tracés séparément, clic ⇒ sources, contrôles, ports ; depuis l'incrément B du 2026-09-26, une **bande** par
+faisceau d'agrégat sous ses câbles, étiquetée `peer-link` ou `MLAG n`, un **cadre** par cluster HA autour de ses
+membres, un halo sur un câble de heartbeat ; clic sur une bande ou sur son étiquette ⇒ le faisceau et ses deux
+agrégats, sur un cadre ⇒ le cluster, ses membres, ses heartbeats, ses sources ; la bande couvre l'éventail de ses
+câbles, l'étiquette courte dit ce qu'est le faisceau, la complète n'apparaît que sur le faisceau choisi), **structures** (agrégats, domaines MLAG, clusters HA en tableaux,
+cliquables vers le graphe), **contrôles**, **qualité des données** (couverture device × topic, constats d'ingestion,
+descriptions non lues, voisins non résolus, normalisations), **sources** (câbles par combinaison de sources,
+filtrables par équipement). L'état de vue vit dans le fragment d'URL (`#view=quality`, `#node=sw-core-01`,
+`#stubs=1`, `#ports=1`, et `#link=`, `#aggregate=`, `#beam=`, `#cluster=` qui portent **l'identité** de l'élément, ses
+bouts ou ses membres, jamais son rang : l'adresse reste juste quand un export corrigé ajoute un voisin). Un paramètre
+illisible est ignoré. Un contrôle posé sur un port qui porte plusieurs câbles n'est compté que sur le câble que ses détails désignent.
 La fiche d'un équipement dit quels ports ont un câble et lesquels sont up sans rien en face.
 
 Décisions (validées par Orhan le 2026-09-20 avant le code) :
@@ -282,8 +331,19 @@ est présent (dépendance de test seulement). Le faux DOM ne rend rien : un test
 headless quand il en trouve un (`~/.cache/ms-playwright/`), et vérifie le DOM rendu sous la CSP, sans erreur de console.
 Revue indépendante : `docs/revues/2026-09-20-pages-ld-render.md` (sécurité validée sous bundle hostile dans un vrai
 navigateur ; 1 haut, 4 moyens, 5 bas, tous traités). Mesuré par la revue : 400 équipements, 1 200 câbles, 3 600
-contrôles ⇒ page de 2,7 Mo, ouverte en 0,9 s. À venir : la page servie par le backend (`/view`, jeton saisi dans la page), puis l'incrément B
-(agrégats et clusters HA, ce qui tire une partie de R4 dans B1).
+contrôles ⇒ page de 2,7 Mo, ouverte en 0,9 s. Incrément B (structures) : `docs/revues/2026-09-26-pages-increment-b.md`.
+
+### La page servie par le backend : `GET /view` (2026-09-26)
+
+La même page, **sans donnée** (`render/shell.py` : le visualiseur plus `shell.js`, `snapshot: null`), servie sans jeton
+comme `/docs`. Elle lit le snapshot et le rapport par l'API (`/api/snapshot`, `/api/ingest/report`, et
+`/api/ingest/bundles` pour lister les runs d'une infrastructure) avec le **jeton saisi dans la page** : gardé dans
+`sessionStorage` (l'onglet, pas le disque), envoyé en `Authorization`, oublié sur un 401 ou sur demande, **jamais dans
+l'adresse**. L'adresse porte la run (`?infrastructure=&run_id=`) et l'état de vue (`#view=…`) : elle se partage.
+Seule différence de CSP avec la page autonome : `connect-src 'self'` (la page autonome n'a aucun réseau, un test le
+vérifie). Tests : `tests/test_view.py` (route, stabilité, empreintes CSP, coquille servie par uvicorn et lue par
+Chromium) et deux tests sous Node avec un `fetch` simulé (saisie du jeton, liste des runs, chargement, jeton refusé
+oublié, 404 expliqué).
 
 ## Vérifier et faire évoluer
 

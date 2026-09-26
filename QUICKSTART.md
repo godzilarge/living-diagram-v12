@@ -84,19 +84,27 @@ curl -s -G http://127.0.0.1:8000/api/ingest/report  -H "$H" --data-urlencode "in
 curl -s -G http://127.0.0.1:8000/api/snapshot       -H "$H" --data-urlencode "infrastructure=<infra>" --data-urlencode "run_id=<run>" -o snapshot.json
 # 3. dessiner la run archivée (même dossier d'archive que le serveur)
 uv run ld render --infrastructure <infra> --run-id <run> --archive ./archive --out page.html
+# 4. ou la lire dans le navigateur, sans rien générer : la page servie par l'API
+#    http://127.0.0.1:8000/view?infrastructure=<infra>&run_id=<run>
 ```
 
 Dans la réponse du POST, `correlation` dit ce que B1 a fait : `created` (avec le nombre de nœuds, de câbles et de
 contrôles), `already_present`, ou `failed`. Un échec de B1 ne fait pas échouer l'ingestion : le bundle est archivé, la
 trace est dans le journal du serveur, `ld correlate` rattrape après correction. Régler le timeout du client à 60 s.
-La page n'est pas encore servie par l'API : elle se génère avec `ld render`.
+
+`GET /view` sert la **même page que `ld render`, sans donnée** : elle se sert sans jeton, comme `/docs`, et lit le
+snapshot et le rapport par l'API. **Le jeton se saisit dans la page** ; il reste dans l'onglet (`sessionStorage`) et
+n'entre jamais dans l'adresse. Sans `run_id`, la page liste les runs de l'infrastructure. L'adresse
+(`/view?infrastructure=&run_id=#view=graph&node=…`) se partage : elle porte la run et l'état de vue, pas le jeton.
 
 ## 5. Un premier bundle réel
 
 Suffisent pour voir quelque chose : `devices`, `tasks`, `interfaces`, `lldp`, `cdp`. Les sections `aggregates`,
-`system`, `ha` peuvent être des listes vides. Ce que B1 ne fait pas encore : reconstruire les agrégats, les vPC et les
-clusters HA, comparer l'état des deux bouts d'un câble, lire une table MAC (les câbles des firewalls, sans LLDP,
-n'existent donc que par les descriptions : ils sortent en orange pointillé).
+`system`, `ha` peuvent être des listes vides ; avec `aggregates` et `ha`, la page montre aussi les **agrégats** (bandes
+sous les câbles, étiquetées peer-link ou MLAG), les **domaines vPC / MLAG** et les **clusters HA** (cadre autour des
+membres), onglet **Structures** (depuis le 2026-09-26). Ce que B1 ne fait pas encore : comparer l'état des deux bouts
+d'un câble (R5), lire une table MAC (les câbles des firewalls, sans LLDP, n'existent donc que par les descriptions :
+ils sortent en orange pointillé).
 
 ## 6. Vérifier le code
 
@@ -115,6 +123,7 @@ cd backend   && uv run pytest --cov=ld_backend   && uv run ruff check src tests 
 | lister les runs | `ld runs --infrastructure X` ou `GET /api/ingest/bundles?infrastructure=X` |
 | récupérer le snapshot (JSON) | `GET /api/snapshot?infrastructure=X&run_id=Y`, ou `archive/X/Y/snapshot.json` |
 | dessiner une run archivée | `ld render --infrastructure X --run-id Y --out page.html` |
+| la lire dans le navigateur, serveur lancé | `http://127.0.0.1:8000/view?infrastructure=X&run_id=Y` (jeton saisi dans la page) |
 | recalculer après une correction de B1 | `ld correlate --infrastructure X [--run-id Y]` |
 | valider un snapshot | `ld-contracts validate --contract snapshot snapshot.json` |
 | partager sans fuite | `ld-contracts anonymize in.json out.json`, puis `ld render out.json` |

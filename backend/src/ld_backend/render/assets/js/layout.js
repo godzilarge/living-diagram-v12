@@ -26,17 +26,19 @@ var LD = globalThis.LD || (globalThis.LD = {});
     return positions;
   }
 
+  // edges : [a, b] ou [a, b, renfort] ; le renfort multiplie l'attraction (membres d'un cluster HA : 2.5).
   function uniqueEdges(edges, known) {
     const weights = new Map();
-    for (const [from, to] of edges) {
+    for (const [from, to, boost] of edges) {
       if (from === to || !known.has(from) || !known.has(to)) continue;
       const key = from < to ? from + "\u0000" + to : to + "\u0000" + from;
-      weights.set(key, (weights.get(key) || 0) + 1);
+      const found = weights.get(key) || { count: 0, boost: 1 };
+      weights.set(key, { count: found.count + 1, boost: Math.max(found.boost, boost || 1) });
     }
     // Triées : l'ordre d'addition des forces change les dernières décimales, donc les positions.
-    return Array.from(weights).sort(([x], [y]) => (x < y ? -1 : 1)).map(([key, count]) => {
+    return Array.from(weights).sort(([x], [y]) => (x < y ? -1 : 1)).map(([key, { count, boost }]) => {
       const [from, to] = key.split("\u0000");
-      return { from, to, weight: 1 + 0.35 * Math.log(count) }; // dix câbles ne collent pas deux équipements l'un sur l'autre
+      return { from, to, weight: (1 + 0.35 * Math.log(count)) * boost }; // dix câbles ne collent pas deux équipements l'un sur l'autre
     });
   }
 

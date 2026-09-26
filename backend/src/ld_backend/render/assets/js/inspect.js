@@ -79,6 +79,17 @@ var LD = globalThis.LD || (globalThis.LD = {});
     return parts.join(" ");
   }
 
+  // Les agrégats des deux bouts, cliquables quand le snapshot a leur document.
+  function aggregateEnds(model, link, onSelect) {
+    const raw = link.raw;
+    const ends = [[raw.a.hostname, raw.aggregate_a], [raw.b.hostname, raw.aggregate_b]].filter(([, name]) => name !== null);
+    if (!ends.length) return null;
+    return h("span", {}, ends.map(([hostname, name], index) => {
+      const aggregate = model.aggregateByKey.get(LD.model.aggregateKey(hostname, name));
+      return [index ? " · " : null, aggregate ? LD.structures.aggregateButton(aggregate, onSelect) : hostname + " · " + name];
+    }));
+  }
+
   function linkPanel(model, link, onSelect) {
     const raw = link.raw;
     const why = whyText(link);
@@ -90,7 +101,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
         h("span", { class: "arrow" }, " ↔ "),
         h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "node", id: raw.b.hostname }) }, raw.b.hostname), " · " + raw.b.interface),
       h("p", { class: "why" }, why),
-      definition([["état", raw.oper], ["vitesse commune", raw.speed_mbps ? raw.speed_mbps + " Mb/s" : "différente ou inconnue"]]),
+      definition([["état", raw.oper], ["vitesse commune", raw.speed_mbps ? raw.speed_mbps + " Mb/s" : "différente ou inconnue"],
+        ["agrégats", aggregateEnds(model, link, onSelect)], ["faisceau", link.beam ? LD.structures.beamButton(link.beam, onSelect) : null]]),
       h("h4", { class: "section" }, "Sources : " + raw.evidence.length + " évidence" + (raw.evidence.length > 1 ? "s" : "")),
       h("ul", { class: "evidences" }, raw.evidence.map((e) => evidenceCard(model, e))),
       h("h4", { class: "section" }, "Contrôles liés"), checkList(model, link.checks, onSelect),
@@ -149,6 +161,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
         const local = link.a.hostname === node.hostname ? link.a : link.b, remote = local === link.a ? link.b : link.a;
         return { onclick: () => onSelect({ kind: "link", id: link.id }), cells: [local.interface, [h("div", {}, LD.model.endLabel(remote)), h("div", {}, statusPill(link.status), link.sources.map(sourcePill))]] };
       }), { empty: "aucun câble" }),
+      LD.structures.nodeStructures(model, node.hostname, onSelect),
       h("h4", { class: "section" }, "Contrôles"), checkList(model, model.checksByNode.get(node.hostname) || [], onSelect),
       h("h4", { class: "section" }, "Interfaces : " + ifaces.length),
       interfaceTable(model, ifaces),
@@ -165,7 +178,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
         ["voisins inconnus", count(model.kindCounts, "stub") + " (masqués par défaut)"],
         ["câbles confirmés", count(model.statusCounts, "confirmed")], ["observés seuls", count(model.statusCounts, "observed_only")],
         ["documentés seuls", count(model.statusCounts, "documented_only")],
-        ["agrégats · MLAG · clusters HA", model.aggregates.length + " · " + model.mlagDomains.length + " · " + model.haClusters.length + " (B1 ne les reconstruit pas encore)"],
+        ["agrégats · faisceaux", model.aggregates.length + " · " + model.beams.length + " (bandes sous les câbles)"],
+        ["domaines MLAG", String(model.mlagDomains.length)], ["clusters HA", model.clusters.length + " (cadres autour des membres)"],
       ]),
     ];
   }
@@ -175,6 +189,10 @@ var LD = globalThis.LD || (globalThis.LD = {});
     let content = overview(model);
     if (selection && selection.kind === "link" && model.linkById.has(selection.id)) content = linkPanel(model, model.linkById.get(selection.id), onSelect);
     if (selection && selection.kind === "node" && model.nodeByHost.has(selection.id)) content = nodePanel(model, model.nodeByHost.get(selection.id), onSelect);
+    const entity = LD.model.entityOf(model, selection);
+    if (entity && selection.kind === "aggregate") content = LD.structures.aggregatePanel(model, entity, onSelect);
+    if (entity && selection.kind === "beam") content = LD.structures.beamPanel(model, entity, onSelect);
+    if (entity && selection.kind === "cluster") content = LD.structures.clusterPanel(model, entity, onSelect);
     container.appendChild(h("div", { class: "panel" }, content));
     container.scrollTop = 0;
   }

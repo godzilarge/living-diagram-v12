@@ -12,10 +12,11 @@ var LD = globalThis.LD || (globalThis.LD = {});
   function targetsOf(model, check) {
     return check.refs.map((ref) => {
       if (ref.kind === "link") return { label: LD.model.endLabel(ref.a) + " ↔ " + LD.model.endLabel(ref.b), selection: { kind: "link", id: LD.model.linkId(ref) } };
-      if (ref.kind === "cluster") return { label: "cluster " + ref.members.join(" + "), selection: { kind: "node", id: ref.members[0] } };
+      if (ref.kind === "cluster") return { label: "cluster " + ref.members.join(" + "), selection: { kind: "cluster", id: LD.model.clusterId(ref.members) } };
+      if (ref.kind === "aggregate") return { label: ref.hostname + " · " + ref.name, selection: { kind: "aggregate", id: LD.model.aggregateKey(ref.hostname, ref.name) } };
       const label = ref.name ? ref.hostname + " · " + ref.name : ref.hostname;
       return { label, selection: { kind: "node", id: ref.hostname } };
-    }).filter((target) => target.selection.kind === "node" ? model.nodeByHost.has(target.selection.id) : model.linkById.has(target.selection.id));
+    }).filter((target) => LD.model.entityOf(model, target.selection) !== null);
   }
 
   function targetCell(model, check, onSelect) {
@@ -125,5 +126,29 @@ var LD = globalThis.LD || (globalThis.LD = {});
     draw();
   }
 
-  LD.tables = { checksView, qualityView, sourcesView, targetsOf };
+  // Les structures de R4 en tableaux : ce que B1 a reconstruit, cliquable vers le graphe.
+  function structuresView(container, model, onSelect) {
+    const memberText = (aggregate) => aggregate.raw.members.map((m) => m.name + " (" + m.status + ")").join(", ");
+    const mlagText = (aggregate) => (aggregate.raw.mlag_peer_link ? "peer-link" : aggregate.raw.mlag_id !== null ? String(aggregate.raw.mlag_id) : "");
+    const aggregateRows = model.aggregates.map((aggregate) => ({ onclick: () => onSelect({ kind: "aggregate", id: aggregate.key }),
+      cells: [aggregate.hostname, aggregate.name, aggregate.raw.protocol + (aggregate.raw.lacp_mode ? " " + aggregate.raw.lacp_mode : ""), memberText(aggregate),
+        String(aggregate.cables.length), pill("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet"), mlagText(aggregate)] }));
+    const domainRows = model.mlagDomains.map((domain) => ({ onclick: () => onSelect(domain.members.length ? { kind: "aggregate", id: domain.members[0].key } : null),
+      cells: [String(domain.raw.mlag_id), domain.raw.members.map((m) => m.hostname + " · " + m.aggregate).join(" + "),
+        domain.raw.peer_link ? domain.raw.peer_link.hostname + " · " + domain.raw.peer_link.aggregate : "—", plain(domain.raw.downstream)] }));
+    const clusterRows = model.clusters.map((cluster) => ({ onclick: () => onSelect({ kind: "cluster", id: cluster.id }),
+      cells: [plain(cluster.raw.cluster_name), pill("mode", cluster.raw.mode, cluster.raw.mode), cluster.raw.members.map((m) => m.hostname + " (" + m.role + ", " + m.state + ")").join(", "),
+        cluster.heartbeats.map((hb) => hb.hostname + " · " + hb.interface + (hb.link ? "" : " (sans câble)")).join(", ") || "—"] }));
+    clear(container).appendChild(h("div", { class: "page" },
+      h("h2", {}, "Structures"),
+      h("p", { class: "lead" }, "Ce que B1 a reconstruit au-dessus des câbles : agrégats (document aggregates de chaque équipement), domaines MLAG (deux agrégats de même identifiant, appariés par leur peer-link) et clusters HA (documents ha de leurs membres). Cliquer une ligne l'ouvre dans le graphe."),
+      h("h3", {}, "Agrégats : " + model.aggregates.length),
+      table(["équipement", "agrégat", "protocole", "membres", "câbles", "état", "MLAG"], aggregateRows, { empty: "aucun agrégat : aucun document aggregates dans le bundle" }),
+      h("h3", {}, "Domaines MLAG : " + model.mlagDomains.length),
+      table(["identifiant", "agrégats", "peer-link", "équipement aval"], domainRows, { empty: "aucun domaine MLAG" }),
+      h("h3", {}, "Clusters HA : " + model.clusters.length),
+      table(["cluster", "mode", "membres", "heartbeat"], clusterRows, { empty: "aucun cluster : aucun document ha dans le bundle" })));
+  }
+
+  LD.tables = { checksView, qualityView, sourcesView, structuresView, targetsOf };
 })();

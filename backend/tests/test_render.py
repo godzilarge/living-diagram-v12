@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from ld_backend import cli
-from ld_backend.render import build_page_data, page_from_bundle, render_page
+from ld_backend.render import build_page_data, page_from_bundle, render_page, render_shell
 from tests.correlate.conftest import interface, lldp_doc, variant
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
@@ -25,6 +25,19 @@ def _hub(doc: dict) -> None:
     """Un port qui voit deux voisins : deux câbles sur `sw-core-01 · Ethernet1/5`, dont un vers un voisin inconnu."""
     doc["lldp"].append(lldp_doc("sw-core-01", "Ethernet1/5", "srv-a", "eth0", ("station",)))
     doc["lldp"].append(lldp_doc("sw-core-01", "Ethernet1/5", "sw-core-02", "Ethernet1/4"))
+
+
+def _aggstop(doc: dict) -> None:
+    """R1-bis indéterminé : le FortiGate annonce `agg-core` en port-id, aucune description ne désigne le membre."""
+    doc["lldp"].append(lldp_doc("sw-core-01", "Ethernet1/3", "fw-edge-01", "agg-core", ("router",)))
+    doc["lldp"].append(lldp_doc("sw-core-02", "Ethernet1/4", "fw-edge-01", "agg-core", ("router",)))
+    for host, name in (
+        ("sw-core-01", "Ethernet1/3"),
+        ("sw-core-02", "Ethernet1/4"),
+        ("fw-edge-01", "x1"),
+        ("fw-edge-01", "x2"),
+    ):
+        interface(doc, host, name)["description"] = None
 
 
 def _page(bundle: dict) -> str:
@@ -170,15 +183,24 @@ def test_render_needs_a_file_or_a_run(capsys, tmp_path):
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node absent : les tests du visualiseur ne tournent pas")
 def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
-    page, hub = tmp_path / "page.html", tmp_path / "hub.html"
+    page, hub, shell = tmp_path / "page.html", tmp_path / "hub.html", tmp_path / "shell.html"
+    aggstop = tmp_path / "aggstop.html"
     page.write_text(_page(bundle_dict), encoding="utf-8")
     hub.write_text(_page(variant(bundle_dict, _hub)), encoding="utf-8")
+    aggstop.write_text(_page(variant(bundle_dict, _aggstop)), encoding="utf-8")
+    shell.write_text(render_shell(), encoding="utf-8")
     done = subprocess.run(
         ["node", "--test", str(JS_TESTS)],
         capture_output=True,
         text=True,
         timeout=120,
-        env={**os.environ, "LD_PAGE": str(page), "LD_PAGE_HUB": str(hub)},
+        env={
+            **os.environ,
+            "LD_PAGE": str(page),
+            "LD_PAGE_HUB": str(hub),
+            "LD_SHELL": str(shell),
+            "LD_PAGE_AGGSTOP": str(aggstop),
+        },
         check=False,
     )
     assert done.returncode == 0, done.stdout[-4000:] + done.stderr[-2000:]
@@ -199,6 +221,9 @@ def test_the_page_really_renders_in_a_browser_under_its_csp(tmp_path, bundle_dic
     )
     dom = done.stdout
     assert dom.count('class="node kind-') == 7 and dom.count('class="link status-') == 7, done.stderr[-2000:]
+    # deux faisceaux, pas trois : le hub sur Ethernet1/5 observe sw-core-02 · Ethernet1/4, la description de x2 vers ce
+    # port devient un désaccord et son câble n'est plus tracé
+    assert dom.count('class="beam-band"') == 2 and dom.count('class="cluster-hull"') == 1, "bandes et cadres rendus"
     assert 'class="fatal"' not in dom.split("<noscript>")[0]
     assert "7 nœuds sur 7 et 7 câbles sur 7 affichés" in dom
     assert not [line for line in done.stderr.splitlines() if "CONSOLE" in line or "Refused" in line]

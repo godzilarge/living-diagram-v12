@@ -20,7 +20,7 @@ from typing import Any
 from ld_contracts.snapshot.codes import CATALOGUE
 
 ASSETS = files("ld_backend.render") / "assets"
-JS_FILES = ("model.js", "layout.js", "dom.js", "graph.js", "inspect.js", "tables.js", "main.js")
+JS_FILES = ("model.js", "layout.js", "dom.js", "graph.js", "inspect.js", "structures.js", "tables.js", "main.js")
 PLACEHOLDER = re.compile(r"\{\{([A-Z]+)\}\}")
 JSON_ESCAPES = {"<": "\\u003c", ">": "\\u003e", "&": "\\u0026", " ": "\\u2028", " ": "\\u2029"}
 
@@ -44,21 +44,29 @@ def _asset(*parts: str) -> str:
     return ASSETS.joinpath(*parts).read_text(encoding="utf-8")
 
 
-def render_page(data: Mapping[str, Any]) -> str:
-    source = data["snapshot"]["source"]
+def assemble_page(data: Mapping[str, Any], *, title: str, scripts: tuple[str, ...], connect_self: bool) -> str:
+    """Gabarit + feuille de style + scripts + données. `connect_self` n'ouvre que `fetch` vers la même origine :
+    la page servie par le backend lit le snapshot par l'API ; la page autonome n'a aucun réseau."""
     style = _asset("viewer.css")
-    script = "\n".join(_asset("js", name) for name in JS_FILES)
+    script = "\n".join(_asset("js", name) for name in scripts)
     if "</script" in script.lower() or "</style" in style.lower():
         raise ValueError("une source du visualiseur contient une balise fermante : le bloc en ligne serait coupé")
     csp = (
         f"default-src 'none'; script-src {_csp_source(script)}; style-src {_csp_source(style)}; "
-        "base-uri 'none'; form-action 'none'"
+        f"{"connect-src 'self'; " if connect_self else ''}base-uri 'none'; form-action 'none'"
     )
     parts = {
-        "TITLE": html.escape(f"Living Diagram · {source['infrastructure']} · {source['collector_run_id']}"),
+        "TITLE": html.escape(title),
         "CSP": csp,  # ni guillemet double ni chevron : des mots-clés et du base64
         "STYLE": style,
         "SCRIPT": script,
         "DATA": _embed(data),
     }
     return PLACEHOLDER.sub(lambda found: parts[found.group(1)], _asset("page.html"))  # une passe : rien n'est relu
+
+
+def render_page(data: Mapping[str, Any]) -> str:
+    """La page autonome : snapshot embarqué, aucune ressource externe, aucun réseau."""
+    source = data["snapshot"]["source"]
+    title = f"Living Diagram · {source['infrastructure']} · {source['collector_run_id']}"
+    return assemble_page(data, title=title, scripts=JS_FILES, connect_self=False)

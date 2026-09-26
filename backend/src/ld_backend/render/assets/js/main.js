@@ -4,7 +4,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
   "use strict";
 
   const { h, clear, pill } = LD.dom;
-  const TABS = [["graph", "Graphe"], ["checks", "Contrôles"], ["quality", "Qualité des données"], ["sources", "Sources"]];
+  const TABS = [["graph", "Graphe"], ["structures", "Structures"], ["checks", "Contrôles"], ["quality", "Qualité des données"], ["sources", "Sources"]];
   const STATUSES = ["confirmed", "observed_only", "documented_only"];
 
   function header(model) {
@@ -44,6 +44,9 @@ var LD = globalThis.LD || (globalThis.LD = {});
       STATUSES.map(item),
       h("span", { class: "legend-note" }, h("span", { class: "dot severity-warning" }), "contrôle warning"),
       h("span", { class: "legend-note" }, h("span", { class: "dot severity-error" }), "contrôle error"),
+      h("span", { class: "legend-note" }, h("span", { class: "band" }), "faisceau d'agrégat (étiquette : peer-link, MLAG)"),
+      h("span", { class: "legend-note" }, h("span", { class: "frame" }), "cluster HA"),
+      h("span", { class: "legend-note" }, h("span", { class: "halo" }), "heartbeat HA"),
       h("span", { class: "legend-note" }, "contour pointillé : autre infra · contour rouge : injoignable · orange : collecte partielle")));
   }
 
@@ -76,14 +79,12 @@ var LD = globalThis.LD || (globalThis.LD = {});
     const parts = ["view=" + view];
     if (graph.state.showStubs) parts.push("stubs=1");
     if (graph.state.showPorts) parts.push("ports=1");
-    const selection = graph.state.selection;
-    if (selection && selection.kind === "node") parts.push("node=" + encodeURIComponent(selection.id));
-    if (selection && selection.kind === "link") parts.push("link=" + encodeURIComponent(LD.model.linkToken(model.linkById.get(selection.id))));
+    const token = LD.model.tokenOf(model, graph.state.selection);
+    if (token) parts.push(token[0] + "=" + encodeURIComponent(token[1]));
     history.replaceState(null, "", "#" + parts.join("&"));
   }
 
-  function boot() {
-    const data = JSON.parse(document.getElementById("ld-data").textContent);
+  function boot(data) {
     const model = LD.model.build(data);
     const inspector = document.getElementById("inspector");
     let graph = null;
@@ -135,9 +136,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
       graph.state.showStubs = stubs;
       graph.state.showPorts = wanted.get("ports") === "1";
       if (redraw) graph.render(!first);
-      const link = wanted.has("link") ? LD.model.linkFromToken(model, wanted.get("link")) : null;
-      if (wanted.has("node") && model.nodeByHost.has(wanted.get("node"))) graph.reveal({ kind: "node", id: wanted.get("node") });
-      else if (link) graph.reveal({ kind: "link", id: link.id });
+      const kind = LD.model.SELECTION_KINDS.find((name) => wanted.has(name) && LD.model.selectionFromToken(model, name, wanted.get(name)));
+      if (kind) graph.reveal(LD.model.selectionFromToken(model, kind, wanted.get(kind)));
       else graph.select(null);
       activate(TABS.some(([id]) => id === wanted.get("view")) ? wanted.get("view") : "graph");
       graph.repaint();
@@ -151,7 +151,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
   LD.boot = boot;
   if (typeof document !== "undefined" && document.getElementById("ld-data")) {
     try {
-      LD.app = boot();
+      const data = JSON.parse(document.getElementById("ld-data").textContent);
+      if (data.snapshot) LD.app = boot(data); // page autonome ; la coquille servie démarre depuis shell.js
     } catch (error) {
       document.body.appendChild(h("p", { class: "fatal" }, "La page n'a pas pu s'afficher : " + error.message));
       throw error;

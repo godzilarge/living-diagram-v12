@@ -37,6 +37,7 @@ class FakeNode {
   setAttribute(name, value) {
     this.attributes.set(name, String(value));
     if (name === "id") this.ownerDocument.byId.set(String(value), this);
+    if (name === "value") this.value = String(value); // comme un champ neuf : l'attribut est la valeur initiale
   }
   getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
   appendChild(child) { child.parentNode = this; this.childNodes.push(child); return child; }
@@ -82,14 +83,20 @@ function readPage(path) {
 // Exécute le visualiseur. Sans `data`, seules les parties pures (modèle, placement) sont utilisables.
 // `hash` : le fragment d'URL au démarrage. `location`, `history` et `window` sont assez faux pour que le chemin
 // « l'URL est l'état de vue » s'exécute : lecture au démarrage, réécriture, événement hashchange.
-function load(page, data, hash) {
+// `extras` : ce que la coquille servie attend en plus (fetch, sessionStorage, search = la partie ?… de l'adresse).
+function load(page, data, hash, extras) {
   const document = createDocument(page.html);
   if (data) document.getElementById("ld-data").text = JSON.stringify(data);
   else document.byId.delete("ld-data");
-  const location = { hash: hash || "" };
-  const history = { replaceState: (_state, _title, url) => { location.hash = url; } };
+  const location = { hash: hash || "", search: (extras && extras.search) || "" };
+  const history = { replaceState: (_state, _title, url) => {
+    const cut = url.indexOf("#");
+    if (url.startsWith("?")) { location.search = cut < 0 ? url : url.slice(0, cut); location.hash = cut < 0 ? "" : url.slice(cut); }
+    else location.hash = url;
+  } };
   const window = new FakeNode(document, "window");
-  const context = vm.createContext({ document, console, location, history, window });
+  const context = vm.createContext({ document, console, location, history, window, URLSearchParams,
+    fetch: extras && extras.fetch, sessionStorage: extras && extras.sessionStorage });
   vm.runInContext(page.script, context, { filename: "viewer.js" });
   const go = (next) => { location.hash = next; window.fire("hashchange", {}); };
   return { LD: context.LD, document, location, go };

@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from ld_contracts.bundle import RunBundle
 from ld_contracts.snapshot import Snapshot
@@ -19,6 +19,7 @@ from starlette.requests import ClientDisconnect
 from ld_backend.archive import ArchiveCorruptError, BundleArchive
 from ld_backend.config import Settings
 from ld_backend.ingest import ingest_bundle, result_payload
+from ld_backend.render import render_shell
 from ld_backend.schemas import IngestReport, RunEntry, RunList
 
 # Une run s'adresse par paramètres de requête, jamais par le chemin : `infrastructure` est un libellé libre et
@@ -27,6 +28,7 @@ BUNDLES = "/api/ingest/bundles"
 BUNDLE = "/api/ingest/bundle"
 REPORT = "/api/ingest/report"
 SNAPSHOT = "/api/snapshot"
+VIEW = "/view"
 JSON_MEDIA_TYPE = re.compile(r"application/(?:[\w.-]+\+)?json", re.IGNORECASE)
 BUNDLE_SCHEMA_NAME = RunBundle.__name__
 SCHEMA_REF_TEMPLATE = "#/components/schemas/{model}"
@@ -202,6 +204,19 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    shell = render_shell()  # une fois : la coquille ne dépend d'aucune run
+
+    @app.get(
+        VIEW,
+        response_class=HTMLResponse,
+        summary="Page de lecture d'une run archivée (le jeton se saisit dans la page)",
+        description="La coquille du visualiseur, sans donnée, servie sans jeton comme `/docs`. Elle lit le snapshot "
+        "et le rapport par l'API avec le jeton saisi dans la page, gardé dans l'onglet. Adresse partageable : "
+        "`/view?infrastructure=&run_id=#view=graph` ; le jeton n'y entre jamais.",
+    )
+    def view() -> HTMLResponse:
+        return HTMLResponse(shell)
 
     @app.post(BUNDLES, dependencies=[guard], status_code=201, responses=POST_RESPONSES, summary="Ingérer un RunBundle")
     async def post_bundle(request: Request) -> JSONResponse:
