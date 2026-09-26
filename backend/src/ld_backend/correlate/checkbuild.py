@@ -6,11 +6,13 @@ port. Le snapshot, lui, refuse une référence qui ne désigne rien : elle se re
 port passe dans `details.interface`.
 """
 
+from collections.abc import Iterable
+
 from ld_contracts.snapshot.checks import Check
 from ld_contracts.snapshot.codes import CATALOGUE, CheckCode
 from ld_contracts.snapshot.enums import CheckOrigin, Severity
 from ld_contracts.snapshot.links import Link
-from ld_contracts.snapshot.refs import Endpoint, InterfaceRef, LinkRef, NodeRef, ref_key
+from ld_contracts.snapshot.refs import AggregateRef, ClusterRef, Endpoint, InterfaceRef, LinkRef, NodeRef, Ref, ref_key
 
 from ld_backend.correlate.context import Context
 
@@ -23,21 +25,28 @@ def sole_severity(code: CheckCode) -> Severity:
     return next(iter(severities))
 
 
-def _port_ref(ctx: Context, hostname: str, name: str) -> tuple[InterfaceRef | NodeRef, dict[str, str]]:
+def port_ref(ctx: Context, hostname: str, name: str) -> tuple[InterfaceRef | NodeRef, dict[str, str]]:
+    """La référence d'un port : l'interface si le snapshot la connaît, sinon le nœud et le nom en détail."""
     if (hostname, name) in ctx.interfaces:
         return InterfaceRef(kind="interface", hostname=hostname, name=name), {}
     return NodeRef(kind="node", hostname=hostname), {"interface": name}
 
 
+def aggregate_ref(hostname: str, name: str) -> AggregateRef:
+    return AggregateRef(kind="aggregate", hostname=hostname, name=name)
+
+
+def cluster_ref(members: Iterable[str]) -> ClusterRef:
+    return ClusterRef(kind="cluster", members=tuple(members))
+
+
+def node_ref(hostname: str) -> NodeRef:
+    return NodeRef(kind="node", hostname=hostname)
+
+
 def interface_check(ctx: Context, code: CheckCode, hostname: str, name: str, **details) -> Check:
-    ref, fallback = _port_ref(ctx, hostname, name)
-    return Check(
-        code=code,
-        severity=sole_severity(code),
-        origin=CheckOrigin.CORRELATION,
-        refs=(ref,),
-        details={**details, **fallback},
-    )
+    ref, fallback = port_ref(ctx, hostname, name)
+    return structure_check(code, (ref,), **details, **fallback)
 
 
 def link_check(
@@ -45,12 +54,23 @@ def link_check(
 ) -> Check:
     refs: list = [LinkRef(kind="link", a=link.a, b=link.b)]
     if witness is not None:
-        ref, fallback = _port_ref(ctx, witness.hostname, witness.interface)
+        ref, fallback = port_ref(ctx, witness.hostname, witness.interface)
         refs.append(ref)
         details = {**details, **fallback}
     return Check(
         code=code,
         severity=severity,
+        origin=CheckOrigin.CORRELATION,
+        refs=tuple(sorted(refs, key=ref_key)),
+        details=details,
+    )
+
+
+def structure_check(code: CheckCode, refs: Iterable[Ref], **details) -> Check:
+    """Un contrôle à sévérité unique sur des références déjà construites (agrégat, cluster, nœud, interface)."""
+    return Check(
+        code=code,
+        severity=sole_severity(code),
         origin=CheckOrigin.CORRELATION,
         refs=tuple(sorted(refs, key=ref_key)),
         details=details,

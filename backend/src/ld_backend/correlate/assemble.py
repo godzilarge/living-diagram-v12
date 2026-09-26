@@ -22,6 +22,7 @@ from ld_backend.correlate.checkbuild import sole_severity
 from ld_backend.correlate.claims import Claim, ClaimSet
 from ld_backend.correlate.context import Context
 from ld_backend.correlate.merge import MergeResult
+from ld_backend.correlate.structures import Structures
 
 COPIED_INTERFACE_FIELDS = (
     "hostname",
@@ -101,6 +102,23 @@ def _cited_node(ctx: Context, hostname: str, kind: NodeKind, evidence: NodeEvide
     )
 
 
+def ha_members_out_of_scope(ctx: Context) -> frozenset[str]:
+    """Membres HA connus de `devices` sous une autre infrastructure : des nœuds `external`, comme un voisin d'une
+    autre infra cité par LLDP, sans quoi ils disparaîtraient du cluster en silence (revue R4, M1)."""
+    return frozenset(
+        member.name
+        for doc in ctx.bundle.ha
+        for member in doc.members
+        if member.name in ctx.devices and member.name not in ctx.in_scope
+    )
+
+
+def node_hostnames(ctx: Context, claims: Iterable[Claim]) -> frozenset[str]:
+    """Les hostnames qui auront un nœud : les devices en périmètre, tout voisin résolu ou stub cité par un claim,
+    et les membres HA d'une autre infrastructure."""
+    return ctx.in_scope | {claim.resolved.hostname for claim in claims} | ha_members_out_of_scope(ctx)
+
+
 def _nodes(ctx: Context, claims: Iterable[Claim]) -> tuple[Node, ...]:
     seen: dict[str, set[SeenBy]] = defaultdict(set)
     capabilities: dict[str, set[str]] = defaultdict(set)
@@ -112,6 +130,8 @@ def _nodes(ctx: Context, claims: Iterable[Claim]) -> tuple[Node, ...]:
         kinds[host] = claim.resolved.kind
         seen[host].add(SeenBy(hostname=claim.hostname, interface=claim.interface, source=claim.source))
         capabilities[host].update(claim.capabilities)
+    for host in ha_members_out_of_scope(ctx):
+        kinds.setdefault(host, NodeKind.EXTERNAL)  # cité par un document ha seulement : aucun témoin LLDP / CDP
     nodes = [_device_node(ctx, ctx.devices[host]) for host in ctx.in_scope]
     for host, kind in kinds.items():
         evidence = NodeEvidence(
@@ -193,22 +213,24 @@ def _source(bundle: RunBundle, bundle_sha256: str) -> Source:
     )
 
 
-def assemble(ctx: Context, claimset: ClaimSet, merged: MergeResult, bundle_sha256: str) -> Snapshot:
+def assemble(
+    ctx: Context, claimset: ClaimSet, merged: MergeResult, structures: Structures, bundle_sha256: str
+) -> Snapshot:
     bundle = ctx.bundle
     nodes = _nodes(ctx, claimset.claims)
     interfaces = tuple(
         sorted((_interface(ctx, i) for i in bundle.interfaces), key=lambda i: (i.hostname, natural_key(i.name)))
     )
     links: tuple[Link, ...] = tuple(sorted(merged.links, key=link_key))
-    checks = _unique_sorted_checks([*claimset.checks, *merged.checks, *_bundle_checks(bundle)])
+    checks = _unique_sorted_checks([*claimset.checks, *merged.checks, *structures.checks, *_bundle_checks(bundle)])
     coverage = tuple(sorted(ctx.coverage.values(), key=lambda c: c.hostname))
     counts = SectionCounts(
         nodes=len(nodes),
         interfaces=len(interfaces),
         links=len(links),
-        aggregates=0,
-        mlag_domains=0,
-        ha_clusters=0,
+        aggregates=len(structures.aggregates),
+        mlag_domains=len(structures.mlag_domains),
+        ha_clusters=len(structures.ha_clusters),
         checks=len(checks),
     )
     report = Report(
@@ -224,9 +246,9 @@ def assemble(ctx: Context, claimset: ClaimSet, merged: MergeResult, bundle_sha25
         nodes=nodes,
         interfaces=interfaces,
         links=links,
-        aggregates=(),
-        mlag_domains=(),
-        ha_clusters=(),
+        aggregates=structures.aggregates,
+        mlag_domains=structures.mlag_domains,
+        ha_clusters=structures.ha_clusters,
         checks=checks,
         coverage=coverage,
         report=report,

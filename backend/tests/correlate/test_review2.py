@@ -80,7 +80,31 @@ def _fortigate_aggregate(d: dict) -> None:
     interface(d, "fw-edge-01", "x2")["description"] = "C2|sw-core-02|Ethernet1/4|"
 
 
-@pytest.mark.parametrize("mutate", [_two_aliases, lambda d: variant(d, _fortigate_aggregate)], ids=["aliases", "r1bis"])
+def _r4_structures(d: dict) -> dict:
+    """Deux paires vPC 20, deux rapporteurs HA en désaccord, un membre d'une autre infrastructure (revue R4, B7)."""
+    from tests.correlate.test_structures import _ha_doc, _second_pair_with_vpc_20, _task
+
+    def mutate(doc):
+        _second_pair_with_vpc_20(doc)
+        doc["tasks"] = [t for t in doc["tasks"] if t["hostname"] != "fw-edge-02"] + [_task("fw-edge-02", ha=True)]
+        doc["devices"].append(
+            {**doc["devices"][2], "hostname": "fw-dr-09", "infrastructure": "infra-dr", "serial_number": None}
+        )
+        members = [
+            ("fw-edge-02", "primary", "up", 300),
+            ("fw-edge-01", "secondary", "up", None),
+            ("fw-dr-09", "member", "up", None),
+        ]
+        doc["ha"].append(_ha_doc("fw-edge-02", mode="active_active", name=None, members=members, heartbeats=["ha1"]))
+
+    return variant(d, mutate)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [_two_aliases, lambda d: variant(d, _fortigate_aggregate), _r4_structures],
+    ids=["aliases", "r1bis", "r4"],
+)
 def test_h1_same_bytes_whatever_the_hash_seed(minimal, tmp_path, mutate):
     """Le seul non-déterminisme qu'une permutation ne voit pas : l'ordre d'itération d'un ensemble, par processus."""
     bundle = tmp_path / "bundle.json"

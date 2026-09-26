@@ -393,6 +393,16 @@ Les claims sont groupés par paire d'endpoints non ordonnée. Un groupe donne un
   membre listé absent de `devices` → constat du contrat ; heartbeat sans câble →
   `heartbeat_link_not_observed` (info) ; deux membres décrivant le cluster différemment (mode,
   rôles) → `ha_view_mismatch` (warning).
+- **Précisions et cas parqués de l'implémentation** (2026-09-26, revue `docs/revues/2026-09-26-b1-r4-structures.md`) :
+  la paire MLAG se reconnaît à son peer-link câblé vers un device porteur de documents `aggregates[]` (repli : même
+  `mlag_id` sur exactement deux devices hors de toute paire) ; un peer-link marqué n'est jamais candidat à un
+  domaine. `null` ne contredit jamais une valeur lue (`ha_view_mismatch` ne confronte que des valeurs lues) ;
+  `ha_member_down` est émis dès qu'un rapporteur le dit, l'état retenu restant la vue propre (split-brain visible) ;
+  un membre HA d'une autre infrastructure devient un nœud `external` sans témoin. **Parqués, comportement prudent** :
+  même `mlag_id` deux fois sur un device ⇒ aucun domaine, aucun contrôle (refus d'entrée `mlag_id_duplicate` proposé) ;
+  peer-link marqué d'un seul côté ⇒ domaine formé, rôles `mlag_peer_link` d'un seul côté ; une patte du domaine sans
+  câble ⇒ `downstream` jugé sur l'autre ; `aggregate_protocol_mismatch` reste `error` sur un faisceau purement
+  documenté, `details.cable_statuses` le dit.
 
 ### R5 — Contrôles d'état
 
@@ -492,7 +502,7 @@ contracts/CONTRAT.md                       partie A « Entrée : RunBundle », p
 contracts/fixtures/snapshot-skeleton.json  le plus petit snapshot qui dit quelque chose, en forme canonique
 contracts/fixtures/snapshot-minimal.json   À VENIR avec B1 : snapshot de référence de bundle-minimal.json (golden)
 
-backend/src/ld_backend/correlate/         ÉTAPE 1 ÉCRITE le 2026-09-20 (R0 à R3, R6) ; R4 et R5 à l'étape 2
+backend/src/ld_backend/correlate/         ÉTAPE 1 ÉCRITE le 2026-09-20 (R0 à R3, R6) ; R4 ÉCRITE le 2026-09-26 ; R5 à venir
 ├── context.py         index immuables sur le bundle : devices, interfaces, MAC, IP, noms rapportés,
 │                      couverture par device, appartenance aux agrégats, heartbeats, ports CDP
 ├── checkbuild.py      fabrique des contrôles : référence repliée sur le nœud si le port est inconnu,
@@ -504,8 +514,9 @@ backend/src/ld_backend/correlate/         ÉTAPE 1 ÉCRITE le 2026-09-20 (R0 à 
 ├── descriptions.py    R2 : grammaire des descriptions (V1, isolée pour changer avec l'échantillon)
 ├── claims.py          R2 : évidences → claims résolus, contrôles R0 / R1 / R2, normalisations comptées
 ├── merge.py           R3 : claims → câbles, désaccords, deux voisins, réciprocité, documenté sans observation
-├── structures.py      R4 : agrégats, MLAG, HA — étape 2
-├── checks.py          R5 : contrôles d'état — étape 2
+├── structures.py      R4 : agrégats et leurs câbles, faisceaux, domaines MLAG (paire par peer-link câblé) — 2026-09-26
+├── ha.py              R4 : clusters HA (vue de chaque membre, heartbeats sans câble inventé) — 2026-09-26
+├── checks.py          R5 : contrôles d'état — à venir
 ├── assemble.py        R6 : nœuds, interfaces, contrôles recopiés du contrat, couverture, rapport, tris
 └── __init__.py        correlate(bundle, bundle_sha256) -> Snapshot
 backend/tests/correlate/                   un module de tests par règle + scénarios + déterminisme
@@ -519,6 +530,15 @@ claims de câble, la description d'un agrégat est parsée mais ne dessine rien,
 `description_unparseable`** (un Loopback `MGMT` ou un Vlan `USERS` n'est pas une anomalie du L1 ; 2026-09-20) ; une
 description sans port confirme un câble observé vers le même device, s'il est seul candidat, et n'en crée jamais ; le contrôle `multiple_observed_neighbors` est porté par
 chaque câble, dont le statut reste celui que ses évidences imposent (confirmé si une description concorde).
+
+**Précisions d'implémentation de R4** (2026-09-26, annoncées avant le code, détail dans `backend/README.md` § R4) :
+`aggregates[]` ne reprend que les documents `aggregates[]` du bundle (un agrégat connu par `interfaces[].members`
+seul n'a ni protocole ni statut de membre : pas d'entrée, appartenance visible sur interfaces et câbles) ; **la paire
+MLAG se détermine par le peer-link câblé** (un numéro de vPC est local à son domaine ; repli : même `mlag_id` sur
+exactement deux devices hors de toute paire) ; en HA, la vue d'un membre sur lui-même prime, mode et nom suivent le
+premier rapporteur, tout désaccord est `ha_view_mismatch` (champ `field`), un membre absent des nœuds est retiré,
+`standalone` conservé ; le câble d'un heartbeat est l'unique câble du port (à plusieurs, l'unique vers un membre),
+sinon `null`. Refus ajouté au contrat d'entrée : `aggregate_member_duplicate`.
 
 Branchement : dans `ingest.py`, après `archive.store`, le snapshot est calculé et écrit à côté
 du bundle (`snapshot.json`), puis servi par `GET /api/snapshots/{infrastructure}/{run_id}`.
