@@ -359,3 +359,24 @@ def test_two_chassis_members_on_the_same_slot_are_rejected():
         SystemInfo.model_validate(system_doc(chassis_members=[member, {**member, "serial": "S2", "role": "member"}]))
     err = first_error(exc)
     assert err["type"] == "chassis_member_slot_duplicate" and err["ctx"] == {"hostname": "sw-core-01", "slots": [1]}
+
+
+def test_aggregate_member_listed_twice_is_rejected():
+    """2026-09-26 : le Snapshot refuse une liste de membres en double, l'entrée le bloque donc (R4)."""
+    doc = {
+        "hostname": "sw",
+        "name": "port-channel10",
+        "oper_status": "up",
+        "protocol": "lacp",
+        "lacp_mode": "active",
+        "min_links": None,
+        "members": [{"name": "Ethernet1/1", "status": "bundled"}, {"name": "Ethernet1/1", "status": "suspended"}],
+        "mlag_id": None,
+        "mlag_peer_link": False,
+        "extras": {},
+    }
+    with pytest.raises(ValidationError) as exc:
+        Aggregate.model_validate(doc)
+    err = exc.value.errors()[0]
+    assert err["type"] == "aggregate_member_duplicate"
+    assert err["ctx"] == {"hostname": "sw", "name": "port-channel10", "members": ["Ethernet1/1"]}

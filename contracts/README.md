@@ -264,6 +264,10 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-09-26** — **Refus `aggregate_member_duplicate` ajouté au RunBundle** (né de B1 R4) : un document
+  `aggregates` qui liste deux fois le même membre. Le Snapshot refuse une liste de membres en double
+  (`duplicate_identity`), et `member_in_several_aggregates` ne voyait pas ce cas (deux fois le même agrégat = un seul
+  parent). Principe inchangé : ce que le contrat de sortie refuse, le contrat d'entrée ne le laisse pas passer.
 - **2026-09-22** — **Code `remote_port_is_aggregate` ajouté au catalogue du Snapshot** (warning, R1-bis), pour le
   port distant annoncé par le nom d'un agrégat dont B1 ne détermine pas le membre (cas réel d'Orhan : un FortiGate
   avec LLDP annonce `agg-core` en port-id sur chacun de ses membres). **Le RunBundle ne change pas** :

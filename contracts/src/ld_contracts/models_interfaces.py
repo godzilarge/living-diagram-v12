@@ -333,3 +333,17 @@ class Aggregate(ContractModel):
     )
     mlag_peer_link: Bool = Field(description="true si l'agrégat est le peer-link du MLAG.")
     extras: Extras = Field(description="Détail brut vendeur (drapeaux, cohérence vPC…) ; jamais lu par B1.")
+
+    @model_validator(mode="after")
+    def _members_unique(self) -> Aggregate:
+        """Un membre listé deux fois : le Snapshot refuse une liste de membres en double (2026-09-26), l'entrée le
+        bloque donc, sinon B1 planterait entre les deux contrats."""
+        names = [member.name for member in self.members]
+        duplicates = sorted({name for name in names if names.count(name) > 1})
+        if duplicates:
+            raise PydanticCustomError(
+                "aggregate_member_duplicate",
+                "un membre d'agrégat est listé plusieurs fois",
+                {"hostname": self.hostname, "name": self.name, "members": duplicates},
+            )
+        return self

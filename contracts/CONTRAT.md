@@ -450,6 +450,7 @@ exactement `default`, distincte de la table globale, ne peut pas l'exprimer ; à
 | `ha_member_duplicate` | un document `ha` liste un même membre plusieurs fois |
 | `member_in_several_aggregates` | un port est membre de plusieurs agrégats du même device (`aggregates[].members` ou `interfaces[].members`) |
 | `chassis_member_slot_duplicate` | deux `chassis_members` d'un document `system` portent le même `slot` |
+| `aggregate_member_duplicate` | un document `aggregates` liste un même membre plusieurs fois |
 | `ha_standalone_not_alone` | un document `ha` en mode `standalone` ne liste pas exactement lui-même, rôle `member` |
 | `access_vlan_outside_access_mode` | une interface porte un `access_vlan` alors que `switchport_mode` n'est pas `access` |
 | `vlan_range_inverted` | un intervalle d'`allowed_vlans` a `first` supérieur à `last` |
