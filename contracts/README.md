@@ -41,6 +41,7 @@ cd contracts
 uv sync                                                         # Python 3.14 + dépendances, environnement local
 uv run ld-contracts validate fixtures/bundle-minimal.json       # le bundle de référence, valide, 0 constat
 uv run ld-contracts validate fixtures/bundle-skeleton.json      # le plus petit bundle valide : votre point de départ
+uv run ld-contracts validate --contract snapshot fixtures/snapshot-minimal.json   # ce que B1 en fait (snapshot de référence)
 cp fixtures/bundle-skeleton.json mon-bundle.json                # éditez, puis :
 uv run ld-contracts validate mon-bundle.json --show-values
 ```
@@ -148,7 +149,13 @@ distingue du bundle, décidé le 2026-09-20 :
   définition, deux contrats ; `snapshot_version` suit son propre semver.
 
 `fixtures/snapshot-skeleton.json` est le plus petit snapshot qui dit quelque chose (deux devices, un câble
-confirmé), écrit en forme canonique. Le snapshot de référence de `bundle-minimal.json` viendra avec B1.
+confirmé), écrit en forme canonique. `fixtures/snapshot-minimal.json` est le **snapshot de référence** de
+`bundle-minimal.json` (golden de B1, 2026-09-26) : ce que la corrélation produit, à l'octet. Il se lit comme un
+exemple complet du contrat de sortie (nœuds, câbles avec leurs évidences, agrégats, domaine MLAG, cluster HA, onze
+contrôles). Il n'est jamais écrit à la main : `cd backend && uv run ld correlate ../contracts/fixtures/bundle-minimal.json
+--out ../contracts/fixtures/snapshot-minimal.json` ; le backend le compare à l'octet, ce paquet le valide. Il fige
+**fixture ⊕ contrat d'entrée ⊕ B1** : `source.bundle_sha256` est l'empreinte de la forme canonique du bundle, donc un
+changement du contrat d'entrée le change aussi, à relire avant de régénérer. Fin de ligne LF, fixée par `.gitattributes`.
 
 ## Utiliser le paquet depuis votre exportateur
 
@@ -206,7 +213,8 @@ contracts/
 │   ├── bundle-minimal.json        bundle de référence : 2 Nexus (peer-link Po10, vPC 20 vers le FortiGate),
 │   │                              cluster Fortinet (1 membre injoignable), voisin d'une autre infra, stub
 │   │                              serveur, désaccord description / LLDP, port sans SFP, tâche CDP en échec
-│   └── snapshot-skeleton.json     le plus petit snapshot qui dit quelque chose, en forme canonique
+│   ├── snapshot-skeleton.json     le plus petit snapshot qui dit quelque chose, en forme canonique
+│   └── snapshot-minimal.json      snapshot de référence de bundle-minimal.json (golden de B1), généré, jamais édité
 ├── src/ld_contracts/
 │   ├── enums.py                   toutes les énumérations fermées
 │   ├── common.py                  types de base : modèle strict et immuable, MAC, IP, dates, entiers stricts

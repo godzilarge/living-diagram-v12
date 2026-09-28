@@ -65,6 +65,7 @@ uv sync                                                                         
 uv run ld ingest ../contracts/fixtures/bundle-minimal.json --archive ./archive      # sans serveur
 uv run ld runs --infrastructure infra-lab --archive ./archive
 uv run ld correlate --infrastructure infra-lab --archive ./archive                  # recalcule et remplace les snapshots (--run-id pour une seule run)
+uv run ld correlate ../contracts/fixtures/bundle-minimal.json --out snapshot.json   # le snapshot d'un bundle fichier, sans archive ni serveur
 uv run ld render ../contracts/fixtures/bundle-minimal.json --out page.html          # une page HTML autonome, sans archive ni serveur
 
 export LD_API_TOKEN='un-jeton-long-et-secret'                                       # obligatoire : le service refuse de démarrer sans
@@ -179,14 +180,17 @@ backend/
 │       ├── descriptions.py   R2 : grammaire `criticité|voisin|port|options` (V1, isolée)
 │       ├── claims.py         R2 : évidences → claims résolus + contrôles R0 / R1 / R2
 │       ├── merge.py          R3 : claims → câbles ; désaccords, deux voisins, réciprocité, documenté seul
+│       ├── structures.py     R4 : agrégats et leurs câbles, faisceaux, domaines MLAG (paire par peer-link câblé)
+│       ├── ha.py             R4 : clusters HA (vue de chaque membre, heartbeats sans câble inventé)
+│       ├── state.py          R5 : contrôles d'état des câbles (oper, vitesse, VLAN non tagué, port sans transceiver) et des tasks
 │       └── assemble.py       R6 : nœuds, interfaces, contrôles (dont ceux du contrat), couverture, rapport, tris
-└── tests/                    235 tests : API, archive, service, CLI, config, branchement de B1, pages (131) ; correlate/ (104) ;
-                              js/ : 14 tests du visualiseur sous Node (faux DOM), lancés par pytest ; un test dans Chromium : grammaire, noms
-                              d'interfaces, identité, fusion, scénarios 1-2-4-5-6-7 de docs/05, assemblage, déterminisme,
-                              test_review.py et test_review2.py (une sonde de revue = un test)
+└── tests/                    315 tests : API, archive, service, CLI (dont `ld correlate` fichier), config, branchement de B1, pages, /view ;
+                              correlate/ (174) : grammaire, noms d'interfaces, identité, fusion, structures, état, scénarios de docs/05,
+                              assemblage, déterminisme (permutations, graines de hachage, golden à l'octet), test_review*.py (une sonde
+                              de revue = un test) ; js/ : 24 tests du visualiseur sous Node (faux DOM), lancés par pytest ; Chromium
 ```
 
-## B1, la corrélation — étape 1, R1-bis, R4
+## B1, la corrélation — étape 1, R1-bis, R4, R5
 
 ```python
 from ld_contracts.bundle import RunBundle
@@ -205,7 +209,8 @@ du contrat de sortie (`contracts/CONTRAT.md` partie B), qui refuse tout snapshot
 Fonction pure : aucune horloge, aucune lecture disque, aucun identifiant synthétique ; les listes sont
 triées par les clés du contrat. L'étape 1 produit les nœuds (device, external, stub), les interfaces, les câbles
 avec leurs évidences et les contrôles R0 à R3, la couverture et le rapport ; **R4** (2026-09-26) ajoute `aggregates`,
-`mlag_domains`, `ha_clusters` et leurs contrôles ; les contrôles d'état (R5) et le golden restent à écrire.
+`mlag_domains`, `ha_clusters` et leurs contrôles ; **R5** (2026-09-26) ajoute les contrôles d'état des câbles et des
+tasks ; le golden `contracts/fixtures/snapshot-minimal.json` fige la sortie de B1 sur la fixture, à l'octet.
 
 ### R4, les structures (2026-09-26)
 
@@ -250,6 +255,57 @@ un document `aggregates`), parce que le Snapshot refuse une liste de membres en 
 `tests/correlate/test_structures.py` (scénarios 2, 3, 8 de `docs/05`, une seconde paire de cœurs avec le même vPC 20,
 peer-link mal étiqueté, aval incohérent, vues HA divergentes, membre inconnu, standalone, ordre des documents).
 Revue indépendante : `docs/revues/2026-09-26-b1-r4-structures.md`.
+
+### R5, les contrôles d'état, et le golden (2026-09-26)
+
+`state.py`, appelé après la fusion des câbles, ses contrôles fusionnés à l'assemblage. La règle est spécifiée
+(`docs/05` R5), aucune décision de design ; six précisions d'implémentation, annoncées avant le code :
+
+1. **`link_oper_mismatch` et `link_down` lisent l'état dérivé par R3** (`Link.oper`) : « down » = tout état autre
+   que `up` (`down`, `lower_layer_down`, `dormant`, `testing`, `not_present`) ; `unknown` d'un bout ⇒ aucune
+   conclusion. Le désaccord se limite aux câbles confirmés ou observés (une description de production ne fonde pas un
+   « mal câblé ») ; `link_down` vaut pour tous les statuts. Références : le câble et le port down (désaccord), le câble
+   seul (`link_down`). `details.states` = les deux bouts, `oper_status` et `oper_reason` (« suspended by LACP »).
+2. **`link_speed_mismatch`** : deux vitesses lues et différentes, tous statuts (`details.speeds`) ; une vitesse `null`
+   ne conclut rien.
+3. **`native_vlan_mismatch`** : câble observé, les deux interfaces dans le bundle, VLAN non tagué (`access_vlan` en
+   access, `native_vlan` en trunk, sinon rien) différent (`details.vlans`, avec le mode de chaque bout).
+4. **`documented_port_without_transceiver`** : `oper_status = not_present` sur un port `physical` / `management` dont
+   la description est parsée (même périmètre que `description_unparseable`) ; `details` = voisin, port, `oper_reason`.
+   Le câble `documented_only` que R3 a tracé depuis ce port reste dessiné.
+5. **`device_unreachable`** porte `details.error` (l'erreur globale de la task) ; **`device_partial_collection`**
+   porte `details.failed`, la liste triée `{topic, error}` des topics en échec sous leur nom canonique, alias lus dans
+   le même ordre que la couverture (`context.subject_for`, partagé). Une task vise toujours un device du périmètre :
+   le contrat d'entrée refuse les autres.
+6. **Task `failed`** : aucun code au catalogue ⇒ aucun contrôle, l'état reste visible sur le nœud (`collection`) et
+   la couverture. Parqué avec les statuts des tasks (question ouverte depuis le 2026-09-10).
+
+**Le golden.** `contracts/fixtures/snapshot-minimal.json` est ce que `correlate` produit sur `bundle-minimal.json`,
+à l'octet (`tests/correlate/test_determinism.py`), et il est validé au contrat de sortie côté `contracts`. Toute
+évolution de B1 qui change la sortie le fait échouer : on relit la différence, puis on régénère volontairement,
+comme le schéma JSON :
+
+```
+cd backend && uv run ld correlate ../contracts/fixtures/bundle-minimal.json --out ../contracts/fixtures/snapshot-minimal.json
+```
+
+C'est le **mode fichier de `ld correlate`** : valide, corrèle, écrit le snapshot canonique, sans archive ni serveur
+(`snapshots.correlate_data`) ; même empreinte et mêmes octets que si la run était archivée ; bundle hors contrat ⇒
+sortie 1 et la liste des erreurs, rien d'écrit ; `--out` requis avec un fichier. La page montre un bout de câble
+porteur de faits avec ses faits (`dom.js`, `endWithFacts`) : « sw-core-02 · Ethernet1/2 (oper_reason suspended by
+LACP, oper_status down) ». Tests : `tests/correlate/test_state.py`.
+
+**Revue indépendante consignée et traitée le même jour** (`docs/revues/2026-09-26-b1-r5-etat-et-golden.md` : 0 critique,
+1 haut, 3 moyens, 7 bas, 6 questions) : **R5 ne juge que des câbles entre ports `physical` / `management`** (un câble
+arrêté à un agrégat, R1-bis indéterminé, est déjà signalé par `remote_port_is_aggregate` ; la vitesse d'un agrégat est
+la somme de ses membres, la comparer à un brin inventait un `link_speed_mismatch`, H1) ; `details.failed` liste aussi
+les sujets de la task que B1 ne consomme pas, sous leur nom brut (`bgp`, demain `mac_table`, M1) et
+`details.error` recopie l'erreur globale (B3) ; `ld correlate` et `ld render` refusent un `--out` qui désigne le
+fichier d'entrée et le mélange des deux modes (M3, B1) ; `.gitattributes` fixe LF (B4). **Parqués, à soumettre à Orhan**
+avec les statuts des tasks : task `success` avec un sujet `failed` (silence ; constat d'entrée `task_status_inconsistent`
+proposé), alias en échec à côté du canonique en succès (le canonique gagne ; refus `subject_alias_conflict` proposé),
+vitesse lue sur un port down (comparée), duplex différent (aucun code : `link_duplex_mismatch` proposé), `dormant` /
+`testing` comptés « pas up », port `not_present` observé par LLDP (deux contrôles).
 
 ### Le branchement (2026-09-20)
 

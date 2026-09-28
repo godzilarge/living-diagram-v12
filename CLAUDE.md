@@ -47,8 +47,8 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
 
 Pipeline de briques pures, détaillé dans l'artefact publié
 <https://claude.ai/code/artifact/630b787d-6862-4e3c-8e1c-7d40fd373e3c> (copie locale
-`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v13 du 2026-09-20 ; second artefact
-« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v9 du 2026-09-22 : son
+`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v16 du 2026-09-26 ; second artefact
+« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v13 du 2026-09-26 : son
 tableau « B1 : ce qui est fait, ce qui reste » se tient à jour à chaque étape) :
 
 ```
@@ -422,6 +422,30 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   jauge de performance), puis la **conception de B3** (document à valider comme `docs/05`, puis TDD sur le générateur).
   Aussi possibles : `docs/06` (principe sans les volumes), guides de collecte par plateforme. Déconseillé avant le
   premier bundle réel : moteur TS, archive Mongo, intention. Vraiment bloqué : gel du contrat, VSX, statuts des tasks.
+- **B1 R5 écrite, golden écrit, `ld correlate` en mode fichier : B1 est complet, R0 à R6** (2026-09-26, « Go pour la
+  suite ? » d'Orhan ; annoncé avant le code, aucune décision de design, six précisions consignées dans `docs/05` §6 et
+  `backend/README.md` § R5). `correlate/state.py` (nommé ainsi, `checkbuild.py` étant déjà la fabrique) : les sept
+  contrôles d'état lisent l'état que R3 a dérivé sur le câble ; « down » = tout état autre que `up`, `unknown` d'un bout
+  ne conclut rien ; `link_oper_mismatch` et `native_vlan_mismatch` seulement sur un câble observé (une description ne
+  fonde pas un « mal câblé »), `link_down` et la vitesse pour tous les statuts ; `documented_port_without_transceiver`
+  sur les ports `physical` / `management` ; `device_partial_collection` liste `details.failed` (`{topic, error}`) et
+  `details.error`. **Golden** `contracts/fixtures/snapshot-minimal.json` = ce que B1 produit sur la fixture, à l'octet
+  (`test_determinism.py`), validé côté contracts, **jamais édité** : régénéré volontairement par
+  `cd backend && uv run ld correlate ../contracts/fixtures/bundle-minimal.json --out ../contracts/fixtures/snapshot-minimal.json`
+  (nouveau mode fichier, sans archive ni serveur, mêmes octets que l'archive ; `QUICKSTART.md` à jour). Il fige fixture
+  ⊕ contrat d'entrée ⊕ B1 (`bundle_sha256` = forme canonique du bundle). `.gitattributes` fixe LF. **Revue indépendante
+  consignée et traitée le même jour** (`docs/revues/2026-09-26-b1-r5-etat-et-golden.md` : 0 critique, 1 haut, 3 moyens,
+  7 bas) : **R5 ne juge que des câbles entre ports `physical` / `management`** (un câble arrêté à un agrégat, R1-bis
+  indéterminé, cas réel du FortiGate, inventait un `link_speed_mismatch` : la vitesse d'un agrégat est la somme de ses
+  membres) ; `details.failed` liste aussi les sujets hors de B1 sous leur nom brut (la raison d'un `partial` peut être
+  `bgp` ou demain `mac_table`) ; `ld correlate` et `ld render` refusent un `--out` égal au fichier d'entrée et le mélange
+  des deux modes. La page montre un bout porteur de faits avec ses faits (« sw-core-02 · Ethernet1/2 (oper_status down,
+  oper_reason suspended by LACP) »). **Parqués, à trancher avec Orhan avec les statuts des tasks** : task `success` avec
+  un sujet `failed` (silence ; constat d'entrée `task_status_inconsistent` proposé), alias en échec à côté du canonique
+  en succès (le canonique gagne ; refus `subject_alias_conflict` proposé), vitesse lue sur un port down (comparée),
+  duplex différent (aucun code, `link_duplex_mismatch` proposé), `dormant` / `testing` comptés « pas up ». Backend 315
+  tests (`correlate/` 174, à 100 %), contracts 400. **Suite : le générateur de topologies synthétiques** (graine,
+  scénarios d'évolution), puis la conception de B3.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -442,7 +466,8 @@ Phase 0 contrat pivot **livrée le 2026-09-20** (RunBundle v1 et Snapshot v1 dan
 en deux parties entrée / sortie, `docs/05` validé) → **Phase 1a, la tranche visible (révision du 2026-09-20)** : B1
 étape 1 (fait) → branchement de B1 (fait) → pages HTML (incréments A et B faits : `ld render`, `/view` ; R4 de B1
 tirée dans la tranche le 2026-09-26) de visualisation avec les sources → premier bundle réel (exportateur
-minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden, table MAC (`docs/06`), B2, B3,
+minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden (faits le 2026-09-26), générateur synthétique,
+table MAC (`docs/06`), B2, B3,
 en TDD sur fixtures au format réel des collections → Phase 2 socle toile (jauge
 de perf 500 nœuds / 1 500 liens) → Phase 3 placement → Phase 4 timeline + diff peint →
 Phase 5 intention + réconciliation → Phase 6 LOD complet, vues nommées, overlays L2/L3.
@@ -461,7 +486,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
   pour le topic `interfaces` sur FortiGate)
 - `docs/revues/` — rapports de revue indépendante consignés tels que rendus, avec leur suivi (2026-09-20 :
   `2026-09-20-b1-etape-1.md`, sa contre-revue, `2026-09-20-branchement-b1.md`, `2026-09-20-pages-ld-render.md` ; 2026-09-22 : `2026-09-22-r1-bis-agregat-port-id.md` ;
-  2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`) et leurs sondes rejouables
+  2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md`)
+  et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
 - `prompts.md` — échanges bruts du propriétaire (historique)
@@ -474,7 +500,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `src/ld_contracts/schema/`, contrôles référentiels, anonymiseur, CLI
   (`uv run ld-contracts validate|schema|anonymize`), fixture `fixtures/bundle-minimal.json`.
   Tests : `cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests`
-  (état 2026-09-26 : 399 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4 ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
+  (état 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
   2026-09-19 : 291 tests, 97 %, clé nullable absente lue comme `null` et comptée, `vrf` `"default"` = table globale, une passe de revue indépendante appliquée ; 2026-09-18 : 246 tests, `lldp` / `cdp` réduits à six champs et MAC reconnue à sa forme, une
   passe de revue indépendante appliquée ;
   2026-09-16 : `allowed_vlans` en liste d'intervalles (chevauchements refusés), `access_vlan` ajouté avec refus de cohérence VLAN / mode, `last_change_age_seconds` en `entier ≥ 0 | "never" | null`
@@ -494,12 +520,13 @@ Détail : `docs/00-analyse-fondation.md` §10.
   isolée). **B1 se branche dans `ingest.py` après `archive.store`.** **B1 étape 1 écrite le 2026-09-20**
   (`src/ld_backend/correlate/` : R0 à R3 et R6 ; scénarios 1, 2, 4, 5, 6, 7 et 10 de `docs/05` vérifiés ; état après
   la revue de l'étape 1 et sa contre-revue : 187 tests verts, `correlate/` couvert à 100 % ; R1-bis le 2026-09-22) ;
-  étape 2 = R4 / R5 + golden `snapshot-minimal.json` : **R4 écrite le 2026-09-26** (`structures.py`, `ha.py`, revue
-  traitée), R5 et golden à venir ; **étape 3 = branchement, fait le 2026-09-20** (`snapshots.py`,
-  `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages : incrément B et `GET /view` faits le 2026-09-26
-  (`render/shell.py`, `assets/js/structures.js`, `shell.js`). État : 279 tests, 99 %.
-- À venir : premier bundle réel dans les pages (fin de la tranche visible), puis B1 R5 et golden, table MAC
-  (`docs/06`), B2 → B4 dans `backend/`, `engine/` (moteur TS), `shell/` (React).
+  étape 2 = R4 / R5 + golden `snapshot-minimal.json` : **R4 et R5 écrites le 2026-09-26** (`structures.py`, `ha.py`,
+  `state.py`, revues traitées), golden écrit et régénérable par `ld correlate bundle.json --out` ; **étape 3 =
+  branchement, fait le 2026-09-20** (`snapshots.py`, `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages :
+  incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). État :
+  315 tests, 99 %, `correlate/` à 100 %.
+- À venir : premier bundle réel dans les pages (fin de la tranche visible), générateur de topologies synthétiques,
+  conception de B3, table MAC (`docs/06`), B2 → B4 dans `backend/`, `engine/` (moteur TS), `shell/` (React).
 
 ## Conventions de code (rappel des règles globales)
 
