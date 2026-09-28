@@ -1,0 +1,6 @@
+# Le snapshot de référence (golden) et les fixtures se comparent à l'octet : fin de ligne LF partout.
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.html text eol=lf

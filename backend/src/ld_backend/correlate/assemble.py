@@ -214,7 +214,12 @@ def _source(bundle: RunBundle, bundle_sha256: str) -> Source:
 
 
 def assemble(
-    ctx: Context, claimset: ClaimSet, merged: MergeResult, structures: Structures, bundle_sha256: str
+    ctx: Context,
+    claimset: ClaimSet,
+    merged: MergeResult,
+    structures: Structures,
+    state: Iterable[Check],
+    bundle_sha256: str,
 ) -> Snapshot:
     bundle = ctx.bundle
     nodes = _nodes(ctx, claimset.claims)
@@ -222,7 +227,9 @@ def assemble(
         sorted((_interface(ctx, i) for i in bundle.interfaces), key=lambda i: (i.hostname, natural_key(i.name)))
     )
     links: tuple[Link, ...] = tuple(sorted(merged.links, key=link_key))
-    checks = _unique_sorted_checks([*claimset.checks, *merged.checks, *structures.checks, *_bundle_checks(bundle)])
+    checks = _unique_sorted_checks(
+        [*claimset.checks, *merged.checks, *structures.checks, *state, *_bundle_checks(bundle)]
+    )
     coverage = tuple(sorted(ctx.coverage.values(), key=lambda c: c.hostname))
     counts = SectionCounts(
         nodes=len(nodes),

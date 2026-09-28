@@ -22,7 +22,8 @@ test("le modèle indexe le snapshot sans rien inventer", () => {
   const core = model.linkById.get(CORE_LINK);
   assert.deepEqual(clone(core.sources), ["description", "lldp"]);
   assert.equal(core.status, "confirmed");
-  assert.deepEqual(clone(core.checks.map((c) => c.code)), ["aggregate_member_not_bundled", "description_disagrees_with_observed"], "un contrôle sur un port remonte au câble");
+  assert.deepEqual(clone(core.checks.map((c) => c.code)).sort(), ["aggregate_member_not_bundled", "description_disagrees_with_observed", "link_oper_mismatch"],
+    "un contrôle sur un port remonte au câble ; un contrôle d'état (R5) est porté par le câble");
   assert.equal(core.worst, "warning");
   assert.equal(model.checksByNode.get("sw-core-02").length >= 3, true);
 });
@@ -123,7 +124,10 @@ test("les trois vues en tableaux se montent, et une cible ramène au graphe", ()
   const { LD, document } = load(page, page.data);
   LD.app.activate("checks");
   const checks = document.getElementById("view-checks");
-  assert.match(checks.textContent, /8 contrôles sur 8/);
+  assert.match(checks.textContent, /11 contrôles sur 11/);
+  assert.match(checks.textContent, /device_unreachable/);
+  assert.match(checks.textContent, /sw-core-02 · Ethernet1\/2 \(oper_status down, oper_reason suspended by LACP\)/,
+    "un bout porteur de faits (R5) montre ses faits, pas seulement son nom");
   assert.match(checks.textContent, /neighbor_unknown/);
   const target = checks.all((n) => n.tagName === "button" && /srv-hyp-07|sw-core-02 · Ethernet1\/3/.test(n.textContent))[0];
   target.fire("click", {});
@@ -179,8 +183,9 @@ test("un contrôle posé sur un port à deux câbles ne va qu'au câble qu'il co
   const toStub = onPort.find((l) => l.a.hostname === "srv-a" || l.b.hostname === "srv-a");
   const toCore = onPort.find((l) => l !== toStub);
   assert.deepEqual(clone(toStub.checks.map((c) => c.code)).sort(), ["multiple_observed_neighbors", "neighbor_unknown"]);
-  assert.deepEqual(clone(toCore.checks.map((c) => c.code)).sort(), ["description_disagrees_with_observed", "multiple_observed_neighbors", "one_way_observation"],
-    "ni le voisin inconnu de l'autre câble, ni le contrôle qui nomme l'autre câble");
+  assert.deepEqual(clone(toCore.checks.map((c) => c.code)).sort(),
+    ["description_disagrees_with_observed", "link_oper_mismatch", "multiple_observed_neighbors", "one_way_observation"],
+    "ni le voisin inconnu de l'autre câble, ni le contrôle qui nomme l'autre câble ; Eth1/5 est not_present, l'autre bout up");
   assert.equal(toCore.checks.every((c) => !(c.details.neighbor === "srv-a")), true);
   assert.equal(toCore.portChecks.length + toStub.portChecks.length, 0);
 });

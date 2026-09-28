@@ -100,10 +100,35 @@ def _r4_structures(d: dict) -> dict:
     return variant(d, mutate)
 
 
+def _r5_state(d: dict) -> dict:
+    """Les sept codes de R5 à la fois : hub sur un port down, câble down, vitesse et VLAN différents, transceiver
+    documenté, device injoignable (fixture), collecte partielle avec deux alias et un topic hors de B1 en échec
+    (revue R5, B7)."""
+
+    def mutate(doc):
+        task = next(t for t in doc["tasks"] if t["hostname"] == "sw-core-01")
+        task["status"] = "partial"
+        task["status_per_subject"]["system_info"] = {**task["status_per_subject"].pop("system"), "status": "failed"}
+        task["status_per_subject"]["port_channels"] = {
+            **task["status_per_subject"].pop("aggregates"),
+            "status": "failed",
+        }
+        task["status_per_subject"]["bgp"] = {"status": "failed", "error": "no bgp"}
+        doc["lldp"].append(lldp_doc("sw-core-01", "Ethernet1/5", "sw-core-02", "Ethernet1/4"))
+        doc["lldp"].append(lldp_doc("sw-core-01", "Ethernet1/5", "fw-edge-01", "x2", ("router",)))
+        interface(doc, "sw-core-01", "Ethernet1/2")["oper_status"] = "down"
+        interface(doc, "sw-core-02", "Ethernet1/1").update(speed_mbps=1000, native_vlan=99)
+        interface(doc, "sw-core-01", "Ethernet1/4").update(
+            oper_status="not_present", description="C3|rt-wan-01|Gi0/0/0|"
+        )
+
+    return variant(d, mutate)
+
+
 @pytest.mark.parametrize(
     "mutate",
-    [_two_aliases, lambda d: variant(d, _fortigate_aggregate), _r4_structures],
-    ids=["aliases", "r1bis", "r4"],
+    [_two_aliases, lambda d: variant(d, _fortigate_aggregate), _r4_structures, _r5_state],
+    ids=["aliases", "r1bis", "r4", "r5"],
 )
 def test_h1_same_bytes_whatever_the_hash_seed(minimal, tmp_path, mutate):
     """Le seul non-déterminisme qu'une permutation ne voit pas : l'ordre d'itération d'un ensemble, par processus."""

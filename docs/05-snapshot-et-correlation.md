@@ -500,9 +500,10 @@ contracts/src/ld_contracts/snapshot/      ÉCRIT le 2026-09-20 : enums · order 
 contracts/src/ld_contracts/schema/snapshot-v1.schema.json   schéma versionné (test de dérive)
 contracts/CONTRAT.md                       partie A « Entrée : RunBundle », partie B « Sortie : Snapshot » (générées)
 contracts/fixtures/snapshot-skeleton.json  le plus petit snapshot qui dit quelque chose, en forme canonique
-contracts/fixtures/snapshot-minimal.json   À VENIR avec B1 : snapshot de référence de bundle-minimal.json (golden)
+contracts/fixtures/snapshot-minimal.json   ÉCRIT le 2026-09-26 : snapshot de référence de bundle-minimal.json (golden),
+                                          régénéré par `ld correlate bundle-minimal.json --out`, comparé à l'octet
 
-backend/src/ld_backend/correlate/         ÉTAPE 1 ÉCRITE le 2026-09-20 (R0 à R3, R6) ; R4 ÉCRITE le 2026-09-26 ; R5 à venir
+backend/src/ld_backend/correlate/         ÉTAPE 1 ÉCRITE le 2026-09-20 (R0 à R3, R6) ; R4 et R5 ÉCRITES le 2026-09-26
 ├── context.py         index immuables sur le bundle : devices, interfaces, MAC, IP, noms rapportés,
 │                      couverture par device, appartenance aux agrégats, heartbeats, ports CDP
 ├── checkbuild.py      fabrique des contrôles : référence repliée sur le nœud si le port est inconnu,
@@ -516,7 +517,8 @@ backend/src/ld_backend/correlate/         ÉTAPE 1 ÉCRITE le 2026-09-20 (R0 à 
 ├── merge.py           R3 : claims → câbles, désaccords, deux voisins, réciprocité, documenté sans observation
 ├── structures.py      R4 : agrégats et leurs câbles, faisceaux, domaines MLAG (paire par peer-link câblé) — 2026-09-26
 ├── ha.py              R4 : clusters HA (vue de chaque membre, heartbeats sans câble inventé) — 2026-09-26
-├── checks.py          R5 : contrôles d'état — à venir
+├── state.py           R5 : contrôles d'état des câbles et des tasks — 2026-09-26 (`state.py`, pas `checks.py` :
+│                      `checkbuild.py` est déjà la fabrique des contrôles)
 ├── assemble.py        R6 : nœuds, interfaces, contrôles recopiés du contrat, couverture, rapport, tris
 └── __init__.py        correlate(bundle, bundle_sha256) -> Snapshot
 backend/tests/correlate/                   un module de tests par règle + scénarios + déterminisme
@@ -540,8 +542,28 @@ premier rapporteur, tout désaccord est `ha_view_mismatch` (champ `field`), un m
 `standalone` conservé ; le câble d'un heartbeat est l'unique câble du port (à plusieurs, l'unique vers un membre),
 sinon `null`. Refus ajouté au contrat d'entrée : `aggregate_member_duplicate`.
 
+**Précisions d'implémentation de R5** (2026-09-26, annoncées avant le code, détail dans `backend/README.md` § R5) :
+`link_oper_mismatch` et `link_down` lisent l'état que R3 a dérivé sur le câble (`oper`) : « down » est tout état autre
+que `up` (`down`, `lower_layer_down`, `dormant`, `testing`, `not_present`), `unknown` d'un bout ne conclut rien ; le
+désaccord d'état se limite aux câbles confirmés ou observés comme écrit ci-dessus, `link_down` vaut pour tous les
+statuts (un câble documenté dont les deux bouts sont down reste dessiné, et le dit) ; les détails portent les deux
+états et `oper_reason` (« suspended by LACP » se lit dans la page). `link_speed_mismatch` compare deux vitesses lues,
+tous statuts. `native_vlan_mismatch` exige les deux interfaces dans le bundle. `documented_port_without_transceiver`
+ne vise que les ports `physical` / `management`, comme `description_unparseable`. `device_unreachable` porte
+`details.error` de la task ; `device_partial_collection` porte `details.failed`, la liste triée `{topic, error}` des
+topics en échec sous leur nom canonique (alias lus dans le même ordre que la couverture). Une task `failed` n'a pas
+de code au catalogue : aucun contrôle, l'état reste visible sur le nœud et la couverture (parqué avec les statuts
+des tasks, question ouverte). Le golden `contracts/fixtures/snapshot-minimal.json` est écrit par
+`ld correlate bundle-minimal.json --out` et comparé à l'octet dans `test_determinism.py`. **Après la revue**
+(`docs/revues/2026-09-26-b1-r5-etat-et-golden.md`) : R5 ne juge que des câbles dont les deux bouts sont des ports
+`physical` / `management` (un câble arrêté à un agrégat, R1-bis indéterminé, n'a aucun contrôle d'état : sa vitesse est
+la somme des membres) ; `details.failed` liste aussi, sous leur nom brut, les sujets en échec que B1 ne consomme pas ;
+`details.error` recopie l'erreur globale de la task. Parqués : task `success` avec un sujet `failed` (silence), alias en
+échec à côté du canonique en succès (le canonique gagne), duplex différent (aucun code).
+
 Branchement : dans `ingest.py`, après `archive.store`, le snapshot est calculé et écrit à côté
-du bundle (`snapshot.json`), puis servi par `GET /api/snapshots/{infrastructure}/{run_id}`.
+du bundle (`snapshot.json`), puis servi par `GET /api/snapshot?infrastructure=&run_id=` (une run s'adresse par
+paramètres de requête, jamais par le chemin, 2026-09-19).
 Un échec de B1 n'annule pas l'archivage du bundle : il est signalé dans la réponse et rejouable.
 
 Pourquoi le snapshot dans `ld-contracts` et non dans `backend` : c'est la frontière avec le
@@ -560,6 +582,8 @@ exportateur est nul : module séparé, aucune dépendance supplémentaire.
 - `test_descriptions.py` : grammaire, champs optionnels, criticité libre, cas non parsables.
 - `test_merge.py` : les trois statuts ; désaccord ; deux voisins observés ; réciprocité
   conditionnée par la couverture ; sévérité de `documented_not_observed`.
+- `test_state.py` : les sept contrôles de R5, chacun avec son cas positif, son cas muet (`unknown`, `null`, bout non
+  collecté) et sa condition de statut ; alias de topics ; task `failed` sans contrôle.
 - `test_structures.py` : appartenance, dégradé, min-links, MLAG (domaine, downstream,
   peer-link mal étiqueté), HA (membre down, vues divergentes, heartbeat).
 - `test_scenarios.py` : les dix lignes de §5 sur la fixture, une fonction par ligne.

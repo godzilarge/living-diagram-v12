@@ -49,10 +49,23 @@ var LD = globalThis.LD || (globalThis.LD = {});
     if (value === null || value === undefined) return "—";
     if (Array.isArray(value)) return value.length ? value.map(plain).join(", ") : "—";
     if (typeof value === "object") {
-      if ("hostname" in value && "interface" in value) return LD.model.endLabel(value);
+      if ("hostname" in value && "interface" in value) return endWithFacts(value);
       return Object.entries(value).map(([k, v]) => k + " : " + plain(v)).join(" ; ");
     }
     return String(value);
+  }
+
+  // Un bout de câble porteur de faits (R5 : `states`, `speeds`, `vlans`) : « sw-core-02 · Ethernet1/2 (oper_status down,
+  // oper_reason suspended by LACP) » ; l'état avant sa raison, le mode avant son VLAN, le reste trié ; un fait à null
+  // n'est pas écrit.
+  const FACT_ORDER = ["oper_status", "oper_reason", "speed_mbps", "switchport_mode", "vlan"];
+  const factRank = (key) => (FACT_ORDER.includes(key) ? FACT_ORDER.indexOf(key) : FACT_ORDER.length);
+  function endWithFacts(value) {
+    const facts = Object.entries(value)
+      .filter(([k, v]) => k !== "hostname" && k !== "interface" && v !== null && v !== undefined)
+      .sort((x, y) => factRank(x[0]) - factRank(y[0]) || (x[0] < y[0] ? -1 : 1));
+    const label = LD.model.endLabel(value);
+    return facts.length ? label + " (" + facts.map(([k, v]) => k + " " + plain(v)).join(", ") + ")" : label;
   }
 
   function definition(rows) {

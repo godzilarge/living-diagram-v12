@@ -10,6 +10,7 @@ from ld_contracts.checks import SUBJECT_ALIASES
 from ld_contracts.enums import DeviceTaskStatus, InterfaceType, TaskStatus
 from ld_contracts.models_devices import Device, SystemInfo
 from ld_contracts.models_interfaces import Interface
+from ld_contracts.models_run import DeviceTask, SubjectStatus
 from ld_contracts.snapshot.enums import CollectionStatus, TopicStatus
 from ld_contracts.snapshot.interfaces import AggregateMembership, ParsedDescription
 from ld_contracts.snapshot.report import Coverage, TopicCoverage
@@ -65,6 +66,13 @@ def _grouped[K](pairs: Iterable[tuple[K, str]]) -> dict[K, tuple[str, ...]]:
     return {key: tuple(sorted(values)) for key, values in out.items()}
 
 
+def subject_for(task: DeviceTask, topic: str) -> SubjectStatus | None:
+    """Le résultat d'un topic dans une task, sous son nom canonique ou un alias, lus dans un ordre écrit (canonique
+    d'abord, puis les alias triés) : le snapshot ne dépend pas de l'ordre des clés du document."""
+    names = (topic, *sorted(SUBJECT_ALIASES[topic] - {topic}))
+    return next((task.status_per_subject[name] for name in names if name in task.status_per_subject), None)
+
+
 def _coverage(bundle: RunBundle) -> dict[str, Coverage]:
     tasks = {t.hostname: t for t in bundle.tasks}
     out = {}
@@ -72,9 +80,8 @@ def _coverage(bundle: RunBundle) -> dict[str, Coverage]:
         task = tasks.get(device.hostname)
         status = CollectionStatus.NOT_COLLECTED if task is None else CollectionStatus(str(task.status))
         topics = {}
-        for topic, aliases in SUBJECT_ALIASES.items():
-            names = (topic, *sorted(aliases - {topic}))  # nom canonique d'abord, puis les alias, triés
-            subject = next((task.status_per_subject[a] for a in names if task and a in task.status_per_subject), None)
+        for topic in SUBJECT_ALIASES:
+            subject = subject_for(task, topic) if task else None
             if subject is None or task is None or task.status == DeviceTaskStatus.UNREACHABLE:
                 topics[topic] = TopicStatus.ABSENT
             else:

@@ -7,9 +7,16 @@ from ld_contracts.snapshot import Snapshot
 from ld_contracts.snapshot.serialize import canonical_json
 from ld_contracts.validate import validate_snapshot_dict
 
-from tests.correlate.conftest import interface, lldp_doc, run, variant
+from tests.correlate.conftest import FIXTURES, interface, lldp_doc, run, variant
 
 SHA = "0" * 64  # l'empreinte est une entrée : la même pour toutes les permutations
+GOLDEN = FIXTURES / "snapshot-minimal.json"
+REGENERATE = (
+    "le snapshot de référence a changé : vérifier la différence, puis, si elle est voulue, régénérer avec "
+    "`cd backend && uv run ld correlate ../contracts/fixtures/bundle-minimal.json "
+    "--out ../contracts/fixtures/snapshot-minimal.json` (fin de ligne LF attendue, `.gitattributes` la fixe ; le "
+    "golden change aussi quand le contrat d'entrée change : l'empreinte est celle de la forme canonique du bundle)"
+)
 
 
 def test_snapshot_is_valid_against_the_output_contract(snapshot):
@@ -54,3 +61,8 @@ def _assert_order_independent(base: dict) -> None:
 def test_running_twice_gives_the_same_bytes(minimal):
     assert canonical_json(run(minimal)) == canonical_json(run(minimal))
     assert Snapshot.model_validate_json(canonical_json(run(minimal))) == run(minimal)
+
+
+def test_golden_snapshot_matches_byte_for_byte(minimal):
+    """Toute évolution de B1 qui change la sortie sur la fixture se voit ici, et se régénère volontairement."""
+    assert GOLDEN.read_bytes() == canonical_json(run(minimal)).encode("utf-8"), REGENERATE
