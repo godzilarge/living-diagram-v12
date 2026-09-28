@@ -25,6 +25,8 @@ xdg-open page.html                                          # ou double-clic : a
 de mise au point d'un exportateur : corriger l'export, relancer la commande, rafraîchir la page.
 
 - Bundle hors contrat : la commande sort en 1 et liste les erreurs (chemin, règle), aucune page n'est écrite.
+- Le snapshot JSON sans rien archiver : `uv run ld correlate mon-bundle.json --out snapshot.json` (mêmes octets que
+  l'archive rangerait ; c'est aussi ce qui régénère `contracts/fixtures/snapshot-minimal.json`, le snapshot de référence).
 - Valider sans dessiner : `cd contracts && uv run ld-contracts validate mon-bundle.json`
   (`--show-values` pour voir les hostnames dans le rapport, `--strict-findings` pour échouer aussi sur les constats :
   à mettre dans les tests de l'exportateur).
@@ -119,6 +121,7 @@ cd backend   && uv run pytest --cov=ld_backend   && uv run ruff check src tests 
 |---|---|
 | valider un bundle | `ld-contracts validate bundle.json` (dans `contracts/`) |
 | voir un bundle, sans rien archiver | `ld render bundle.json --out page.html` |
+| son snapshot JSON, sans rien archiver | `ld correlate bundle.json --out snapshot.json` |
 | archiver et corréler | `ld ingest bundle.json --archive ./archive` ou `POST /api/ingest/bundles` |
 | lister les runs | `ld runs --infrastructure X` ou `GET /api/ingest/bundles?infrastructure=X` |
 | récupérer le snapshot (JSON) | `GET /api/snapshot?infrastructure=X&run_id=Y`, ou `archive/X/Y/snapshot.json` |

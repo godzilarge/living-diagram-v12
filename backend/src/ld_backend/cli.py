@@ -7,21 +7,40 @@ import os
 import sys
 from pathlib import Path
 
+from ld_contracts.snapshot.serialize import canonical_json
+
 from ld_backend.archive import ArchiveCorruptError, BundleArchive
 from ld_backend.config import DEFAULT_ARCHIVE_DIR, ConfigError, Settings
-from ld_backend.ingest import ingest_bundle, result_payload
+from ld_backend.ingest import error_payload, ingest_bundle, result_payload
 from ld_backend.render import PageOutcome, page_from_archive, page_from_bundle
 from ld_backend.schemas import CorrelationSummary
-from ld_backend.snapshots import recorrelate
+from ld_backend.snapshots import correlate_data, recorrelate, summarize
 
 EXIT_OK, EXIT_INVALID, EXIT_USAGE = 0, 1, 2
 
 
-def _cmd_ingest(args: argparse.Namespace) -> int:
+def _read_json(path: str) -> tuple[object, str | None]:
+    """(données, None) ou (None, problème) : UTF-16 (redirection `>` de PowerShell), JSON invalide, fichier absent."""
     try:
-        data = json.loads(Path(args.file).read_text(encoding="utf-8"))
+        return json.loads(Path(path).read_text(encoding="utf-8")), None
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        print(f"fichier illisible, pas en UTF-8, ou JSON invalide : {exc}")
+        return None, f"fichier illisible, pas en UTF-8, ou JSON invalide : {exc}"
+
+
+def _file_mode_problem(args: argparse.Namespace) -> str | None:
+    """Ce qui rend un appel en mode fichier ambigu ou destructeur : options de l'archive mélangées, ou `--out` qui
+    désigne le fichier d'entrée (il serait écrasé par la sortie, revue R5 M3). Rien n'est écrit dans ces cas."""
+    if args.infrastructure or args.run_id:
+        return "un fichier bundle ne se combine pas avec --infrastructure / --run-id : choisir l'un ou l'autre"
+    if args.out and Path(args.out).resolve() == Path(args.file).resolve():
+        return "--out désigne le fichier d'entrée : rien n'est écrit"
+    return None
+
+
+def _cmd_ingest(args: argparse.Namespace) -> int:
+    data, problem = _read_json(args.file)
+    if problem is not None:
+        print(problem)
         return EXIT_INVALID
     result = ingest_bundle(data, BundleArchive(Path(args.archive)))
     print(json.dumps(result_payload(result), ensure_ascii=False, indent=2))
@@ -55,8 +74,49 @@ def _recorrelate_line(archive: BundleArchive, infrastructure: str, run_id: str) 
     return _correlation_line(run_id, summary), summary.status != "failed"
 
 
+def _correlate_file(args: argparse.Namespace) -> int:
+    """Écrit le snapshot canonique d'un bundle fichier, sans archive : boucle de mise au point, et régénération du
+    snapshot de référence (`ld correlate ../contracts/fixtures/bundle-minimal.json --out …/snapshot-minimal.json`)."""
+    if not args.out:
+        print("--out est requis avec un fichier bundle")
+        return EXIT_USAGE
+    if (problem := _file_mode_problem(args)) is not None:
+        print(problem)
+        return EXIT_USAGE
+    data, problem = _read_json(args.file)
+    if problem is not None:
+        print(problem)
+        return EXIT_INVALID
+    result = correlate_data(data)
+    if result.snapshot is None:
+        print("bundle hors contrat")
+        print(json.dumps(error_payload(result.errors), ensure_ascii=False, indent=2))
+        return EXIT_INVALID
+    raw = canonical_json(result.snapshot).encode("utf-8")
+    try:
+        Path(args.out).write_bytes(raw)
+    except OSError as exc:
+        print(f"snapshot non écrit : {exc}")
+        return EXIT_INVALID
+    summary = summarize(result.snapshot)
+    checks = " ".join(f"{name}={count}" for name, count in (summary.checks or {}).items())
+    print(
+        f"snapshot écrit : {args.out} ({summary.nodes} nœuds, {summary.links} câbles, {checks}, {len(raw) // 1024} Ko)"
+    )
+    return EXIT_OK
+
+
 def _cmd_correlate(args: argparse.Namespace) -> int:
-    """Recalcule et remplace le snapshot depuis le bundle archivé : après une correction de B1, sans ré-ingérer."""
+    """Recalcule et remplace le snapshot depuis le bundle archivé : après une correction de B1, sans ré-ingérer.
+    Avec un fichier : écrit le snapshot dans `--out`, sans toucher l'archive."""
+    if args.file:
+        return _correlate_file(args)
+    if not args.infrastructure:
+        print("indiquer un fichier bundle avec --out, ou une infrastructure archivée par --infrastructure")
+        return EXIT_USAGE
+    if args.out:
+        print("--out ne vaut qu'avec un fichier bundle : une run archivée range son snapshot dans l'archive")
+        return EXIT_USAGE
     _show_backend_log()  # la trace d'un échec de B1 sort sur stderr
     archive = BundleArchive(Path(args.archive))
     run_ids = [args.run_id] if args.run_id else [r.run_id for r in archive.list_runs(args.infrastructure)]
@@ -74,10 +134,9 @@ def _cmd_correlate(args: argparse.Namespace) -> int:
 def _render_outcome(args: argparse.Namespace) -> PageOutcome | None:
     """None : ni fichier ni run désignée. Le chemin fichier ne touche ni archive ni serveur."""
     if args.file:
-        try:
-            data = json.loads(Path(args.file).read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:  # UTF-16 : redirection `>` de PowerShell
-            return PageOutcome(page=None, problem=f"fichier illisible, pas en UTF-8, ou JSON invalide : {exc}")
+        data, problem = _read_json(args.file)
+        if problem is not None:
+            return PageOutcome(page=None, problem=problem)
         return page_from_bundle(data, origin=Path(args.file).name)
     if args.infrastructure and args.run_id:
         return page_from_archive(BundleArchive(Path(args.archive)), args.infrastructure, args.run_id)
@@ -86,6 +145,9 @@ def _render_outcome(args: argparse.Namespace) -> PageOutcome | None:
 
 def _cmd_render(args: argparse.Namespace) -> int:
     """Écrit la page HTML autonome d'une run : graphe, sources de chaque câble, contrôles, qualité des données."""
+    if args.file and (problem := _file_mode_problem(args)) is not None:
+        print(problem)
+        return EXIT_USAGE
     outcome = _render_outcome(args)
     if outcome is None:
         print("indiquer un fichier bundle, ou une run archivée par --infrastructure et --run-id")
@@ -146,8 +208,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_runs.add_argument("--archive", default=archive_default)
     p_runs.set_defaults(func=_cmd_runs)
 
-    p_correlate = sub.add_parser("correlate", help="recalcule le snapshot (B1) depuis le bundle archivé et le remplace")
-    p_correlate.add_argument("--infrastructure", required=True)
+    p_correlate = sub.add_parser(
+        "correlate", help="recalcule le snapshot (B1) d'une run archivée et le remplace, ou l'écrit depuis un fichier"
+    )
+    p_correlate.add_argument(
+        "file", nargs="?", help="fichier bundle : valide, corrèle et écrit le snapshot dans --out, sans archive"
+    )
+    p_correlate.add_argument("--out", default=None, help="avec un fichier : le snapshot JSON canonique à écrire")
+    p_correlate.add_argument(
+        "--infrastructure", default=None, help="sans fichier : l'infrastructure archivée dont on recalcule les runs"
+    )
     p_correlate.add_argument(
         "--run-id", default=None, help="une seule run (défaut : toutes celles de l'infrastructure)"
     )

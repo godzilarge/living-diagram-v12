@@ -1,7 +1,12 @@
 import json
 from pathlib import Path
 
+from ld_contracts.bundle import RunBundle
+from ld_contracts.snapshot.serialize import canonical_json
+
 from ld_backend import cli
+from ld_backend.archive import fingerprint
+from ld_backend.correlate import correlate
 
 
 def write(tmp_path: Path, name: str, data: dict) -> Path:
@@ -148,3 +153,61 @@ def test_correlate_isolates_a_corrupt_run_and_still_recomputes_the_others(capsys
     meta.write_text("{", encoding="utf-8")
     args = ["correlate", "--infrastructure", "infra-lab", "--run-id", "run-3", "--archive", str(archive)]
     assert cli.main(args) == 1 and "corrompue" in capsys.readouterr().out
+
+
+def test_correlate_file_writes_the_canonical_snapshot_without_archive(capsys, tmp_path, bundle_dict):
+    """Le mode fichier : les mêmes octets que l'archive rangerait, aucune archive créée."""
+    path = write(tmp_path, "b.json", bundle_dict)
+    out = tmp_path / "snapshot.json"
+    assert cli.main(["correlate", str(path), "--out", str(out), "--archive", str(tmp_path / "archive")]) == 0
+    bundle = RunBundle.model_validate(bundle_dict)
+    assert out.read_bytes() == canonical_json(correlate(bundle, fingerprint(bundle)[1])).encode("utf-8")
+    assert not (tmp_path / "archive").exists()
+    line = capsys.readouterr().out
+    assert line.startswith("snapshot écrit : ") and "6 nœuds, 6 câbles, error=" in line and "Ko)" in line
+    assert "created" not in line  # rien n'est créé dans une archive (revue R5, B2)
+
+
+def test_correlate_file_refuses_a_bundle_outside_the_contract(capsys, tmp_path, bundle_dict):
+    path = write(tmp_path, "bad.json", dict(bundle_dict, contract_version="9.0.0"))
+    out = tmp_path / "snapshot.json"
+    assert cli.main(["correlate", str(path), "--out", str(out)]) == 1
+    assert "hors contrat" in capsys.readouterr().out and not out.exists()
+
+
+def test_correlate_file_needs_out_and_a_readable_file(capsys, tmp_path, bundle_dict):
+    path = write(tmp_path, "b.json", bundle_dict)
+    assert cli.main(["correlate", str(path)]) == 2
+    assert "--out" in capsys.readouterr().out
+    assert cli.main(["correlate", str(tmp_path / "missing.json"), "--out", str(tmp_path / "s.json")]) == 1
+    assert "illisible" in capsys.readouterr().out
+    assert cli.main(["correlate", str(path), "--out", str(tmp_path / "nope" / "s.json")]) == 1
+    assert "non écrit" in capsys.readouterr().out
+
+
+def test_correlate_without_file_nor_infrastructure_exits_two(capsys):
+    assert cli.main(["correlate"]) == 2
+    assert "--infrastructure" in capsys.readouterr().out
+
+
+def test_correlate_and_render_refuse_to_overwrite_their_input(capsys, tmp_path, bundle_dict):
+    """`--out` égal au fichier d'entrée écraserait l'export par la sortie (revue R5, M3) : refus, rien d'écrit."""
+    path = write(tmp_path, "export.json", bundle_dict)
+    before = path.read_bytes()
+    assert cli.main(["correlate", str(path), "--out", str(tmp_path / "." / "export.json")]) == 2
+    assert "désigne le fichier d'entrée" in capsys.readouterr().out
+    assert cli.main(["render", str(path), "--out", str(path)]) == 2
+    assert "désigne le fichier d'entrée" in capsys.readouterr().out
+    assert path.read_bytes() == before
+
+
+def test_file_mode_refuses_archive_options_and_vice_versa(capsys, tmp_path, bundle_dict):
+    """Les deux modes ne se mélangent pas en silence (revue R5, B1)."""
+    path = write(tmp_path, "b.json", bundle_dict)
+    out = tmp_path / "s.json"
+    assert cli.main(["correlate", str(path), "--out", str(out), "--infrastructure", "infra-lab"]) == 2
+    assert "choisir l'un ou l'autre" in capsys.readouterr().out and not out.exists()
+    assert cli.main(["render", str(path), "--out", str(tmp_path / "p.html"), "--run-id", "r1"]) == 2
+    assert "choisir l'un ou l'autre" in capsys.readouterr().out and not (tmp_path / "p.html").exists()
+    assert cli.main(["correlate", "--infrastructure", "infra-lab", "--out", str(out), "--archive", str(tmp_path)]) == 2
+    assert "--out ne vaut qu'avec un fichier" in capsys.readouterr().out and not out.exists()

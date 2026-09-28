@@ -16,13 +16,15 @@ la seconde donne le détail utile à la correction et peut citer des valeurs du 
 import logging
 import traceback
 from collections import Counter
+from dataclasses import dataclass
 
 from ld_contracts.bundle import RunBundle
 from ld_contracts.snapshot import Snapshot
 from ld_contracts.snapshot.serialize import canonical_json
+from ld_contracts.validate import Issue, validate_dict
 from pydantic import ValidationError
 
-from ld_backend.archive import ArchiveCorruptError, BundleArchive
+from ld_backend.archive import ArchiveCorruptError, BundleArchive, fingerprint
 from ld_backend.correlate import correlate
 from ld_backend.schemas import CorrelationSummary
 
@@ -41,6 +43,24 @@ def summarize(snapshot: Snapshot) -> CorrelationSummary:
         links=len(snapshot.links),
         checks={severity: by_severity.get(severity, 0) for severity in SEVERITIES},
     )
+
+
+@dataclass(frozen=True, slots=True)
+class FileCorrelation:
+    """Le snapshot d'un bundle fichier, ou les erreurs de contrat qui l'empêchent."""
+
+    snapshot: Snapshot | None
+    errors: tuple[Issue, ...] = ()
+
+
+def correlate_data(data: object) -> FileCorrelation:
+    """Valide puis corrèle un bundle hors archive (`ld correlate bundle.json --out`) : même empreinte et mêmes
+    octets que si la run était archivée, sans toucher l'archive. Un bug de B1 remonte tel quel : ici on veut la trace.
+    C'est aussi ce qui régénère le snapshot de référence `contracts/fixtures/snapshot-minimal.json`."""
+    report = validate_dict(data)
+    if not report.ok or report.bundle is None:
+        return FileCorrelation(snapshot=None, errors=report.errors)
+    return FileCorrelation(snapshot=correlate(report.bundle, fingerprint(report.bundle)[1]))
 
 
 def _log_failure(exc: Exception, infrastructure: str, run_id: str) -> None:
