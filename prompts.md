@@ -210,3 +210,49 @@ Concernant tes questions:
 3. peux tu me rafraichir la memoire ? 
 
 Aussi, est-ce que la documentation et ta memoire sont a jour ? 
+
+
+==================================================================================================================
+
+Ce que j'identifie deja comme defaut c'est que la route ```POST /api/ingest/bundles``` ne permet pas de fournir le json directement dans le corps de la requete. c'est tres bien de pouvoir fournir un fichier mais je voudrais aussi pouvoir fournir le json directement dans le corps de la requete. Est-ce que se serait la meme route a mettre a jour refactoriser ou est-ce que tu aurais une route dediee pour le json dans le corps de la requete et une autre pour le fichier ?
+
+
+Ensuite, la route ```api/ingest/bundles?infrastructure=infra-lab``` dans la partie UI de l'API (/docs) me retourne un message d'erreur ```Error: Unauthorized```, ```{"detail": "jeton d'API absent ou invalide"}```. Alors que j'ai bien mis dans ```authorization``` le ```LD_API_TOKEN``` que j'ai defini dans la console de FastAPI. Est-ce que tu peux regarder ca stp ? Et j'ai l'impression que c'est la meme chose pour toutes les routes de l'API.
+
+
+==================================================================================================================
+
+
+Je voudrais revenir sur le contrat qui est actuellement en place. 
+
+Je ne suis pas certains de la pertinence de garder la clef "infrastructure" dans les differents topics dans le json ci-dessous. Personnellement, je trouve que ca alourdi le travail pour l'appelant (l'exportateur) pour avoir ce format de donnees. qu'en penses-tu ? 
+
+
+```json
+[
+  "interfaces": [],
+  "aggregates": [],
+  "lldp": [],
+  "cdp": [],
+  "system": [],
+  "ha": [],
+  "residual_normalizations": {}
+]
+```
+
+
+
+==================================================================================================================
+
+Je voudrais revenir sur le contrat qui est actuellement en place pour la partie `HaStatus`. Actuellement, le modele attend `local_role` et `local_state` pour l'ensemble du cluster alors que dans `HaMember` on a aussi `role` et `state` pour chaque membre du cluster. Je pense que ca peut etre source de confusion pour l'appelant. Je te propose de supprimer `local_role` et `local_state` dans `HaStatus` et de ne garder que les informations par membre dans `HaMember`. Qu'en penses-tu ?
+
+```json
+{
+  "local_role": "primary",
+  "local_state": "up",
+}
+```
+
+==================================================================================================================
+
+Si dans `Device` tu as deja `os_name` et `os_version`, pourquoi alors venir alourdir avec une nouvelle donnee a normaliser `platform`. Et cela pose meme une question qui est de ne pas avoir `SystemInfo` et `Device` dans le meme topic car au final ca va etre redondant.
