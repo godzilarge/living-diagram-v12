@@ -160,7 +160,7 @@ def _candidates(aggregates: tuple[SnapshotAggregate, ...]) -> list[Pair]:
     un `mlag_id` partagé par exactement deux devices."""
     with_id = [
         a for a in aggregates if a.mlag_id is not None and not a.mlag_peer_link
-    ]  # un peer-link n'est pas un membre
+    ]  # un peer-link n'est pas un membre ; garanti par `mlag_peer_link_with_id` à la porte, gardé par prudence
     by_device_id: dict[tuple[str, int], list[SnapshotAggregate]] = defaultdict(list)
     for aggregate in with_id:
         by_device_id[(aggregate.hostname, aggregate.mlag_id)].append(aggregate)

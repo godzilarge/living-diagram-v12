@@ -87,6 +87,20 @@ class VlanRange(ContractModel):
         return self
 
 
+def check_peer_link_without_id(mlag_id: int | None, mlag_peer_link: bool | None, context: dict) -> None:
+    """Un peer-link ne porte pas d'identifiant MLAG : NX-OS `vpc peer-link` exclut `vpc <n>`, le peer-link Arista
+    n'a pas de `mlag <n>`, l'ICL Juniper pas de `mc-ae`. Les deux à la fois viennent d'un parseur cassé ; B1 l'aurait
+    lu comme peer-link en ignorant l'identifiant en silence. `null` (non lu) ne contredit rien.
+    Partagée par le RunBundle et le Snapshot (2026-10-02).
+    """
+    if mlag_id is not None and mlag_peer_link is True:
+        raise PydanticCustomError(
+            "mlag_peer_link_with_id",
+            "un peer-link MLAG porte un mlag_id",
+            {**context, "mlag_id": mlag_id},
+        )
+
+
 def check_vlan_fields_for_mode(
     mode: SwitchportMode | None,
     access_vlan: int | None,
@@ -331,8 +345,20 @@ class Aggregate(ContractModel):
         default=None,
         description="Identifiant vPC / MLAG / MC-LAG ; null si l'agrégat n'en fait pas partie, ou si non lu.",
     )
-    mlag_peer_link: Bool = Field(description="true si l'agrégat est le peer-link du MLAG.")
+    mlag_peer_link: Bool | None = Field(
+        default=None,
+        description=(
+            "true : lu, l'agrégat est le peer-link du MLAG ; false : lu, il ne l'est pas, device sans MLAG compris ; "
+            "null : non lu (la source MLAG n'a pas répondu). Jamais null pour « sans objet » : un agrégat hors de tout "
+            "MLAG est false. Un peer-link ne porte pas de `mlag_id` (`mlag_peer_link_with_id`)."
+        ),
+    )
     extras: Extras = Field(description="Détail brut vendeur (drapeaux, cohérence vPC…) ; jamais lu par B1.")
+
+    @model_validator(mode="after")
+    def _peer_link_without_id(self) -> Aggregate:
+        check_peer_link_without_id(self.mlag_id, self.mlag_peer_link, {"hostname": self.hostname, "name": self.name})
+        return self
 
     @model_validator(mode="after")
     def _members_unique(self) -> Aggregate:

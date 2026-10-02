@@ -436,10 +436,11 @@ def test_mlag_domain_members_share_the_id_and_peer_link_is_flagged(snap):
     with pytest.raises(ValidationError) as exc:
         Snapshot.model_validate(with_section(wrong_id, "mlag_domains", [mlag_domain_doc()]))
     assert first_error(exc)["ctx"] == {"section": "mlag_domains", "index": 0, "field": "members[0]"}
-    not_peer = with_section(doc, "aggregates", [{**peer, "mlag_peer_link": False}, vpc_a, vpc_b])
-    with pytest.raises(ValidationError) as exc:
-        Snapshot.model_validate(with_section(not_peer, "mlag_domains", [mlag_domain_doc()]))
-    assert first_error(exc)["ctx"] == {"section": "mlag_domains", "index": 0, "field": "peer_link"}
+    for flag in (False, None):  # `null` = non lu : pas un drapeau (2026-10-02)
+        not_peer = with_section(doc, "aggregates", [{**peer, "mlag_peer_link": flag}, vpc_a, vpc_b])
+        with pytest.raises(ValidationError) as exc:
+            Snapshot.model_validate(with_section(not_peer, "mlag_domains", [mlag_domain_doc()]))
+        assert first_error(exc)["ctx"] == {"section": "mlag_domains", "index": 0, "field": "peer_link"}
     third = with_section(
         doc, "aggregates", [aggregate_doc(hostname="fw-1", name="agg-core", cables=[]), peer, vpc_a, vpc_b]
     )

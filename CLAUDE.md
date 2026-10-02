@@ -446,6 +446,22 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   duplex différent (aucun code, `link_duplex_mismatch` proposé), `dormant` / `testing` comptés « pas up ». Backend 315
   tests (`correlate/` 174, à 100 %), contracts 400. **Suite : le générateur de topologies synthétiques** (graine,
   scénarios d'évolution), puis la conception de B3.
+- **`mlag_peer_link` nullable, `null` = non lu seulement ; refus `mlag_peer_link_with_id`** (2026-10-02, remarque
+  d'Orhan sur le contrat, traitée avant tout code : « si un port-channel n'a pas de `mlag_id`, `mlag_peer_link` devrait
+  être nullable »). Conclusion retenue, prémisse corrigée et confrontée : le peer-link lui-même n'a pas de `mlag_id`
+  (NX-OS `vpc peer-link` exclut `vpc <n>` ; fixture, scénario 3), donc « pas de `mlag_id` ⇒ pas de MLAG » est faux ; un
+  agrégat hors de tout MLAG est `false`, un fait (un booléen a toujours une réponse), jamais `null` pour « sans objet »
+  (deux écritures du même fait, refusé pour `access_vlan`). La vraie raison : le champ vient de `show vpc`, pas de la
+  commande qui fait le document ; `false` par défaut affirmerait un fait non vérifié (même argument que `-1`). B1
+  inchangé (`null` n'est pas un drapeau : aucun rôle, aucune paire par peer-link, repli par `mlag_id`), Snapshot
+  nullable aussi (la page dit « peer-link non lu », vérifié en Chromium). **Refus ajouté aux deux contrats** : un
+  peer-link porteur d'un `mlag_id` (point B1 de la revue R4 : B1 l'ignorait en silence ; règle partagée
+  `check_peer_link_without_id`). Orhan : le cas « non lu » n'arrive pas dans son exportateur, nullabilité juste sur le
+  principe. Fixture et golden inchangés. Motifs : `contracts/README.md` § Décisions ; `docs/05` §2.4. **Revue
+  indépendante consignée** (`docs/revues/2026-10-02-mlag-peer-link-nullable.md` : 0 critique, 0 haut, 2 moyens, 6 bas ;
+  moyens et trois bas traités, B1 / B2 / B6 parqués sur décision d'Orhan : le rituel complet, revue et capture
+  comprises, est disproportionné pour un champ ; règle de calibrage à acter). Contracts 413 tests, backend 316,
+  `correlate/` à 100 %.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -486,7 +502,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
   pour le topic `interfaces` sur FortiGate)
 - `docs/revues/` — rapports de revue indépendante consignés tels que rendus, avec leur suivi (2026-09-20 :
   `2026-09-20-b1-etape-1.md`, sa contre-revue, `2026-09-20-branchement-b1.md`, `2026-09-20-pages-ld-render.md` ; 2026-09-22 : `2026-09-22-r1-bis-agregat-port-id.md` ;
-  2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md`)
+  2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
+  2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`)
   et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
@@ -500,7 +517,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `src/ld_contracts/schema/`, contrôles référentiels, anonymiseur, CLI
   (`uv run ld-contracts validate|schema|anonymize`), fixture `fixtures/bundle-minimal.json`.
   Tests : `cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests`
-  (état 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
+  (état 2026-10-02 : 413 tests, `mlag_peer_link` nullable et refus `mlag_peer_link_with_id` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
   2026-09-19 : 291 tests, 97 %, clé nullable absente lue comme `null` et comptée, `vrf` `"default"` = table globale, une passe de revue indépendante appliquée ; 2026-09-18 : 246 tests, `lldp` / `cdp` réduits à six champs et MAC reconnue à sa forme, une
   passe de revue indépendante appliquée ;
   2026-09-16 : `allowed_vlans` en liste d'intervalles (chevauchements refusés), `access_vlan` ajouté avec refus de cohérence VLAN / mode, `last_change_age_seconds` en `entier ≥ 0 | "never" | null`
@@ -523,8 +540,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
   étape 2 = R4 / R5 + golden `snapshot-minimal.json` : **R4 et R5 écrites le 2026-09-26** (`structures.py`, `ha.py`,
   `state.py`, revues traitées), golden écrit et régénérable par `ld correlate bundle.json --out` ; **étape 3 =
   branchement, fait le 2026-09-20** (`snapshots.py`, `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages :
-  incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). État :
-  315 tests, 99 %, `correlate/` à 100 %.
+  incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). État
+  2026-10-02 : 316 tests, 99 %, `correlate/` à 100 %.
 - À venir : premier bundle réel dans les pages (fin de la tranche visible), générateur de topologies synthétiques,
   conception de B3, table MAC (`docs/06`), B2 → B4 dans `backend/`, `engine/` (moteur TS), `shell/` (React).
 

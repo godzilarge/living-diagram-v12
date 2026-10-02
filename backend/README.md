@@ -226,7 +226,9 @@ avant l'assemblage. Décisions, annoncées avant le code :
    son domaine, deux paires de la même infra peuvent avoir chacune un vPC 20. Un agrégat `mlag_peer_link` dont les
    câbles mènent à un seul autre device **porteur de documents `aggregates[]`** forme la paire (un peer-link vu vers
    un stub ou un externe n'en forme pas : revue, H1) ; un device présent dans deux paires n'en garde aucune ; un
-   peer-link marqué n'est jamais candidat à un domaine, même s'il porte un `mlag_id` (revue, B1). Repli,
+   peer-link marqué n'est jamais candidat à un domaine (un `mlag_id` sur un peer-link est refusé à la porte :
+   `mlag_peer_link_with_id`, 2026-10-02) ; `mlag_peer_link = null` (non lu) n'est pas un drapeau : aucun rôle, aucune
+   paire par ce bout, le snapshot garde le `null` et la page dit « peer-link non lu ». Repli,
    hors de toute paire : même `mlag_id` sur exactement deux devices. `peer_link` du domaine = l'agrégat marqué d'un
    des deux devices, de préférence celui dont les câbles mènent à l'autre. `downstream` = le device au bout des câbles
    des deux agrégats s'il est unique ; plusieurs ⇒ `mlag_downstream_inconsistent` ; aucun câble ⇒ `null`, sans
@@ -253,7 +255,8 @@ avant l'assemblage. Décisions, annoncées avant le code :
 Au passage, un refus est entré dans le contrat d'entrée : `aggregate_member_duplicate` (un membre listé deux fois dans
 un document `aggregates`), parce que le Snapshot refuse une liste de membres en double. Tests :
 `tests/correlate/test_structures.py` (scénarios 2, 3, 8 de `docs/05`, une seconde paire de cœurs avec le même vPC 20,
-peer-link mal étiqueté, aval incohérent, vues HA divergentes, membre inconnu, standalone, ordre des documents).
+peer-link mal étiqueté, peer-link porteur d'un `mlag_id` refusé à la porte, drapeau peer-link non lu, aval
+incohérent, vues HA divergentes, membre inconnu, standalone, ordre des documents).
 Revue indépendante : `docs/revues/2026-09-26-b1-r4-structures.md`.
 
 ### R5, les contrôles d'état, et le golden (2026-09-26)

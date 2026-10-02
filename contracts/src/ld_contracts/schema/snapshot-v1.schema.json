@@ -1579,9 +1579,16 @@
           "title": "Mlag Id"
         },
         "mlag_peer_link": {
-          "description": "true si l'agrégat est le peer-link du MLAG.",
-          "title": "Mlag Peer Link",
-          "type": "boolean"
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "true : peer-link du MLAG ; false : ne l'est pas ; null : non lu dans le bundle (pas un drapeau).",
+          "title": "Mlag Peer Link"
         },
         "cables": {
           "description": "Clés des câbles de ses membres, triées ; forment un faisceau.",

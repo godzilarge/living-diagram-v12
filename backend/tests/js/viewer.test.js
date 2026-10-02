@@ -377,6 +377,26 @@ test("les câbles arrêtés à l'agrégat lui-même se lisent depuis l'agrégat"
   assert.equal(LD.app.model.beams.length, 1, "un câble arrêté à l'agrégat n'est pas un faisceau : seul le peer-link en est un");
 });
 
+const unread = process.env.LD_PAGE_UNREAD ? readPage(process.env.LD_PAGE_UNREAD) : null;
+
+test("un drapeau peer-link non lu se lit « non lu », jamais comme un peer-link (2026-10-02)", { skip: !unread }, () => {
+  const { LD, document } = load(unread, unread.data);
+  const po10 = LD.app.model.aggregateByKey.get(PO10_CORE_2);
+  assert.equal(po10.raw.mlag_peer_link, null, "le snapshot garde le null");
+  assert.equal(po10.beams[0].peerLink, false, "le faisceau des Po10 n'est pas un peer-link");
+  LD.app.graph.select({ kind: "aggregate", id: PO10_CORE_2 });
+  const text = document.getElementById("inspector").textContent;
+  assert.match(text, /Peer-link non lu : la source MLAG du document aggregates n'a pas répondu/);
+  assert.match(text, /min_links1peer-linknon lu/, "la fiche porte la ligne « peer-link : non lu » (pas de ligne MLAG id : il est null)");
+  assert.doesNotMatch(text, /Cet agrégat est le peer-link/);
+  const domain = LD.app.model.mlagDomains[0];
+  assert.equal(domain.raw.mlag_id, 20);
+  assert.equal(domain.raw.peer_link, null, "le domaine 20 est formé par le repli, sans peer-link");
+  const container = document.getElementById("inspector");
+  LD.tables.structuresView(container, LD.app.model, () => {});
+  assert.match(container.textContent, /peer-link non lu/, "le tableau Structures le dit aussi");
+});
+
 // ---------------------------------------------------------------- la coquille servie par le backend (2026-09-26)
 
 const shell = process.env.LD_SHELL ? readPage(process.env.LD_SHELL) : null;

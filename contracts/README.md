@@ -272,6 +272,28 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-10-02** — **`mlag_peer_link` devient nullable ; un peer-link ne porte pas de `mlag_id`** (remarque d'Orhan :
+  « si un port-channel n'a pas de `mlag_id`, `mlag_peer_link` devrait être nullable »). Conclusion retenue, raisonnement
+  corrigé. (1) Le peer-link lui-même n'a pas de `mlag_id` : NX-OS `vpc peer-link` exclut `vpc <n>`, le peer-link Arista
+  n'a pas de `mlag <n>`, l'ICL Juniper pas de `mc-ae` ; la fixture (scénario 3 de `docs/05`) l'écrit ainsi depuis le
+  2026-09-20. « Pas de `mlag_id` ⇒ pas de MLAG » est donc faux par construction. (2) Un agrégat hors de tout MLAG est
+  `false`, un fait : un booléen a toujours une réponse, contrairement à `duplex` sur un agrégat (aucune valeur dans
+  l'énumération) ; `null` pour « sans objet » donnerait deux écritures du même fait, ce qui a été refusé pour
+  `access_vlan`. (3) La vraie raison : `mlag_id` et `mlag_peer_link` viennent d'une autre commande (`show vpc`) que le
+  reste du document (`show port-channel summary`) ; si elle ne répond pas, le producteur devait écrire `false`, un fait
+  non vérifié (même argument que la sentinelle `-1` écartée sur `last_change_age_seconds`). `mlag_id`, `min_links`,
+  `lacp_mode` étaient nullables pour cette raison, `mlag_peer_link` seul ne pouvait pas dire « non lu ». **Trois
+  lectures** : `true` = lu, c'est le peer-link ; `false` = lu, ce n'est pas le peer-link, device sans MLAG compris ;
+  `null` = non lu, jamais « sans objet » (tableau « `null` et valeurs réservées »). B1 inchangé : `null` n'est pas un
+  drapeau (aucun rôle `mlag_peer_link`, aucune paire par peer-link, repli par `mlag_id` partagé par deux devices) ; le
+  Snapshot garde le `null` (`SnapshotAggregate.mlag_peer_link` nullable, requis) pour que la page dise « peer-link non
+  lu » au lieu de maquiller en `false`. **Refus ajouté aux deux contrats** : `mlag_peer_link_with_id` (`mlag_id`
+  renseigné avec `mlag_peer_link = true`) : accepté jusque-là, B1 le lisait comme peer-link en ignorant l'identifiant
+  en silence (point B1 de la revue R4, qui le jugeait « rare mais défaut pur ») ; règle partagée
+  `check_peer_link_without_id` dans `models_interfaces.py`, comme `check_vlan_fields_for_mode`. Orhan : le cas « non
+  lu » ne peut pas se produire dans son exportateur (le topic tombe entier) ; la nullabilité est juste sur le principe,
+  pas motivée par ses données. Fixture et golden inchangés : toutes leurs valeurs sont lues.
+
 - **2026-09-26** — **Refus `aggregate_member_duplicate` ajouté au RunBundle** (né de B1 R4) : un document
   `aggregates` qui liste deux fois le même membre. Le Snapshot refuse une liste de membres en double
   (`duplicate_identity`), et `member_in_several_aggregates` ne voyait pas ce cas (deux fois le même agrégat = un seul

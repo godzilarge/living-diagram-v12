@@ -8,7 +8,9 @@ suivent le premier rapporteur, tout désaccord est un `ha_view_mismatch`.
 
 import copy
 
+import pytest
 from ld_contracts.snapshot.serialize import canonical_json
+from pydantic import ValidationError
 
 from tests.correlate.conftest import checks, find_link, interface, itf, lldp_doc, run, task_subject, variant
 
@@ -427,14 +429,35 @@ def test_b5_split_brain_keeps_its_error(minimal):
     assert [c.details["member"] for c in checks(snap, "ha_view_mismatch")] == [FW_2]
 
 
-def test_b1_a_flagged_peer_link_carrying_an_id_is_not_a_mislabeled_one(minimal):
+def test_b1_a_flagged_peer_link_carrying_an_id_is_refused_at_the_door(minimal):
+    """Revue R4, B1 : B1 le lisait comme peer-link en ignorant l'identifiant ; depuis le 2026-10-02 le contrat
+    d'entrée le refuse (`mlag_peer_link_with_id`), B1 n'a plus à choisir. Doublon volontaire du test de
+    `ld-contracts` : ici on prouve que c'est bien l'entrée qui refuse, pas le Snapshot derrière B1."""
+
     def mutate(d):
         for host in (CORE_1, CORE_2):
             aggregate_doc(d, host, "port-channel10")["mlag_id"] = 10
 
+    with pytest.raises(ValidationError) as exc:
+        run(variant(minimal, mutate))
+    assert exc.value.title == "RunBundle", "refusé à la porte, pas entre les deux contrats"
+    assert {e["type"] for e in exc.value.errors()} == {"mlag_peer_link_with_id"}
+
+
+def test_an_unread_peer_link_flag_is_no_flag_and_the_id_fallback_still_pairs_the_domain(minimal):
+    """`mlag_peer_link = null` = non lu (2026-10-02) : aucun rôle, aucune paire par peer-link ; le repli par
+    `mlag_id` forme le domaine 20 sans peer-link, et le snapshot garde le `null` pour que la page dise « non lu »."""
+
+    def mutate(d):
+        for host in (CORE_1, CORE_2):
+            aggregate_doc(d, host, "port-channel10")["mlag_peer_link"] = None
+
     snap = run(variant(minimal, mutate))
+    assert aggregate(snap, CORE_1, "port-channel10").mlag_peer_link is None
+    assert '"mlag_peer_link": null' in canonical_json(snap)
+    assert itf(snap, CORE_1, "Ethernet1/1").roles == () and itf(snap, CORE_2, "Ethernet1/2").roles == ()
+    assert [(d.mlag_id, d.peer_link, d.downstream) for d in snap.mlag_domains] == [(20, None, FW_1)]
     assert checks(snap, "mlag_pair_direct_link") == []
-    assert [(d.mlag_id, d.peer_link.aggregate) for d in snap.mlag_domains] == [(20, "port-channel10")]
 
 
 def test_b2_two_heartbeat_cables_toward_members_are_listed_as_candidates(minimal):

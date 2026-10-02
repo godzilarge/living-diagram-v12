@@ -82,9 +82,17 @@
           "title": "Mlag Id"
         },
         "mlag_peer_link": {
-          "description": "true si l'agrégat est le peer-link du MLAG.",
-          "title": "Mlag Peer Link",
-          "type": "boolean"
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "true : lu, l'agrégat est le peer-link du MLAG ; false : lu, il ne l'est pas, device sans MLAG compris ; null : non lu (la source MLAG n'a pas répondu). Jamais null pour « sans objet » : un agrégat hors de tout MLAG est false. Un peer-link ne porte pas de `mlag_id` (`mlag_peer_link_with_id`).",
+          "title": "Mlag Peer Link"
         },
         "extras": {
           "additionalProperties": true,
@@ -98,8 +106,7 @@
         "name",
         "oper_status",
         "protocol",
-        "members",
-        "mlag_peer_link"
+        "members"
       ],
       "title": "Aggregate",
       "type": "object"

@@ -184,7 +184,7 @@ Sources typiques : `show port-channel summary` + `show vpc` (NX-OS), `show ether
 | `min_links` | entier \| null | non (null si absente) | Nombre minimal de membres actifs configuré ; null si non configuré ou non lu. |
 | `members` | liste de [AggregateMember](#aggregatemember) | oui | Membres configurés avec leur état effectif. |
 | `mlag_id` | entier \| null | non (null si absente) | Identifiant vPC / MLAG / MC-LAG ; null si l'agrégat n'en fait pas partie, ou si non lu. |
-| `mlag_peer_link` | booléen | oui | true si l'agrégat est le peer-link du MLAG. |
+| `mlag_peer_link` | booléen \| null | non (null si absente) | true : lu, l'agrégat est le peer-link du MLAG ; false : lu, il ne l'est pas, device sans MLAG compris ; null : non lu (la source MLAG n'a pas répondu). Jamais null pour « sans objet » : un agrégat hors de tout MLAG est false. Un peer-link ne porte pas de `mlag_id` (`mlag_peer_link_with_id`). |
 | `extras` | objet clé → libre | non (défaut) | Détail brut vendeur (drapeaux, cohérence vPC…) ; jamais lu par B1. |
 
 #### AggregateMember
@@ -404,6 +404,7 @@ de quelque chose est elle-même un fait, le contrat lui donne une valeur. B1 ne 
 | `interfaces[].switchport_mode` | `none` | mode lu, aucun de `access` / `trunk` / `routed` ne s'applique | non lu |
 | `interfaces[].allowed_vlans` | `[]` | aucun VLAN autorisé | non lu |
 | `interfaces[].allowed_vlans` | `[{"first": 1, "last": 4094}]` | tous les VLAN (`all`) | non lu |
+| `aggregates[].mlag_peer_link` | `false` | l'agrégat n'est pas le peer-link, device sans MLAG compris | non lu (la source MLAG n'a pas répondu) ; jamais « sans objet » |
 
 **`vrf` : ce que le producteur écrit, par plateforme.** La traduction vers `"default"` est une normalisation de
 valeur : elle se fait dans la librairie de collecte, pas dans B0.
@@ -451,6 +452,7 @@ exactement `default`, distincte de la table globale, ne peut pas l'exprimer ; à
 | `member_in_several_aggregates` | un port est membre de plusieurs agrégats du même device (`aggregates[].members` ou `interfaces[].members`) |
 | `chassis_member_slot_duplicate` | deux `chassis_members` d'un document `system` portent le même `slot` |
 | `aggregate_member_duplicate` | un document `aggregates` liste un même membre plusieurs fois |
+| `mlag_peer_link_with_id` | un document `aggregates` marqué `mlag_peer_link` porte aussi un `mlag_id` (aucun équipement ne numérote son peer-link) |
 | `ha_standalone_not_alone` | un document `ha` en mode `standalone` ne liste pas exactement lui-même, rôle `member` |
 | `access_vlan_outside_access_mode` | une interface porte un `access_vlan` alors que `switchport_mode` n'est pas `access` |
 | `vlan_range_inverted` | un intervalle d'`allowed_vlans` a `first` supérieur à `last` |
@@ -818,7 +820,7 @@ Un agrégat, clé `(hostname, name)`, recopié de `aggregates[]` avec ses câble
 | `min_links` | entier \| null | oui | Minimum de membres actifs configuré ; null si non lu. |
 | `members` | liste de [AggregateMember](#aggregatemember) | oui | Membres et états, triés par nom naturel. |
 | `mlag_id` | entier \| null | oui | Identifiant vPC / MLAG ; null sinon. |
-| `mlag_peer_link` | booléen | oui | true si l'agrégat est le peer-link du MLAG. |
+| `mlag_peer_link` | booléen \| null | oui | true : peer-link du MLAG ; false : ne l'est pas ; null : non lu dans le bundle (pas un drapeau). |
 | `cables` | liste de [LinkKey](#linkkey) | oui | Clés des câbles de ses membres, triées ; forment un faisceau. |
 | `degraded` | booléen | oui | true si au moins un membre n'est pas `bundled`. |
 
@@ -1158,6 +1160,7 @@ Hérités des types partagés avec la partie A (`IpAddress`, `VlanRange`, dates,
 |---|---|
 | `access_vlan_outside_access_mode` | une interface porte un `access_vlan` alors que `switchport_mode` n'est pas `access` |
 | `trunk_vlans_outside_trunk_mode` | une interface porte `native_vlan` ou `allowed_vlans` alors que `switchport_mode` n'est pas `trunk` |
+| `mlag_peer_link_with_id` | un document `aggregates` marqué `mlag_peer_link` porte aussi un `mlag_id` (aucun équipement ne numérote son peer-link) |
 | `vlan_range_inverted` | un intervalle d'`allowed_vlans` a `first` supérieur à `last` |
 | `ip_invalid` | une adresse IP n'est pas analysable |
 | `ip_family_mismatch` | `family` ne correspond pas à la version de l'adresse |

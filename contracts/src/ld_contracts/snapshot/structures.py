@@ -5,7 +5,7 @@ from pydantic_core import PydanticCustomError
 
 from ld_contracts.common import Bool, ContractModel, Hostname, IfName, Int
 from ld_contracts.enums import AggregationProtocol, HaMode, HaRole, HaState, LacpMode, LinkStatus, MemberStatus
-from ld_contracts.models_interfaces import AggregateMember
+from ld_contracts.models_interfaces import AggregateMember, check_peer_link_without_id
 from ld_contracts.snapshot.order import identity, natural_key, require_canonical
 from ld_contracts.snapshot.refs import LinkKey, link_key
 
@@ -21,12 +21,15 @@ class SnapshotAggregate(ContractModel):
     min_links: Int | None = Field(description="Minimum de membres actifs configuré ; null si non lu.")
     members: tuple[AggregateMember, ...] = Field(description="Membres et états, triés par nom naturel.")
     mlag_id: Int | None = Field(description="Identifiant vPC / MLAG ; null sinon.")
-    mlag_peer_link: Bool = Field(description="true si l'agrégat est le peer-link du MLAG.")
+    mlag_peer_link: Bool | None = Field(
+        description="true : peer-link du MLAG ; false : ne l'est pas ; null : non lu dans le bundle (pas un drapeau)."
+    )
     cables: tuple[LinkKey, ...] = Field(description="Clés des câbles de ses membres, triées ; forment un faisceau.")
     degraded: Bool = Field(description="true si au moins un membre n'est pas `bundled`.")
 
     @model_validator(mode="after")
     def _canonical_and_degraded(self) -> SnapshotAggregate:
+        check_peer_link_without_id(self.mlag_id, self.mlag_peer_link, {"hostname": self.hostname, "name": self.name})
         require_canonical(self.members, key=lambda m: natural_key(m.name), section="members")
         require_canonical(self.cables, key=link_key, section="cables")
         expected = any(m.status != MemberStatus.BUNDLED for m in self.members)

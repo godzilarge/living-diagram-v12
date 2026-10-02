@@ -138,7 +138,12 @@ un segment L2) seraient un doublon. Quand `l2_segment` / `l3_adjacency` seront p
 
 `aggregates[]` reprend `aggregates[]` du bundle (membres et états, protocole, `min_links`,
 `mlag_id`, `mlag_peer_link`) et y ajoute `cables[]` (les liens de ses membres) et `degraded`
-(au moins un membre non `bundled`).
+(au moins un membre non `bundled`). `mlag_peer_link` est recopié tel quel, `null` compris (non lu, 2026-10-02) :
+un `null` n'est pas un drapeau, aucun rôle `mlag_peer_link` sur les membres, aucune paire depuis ce bout ; `null`
+des deux côtés ⇒ le domaine se forme par le repli (même `mlag_id` sur exactement deux devices) avec `peer_link = null` ;
+`null` d'un seul côté ⇒ la paire se forme depuis le bout `true`, c'est le cas parqué « peer-link marqué d'un seul
+côté » (revue du 2026-10-02, B1). Un peer-link porteur d'un `mlag_id` est refusé par les deux contrats
+(`mlag_peer_link_with_id`) : B1 n'a pas à choisir.
 
 `mlag_domains[]` : deux agrégats de deux devices distincts portant le même `mlag_id` forment
 un domaine `{mlag_id, members: [(hostname, aggregate)], peer_link: (hostname, aggregate) | null,

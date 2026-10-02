@@ -184,11 +184,12 @@ SNAPSHOT_ERROR_TYPES = {
     "missing": "un champ est absent : toutes les clés du snapshot sont requises, `null` compris",
 }
 
-# Types levés par les types partagés avec le RunBundle (`IpAddress`, `VlanRange`, `UtcDatetime`, règle VLAN / mode) :
-# décrits dans la partie A, rappelés dans la partie B.
+# Types levés par les types partagés avec le RunBundle (`IpAddress`, `VlanRange`, `UtcDatetime`, règle VLAN / mode,
+# règle peer-link sans `mlag_id`) : décrits dans la partie A, rappelés dans la partie B.
 SHARED_ERROR_TYPES = (
     "access_vlan_outside_access_mode",
     "trunk_vlans_outside_trunk_mode",
+    "mlag_peer_link_with_id",
     "vlan_range_inverted",
     "ip_invalid",
     "ip_family_mismatch",

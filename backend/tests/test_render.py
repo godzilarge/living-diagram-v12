@@ -40,6 +40,13 @@ def _aggstop(doc: dict) -> None:
         interface(doc, host, name)["description"] = None
 
 
+def _unread(doc: dict) -> None:
+    """`mlag_peer_link = null` sur les deux Po10 : non lu, la page doit le dire et ne rien inventer (2026-10-02)."""
+    for aggregate in doc["aggregates"]:
+        if aggregate["name"] == "port-channel10":
+            aggregate["mlag_peer_link"] = None
+
+
 def _page(bundle: dict) -> str:
     outcome = page_from_bundle(bundle, origin="bundle.json")
     assert outcome.page is not None, outcome.errors
@@ -184,8 +191,9 @@ def test_render_needs_a_file_or_a_run(capsys, tmp_path):
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node absent : les tests du visualiseur ne tournent pas")
 def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
     page, hub, shell = tmp_path / "page.html", tmp_path / "hub.html", tmp_path / "shell.html"
-    aggstop = tmp_path / "aggstop.html"
+    aggstop, unread = tmp_path / "aggstop.html", tmp_path / "unread.html"
     page.write_text(_page(bundle_dict), encoding="utf-8")
+    unread.write_text(_page(variant(bundle_dict, _unread)), encoding="utf-8")
     hub.write_text(_page(variant(bundle_dict, _hub)), encoding="utf-8")
     aggstop.write_text(_page(variant(bundle_dict, _aggstop)), encoding="utf-8")
     shell.write_text(render_shell(), encoding="utf-8")
@@ -200,6 +208,7 @@ def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
             "LD_PAGE_HUB": str(hub),
             "LD_SHELL": str(shell),
             "LD_PAGE_AGGSTOP": str(aggstop),
+            "LD_PAGE_UNREAD": str(unread),
         },
         check=False,
     )

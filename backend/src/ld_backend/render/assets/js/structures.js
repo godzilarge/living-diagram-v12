@@ -60,6 +60,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
     if (stopped) parts.push(stopped + " câble" + (stopped > 1 ? "s" : "") + " arrêté" + (stopped > 1 ? "s" : "") + " à l'agrégat lui-même : le voisin l'annonce en port-id et B1 n'a pas su désigner le membre.");
     if (raw.mlag_peer_link) parts.push("Cet agrégat est le peer-link de son domaine MLAG.");
     else if (aggregate.mlag) parts.push("Membre du domaine MLAG " + aggregate.mlag.raw.mlag_id + ".");
+    // `null` = non lu (2026-10-02) : la source MLAG n'a pas répondu, B1 n'en fait pas un peer-link.
+    if (raw.mlag_peer_link === null) parts.push("Peer-link non lu : la source MLAG du document aggregates n'a pas répondu, B1 ne le tient pas pour un peer-link.");
     return parts.join(" ");
   }
 
@@ -70,7 +72,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
         pill("oper", raw.oper_status, raw.oper_status), raw.mlag_peer_link ? pill("role", "peer-link", "peer-link") : null),
       h("h3", { class: "ends" }, nodeButton(raw.hostname, onSelect), " · " + raw.name),
       h("p", { class: "why" }, aggregateWhy(model, aggregate)),
-      definition([["protocole", raw.protocol + (raw.lacp_mode ? " · " + raw.lacp_mode : "")], ["min_links", raw.min_links], ["MLAG id", raw.mlag_id]]),
+      definition([["protocole", raw.protocol + (raw.lacp_mode ? " · " + raw.lacp_mode : "")], ["min_links", raw.min_links], ["MLAG id", raw.mlag_id],
+        ["peer-link", raw.mlag_peer_link === null ? "non lu" : raw.mlag_peer_link ? "oui" : "non"]]),
       h("h4", { class: "section" }, "Membres : " + raw.members.length),
       table(["port", "statut", "câble vers"], memberRows(model, aggregate, onSelect), { empty: "aucun membre listé" }),
       stoppedCables(model, aggregate).length ? [h("h4", { class: "section" }, "Câbles arrêtés à l'agrégat lui-même : " + stoppedCables(model, aggregate).length),

@@ -129,7 +129,12 @@ var LD = globalThis.LD || (globalThis.LD = {});
   // Les structures de R4 en tableaux : ce que B1 a reconstruit, cliquable vers le graphe.
   function structuresView(container, model, onSelect) {
     const memberText = (aggregate) => aggregate.raw.members.map((m) => m.name + " (" + m.status + ")").join(", ");
-    const mlagText = (aggregate) => (aggregate.raw.mlag_peer_link ? "peer-link" : aggregate.raw.mlag_id !== null ? String(aggregate.raw.mlag_id) : "");
+    const mlagText = (aggregate) => {
+      const raw = aggregate.raw;
+      if (raw.mlag_peer_link) return "peer-link";
+      const id = raw.mlag_id !== null ? String(raw.mlag_id) : "";
+      return raw.mlag_peer_link === null ? (id ? id + " · peer-link non lu" : "peer-link non lu") : id;
+    };
     const aggregateRows = model.aggregates.map((aggregate) => ({ onclick: () => onSelect({ kind: "aggregate", id: aggregate.key }),
       cells: [aggregate.hostname, aggregate.name, aggregate.raw.protocol + (aggregate.raw.lacp_mode ? " " + aggregate.raw.lacp_mode : ""), memberText(aggregate),
         String(aggregate.cables.length), pill("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet"), mlagText(aggregate)] }));

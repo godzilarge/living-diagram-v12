@@ -30,6 +30,8 @@ ERROR_TYPES = {
     "(`aggregates[].members` ou `interfaces[].members`)",
     "chassis_member_slot_duplicate": "deux `chassis_members` d'un document `system` portent le même `slot`",
     "aggregate_member_duplicate": "un document `aggregates` liste un même membre plusieurs fois",
+    "mlag_peer_link_with_id": "un document `aggregates` marqué `mlag_peer_link` porte aussi un `mlag_id` "
+    "(aucun équipement ne numérote son peer-link)",
     "ha_standalone_not_alone": "un document `ha` en mode `standalone` ne liste pas exactement lui-même, rôle `member`",
     "access_vlan_outside_access_mode": (
         "une interface porte un `access_vlan` alors que `switchport_mode` n'est pas `access`"
@@ -61,6 +63,8 @@ RESERVED_VALUES = [
     "non lu |",
     "| `interfaces[].allowed_vlans` | `[]` | aucun VLAN autorisé | non lu |",
     '| `interfaces[].allowed_vlans` | `[{"first": 1, "last": 4094}]` | tous les VLAN (`all`) | non lu |',
+    "| `aggregates[].mlag_peer_link` | `false` | l'agrégat n'est pas le peer-link, device sans MLAG compris | non lu "
+    "(la source MLAG n'a pas répondu) ; jamais « sans objet » |",
     "",
     '**`vrf` : ce que le producteur écrit, par plateforme.** La traduction vers `"default"` est une normalisation de',
     "valeur : elle se fait dans la librairie de collecte, pas dans B0.",
