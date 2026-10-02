@@ -109,7 +109,7 @@ port vaut `access_vlan` en access, `native_vlan` en trunk, et c'est lui que `nat
 vue L2 (VLAN portés par un trunk). Il ajoute :
 
 - `description_parsed` : `{criticality, neighbor, port, options}` ou `null` ; la description
-  brute est conservée à côté.
+  brute est conservée à côté. Forme HA (R2) : la paire du membre, `options = null`.
 - `aggregate` : `{name, member_status}` si l'interface est membre d'un agrégat (source :
   `aggregates[]`, sinon `interfaces[].members`).
 - `roles` : ensemble parmi `heartbeat` (citée dans `ha[].heartbeat_interfaces`),
@@ -297,8 +297,8 @@ MAC ou LACP) ; membres inconnus et description citant un membre = désaccord (pr
 Chaque témoignage devient un claim `(from: (h, i), to: (h', i'), source)` :
 
 - `lldp[]` et `cdp[]` : un claim par document, `to` résolu par R0 et R1 ;
-- `interfaces[].description` : grammaire `criticité|voisin|port|options`, séparateur `|`,
-  champs 3 et 4 optionnels. Champ 2 vide ou description nulle : pas de claim. Description non
+- `interfaces[].description` : grammaire `criticité|voisin|port|options` (forme V1 ; forme HA positionnelle
+  ci-dessous, 2026-10-02), séparateur `|`, champs 3 et 4 optionnels. Champ 2 vide ou description nulle : pas de claim. Description non
   vide qui ne contient aucun `|` ou dont le champ 2 n'est pas un nom : contrôle
   `description_unparseable` (info) et pas de claim, **sur les seuls ports `physical` et `management`**
   (2026-09-20 : le texte libre d'un Loopback ou d'un Vlan n'est pas une anomalie du L1 ; il reste copié, et
@@ -308,6 +308,34 @@ Chaque témoignage devient un claim `(from: (h, i), to: (h', i'), source)` :
   `remote_resolved.interface = null` ; il ne crée jamais de câble (un câble a deux ports) mais confirme un
   câble observé depuis le même port local vers ce device (R3, accord jugé sur le device comme pour un port
   distant en MAC) ; sans observé, pas de câble et pas de contrôle `documented_not_observed` (rien à dessiner).
+- **Forme HA, positionnelle** (2026-10-02, cas réel d'Orhan : la configuration d'un cluster FortiGate est partagée,
+  les deux membres portent la même description, et la forme V1 donnait au second membre un faux câble
+  `documented_only` vers le port du premier, sans observation pour le contredire, LLDP n'étant jamais activé sur les
+  firewalls) : `criticité|device₁|port₁|…|deviceₙ|portₙ`, **exactement une paire par membre du cluster, dans l'ordre
+  des priorités HA décroissantes** (`ha[].members[].priority`, fait de configuration propre à chaque unité, jamais
+  synchronisé ; la vue d'un membre sur lui-même prime ; sans vue propre, la seule valeur lue, et deux valeurs lues
+  différentes ne tranchent rien). Le rôle `members[].role` est écarté : sur FGCP, override désactivé par défaut,
+  l'ancien secondaire reste primaire après une bascule alors que les câbles ne bougent pas. **La forme HA n'est lue
+  que sur un membre de cluster** (document `ha` à deux membres ou plus, membres connus de `devices` : la clé de
+  cluster de R4) ; partout ailleurs, device sans cluster ou topic `ha` absent ou en échec compris, toute description
+  est V1, le champ 4 gardant ses `|` (revue, H1). Sur un membre, une description d'au moins cinq champs dont les
+  champs 2 et 4 sont de forme nom est une forme HA : elle doit compter exactement 1 + 2n champs, sans option, et le
+  membre de rang k prend la paire k (`description_parsed` = cette paire, `options = null`) ; un port de paire vide
+  vise le device seul comme en V1. Une description V1 (quatre champs au plus, ou champ 4 qui n'est pas un nom) sur un
+  membre reste V1 (Checkpoint si Gaia garde des commentaires par membre ; aucun aiguillage par constructeur). Une
+  forme HA qui ne se résout pas ne produit **aucun câble** et un contrôle `description_ha_unresolved` (warning, ports
+  `physical` / `management` seulement, `details.reason`) : `field_count_mismatch` (trop ou trop peu de champs,
+  `details.fields` et `expected_fields` ; couvre un membre disparu de `members`, un membre inconnu de `devices`, une
+  option ajoutée), `device_not_a_name` (`details.field`), `priority_undecided` (une priorité nulle, deux égales, ou
+  deux valeurs lues différentes sans vue propre : `details.priorities`, `details.disputed`), `cluster_ambiguous` (le
+  device est listé dans deux clusters aux membres différents, `details.clusters`). Pas de repli sur l'ordre des
+  hostnames : deux règles de rang seraient un piège, et une priorité manquante se voit dans le contrôle et se corrige
+  dans la configuration. Ces descriptions ne comptent pas dans `report.unparseable_descriptions`, qui ne compte que ce
+  qu'aucune grammaire ne lit. Côté switch rien ne change : la description nomme le hostname du membre, jamais le
+  cluster. **Piège assumé, ouvert** (revue du même jour, H2 / M3) : la forme se reconnaît à sa forme, sans marqueur ;
+  sur un membre, une V1 dont l'option contient un `|` (`C2|sw|E1/3|uplink|10G`) est lue comme une forme HA, et une
+  forme HA tronquée à quatre champs est lue comme une V1 à option. Convention à tenir : sur un membre, jamais de `|`
+  dans une option ; à trancher avec Orhan si un marqueur explicite de la forme HA est préférable.
 
 B1 ne lit aucune description d'en face dans LLDP (claim `remote_description` retiré le 2026-09-18) :
 la description du port d'un voisin collecté est dans ses propres `interfaces[]` et y produit déjà son
@@ -454,6 +482,7 @@ l'octet ; c'est ce que le diff (B3) et l'archive (B2) supposent.
 | `remote_port_is_mac` | info | R1 |
 | `remote_port_is_aggregate` | warning | R1-bis |
 | `description_unparseable` | info | R2 |
+| `description_ha_unresolved` | warning | R2 |
 | `description_disagrees_with_observed` | warning | R3 |
 | `multiple_observed_neighbors` | warning | R3 |
 | `one_way_observation` | warning | R3 |
@@ -517,7 +546,8 @@ backend/src/ld_backend/correlate/         ÉTAPE 1 ÉCRITE le 2026-09-20 (R0 à 
 ├── cisco.py           formes courte / longue Cisco, équivalence de deux formes (sans contexte)
 ├── ifnames.py         R1 : expansion Cisco, port en MAC
 ├── aggregates.py      R1-bis : port distant annoncé par le nom d'un agrégat → membre (2026-09-22)
-├── descriptions.py    R2 : grammaire des descriptions (V1, isolée pour changer avec l'échantillon)
+├── descriptions.py    R2 : grammaire des descriptions (V1, forme HA positionnelle depuis le 2026-10-02 ; isolée pour
+│                      changer avec l'échantillon) ; place d'un membre dans son cluster (`ha_places`)
 ├── claims.py          R2 : évidences → claims résolus, contrôles R0 / R1 / R2, normalisations comptées
 ├── merge.py           R3 : claims → câbles, désaccords, deux voisins, réciprocité, documenté sans observation
 ├── structures.py      R4 : agrégats et leurs câbles, faisceaux, domaines MLAG (paire par peer-link câblé) — 2026-09-26
@@ -584,7 +614,10 @@ exportateur est nul : module séparé, aucune dépendance supplémentaire.
   voisin annoncé par MAC.
 - `test_ifnames.py` : table d'expansion Cisco ; nom absent chez le voisin gardé brut ; pas
   d'expansion sur un stub non Cisco ; port-id MAC ramené au nom de l'interface qui porte cette MAC.
-- `test_descriptions.py` : grammaire, champs optionnels, criticité libre, cas non parsables.
+- `test_descriptions.py` : grammaire, champs optionnels, criticité libre, cas non parsables ; forme HA : rang par
+  priorité, V1 conservée sur un membre et hors cluster, quatre raisons de non-résolution, place dans le cluster.
+- `test_ha_descriptions.py` : scénario 11 de bout en bout, cas réel R1-bis + forme HA, priorités égales, trop de
+  paires, membre fantôme, hors cluster.
 - `test_merge.py` : les trois statuts ; désaccord ; deux voisins observés ; réciprocité
   conditionnée par la couverture ; sévérité de `documented_not_observed`.
 - `test_state.py` : les sept contrôles de R5, chacun avec son cas positif, son cas muet (`unknown`, `null`, bout non

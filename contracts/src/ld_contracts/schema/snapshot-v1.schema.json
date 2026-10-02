@@ -202,6 +202,7 @@
         "remote_port_is_mac",
         "remote_port_is_aggregate",
         "description_unparseable",
+        "description_ha_unresolved",
         "description_disagrees_with_observed",
         "multiple_observed_neighbors",
         "one_way_observation",

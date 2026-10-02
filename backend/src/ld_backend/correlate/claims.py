@@ -96,17 +96,20 @@ class _Collector:
         )
 
     def descriptions(self) -> None:
+        """Seuls les ports `physical` / `management` produisent un claim ou un contrôle (B10, 2026-09-20)."""
         for itf in self.ctx.bundle.interfaces:
-            parsed = self.ctx.descriptions.get((itf.hostname, itf.name))
-            if parsed is None:
-                if itf.type in CABLE_BEARING and itf.description and itf.description.strip():
-                    self.unparseable += 1
-                    self.checks.append(
-                        interface_check(self.ctx, CheckCode.DESCRIPTION_UNPARSEABLE, itf.hostname, itf.name)
-                    )
+            if itf.type not in CABLE_BEARING:
                 continue
-            if itf.type in CABLE_BEARING:
+            key = (itf.hostname, itf.name)
+            parsed, unresolved = self.ctx.descriptions.get(key), self.ctx.ha_unresolved.get(key)
+            if parsed is not None:
                 self.add(EvidenceSource.DESCRIPTION, itf.hostname, itf.name, parsed.neighbor, parsed.port)
+            elif unresolved is not None:
+                code = CheckCode.DESCRIPTION_HA_UNRESOLVED
+                self.checks.append(interface_check(self.ctx, code, itf.hostname, itf.name, **unresolved.details()))
+            elif itf.description and itf.description.strip():
+                self.unparseable += 1
+                self.checks.append(interface_check(self.ctx, CheckCode.DESCRIPTION_UNPARSEABLE, itf.hostname, itf.name))
 
 
 def collect_claims(ctx: Context) -> ClaimSet:

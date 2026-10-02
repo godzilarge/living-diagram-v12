@@ -117,6 +117,11 @@ doute sur un type exotique, `other`.
 1. **`description` ou `alias` ?** Le contrat lit `description` (`criticité|device|port|options`). Sur FortiOS, `alias`
    est limité à 25 caractères et `description` à 255 : la convention ne tient pas dans `alias`. Si la production a mis
    la convention dans `alias`, il faut le savoir maintenant ; `alias` va dans `extras` de toute façon.
+   **Cluster HA** (2026-10-02, tranché) : la configuration est partagée, les membres portent la même description ;
+   elle s'écrit en forme positionnelle, `criticité|device₁|port₁|device₂|port₂`, une paire par membre dans l'ordre des
+   **priorités HA décroissantes** (`diagnose sys ha status`, `usr_priority=`), et l'exportateur la copie telle quelle
+   sur chaque membre : B1 choisit la paire d'après `ha[].members[].priority` (`docs/05` R2). Priorités égales ou non
+   lues ⇒ aucun câble, contrôle `description_ha_unresolved`. Standalone : forme V1.
 2. **MAC courante ou MAC gravée ?** Sur un cluster HA, `Current_HWaddr` (et `hw_addr=` de netlink) est la **MAC
    virtuelle HA** (`00:09:0f:09:…`), qui suit le rôle au basculement ; `Permanent_HWaddr` est la MAC gravée, stable.
    Proposition : `mac_address` = courante (c'est ce que la table MAC du switch d'en face apprendra, `docs/06`),

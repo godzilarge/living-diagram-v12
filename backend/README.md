@@ -171,13 +171,15 @@ backend/
 │   │   ├── build.py          deux chemins : fichier bundle (sans archive), run archivée
 │   │   └── assets/           page.html, viewer.css, js/ : model (index), layout (placement), dom, graph, inspect, tables, main
 │   └── correlate/            B1 corrélation (étape 1 le 2026-09-20) : correlate(bundle, bundle_sha256) -> Snapshot
-│       ├── context.py        index immuables sur le bundle (devices, interfaces, MAC, IP, couverture, appartenances, descriptions parsées)
+│       ├── context.py        index immuables sur le bundle (devices, interfaces, MAC, IP, couverture, appartenances, descriptions lues,
+│       │                     formes HA non résolues)
 │       ├── checkbuild.py     fabrique des contrôles : référence repliée sur le nœud si le port est inconnu, sévérité unique exigée
 │       ├── identity.py       R0 : résolution ordonnée des voisins → device, external ou stub
 │       ├── cisco.py          formes courte / longue Cisco, équivalence de formes
 │       ├── ifnames.py        R1 : expansion Cisco, port en MAC
 │       ├── aggregates.py     R1-bis : port distant annoncé par le nom d'un agrégat → membre
-│       ├── descriptions.py   R2 : grammaire `criticité|voisin|port|options` (V1, isolée)
+│       ├── descriptions.py   R2 : grammaire `criticité|voisin|port|options` (V1) et forme HA positionnelle (une paire par membre,
+│       │                     rang par priorité HA ; `ha_places`) — 2026-10-02
 │       ├── claims.py         R2 : évidences → claims résolus + contrôles R0 / R1 / R2
 │       ├── merge.py          R3 : claims → câbles ; désaccords, deux voisins, réciprocité, documenté seul
 │       ├── structures.py     R4 : agrégats et leurs câbles, faisceaux, domaines MLAG (paire par peer-link câblé)
@@ -420,6 +422,18 @@ grammaire V1 des descriptions isolée dans `descriptions.py` (champ 2 obligatoir
 sans espace finit en stub visible) ; vue HA par membre (étape 2) ; fixtures dédiées construites en mémoire dans
 les tests ; pas de version du corrélateur dans le snapshot (le rejeu se compare à l'octet). Le tri des évidences
 et des bouts de lien est celui du contrat : `cdp` < `description` < `lldp`, bouts par (hostname, nom naturel).
+
+**R2, forme HA des descriptions** (2026-10-02, cas réel d'Orhan, plan validé avant le code) : la configuration d'un
+cluster FortiGate est partagée, les membres portent la même description ; en forme
+`criticité|device₁|port₁|…|deviceₙ|portₙ`, chaque membre lit **sa** paire, au rang de sa priorité HA décroissante
+(`ha[].members[].priority`, vue propre d'abord, sinon la seule valeur lue ; jamais le rôle courant, qui change à la
+bascule). La forme HA n'est lue que sur un membre de cluster (clé de cluster de R4) ; ailleurs tout est V1. Sur un
+membre, cinq champs au moins dont les champs 2 et 4 de forme nom = forme HA, qui doit compter exactement 1 + 2n champs ;
+une V1 sur un membre reste V1 ; non résolue ⇒ aucun câble et `description_ha_unresolved` (warning, `details.reason` :
+`field_count_mismatch`, `device_not_a_name`, `priority_undecided`, `cluster_ambiguous`). Scénario 11 en mémoire
+(`ha_pair_variant` dans `tests/correlate/conftest.py`), golden inchangé. Revue indépendante consignée et traitée le
+même jour (`docs/revues/2026-10-02-r2-forme-ha-descriptions.md`) ; piège ouvert : sans marqueur, une V1 à option
+contenant `|` sur un membre a la forme d'une HA. Détail : `docs/05` R2.
 
 Revue indépendante de l'étape 1 (2026-09-20) : rapport et suivi dans `docs/revues/2026-09-20-b1-etape-1.md`.
 Lot 1 appliqué : B1 ne lève plus d'exception sur un bundle valide (port local inconnu, topic `interfaces` en

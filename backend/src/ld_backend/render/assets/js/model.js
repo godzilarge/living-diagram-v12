@@ -136,7 +136,9 @@ var LD = globalThis.LD || (globalThis.LD = {});
 
   // Ce que les détails d'un contrôle désignent : des bouts de câble {hostname, interface} et des noms bruts. Les clés
   // qui nomment le port local du contrôle (`member`, `interface`) ne désignent pas l'autre bout (revue, 6).
-  const LOCAL_PORT_KEYS = new Set(["member", "interface"]);
+  // Les clés qui nomment les membres d'un cluster (`description_ha_unresolved`) ne désignent pas l'autre bout non plus
+  // (revue du 2026-10-02, B7).
+  const LOCAL_PORT_KEYS = new Set(["member", "interface", "members", "priorities", "disputed", "clusters"]);
   function mentioned(value, found) {
     if (Array.isArray(value)) value.forEach((item) => mentioned(item, found));
     else if (value && typeof value === "object") {

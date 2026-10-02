@@ -7,7 +7,7 @@ from ld_contracts.snapshot import Snapshot
 from ld_contracts.snapshot.serialize import canonical_json
 from ld_contracts.validate import validate_snapshot_dict
 
-from tests.correlate.conftest import FIXTURES, interface, lldp_doc, run, variant
+from tests.correlate.conftest import FIXTURES, ha_pair_variant, interface, lldp_doc, run, variant
 
 SHA = "0" * 64  # l'empreinte est une entrée : la même pour toutes les permutations
 GOLDEN = FIXTURES / "snapshot-minimal.json"
@@ -44,7 +44,8 @@ def _fortigate_aggregate(d: dict) -> None:
 
 
 def test_permuting_every_section_gives_the_same_bytes(minimal):
-    for base in (minimal, variant(minimal, _awkward), variant(minimal, _fortigate_aggregate)):
+    variants = (_awkward, _fortigate_aggregate, ha_pair_variant)
+    for base in (minimal, *(variant(minimal, mutate) for mutate in variants)):
         _assert_order_independent(base)
 
 

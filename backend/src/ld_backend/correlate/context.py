@@ -16,7 +16,7 @@ from ld_contracts.snapshot.interfaces import AggregateMembership, ParsedDescript
 from ld_contracts.snapshot.report import Coverage, TopicCoverage
 
 from ld_backend.correlate.cisco import equivalent
-from ld_backend.correlate.descriptions import parse_description
+from ld_backend.correlate.descriptions import Unresolved, ha_places, parse_description
 
 Key = tuple[str, str]
 
@@ -30,6 +30,7 @@ class Context:
     names_by_host: Mapping[str, frozenset[str]]
     ports_by_mac: Mapping[Key, tuple[str, ...]]
     descriptions: Mapping[Key, ParsedDescription]
+    ha_unresolved: Mapping[Key, Unresolved]  # forme HA (R2) que B1 n'a pas pu lire pour ce device
     by_casefold: Mapping[str, tuple[str, ...]]
     by_reported: Mapping[str, tuple[str, ...]]
     by_reported_casefold: Mapping[str, tuple[str, ...]]
@@ -137,7 +138,10 @@ def build_context(bundle: RunBundle) -> Context:
     reported = [(s.reported_hostname, s.hostname) for s in bundle.system if s.reported_hostname]
     coverage = _coverage(bundle)
     membership, peer_link = _membership(bundle, coverage)
-    parsed = ((i, parse_description(i.description)) for i in bundle.interfaces)
+    places = ha_places(bundle.ha, {d.hostname for d in bundle.devices})
+    readings = {
+        (i.hostname, i.name): parse_description(i.description, places.get(i.hostname)) for i in bundle.interfaces
+    }
     return Context(
         bundle=bundle,
         devices={d.hostname: d for d in bundle.devices},
@@ -145,7 +149,8 @@ def build_context(bundle: RunBundle) -> Context:
         interfaces={(i.hostname, i.name): i for i in bundle.interfaces},
         names_by_host={h: frozenset(n) for h, n in _grouped((i.hostname, i.name) for i in bundle.interfaces).items()},
         ports_by_mac=_grouped(((i.hostname, i.mac_address), i.name) for i in bundle.interfaces if i.mac_address),
-        descriptions={(i.hostname, i.name): p for i, p in parsed if p is not None},
+        descriptions={key: found for key, found in readings.items() if isinstance(found, ParsedDescription)},
+        ha_unresolved={key: found for key, found in readings.items() if isinstance(found, Unresolved)},
         by_casefold=_grouped((d.hostname.casefold(), d.hostname) for d in bundle.devices),
         by_reported=_grouped(reported),
         by_reported_casefold=_grouped((name.casefold(), host) for name, host in reported),

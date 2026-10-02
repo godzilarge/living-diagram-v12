@@ -4,7 +4,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
   "use strict";
 
   const { h, clear, severityPill, statusPill, sourcePill, pill, plain, definition, table } = LD.dom;
-  const QUALITY_CODES = ["description_unparseable", "description_disagrees_with_observed", "neighbor_unknown", "neighbor_name_ambiguous",
+  const QUALITY_CODES = ["description_unparseable", "description_ha_unresolved", "description_disagrees_with_observed", "neighbor_unknown",
+    "neighbor_name_ambiguous",
     "neighbor_name_case_differs", "neighbor_resolved_by_reported_hostname", "neighbor_resolved_by_address", "remote_port_is_mac",
     "remote_port_is_aggregate", "one_way_observation", "multiple_observed_neighbors", "self_observation"];
 

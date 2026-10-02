@@ -47,8 +47,8 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
 
 Pipeline de briques pures, détaillé dans l'artefact publié
 <https://claude.ai/code/artifact/630b787d-6862-4e3c-8e1c-7d40fd373e3c> (copie locale
-`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v16 du 2026-09-26 ; second artefact
-« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v13 du 2026-09-26 : son
+`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v17 du 2026-10-02 ; second artefact
+« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v14 du 2026-10-02 : son
 tableau « B1 : ce qui est fait, ce qui reste » se tient à jour à chaque étape) :
 
 ```
@@ -462,6 +462,29 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   moyens et trois bas traités, B1 / B2 / B6 parqués sur décision d'Orhan : le rituel complet, revue et capture
   comprises, est disproportionné pour un champ ; règle de calibrage à acter). Contracts 413 tests, backend 316,
   `correlate/` à 100 %.
+- **R2, forme HA positionnelle des descriptions** (2026-10-02, cas réel d'Orhan traité comme remarque de modèle, plan
+  annoncé et validé avant le code : la configuration d'un cluster FortiGate est partagée, les deux membres portent la
+  même description, et la forme V1 donnait au second membre un faux câble `documented_only` vers le port du premier,
+  invisible faute de LLDP sur les firewalls). Convention d'Orhan `C1|monswitch1|Eth1/1|monswitch2|Eth1/2`, lue comme
+  **positionnelle** : exactement une paire par membre, dans l'ordre des **priorités HA décroissantes**
+  (`ha[].members[].priority`, fait de configuration propre à chaque unité, vérifié par Orhan avec
+  `diagnose sys ha status`, `usr_priority=`) ; le rôle courant est écarté (sur FGCP, override désactivé par défaut,
+  l'ancien secondaire reste primaire après bascule alors que les câbles ne bougent pas) ; **pas de repli sur l'ordre
+  des hostnames** (deux règles de rang seraient un piège). **Contrat d'entrée inchangé** (description brute, grammaire
+  dans B1) ; **code `description_ha_unresolved` ajouté au catalogue du Snapshot** (warning, R2, ports `physical` /
+  `management`, `details.reason` ∈ `field_count_mismatch`, `device_not_a_name`, `priority_undecided`,
+  `cluster_ambiguous` : aucun câble). B1 : `descriptions.py` (`parse_description(text, place)`, `ha_places`),
+  `context.py`, `claims.py` ; la forme HA n'est lue que sur un membre de cluster (clé de cluster de R4), ailleurs tout
+  est V1 ; scénario 11 en mémoire (`ha_pair_variant`), golden intact ; page : code dans Qualité des données, rendu
+  vérifié en Chromium ; guide FortiOS et `docs/05` R2 à jour. **Revue indépendante consignée et traitée le même jour**
+  (`docs/revues/2026-10-02-r2-forme-ha-descriptions.md` : 0 critique, 3 hauts, 4 moyens, 7 bas) : hors cluster tout
+  est V1 (H1) ; nombre de champs exact, l'option après les paires abandonnée, un membre disparu de `members` ou inconnu
+  de `devices` ne décale plus les rangs en silence (H3, M2) ; deux priorités lues différentes sans vue propre ne
+  tranchent rien (M1) ; cas réel R1-bis + forme HA figé par un test (câbles `confirmed`). **Parqué, comportement
+  documenté, une question pour Orhan** : la forme se reconnaît sans marqueur, donc sur un membre une V1 dont l'option
+  contient `|` est lue comme une HA (H2) et une HA tronquée à quatre champs comme une V1 (M3) ; convention à tenir :
+  jamais de `|` dans une option sur un membre ; un marqueur explicite lèverait l'ambiguïté. Backend 351 tests,
+  `correlate/` à 100 %, contracts 413.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -499,11 +522,11 @@ Détail : `docs/00-analyse-fondation.md` §10.
   B1** (2026-09-10) : modèle, règles R0 à R6, codes de contrôle, dix scénarios de la fixture, huit
   questions. **Validé par Orhan le 2026-09-20 (sept questions sur huit tranchées, la 6 non bloquante).**
 - `docs/guides-collecte/` — guides **producteur** par plateforme (2026-09-24 : `fortios-interfaces.md`, commandes et chronologie
-  pour le topic `interfaces` sur FortiGate)
+  pour le topic `interfaces` sur FortiGate ; 2026-10-02 : convention de description d'un cluster HA)
 - `docs/revues/` — rapports de revue indépendante consignés tels que rendus, avec leur suivi (2026-09-20 :
   `2026-09-20-b1-etape-1.md`, sa contre-revue, `2026-09-20-branchement-b1.md`, `2026-09-20-pages-ld-render.md` ; 2026-09-22 : `2026-09-22-r1-bis-agregat-port-id.md` ;
   2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
-  2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`)
+  2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`)
   et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
@@ -517,7 +540,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `src/ld_contracts/schema/`, contrôles référentiels, anonymiseur, CLI
   (`uv run ld-contracts validate|schema|anonymize`), fixture `fixtures/bundle-minimal.json`.
   Tests : `cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests`
-  (état 2026-10-02 : 413 tests, `mlag_peer_link` nullable et refus `mlag_peer_link_with_id` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
+  (état 2026-10-02 : 413 tests, `mlag_peer_link` nullable et refus `mlag_peer_link_with_id`, code Snapshot `description_ha_unresolved` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
   2026-09-19 : 291 tests, 97 %, clé nullable absente lue comme `null` et comptée, `vrf` `"default"` = table globale, une passe de revue indépendante appliquée ; 2026-09-18 : 246 tests, `lldp` / `cdp` réduits à six champs et MAC reconnue à sa forme, une
   passe de revue indépendante appliquée ;
   2026-09-16 : `allowed_vlans` en liste d'intervalles (chevauchements refusés), `access_vlan` ajouté avec refus de cohérence VLAN / mode, `last_change_age_seconds` en `entier ≥ 0 | "never" | null`
@@ -540,8 +563,9 @@ Détail : `docs/00-analyse-fondation.md` §10.
   étape 2 = R4 / R5 + golden `snapshot-minimal.json` : **R4 et R5 écrites le 2026-09-26** (`structures.py`, `ha.py`,
   `state.py`, revues traitées), golden écrit et régénérable par `ld correlate bundle.json --out` ; **étape 3 =
   branchement, fait le 2026-09-20** (`snapshots.py`, `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages :
-  incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). État
-  2026-10-02 : 316 tests, 99 %, `correlate/` à 100 %.
+  incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). **R2 forme HA
+  des descriptions le 2026-10-02** (`descriptions.py`, scénario 11 en mémoire, revue traitée). État
+  2026-10-02 : 351 tests, 99 %, `correlate/` à 100 %.
 - À venir : premier bundle réel dans les pages (fin de la tranche visible), générateur de topologies synthétiques,
   conception de B3, table MAC (`docs/06`), B2 → B4 dans `backend/`, `engine/` (moteur TS), `shell/` (React).
 

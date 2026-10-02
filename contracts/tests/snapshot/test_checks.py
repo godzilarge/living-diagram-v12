@@ -19,6 +19,7 @@ DOCS_05_SECTION_4 = {
     "remote_port_is_mac": {"info"},
     "remote_port_is_aggregate": {"warning"},
     "description_unparseable": {"info"},
+    "description_ha_unresolved": {"warning"},
     "description_disagrees_with_observed": {"warning"},
     "multiple_observed_neighbors": {"warning"},
     "one_way_observation": {"warning"},

@@ -28,6 +28,7 @@ class CheckCode(StrEnum):
     REMOTE_PORT_IS_MAC = "remote_port_is_mac"
     REMOTE_PORT_IS_AGGREGATE = "remote_port_is_aggregate"
     DESCRIPTION_UNPARSEABLE = "description_unparseable"
+    DESCRIPTION_HA_UNRESOLVED = "description_ha_unresolved"
     DESCRIPTION_DISAGREES_WITH_OBSERVED = "description_disagrees_with_observed"
     MULTIPLE_OBSERVED_NEIGHBORS = "multiple_observed_neighbors"
     ONE_WAY_OBSERVATION = "one_way_observation"
@@ -91,6 +92,12 @@ CATALOGUE: dict[CheckCode, CheckSpec] = {
         WARNING,
     ),
     CheckCode.DESCRIPTION_UNPARSEABLE: _b1("R2", "description non vide qui ne suit pas la grammaire", INFO),
+    CheckCode.DESCRIPTION_HA_UNRESOLVED: _b1(
+        "R2",
+        "description en forme HA (une paire par membre du cluster) dont la paire du membre ne peut pas être choisie : "
+        "aucun câble, la raison est dans `details.reason`",
+        WARNING,
+    ),
     CheckCode.DESCRIPTION_DISAGREES_WITH_OBSERVED: _b1(
         "R3", "la description d'un port cite un autre voisin que celui observé ; le câble suit l'observé", WARNING
     ),

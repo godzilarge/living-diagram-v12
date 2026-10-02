@@ -272,6 +272,20 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-10-02** — **Code `description_ha_unresolved` ajouté au catalogue du Snapshot** (forme HA positionnelle des
+  descriptions, cas réel d'Orhan : la configuration d'un cluster FortiGate est partagée, les deux membres portent la
+  même description, et la grammaire V1 donnait au second membre un faux câble `documented_only` vers le port du
+  premier, sans observation possible, LLDP n'étant jamais activé sur les firewalls). Convention :
+  `criticité|device₁|port₁|…|deviceₙ|portₙ|options`, une paire par membre, dans l'ordre des **priorités HA
+  décroissantes** (`ha[].members[].priority`, fait de configuration propre à chaque unité ; le rôle courant est écarté,
+  il change à la bascule, pas les câbles ; `diagnose sys ha status`, `usr_priority=`, vérifié par Orhan sur ses
+  clusters). **Le contrat d'entrée ne change pas** : la description reste brute, la grammaire vit dans B1 (`docs/05`
+  R2) ; `ParsedDescription` inchangée (la paire du membre, ce qui suit les paires en `options`). Le nouveau code est un
+  warning de R2 sur un port `physical` / `management` d'un membre de cluster dont la forme HA ne se résout pas,
+  `details.reason` ∈ `field_count_mismatch`, `device_not_a_name`, `priority_undecided`, `cluster_ambiguous` : aucun
+  câble n'est dessiné. Hors cluster, toute description reste V1. Pas de repli sur l'ordre des hostnames (deux règles
+  de rang seraient un piège). Fixture et golden inchangés : ses firewalls gardent des descriptions V1, lues comme
+  avant sur un membre HA.
 - **2026-10-02** — **`mlag_peer_link` devient nullable ; un peer-link ne porte pas de `mlag_id`** (remarque d'Orhan :
   « si un port-channel n'a pas de `mlag_id`, `mlag_peer_link` devrait être nullable »). Conclusion retenue, raisonnement
   corrigé. (1) Le peer-link lui-même n'a pas de `mlag_id` : NX-OS `vpc peer-link` exclut `vpc <n>`, le peer-link Arista

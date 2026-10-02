@@ -468,3 +468,20 @@ test("un jeton connu et une run dans l'adresse chargent directement ; un jeton r
   assert.match(third.document.getElementById("view-shell").textContent, /run archivée sans snapshot/);
   assert.equal(missing.store.get("ld-api-token"), "ok", "un 404 ne fait pas oublier le jeton");
 });
+
+// ---------------------------------------------------------------- forme HA des descriptions (2026-10-02)
+
+test("une forme HA non résolue se lit dans la qualité des données, avec sa raison", () => {
+  const data = clone(page.data);
+  data.snapshot.checks.push({
+    code: "description_ha_unresolved", severity: "warning", origin: "correlation",
+    refs: [{ kind: "interface", hostname: "fw-edge-01", name: "x1" }],
+    details: { reason: "priority_undecided", priorities: [{ hostname: "fw-edge-01", priority: 200 }, { hostname: "fw-edge-02", priority: 200 }] },
+  });
+  const { LD, document } = load(page, data);
+  LD.app.activate("quality");
+  const quality = document.getElementById("view-quality").textContent;
+  assert.match(quality, /description_ha_unresolved/);
+  assert.match(quality, /priority_undecided/);
+  assert.match(quality, /fw-edge-01 · x1/);
+});

@@ -11,7 +11,17 @@ from pathlib import Path
 
 import pytest
 
-from tests.correlate.conftest import checks, find_link, interface, lldp_doc, node, run, task_subject, variant
+from tests.correlate.conftest import (
+    checks,
+    find_link,
+    ha_pair_variant,
+    interface,
+    lldp_doc,
+    node,
+    run,
+    task_subject,
+    variant,
+)
 from tests.correlate.test_review import _ring
 
 BACKEND = Path(__file__).resolve().parents[2]
@@ -127,8 +137,14 @@ def _r5_state(d: dict) -> dict:
 
 @pytest.mark.parametrize(
     "mutate",
-    [_two_aliases, lambda d: variant(d, _fortigate_aggregate), _r4_structures, _r5_state],
-    ids=["aliases", "r1bis", "r4", "r5"],
+    [
+        _two_aliases,
+        lambda d: variant(d, _fortigate_aggregate),
+        _r4_structures,
+        _r5_state,
+        lambda d: variant(d, ha_pair_variant),
+    ],
+    ids=["aliases", "r1bis", "r4", "r5", "ha_form"],
 )
 def test_h1_same_bytes_whatever_the_hash_seed(minimal, tmp_path, mutate):
     """Le seul non-déterminisme qu'une permutation ne voit pas : l'ordre d'itération d'un ensemble, par processus."""
