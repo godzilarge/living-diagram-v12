@@ -264,11 +264,13 @@ lien de heartbeat dessiné avec provenance `ha`.
 
 **Contrat (2026-09-14)** : pas de `local_role` ni `local_state` dans le RunBundle. Le rôle et
 l'état du device local se lisent dans `members`, où il doit figurer octet pour octet
-(`ha_local_not_in_members`, refus) ; un device `standalone` se liste lui-même. Les deux champs
+(`ha_local_not_in_members`, refus) ; un device `standalone` a `members` vide (révision du
+2026-10-02 ; il se listait lui-même auparavant). Les deux champs
 n'avaient aucun lecteur, et `local_state` mélangeait déjà l'état de membre (`up | down`) avec
 l'état de synchronisation (`in_sync`), qui reste dans `extras`. Un membre listé deux fois est
-refusé ; `standalone` liste exactement le device lui-même, rôle `member`. Voir
-`contracts/README.md` § Décisions.
+refusé ; `standalone` ne liste aucun membre (`ha_standalone_with_members`, 2026-10-02 : l'entrée
+« lui-même » n'avait aucune information que l'exportateur n'ait à inventer, et deux écritures du même fait
+auraient donné deux snapshots). Voir `contracts/README.md` § Décisions.
 
 ## 7. `interfaces_<id>` : le sous-ensemble strictement nécessaire au L1
 

@@ -32,7 +32,7 @@ ERROR_TYPES = {
     "aggregate_member_duplicate": "un document `aggregates` liste un même membre plusieurs fois",
     "mlag_peer_link_with_id": "un document `aggregates` marqué `mlag_peer_link` porte aussi un `mlag_id` "
     "(aucun équipement ne numérote son peer-link)",
-    "ha_standalone_not_alone": "un document `ha` en mode `standalone` ne liste pas exactement lui-même, rôle `member`",
+    "ha_standalone_with_members": "un document `ha` en mode `standalone` liste des membres (`members` doit être vide)",
     "access_vlan_outside_access_mode": (
         "une interface porte un `access_vlan` alors que `switchport_mode` n'est pas `access`"
     ),
@@ -137,8 +137,8 @@ def bundle_part() -> list[str]:
         "  bundle. Seule `devices` couvre d'autres infrastructures. `infrastructure` se compare octet pour octet,",
         "  comme `hostname` ;",
         "- un document `ha` liste son propre device dans `members`, octet pour octet et une seule fois : le rôle et",
-        "  l'état du device local s'y lisent, il n'y a pas de champ à part. `standalone` : exactement un membre,",
-        "  le device lui-même, rôle `member`.",
+        "  l'état du device local s'y lisent, il n'y a pas de champ à part. `standalone` : `members` vide, sans",
+        "  exception (2026-10-02) ; un device sans HA peut aussi n'émettre aucun document.",
         "",
         *RESERVED_VALUES,
         "#### Erreurs de contrat (bloquantes)",

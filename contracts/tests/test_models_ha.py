@@ -33,17 +33,20 @@ def test_ha_local_device_must_be_listed_among_members(name):
     assert err["ctx"] == {"hostname": "fw-edge-01"}
 
 
-def test_ha_standalone_device_lists_itself():
-    """Pas d'exception pour `standalone` : un device seul se liste lui-même, rôle `member`."""
-    doc = ha_doc(mode="standalone", cluster_name=None, heartbeat_interfaces=[])
-    me = {**doc["members"][0], "role": "member"}
-    ha = HaStatus.model_validate({**doc, "members": [me]})
-    assert ha.mode == "standalone" and len(ha.members) == 1
+def test_ha_standalone_document_has_no_members():
+    """`standalone` : `members` vide (2026-10-02, demande d'Orhan ; avant, le device se listait lui-même, une entrée
+    sans information que l'exportateur devait inventer). Nom de groupe et hbdev restent admis : FortiOS les garde en
+    configuration quel que soit le mode."""
+    doc = ha_doc(mode="standalone", members=[], cluster_name="FGT-HA", heartbeat_interfaces=["ha1"])
+    ha = HaStatus.model_validate(doc)
+    assert ha.mode == "standalone" and ha.members == ()
+    assert ha.cluster_name == "FGT-HA" and ha.heartbeat_interfaces == ("ha1",)
 
 
-@pytest.mark.parametrize("mode", ["active_passive", "standalone"])
-def test_ha_document_without_members_is_rejected(mode):
-    """`members: []` (FortiGate sans pair) est refusé quel que soit le mode : le device se liste lui-même."""
+@pytest.mark.parametrize("mode", ["active_passive", "active_active", "other"])
+def test_ha_document_without_members_is_rejected_outside_standalone(mode):
+    """Hors `standalone`, `members: []` est refusé : la vue locale n'existe que là. Un FortiGate configuré en `a-p`
+    dont le pair a disparu se liste seul (cluster d'un membre), il n'est pas standalone."""
     with pytest.raises(ValidationError) as exc:
         HaStatus.model_validate(ha_doc(mode=mode, members=[]))
     err = first_error(exc)
@@ -62,13 +65,22 @@ def test_ha_member_listed_twice_is_rejected():
     assert err["ctx"] == {"hostname": "fw-edge-01", "members": ["fw-edge-01"]}
 
 
-@pytest.mark.parametrize("role,with_peer", [("primary", False), ("member", True)])
-def test_ha_standalone_lists_exactly_itself_as_member(role, with_peer):
-    """La convention standalone est imposée, pas seulement documentée : un membre, lui-même, rôle `member`."""
+@pytest.mark.parametrize(
+    "keep,names",
+    [
+        ((0,), ["fw-edge-01"]),  # lui-même, l'ancienne convention
+        ((0, 1), ["fw-edge-01", "fw-edge-02"]),  # un pair alors que le mode dit standalone
+        ((1,), ["fw-edge-02"]),  # un pair seul : refusé comme standalone, pas comme « local absent »
+    ],
+)
+def test_ha_standalone_with_members_is_rejected(keep, names):
+    """Un fait, une écriture : `standalone` n'admet aucun membre, sans quoi `[self]` et `[]` donneraient deux
+    snapshots (un cluster d'un membre, aucun cluster). La valeur ne figure que dans `ctx`, jamais dans le message."""
     doc = ha_doc(mode="standalone", cluster_name=None, heartbeat_interfaces=[])
-    members = [{**doc["members"][0], "role": role}] + (doc["members"][1:] if with_peer else [])
+    members = [{**doc["members"][i], "role": "member"} for i in keep]
     with pytest.raises(ValidationError) as exc:
         HaStatus.model_validate({**doc, "members": members})
     err = first_error(exc)
-    assert err["type"] == "ha_standalone_not_alone"
-    assert err["ctx"] == {"hostname": "fw-edge-01", "members": len(members)}
+    assert err["type"] == "ha_standalone_with_members"
+    assert "fw-edge" not in err["msg"]
+    assert err["ctx"] == {"hostname": "fw-edge-01", "members": names}

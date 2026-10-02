@@ -267,14 +267,15 @@ Sources typiques : `get system ha status` + `show system ha` (FortiOS) ; `cphapr
 
 Le rôle et l'état du device local se lisent dans `members`, où il figure obligatoirement : pas de champ à
 part (2026-09-14). Un device sans HA peut ne pas émettre de document ; s'il en émet un, il est `standalone`
-et se liste seul.
+et `members` est vide (2026-10-02 ; avant, il se listait seul : une entrée sans information, rôle forcé, état
+tautologique, que l'exportateur devait inventer). B1 n'en fait aucun cluster.
 
 | Champ | Type | Requis | Signification |
 |---|---|---|---|
 | `hostname` | texte non vide | oui | Hostname du device local, identique octet pour octet à `devices[].hostname`. |
 | `mode` | [HaMode](#hamode) | oui | Mode du cluster. |
 | `cluster_name` | texte \| null | non (null si absente) | Nom ou identifiant de groupe du cluster ; null si absent. |
-| `members` | liste de [HaMember](#hamember) | oui | Tous les membres du cluster, device local compris : `hostname` figure dans `members[].name`, octet pour octet et une seule fois, sinon le document est refusé. `standalone` : exactement un membre, le device lui-même, `role = member` (`state = up` s'il répond). |
+| `members` | liste de [HaMember](#hamember) | oui | Tous les membres du cluster, device local compris : `hostname` figure dans `members[].name`, octet pour octet et une seule fois, sinon le document est refusé. `standalone` : liste vide, obligatoirement (un fait, une écriture) ; `cluster_name` et `heartbeat_interfaces` restent admis, ce sont des faits de configuration. |
 | `heartbeat_interfaces` | liste de texte non vide | oui | Interfaces locales dédiées au heartbeat ou à la synchronisation, noms canoniques ; liste vide si non lu. Rend le peering HA dessinable comme un lien documenté. |
 | `extras` | objet clé → libre | non (défaut) | Détail brut vendeur (état de synchronisation…) ; jamais lu par B1. |
 
@@ -389,8 +390,8 @@ Vérifiées par le validateur, au-delà des types de chaque champ :
   bundle. Seule `devices` couvre d'autres infrastructures. `infrastructure` se compare octet pour octet,
   comme `hostname` ;
 - un document `ha` liste son propre device dans `members`, octet pour octet et une seule fois : le rôle et
-  l'état du device local s'y lisent, il n'y a pas de champ à part. `standalone` : exactement un membre,
-  le device lui-même, rôle `member`.
+  l'état du device local s'y lisent, il n'y a pas de champ à part. `standalone` : `members` vide, sans
+  exception (2026-10-02) ; un device sans HA peut aussi n'émettre aucun document.
 
 #### `null` et valeurs réservées
 
@@ -453,7 +454,7 @@ exactement `default`, distincte de la table globale, ne peut pas l'exprimer ; à
 | `chassis_member_slot_duplicate` | deux `chassis_members` d'un document `system` portent le même `slot` |
 | `aggregate_member_duplicate` | un document `aggregates` liste un même membre plusieurs fois |
 | `mlag_peer_link_with_id` | un document `aggregates` marqué `mlag_peer_link` porte aussi un `mlag_id` (aucun équipement ne numérote son peer-link) |
-| `ha_standalone_not_alone` | un document `ha` en mode `standalone` ne liste pas exactement lui-même, rôle `member` |
+| `ha_standalone_with_members` | un document `ha` en mode `standalone` liste des membres (`members` doit être vide) |
 | `access_vlan_outside_access_mode` | une interface porte un `access_vlan` alors que `switchport_mode` n'est pas `access` |
 | `vlan_range_inverted` | un intervalle d'`allowed_vlans` a `first` supérieur à `last` |
 | `vlan_ranges_overlap` | deux intervalles d'`allowed_vlans` se recouvrent ou sont en double |

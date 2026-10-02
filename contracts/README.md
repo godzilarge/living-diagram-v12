@@ -129,7 +129,7 @@ Règles transverses, appliquées par le validateur :
 - **Un document `ha` liste son propre device dans `members`** (octet pour octet, une seule
   fois) : le rôle et l'état du device local s'y lisent, il n'y a pas de champ à part. Sinon le
   document est refusé (`ha_local_not_in_members`, `ha_member_duplicate`). `standalone` :
-  exactement un membre, le device lui-même, rôle `member` (`ha_standalone_not_alone`).
+  `members` vide, obligatoirement (`ha_standalone_with_members`, 2026-10-02) ; B1 n'en fait aucun cluster.
 
 ## Le document Snapshot, en bref
 
@@ -272,6 +272,24 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-10-02** — **`HaStatus` : `standalone` ⇒ `members` vide, imposé** (remarque d'Orhan : « si c'est un
+  firewall standalone, autoriser `members` en liste vide », traitée avant tout code, plan validé). L'entrée « lui-même »
+  exigée depuis le 2026-09-14 ne portait aucune information que B1 lise : rôle forcé à `member`, état `up` tautologique
+  (s'il a répondu à la collecte, il est up), priorité sans pair, serial recopié de `devices` ; l'exportateur devait
+  l'inventer, et le contrat demande ce que B1 consomme. **Imposé plutôt qu'autorisé** : `[self]` et `[]` auraient été
+  deux écritures du même fait, donnant deux snapshots (un cluster d'un membre, aucun cluster), ce qui a été refusé pour
+  `access_vlan` et `mlag_peer_link`. Refus `ha_standalone_with_members` (`ctx` = `hostname`, `members` ; message sans
+  valeur) remplace `ha_standalone_not_alone`. Hors `standalone`, rien ne change : le device local figure dans `members`
+  (`ha_local_not_in_members`), doublons refusés ; un FortiGate configuré en `a-p` dont le pair a disparu se liste seul,
+  c'est un cluster d'un membre, pas un standalone. `cluster_name` et `heartbeat_interfaces` restent admis sur un
+  standalone : FortiOS garde `group-name` et `hbdev` en configuration quel que soit le mode, un hbdev configuré est un
+  port réservé, et B1 pose le rôle `heartbeat` depuis tous les documents `ha`. **B1 : un standalone ne produit aucun
+  cluster** (clé de cluster vide, `ha.py` inchangé ; avant, cluster d'un membre que la page n'encadrait pas). Perte
+  assumée : le fait « HA lu, mode standalone » ne se distingue plus, dans le snapshot, d'un topic `ha` sans document ;
+  si l'inspecteur doit le dire, ce sera un champ additif sur le nœud, à voir au premier rendu. Deux écritures de « sans
+  HA » subsistent et ne sont pas le même fait : aucun document (non lu) ou `standalone` (lu, HA désactivée). Renverse
+  une règle du 2026-09-14 qu'un test figeait (« `members: []` refusé quel que soit le mode »). Fixture, golden et page
+  inchangés. Version 1.0.0 modifiée en place.
 - **2026-10-02** — **Code `description_ha_unresolved` ajouté au catalogue du Snapshot** (forme HA positionnelle des
   descriptions, cas réel d'Orhan : la configuration d'un cluster FortiGate est partagée, les deux membres portent la
   même description, et la grammaire V1 donnait au second membre un faux câble `documented_only` vers le port du

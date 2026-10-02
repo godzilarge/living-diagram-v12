@@ -320,7 +320,10 @@ def test_a_device_described_in_two_clusters_with_different_members_is_a_mismatch
     assert found[0].details["views"] == [[FW_1, FW_2], [FW_1, FW_2, CORE_1]]
 
 
-def test_a_standalone_document_is_a_cluster_of_one(minimal):
+def test_a_standalone_document_yields_no_cluster(minimal):
+    """`standalone` ⇒ `members: []` (contrat, 2026-10-02) ⇒ aucun cluster, aucun contrôle : un firewall seul est un
+    nœud comme un autre. Avant, il formait un cluster d'un membre."""
+
     def mutate(d):
         d["tasks"][0]["status_per_subject"]["ha"] = {
             "status": "success",
@@ -328,15 +331,13 @@ def test_a_standalone_document_is_a_cluster_of_one(minimal):
             "ended_at": None,
             "error": None,
         }
-        d["ha"].append(
-            _ha_doc(CORE_1, mode="standalone", name=None, members=[(CORE_1, "member", "up", None)], heartbeats=[])
-        )
+        d["ha"].append(_ha_doc(CORE_1, mode="standalone", name="FGT-HA", members=[], heartbeats=["Ethernet1/5"]))
 
     snap = run(variant(minimal, mutate))
-    alone = cluster(snap, CORE_1)
-    assert alone.mode == "standalone" and alone.cluster_name is None and alone.heartbeat_interfaces == ()
-    assert [c for c in snap.checks if c.refs[0].kind == "cluster" and c.refs[0].members == (CORE_1,)] == []
-    assert [tuple(m.hostname for m in c.members) for c in snap.ha_clusters] == [(FW_1, FW_2), (CORE_1,)]
+    assert cluster(snap, CORE_1) is None
+    assert itf(snap, CORE_1, "Ethernet1/5").roles == ("heartbeat",)  # port réservé : le rôle tient sans cluster
+    assert [c for c in snap.checks if c.refs[0].kind == "cluster" and CORE_1 in c.refs[0].members] == []
+    assert [tuple(m.hostname for m in c.members) for c in snap.ha_clusters] == [(FW_1, FW_2)]
 
 
 def test_structures_are_order_independent(minimal):

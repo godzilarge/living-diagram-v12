@@ -202,7 +202,7 @@ def test_equal_or_unread_priorities_leave_the_rank_undecided(priorities):
 
 
 def test_standalone_gives_no_place():
-    assert places([_doc("fw-01", [("fw-01", "member", None)], mode="standalone")]) == {}
+    assert places([_doc("fw-01", [], mode="standalone")]) == {}
 
 
 def test_a_member_unknown_to_devices_does_not_count():  # revue, M2 : la clé de cluster est celle de R4

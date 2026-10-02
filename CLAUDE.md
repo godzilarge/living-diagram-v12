@@ -135,7 +135,8 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   demandé pour combler le trou d'août. **`local_role` / `local_state` retirés de `HaStatus`**
   (2026-09-14, demande d'Orhan) : la vue locale se lit dans `members`, où le device local doit
   figurer octet pour octet et une seule fois (`ha_local_not_in_members`, `ha_member_duplicate`, refus) ;
-  `standalone` = exactement un membre, lui-même, rôle `member` (`ha_standalone_not_alone`).
+  `standalone` = `members` vide, obligatoirement (`ha_standalone_with_members`, révision du 2026-10-02 ; de
+  2026-09-14 à cette date : exactement un membre, lui-même, rôle `member`).
 - **MLAG / vPC** : `mlag_id`, `mlag_peer_link` au premier niveau du topic `aggregates`
   (remplace « vPC dans extras », 2026-09-10).
 - **Règle premier niveau vs `extras`** : premier niveau si le concept est agnostique, le
@@ -485,6 +486,22 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   contient `|` est lue comme une HA (H2) et une HA tronquée à quatre champs comme une V1 (M3) ; convention à tenir :
   jamais de `|` dans une option sur un membre ; un marqueur explicite lèverait l'ambiguïté. Backend 351 tests,
   `correlate/` à 100 %, contracts 413.
+- **`HaStatus` : `standalone` ⇒ `members` vide, imposé** (2026-10-02, remarque de contrat d'Orhan traitée avant tout
+  code : « si c'est un firewall standalone, autoriser `members` en liste vide » ; avis rendu, plan validé). L'entrée
+  « lui-même » exigée depuis le 2026-09-14 ne portait rien que B1 lise (rôle forcé à `member`, état `up` tautologique,
+  priorité sans pair, serial recopié de `devices`) : l'exportateur devait l'inventer, et le contrat demande ce que B1
+  consomme. **Imposé plutôt qu'autorisé** : `[self]` et `[]` auraient donné deux snapshots pour un même fait (cluster
+  d'un membre, aucun cluster), même règle que pour `access_vlan` et `mlag_peer_link`. Refus `ha_standalone_with_members`
+  remplace `ha_standalone_not_alone` ; hors standalone, rien ne change (`ha_local_not_in_members`, `ha_member_duplicate` ;
+  un FortiGate en `a-p` dont le pair a disparu se liste seul : cluster d'un membre, pas un standalone) ; `cluster_name`
+  et `heartbeat_interfaces` restent admis (FortiOS garde `group-name` et `hbdev` quel que soit le mode ; le rôle
+  `heartbeat` est posé depuis tous les documents `ha`, testé). **B1 : un standalone ne produit plus aucun cluster**
+  (`ha.py` inchangé, clé vide ; test « cluster d'un seul » inversé). Perte assumée : « HA lu, mode standalone » ne se
+  distingue plus, dans le snapshot, d'un topic `ha` sans document ; si l'inspecteur doit le dire, champ additif sur le
+  nœud, à voir au premier rendu. Renverse une règle du 2026-09-14 qu'un test figeait. Fixture, golden et page inchangés.
+  **Calibrage acté : pas de revue indépendante** pour un changement de règle de quelques lignes sans code B1 modifié
+  (question laissée ouverte sur `mlag_peer_link`) ; le rituel complet reste celui des briques. Motifs :
+  `contracts/README.md` § Décisions ; `docs/05` §2.5. Contracts 415 tests, backend 351.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -540,7 +557,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `src/ld_contracts/schema/`, contrôles référentiels, anonymiseur, CLI
   (`uv run ld-contracts validate|schema|anonymize`), fixture `fixtures/bundle-minimal.json`.
   Tests : `cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests`
-  (état 2026-10-02 : 413 tests, `mlag_peer_link` nullable et refus `mlag_peer_link_with_id`, code Snapshot `description_ha_unresolved` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
+  (état 2026-10-02 : 415 tests, `standalone` ⇒ `members` vide imposé (`ha_standalone_with_members`), `mlag_peer_link` nullable et refus `mlag_peer_link_with_id`, code Snapshot `description_ha_unresolved` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
   2026-09-19 : 291 tests, 97 %, clé nullable absente lue comme `null` et comptée, `vrf` `"default"` = table globale, une passe de revue indépendante appliquée ; 2026-09-18 : 246 tests, `lldp` / `cdp` réduits à six champs et MAC reconnue à sa forme, une
   passe de revue indépendante appliquée ;
   2026-09-16 : `allowed_vlans` en liste d'intervalles (chevauchements refusés), `access_vlan` ajouté avec refus de cohérence VLAN / mode, `last_change_age_seconds` en `entier ≥ 0 | "never" | null`
@@ -564,8 +581,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `state.py`, revues traitées), golden écrit et régénérable par `ld correlate bundle.json --out` ; **étape 3 =
   branchement, fait le 2026-09-20** (`snapshots.py`, `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages :
   incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). **R2 forme HA
-  des descriptions le 2026-10-02** (`descriptions.py`, scénario 11 en mémoire, revue traitée). État
-  2026-10-02 : 351 tests, 99 %, `correlate/` à 100 %.
+  des descriptions le 2026-10-02** (`descriptions.py`, scénario 11 en mémoire, revue traitée) ; un `ha` standalone ne
+  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 %.
 - À venir : premier bundle réel dans les pages (fin de la tranche visible), générateur de topologies synthétiques,
   conception de B3, table MAC (`docs/06`), B2 → B4 dans `backend/`, `engine/` (moteur TS), `shell/` (React).
 

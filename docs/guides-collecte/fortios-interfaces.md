@@ -232,7 +232,9 @@ cuivre sans DDM, ce qui est normal.
   `partner MAC address` = système LACP d'en face, utile à `docs/06`).
 - `lldp` : `diagnose lldprx neighbor summary` et `diagnose lldprx port neighbor details <port>` (template
   ntc-templates existant) ; `set lldp-reception enable` doit être actif sur le port ou la VDOM.
-- `ha` : `get system ha status`, `show system ha` (`hbdev` ⇒ `heartbeat_interfaces`).
+- `ha` : `get system ha status`, `show system ha` (`hbdev` ⇒ `heartbeat_interfaces`). `set mode standalone` ⇒
+  `mode: standalone` et `members: []`, obligatoirement (2026-10-02) ; `group-name` et `hbdev` peuvent rester
+  renseignés, le contrat les admet. En `a-p` / `a-a`, le device local figure dans `members`, même sans pair.
 - `system` : `get system status` (hostname, version, serial), `get system performance status` (uptime).
 
 ## Sources

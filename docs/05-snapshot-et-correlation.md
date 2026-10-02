@@ -153,7 +153,9 @@ s'il est unique ; sinon contrôle.
 ### 2.5 Clusters HA
 
 Un cluster par ensemble de membres (clé : hostnames triés), construit depuis tous les documents
-`ha[]` qui le décrivent (un par membre joignable). Champs : `mode`, `cluster_name`, `members[]`
+`ha[]` qui le décrivent (un par membre joignable). Un document `standalone` (`members: []`, imposé par le
+contrat d'entrée depuis le 2026-10-02) ne produit **aucun cluster** : un firewall seul est un nœud comme un
+autre ; ses `heartbeat_interfaces` gardent le rôle `heartbeat` (port réservé). Champs : `mode`, `cluster_name`, `members[]`
 (`hostname`, `role`, `state`, `priority`, `reported_by[]`), `heartbeat_interfaces[]`
 (`{hostname, interface, cable: clé du lien | null}`). **Aucun câble n'est créé** pour un
 heartbeat qui n'est ni observé ni documenté : le cartouche du cluster relie les membres, et un
@@ -574,7 +576,8 @@ seul n'a ni protocole ni statut de membre : pas d'entrée, appartenance visible 
 MLAG se détermine par le peer-link câblé** (un numéro de vPC est local à son domaine ; repli : même `mlag_id` sur
 exactement deux devices hors de toute paire) ; en HA, la vue d'un membre sur lui-même prime, mode et nom suivent le
 premier rapporteur, tout désaccord est `ha_view_mismatch` (champ `field`), un membre absent des nœuds est retiré,
-`standalone` conservé ; le câble d'un heartbeat est l'unique câble du port (à plusieurs, l'unique vers un membre),
+`standalone` sans cluster (depuis le 2026-10-02, `members: []` ; avant, cluster d'un membre) ; le câble d'un heartbeat
+est l'unique câble du port (à plusieurs, l'unique vers un membre),
 sinon `null`. Refus ajouté au contrat d'entrée : `aggregate_member_duplicate`.
 
 **Précisions d'implémentation de R5** (2026-09-26, annoncées avant le code, détail dans `backend/README.md` § R5) :

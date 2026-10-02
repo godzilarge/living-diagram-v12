@@ -241,8 +241,9 @@ avant l'assemblage. Décisions, annoncées avant le code :
    device est décrit dans deux clusters aux membres différents) ; **`null` ne contredit rien** et une valeur lue par un
    autre rapporteur le remplace (revue, M2). Un membre absent de `devices` est retiré du cluster (constat
    `ha_member_unknown` du contrat) ; un membre connu de `devices` sous une autre infrastructure devient un nœud
-   `external` sans témoin, comme un voisin d'une autre infra (revue, M1). Un `standalone` est conservé (c'est un fait ;
-   la page ne l'encadre pas). `ha_member_down` est émis **dès qu'un rapporteur dit `down`** (`details.reported_by` =
+   `external` sans témoin, comme un voisin d'une autre infra (revue, M1). Un `standalone` ne produit **aucun cluster**
+   (2026-10-02 : le contrat d'entrée impose `members: []`, la clé de cluster est vide ; avant, cluster d'un membre que
+   la page n'encadrait pas). Ses `heartbeat_interfaces` gardent le rôle `heartbeat`. `ha_member_down` est émis **dès qu'un rapporteur dit `down`** (`details.reported_by` =
    ceux qui le disent), l'état retenu restant la vue propre : un split-brain garde son erreur (revue, B5).
 4. **Heartbeat : jamais un câble inventé.** Le câble d'une interface de heartbeat est l'unique câble du port ; à
    plusieurs, l'unique qui mène à un membre du cluster ; sinon `null` et `heartbeat_link_not_observed`, avec

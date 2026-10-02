@@ -628,7 +628,7 @@
     },
     "HaStatus": {
       "additionalProperties": false,
-      "description": "État de haute disponibilité vu depuis un membre (topic `ha`).\n\nSources typiques : `get system ha status` + `show system ha` (FortiOS) ; `cphaprob state` + `cphaprob -a if`\n(Gaia ClusterXL). Un document par device membre d'un cluster.\n\nLe rôle et l'état du device local se lisent dans `members`, où il figure obligatoirement : pas de champ à\npart (2026-09-14). Un device sans HA peut ne pas émettre de document ; s'il en émet un, il est `standalone`\net se liste seul.",
+      "description": "État de haute disponibilité vu depuis un membre (topic `ha`).\n\nSources typiques : `get system ha status` + `show system ha` (FortiOS) ; `cphaprob state` + `cphaprob -a if`\n(Gaia ClusterXL). Un document par device membre d'un cluster.\n\nLe rôle et l'état du device local se lisent dans `members`, où il figure obligatoirement : pas de champ à\npart (2026-09-14). Un device sans HA peut ne pas émettre de document ; s'il en émet un, il est `standalone`\net `members` est vide (2026-10-02 ; avant, il se listait seul : une entrée sans information, rôle forcé, état\ntautologique, que l'exportateur devait inventer). B1 n'en fait aucun cluster.",
       "properties": {
         "hostname": {
           "description": "Hostname du device local, identique octet pour octet à `devices[].hostname`.",
@@ -654,7 +654,7 @@
           "title": "Cluster Name"
         },
         "members": {
-          "description": "Tous les membres du cluster, device local compris : `hostname` figure dans `members[].name`, octet pour octet et une seule fois, sinon le document est refusé. `standalone` : exactement un membre, le device lui-même, `role = member` (`state = up` s'il répond).",
+          "description": "Tous les membres du cluster, device local compris : `hostname` figure dans `members[].name`, octet pour octet et une seule fois, sinon le document est refusé. `standalone` : liste vide, obligatoirement (un fait, une écriture) ; `cluster_name` et `heartbeat_interfaces` restent admis, ce sont des faits de configuration.",
           "items": {
             "$ref": "#/$defs/HaMember"
           },
