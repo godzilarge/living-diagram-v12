@@ -169,7 +169,8 @@ backend/
 │   ├── render/               pages HTML de lecture d'un snapshot (2026-09-20), un fichier autonome par run
 │   │   ├── page.py           assemblage : gabarit + style + visualiseur + données ; JSON échappé, CSP par empreinte
 │   │   ├── build.py          deux chemins : fichier bundle (sans archive), run archivée
-│   │   └── assets/           page.html, viewer.css, js/ : model (index), layout (placement), dom, graph, inspect, tables, main
+│   │   └── assets/           page.html, viewer.css, js/ : model (index), layout (placement), dom, icons (types), geometry, graph,
+│   │                         tip (bulle au survol), inspect, structures, tables, main, shell (page servie par /view)
 │   └── correlate/            B1 corrélation (étape 1 le 2026-09-20) : correlate(bundle, bundle_sha256) -> Snapshot
 │       ├── context.py        index immuables sur le bundle (devices, interfaces, MAC, IP, couverture, appartenances, descriptions lues,
 │       │                     formes HA non résolues)
@@ -186,10 +187,10 @@ backend/
 │       ├── ha.py             R4 : clusters HA (vue de chaque membre, heartbeats sans câble inventé)
 │       ├── state.py          R5 : contrôles d'état des câbles (oper, vitesse, VLAN non tagué, port sans transceiver) et des tasks
 │       └── assemble.py       R6 : nœuds, interfaces, contrôles (dont ceux du contrat), couverture, rapport, tris
-└── tests/                    315 tests : API, archive, service, CLI (dont `ld correlate` fichier), config, branchement de B1, pages, /view ;
+└── tests/                    352 tests : API, archive, service, CLI (dont `ld correlate` fichier), config, branchement de B1, pages, /view ;
                               correlate/ (174) : grammaire, noms d'interfaces, identité, fusion, structures, état, scénarios de docs/05,
                               assemblage, déterminisme (permutations, graines de hachage, golden à l'octet), test_review*.py (une sonde
-                              de revue = un test) ; js/ : 24 tests du visualiseur sous Node (faux DOM), lancés par pytest ; Chromium
+                              de revue = un test) ; js/ : 37 tests du visualiseur sous Node (faux DOM), lancés par pytest ; Chromium
 ```
 
 ## B1, la corrélation — étape 1, R1-bis, R4, R5
@@ -370,6 +371,44 @@ bouts ou ses membres, jamais son rang : l'adresse reste juste quand un export co
 illisible est ignoré. Un contrôle posé sur un port qui porte plusieurs câbles n'est compté que sur le câble que ses détails désignent.
 La fiche d'un équipement dit quels ports ont un câble et lesquels sont up sans rien en face.
 
+**Démonstration (2026-10-02)** : au survol, une **bulle** (`tip.js`) donne pour un câble ses deux bouts, son statut, ses
+sources, puis **par bout** vitesse, duplex, média (transceiver) et état, tels que lus dans `interfaces[]` : « — » pour un
+bout qui n'y figure pas (voisin inconnu, autre infra), « vitesse, duplex, média : non lus » quand aucun bout n'a rien, et
+ses contrôles une ligne par (sévérité, code) avec leur nombre (`×9`) ; pour un équipement, sa fiche courte (type,
+constructeur, modèle, OS, collecte, câbles, stack, tous ses clusters HA, contrôles) ; pour un faisceau (ses deux
+équipements nommés) ou un cluster, l'essentiel. Un bout absent de `interfaces[]` est dit tel quel (« … : absent de
+interfaces[] ») ; un `null` s'écrit « — » ou « aucune valeur », jamais « non lu » (`null` n'est pas une raison). La
+bulle est un **groupe SVG en coordonnées d'écran**, jamais un `div` positionné par un style en ligne : la CSP par
+empreinte n'admet aucun style en ligne, et le faux DOM des tests la voit ; elle reste dans le canevas des quatre côtés.
+Les `<title>` natifs sont remplacés par `aria-label` (une seule bulle) ; les nœuds sont des `role="button"`, la bulle un
+`role="tooltip"` rattaché par `aria-describedby` au nœud qui a le focus. Un membre de cluster HA porte son **rôle tel
+qu'enregistré** (`primary`, `secondary`, `active`, `standby`, `member`) sous son étiquette de type ; le fond ne dit
+« forwarde / en attente » que là où le snapshot le dit : teinté pour `active`, ou `primary` en `active_passive`, grisé
+pour `standby`, ou `secondary` en `active_passive`, sans fond ailleurs (en `active_active`, le `secondary` forwarde
+aussi) ; rôle en rouge dès qu'un cluster dit son état `down`. Au clavier, le focus d'un équipement l'amène en vue s'il
+est hors cadre et montre sa bulle ; un appui annulé (toucher, stylet, fenêtre qui perd le focus) libère toujours le
+glissé. La géométrie pure du graphe (courbes, cadres, bandes, étiquettes) vit dans `geometry.js`. Revue indépendante
+consignée et traitée : `docs/revues/2026-10-02-pages-demo-bulles-role-ha.md` (0 critique, 1 haut, 5 moyens, 8 bas).
+
+**Passe de finition après critique design (2026-10-02, skill Impeccable : deux évaluations isolées, score 25 / 40,
+snapshot `.impeccable/critique/`, quatre décisions d'Orhan)** : le **nom domine** sur le nœud (12,5 px semi-gras, raccourci
+au milieu au-delà de 22 caractères, nom complet dans la bulle et `aria-label`), le type est une **icône dessinée en SVG**
+(`icons.js`, une par `type` du contrat, légende « types »), le rôle HA s'écrit sous l'icône (7,5 px, masqué par le
+palier de zoom) ; **famille de couleur « structures »** (`--structure`, violet : cluster HA, peer-link, rôle, heartbeat,
+pastilles de rôle et de mode), la sélection se marque en encre épaisse, `--documented` et `--warning` assombris en clair
+(≥ 5:1), l'observé seul porte un tiret long (forme et couleur) ; **les défauts à un clic** : contrôles triés par sévérité
+puis code, pastilles d'en-tête en boutons (une sévérité ouvre Contrôles filtré, un statut se bascule comme dans la
+légende), comptes sur les onglets ; **en-tête** sur deux lignes (identité de la run en 16 px, métadonnées en 12 px),
+pastilles en trois groupes ; **légende** en carte flottante sur la toile, groupes nommés avec nuanciers, masquable
+(bouton « légende », repliée par défaut sous 1200 px) ; **paliers de zoom** (`zoom-far` / `zoom-near` posés sur le
+`svg` par `applyView`, sans style en ligne) qui masquent ports, étiquettes et rôle de loin ; l'étiquette de faisceau
+reste courte sur la toile ; **clavier** : câbles, faisceaux et clusters sont des `role="button"` focusables (Entrée
+sélectionne, le focus montre la bulle), zone live d'une ligne au lieu d'`aria-live` sur tout l'inspecteur, onglets avec
+`aria-controls` et panneaux `role="tabpanel"`, panneau amené en vue sous 900 px ; surfaces du navigateur thématisées
+(placeholder, sélection de texte, chiffres tabulaires). Hors périmètre, sur décision d'Orhan : la mise en page à 420 px.
+Détecteur Impeccable : trois `border-accent-on-rounded` restants sont des faux positifs assumés (soulignement d'onglet
+à `border-radius: 0`, nuancier de 22 × 0 px, règle de barré).
+
 Décisions (validées par Orhan le 2026-09-20 avant le code) :
 
 1. **Aucune librairie, aucune ressource externe** : la zone peut ne pas avoir d'accès Internet, et rien n'est à faire
@@ -390,7 +429,9 @@ Décisions (validées par Orhan le 2026-09-20 avant le code) :
 Tests : `tests/test_render.py` (assemblage, CSP, échappement, hors-ligne, CLI) et `tests/js/` (modèle, placement,
 démarrage complet de la page dans un faux DOM, sélection, tables, chaîne hostile), lancés par `uv run pytest` si Node
 est présent (dépendance de test seulement). Le faux DOM ne rend rien : un test de fumée ouvre la page dans un Chromium
-headless quand il en trouve un (`~/.cache/ms-playwright/`), et vérifie le DOM rendu sous la CSP, sans erreur de console.
+headless quand il en trouve un (`~/.cache/ms-playwright/`), et vérifie le DOM rendu sous la CSP, sans erreur de console ;
+depuis le 2026-10-02, `tests/browser.py` pilote ce même Chromium par le protocole DevTools (`--remote-debugging-pipe`,
+sans dépendance) pour rejouer un survol réel et un focus clavier, ce que le faux DOM ne propage pas.
 Revue indépendante : `docs/revues/2026-09-20-pages-ld-render.md` (sécurité validée sous bundle hostile dans un vrai
 navigateur ; 1 haut, 4 moyens, 5 bas, tous traités). Mesuré par la revue : 400 équipements, 1 200 câbles, 3 600
 contrôles ⇒ page de 2,7 Mo, ouverte en 0,9 s. Incrément B (structures) : `docs/revues/2026-09-26-pages-increment-b.md`.

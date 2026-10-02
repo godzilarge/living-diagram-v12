@@ -502,6 +502,42 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   **Calibrage acté : pas de revue indépendante** pour un changement de règle de quelques lignes sans code B1 modifié
   (question laissée ouverte sur `mlag_peer_link`) ; le rituel complet reste celui des briques. Motifs :
   `contracts/README.md` § Décisions ; `docs/05` §2.5. Contracts 415 tests, backend 351.
+- **Page `ld render` de démonstration : bulles au survol, rôle HA sur les nœuds** (2026-10-02, demande d'Orhan : une
+  bulle sur les liens avec duplex, vitesse, média quand on les connaît, une distinction visuelle actif / passif des
+  firewalls, « booster » la page pour une première démonstration sans attendre le front ; plan et décisions annoncés
+  avant le code, session autonome). `render/assets/js/tip.js` (nouveau) : une bulle **SVG en coordonnées d'écran**,
+  jamais un style en ligne (la CSP par empreinte n'en admet aucun, et le faux DOM des tests la voit) ; câble = bouts,
+  statut, sources, puis **par bout** vitesse, duplex, média, état lus dans `interfaces[]` (« — » pour un bout absent,
+  « vitesse, duplex, média : non lus » si aucun bout n'a rien), contrôles un par ligne (six au plus) ; équipement =
+  fiche courte avec rôle HA ; faisceau, cluster. `<title>` natifs remplacés par `aria-label`. **Rôle HA écrit tel
+  qu'enregistré** (`primary`, `secondary`, `active`, `standby`, `member`) sous l'étiquette de type, fond teinté pour
+  `primary` / `active`, grisé pour `secondary` / `standby`, rouge si `state = down` ; **pas de traduction en
+  actif / passif** (sur `active_active` le `secondary` forwarde aussi) ; un équipement dans deux clusters porte le rôle
+  du premier. `geometry.js` extrait de `graph.js` (règle des 400 lignes). Média sur la fiche du port, vitesses en Gb/s,
+  légende complétée, survol qui épaissit le tracé. **Revue indépendante consignée et traitée le même jour**
+  (`docs/revues/2026-10-02-pages-demo-bulles-role-ha.md` : 0 critique, 1 haut, 5 moyens, 8 bas) : un appui annulé
+  (`pointercancel`, `lostpointercapture`, clic droit) libère toujours le glissé (H1) ; **le fond du rôle ne dit
+  « forwarde / en attente » que là où le snapshot le dit** (`active` / `standby`, ou `primary` / `secondary` en
+  `active_passive` ; sans fond ailleurs, M1) ; bulle de faisceau avec les deux équipements (M2), contrôles comptés par
+  code (M3), « aucune valeur » et « absent de interfaces[] » au lieu de « non lus » (M4, `null` n'est pas une raison) ;
+  état `down` de n'importe quel cluster (B4) ; `role="button"` / `role="tooltip"` / `aria-describedby` (B7) ;
+  **`tests/browser.py`** : pilote DevTools de Chromium sans dépendance, test de survol réel et de focus clavier (M5).
+  Parqués : découpage de `create()` (B6, limite assouplie par Orhan le même jour), deux commits séparés (B8, à Orhan).
+- **Critique design Impeccable et passe de finition** (2026-10-02, demande d'Orhan : « un agent UI avec les skills
+  impeccable pour vérifier les typo, les arrangements », puis « bien réfléchir au poids des éléments, du texte, des
+  polices : esthétique, moderne, pas d'AI slop »). Deux évaluations isolées (A : revue design, B : détecteur + 21 captures
+  + mesures DevTools), synthèse : **25 / 40**, deux P1 (bleu à cinq sens et oranges sous AA ; défauts ni en tête ni
+  cliquables), trois P2 (étiquettes du graphe, en-tête et légende, largeurs étroites et clavier) ; snapshot dans
+  `.impeccable/critique/`. **Quatre décisions d'Orhan** : le nom domine avec une icône de type ; famille violette pour
+  les structures et oranges AA ; graphe d'abord, défauts à un clic ; périmètre P1 + P2 bureau (1024 à 1920 px, pas le
+  420 px). Fait : `icons.js` (icônes SVG dessinées par `type`), nom en 12,5 px semi-gras raccourci au-delà de 22
+  caractères, rôle 7,5 px sous l'icône, `--structure`, sélection en encre, tiret long sur l'observé seul, contrôles triés
+  par sévérité, pastilles d'en-tête en boutons, comptes sur les onglets, en-tête sur deux lignes, légende en carte
+  flottante masquable (repliée sous 1200 px), paliers de zoom par classe sur le `svg`, clavier sur câbles / faisceaux /
+  clusters, zone live, `aria-controls`, panneau amené en vue sous 900 px, surfaces du navigateur thématisées. Rendu jugé
+  sur captures en deux tours (1440, 1024, 1920, sombre, survol). Trois faux positifs du détecteur assumés. Reste visible :
+  chevauchement des noms de ports sur une paire de câbles (option « noms des ports »), et le style « pastilles partout »
+  si Orhan le juge daté. Backend 352 tests, 37 sous Node.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -543,7 +579,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
 - `docs/revues/` — rapports de revue indépendante consignés tels que rendus, avec leur suivi (2026-09-20 :
   `2026-09-20-b1-etape-1.md`, sa contre-revue, `2026-09-20-branchement-b1.md`, `2026-09-20-pages-ld-render.md` ; 2026-09-22 : `2026-09-22-r1-bis-agregat-port-id.md` ;
   2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
-  2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`)
+  2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`,
+  `2026-10-02-pages-demo-bulles-role-ha.md`)
   et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
@@ -582,13 +619,15 @@ Détail : `docs/00-analyse-fondation.md` §10.
   branchement, fait le 2026-09-20** (`snapshots.py`, `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages :
   incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). **R2 forme HA
   des descriptions le 2026-10-02** (`descriptions.py`, scénario 11 en mémoire, revue traitée) ; un `ha` standalone ne
-  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 %.
+  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 % ; page de démonstration le même jour (`tip.js`, `icons.js`, `geometry.js`, `tests/browser.py`, 37 tests sous Node, 352 tests).
 - À venir : premier bundle réel dans les pages (fin de la tranche visible), générateur de topologies synthétiques,
   conception de B3, table MAC (`docs/06`), B2 → B4 dans `backend/`, `engine/` (moteur TS), `shell/` (React).
 
 ## Conventions de code (rappel des règles globales)
 
 Python 3.14 partout côté backend. Immutabilité (modèles `frozen`, jamais de mutation
-d'entrée), fichiers < 400 lignes, fonctions < 50 lignes, erreurs explicites, validation
+d'entrée), fichiers autour de 400 lignes (**jusqu'à 600 si la cohésion le justifie**, Orhan, 2026-10-02 : « on peut
+agrandir un peu la limite si c'est pour avoir quelque chose de plus propre » ; on découpe sur une vraie couture, jamais
+pour le compte), fonctions < 50 lignes, erreurs explicites, validation
 aux frontières (Pydantic strict : champs inconnus refusés, entiers stricts). TDD : tests
 d'abord, couverture ≥ 80 %. Revue de code après chaque écriture.

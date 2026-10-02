@@ -233,6 +233,42 @@ def test_the_page_really_renders_in_a_browser_under_its_csp(tmp_path, bundle_dic
     # deux faisceaux, pas trois : le hub sur Ethernet1/5 observe sw-core-02 · Ethernet1/4, la description de x2 vers ce
     # port devient un désaccord et son câble n'est plus tracé
     assert dom.count('class="beam-band"') == 2 and dom.count('class="cluster-hull"') == 1, "bandes et cadres rendus"
+    assert dom.count('class="node-role"') == 2, "un rôle HA sur chaque membre du cluster"
+    assert 'class="tip"' in dom, "la bulle est dans le canevas"
     assert 'class="fatal"' not in dom.split("<noscript>")[0]
     assert "7 nœuds sur 7 et 7 câbles sur 7 affichés" in dom
     assert not [line for line in done.stderr.splitlines() if "CONSOLE" in line or "Refused" in line]
+
+
+@pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
+def test_hover_and_keyboard_focus_in_a_real_browser(tmp_path, bundle_dict):
+    """Ce que le faux DOM ne propage pas : le survol réel d'un tracé (le pointeur remonte du tracé au groupe), le focus
+    clavier d'un équipement, et tout cela sous la CSP du navigateur, sans rien de refusé (revue du 2026-10-02, M5)."""
+    from tests.browser import Chrome
+
+    page = tmp_path / "page.html"
+    page.write_text(_page(bundle_dict), encoding="utf-8")
+    with Chrome(CHROMIUM) as chrome:
+        tab = chrome.open(f"file://{page}")
+        tip = "document.getElementById('ld-tip')"
+        point = tab.js(
+            "(() => { const st = LD.app.graph.state, m = LD.app.model;"
+            " const link = m.links.find((l) => l.a.interface === 'Ethernet1/2' && l.b.interface === 'Ethernet1/2');"
+            " const p = st.positions.get(link.a.hostname), q = st.positions.get(link.b.hostname);"
+            " const mid = LD.geometry.curve(p, q, link).mid;"
+            " const r = document.getElementById('canvas').getBoundingClientRect();"
+            " return { x: r.left + mid.x * st.view.k + st.view.tx, y: r.top + mid.y * st.view.k + st.view.ty }; })()"
+        )
+        tab.mouse_move(point["x"], point["y"])
+        assert tab.js(f"{tip}.getAttribute('visibility')") == "visible"
+        assert "10Gbase-SR" in tab.js(f"{tip}.textContent") and "suspended by LACP" in tab.js(f"{tip}.textContent")
+        tab.mouse_move(2, 2)  # le coin de la fenêtre : hors du canevas
+        assert tab.js(f"{tip}.getAttribute('visibility')") == "hidden"
+        tab.js("document.querySelector('[data-node=\"fw-edge-01\"]').focus()")
+        assert tab.js(f"{tip}.getAttribute('visibility')") == "visible"
+        assert "primary · up · priorité 200" in tab.js(f"{tip}.textContent")
+        assert tab.js("document.activeElement.getAttribute('aria-describedby')") == "ld-tip"
+        tab.js("document.activeElement.blur()")
+        assert tab.js(f"{tip}.getAttribute('visibility')") == "hidden"
+    noise = [entry for entry in chrome.console if "Refused" in json.dumps(entry) or entry.get("type") == "error"]
+    assert not noise, noise

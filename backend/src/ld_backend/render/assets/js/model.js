@@ -6,6 +6,14 @@ var LD = globalThis.LD || (globalThis.LD = {});
   const SEP = "\u0000";
   const SEVERITY_RANK = { error: 0, warning: 1, info: 2 };
   const OBSERVED = { lldp: true, cdp: true };
+  // Le fond d'un membre HA ne traduit « actif / passif » que là où le snapshot le dit : `active` / `standby` sont des
+  // états de forwarding (teinté / grisé en tout mode) ; `primary` / `secondary` ne le sont qu'en `active_passive` (en
+  // `active_active`, le secondary forwarde aussi) ; ailleurs le rôle s'écrit tel quel, sans fond (revue, M1).
+  function haRoleGroup(mode, role) {
+    if (role === "active" || (mode === "active_passive" && role === "primary")) return "lead";
+    if (role === "standby" || (mode === "active_passive" && role === "secondary")) return "follow";
+    return "plain";
+  }
 
   const ifaceKey = (hostname, name) => hostname + SEP + name;
   const linkId = (link) => [link.a.hostname, link.a.interface, link.b.hostname, link.b.interface].join(SEP);
@@ -130,6 +138,9 @@ var LD = globalThis.LD || (globalThis.LD = {});
       model.clusters.push(cluster);
       model.clusterById.set(cluster.id, cluster);
       hosts.forEach((host) => pushTo(model.clustersByHost, host, cluster)); // un équipement peut être décrit dans deux clusters
+      // Toutes les appartenances d'un équipement, dans l'ordre canonique des clusters : le nœud porte le rôle de la
+      // première, l'état down de n'importe laquelle, la bulle les liste toutes (revue, B4).
+      raw.members.forEach((member) => pushTo(model.haMembershipsByHost, member.hostname, { cluster, member }));
       cluster.heartbeats.forEach((hb) => { if (hb.link) hb.link.heartbeat = true; });
     });
   }
@@ -214,6 +225,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
       checksByNode: new Map(), checksByAggregate: new Map(), checksByCluster: new Map(),
       aggregates: [], aggregateByKey: new Map(), aggregatesByNode: new Map(), mlagDomains: [],
       beams: [], beamById: new Map(), beamsByNode: new Map(), clusters: [], clusterById: new Map(), clustersByHost: new Map(),
+      haMembershipsByHost: new Map(),
     };
     snapshot.nodes.forEach((node) => model.nodeByHost.set(node.hostname, node));
     snapshot.interfaces.forEach((itf) => {
@@ -298,5 +310,5 @@ var LD = globalThis.LD || (globalThis.LD = {});
   }
 
   LD.model = { build, ifaceKey, linkId, endLabel, worst, linkToken, linkFromToken, aggregateKey, clusterId, entityOf, hostsOf, tokenOf, selectionFromToken,
-    SEVERITY_RANK, OBSERVED, SELECTION_KINDS: ["node", "link", "aggregate", "beam", "cluster"] };
+    SEVERITY_RANK, OBSERVED, haRoleGroup, SELECTION_KINDS: ["node", "link", "aggregate", "beam", "cluster"] };
 })();

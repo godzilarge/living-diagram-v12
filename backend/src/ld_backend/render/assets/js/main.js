@@ -3,21 +3,33 @@ var LD = globalThis.LD || (globalThis.LD = {});
 (function () {
   "use strict";
 
-  const { h, clear, pill } = LD.dom;
+  const { h, s, clear } = LD.dom;
   const TABS = [["graph", "Graphe"], ["structures", "Structures"], ["checks", "Contrôles"], ["quality", "Qualité des données"], ["sources", "Sources"]];
   const STATUSES = ["confirmed", "observed_only", "documented_only"];
 
-  function header(model) {
-    const run = model.source.run;
-    clear(document.getElementById("run-meta")).appendChild(h("div", {},
-      h("strong", {}, model.source.infrastructure), " · run ", h("code", {}, model.source.collector_run_id),
-      h("span", { class: "muted" }, " · collecte du " + run.start_datetime + (run.end_datetime ? " au " + run.end_datetime : "") + " (" + run.status + ")"
-        + " · bundle " + model.source.bundle_sha256.slice(0, 12) + " · " + model.origin)));
+  function toggleStatus(graph, status, st) {
+    const hidden = graph.state.hiddenStatuses;
+    if (hidden.has(st)) hidden.delete(st); else hidden.add(st);
+    status(graph.render(true));
+  }
+
+  // L'en-tête : l'identité de la run sur une ligne, ses métadonnées sur une seconde ; puis les comptes en trois groupes,
+  // dont les statuts (bascules, comme la légende) et les sévérités (ouvrent les contrôles filtrés). Rien n'y est inerte.
+  function header(model, graph, status, openChecks) {
+    const run = model.source.run, source = model.source;
+    const meta = clear(document.getElementById("run-meta"));
+    meta.appendChild(h("div", { class: "run-line" }, h("strong", {}, source.infrastructure), " · run ", h("code", {}, source.collector_run_id)));
+    meta.appendChild(h("div", { class: "run-detail" }, "collecte du " + run.start_datetime + (run.end_datetime ? " au " + run.end_datetime : "") + " (" + run.status + ")",
+      " · bundle ", h("code", {}, source.bundle_sha256.slice(0, 12)), " · ", h("span", { class: "file" }, model.origin)));
     const count = (map, key) => map.get(key) || 0;
+    const statusChip = (st) => h("button", { type: "button", id: "c-" + st, class: "chip pill status-" + st, "aria-pressed": "true", title: "afficher ou masquer ces câbles",
+      onclick: () => toggleStatus(graph, status, st) }, count(model.statusCounts, st) + " " + LD.dom.STATUS_LABEL[st]);
+    const severityChip = (sev) => h("button", { type: "button", id: "c-" + sev, class: "chip pill severity-" + sev, title: "ouvrir les contrôles " + sev,
+      onclick: () => openChecks(sev) }, count(model.severityCounts, sev) + " " + sev);
     clear(document.getElementById("run-counts")).appendChild(h("div", { class: "chips" },
-      h("span", { class: "chip" }, model.nodes.length + " nœuds"), h("span", { class: "chip" }, model.links.length + " câbles"),
-      STATUSES.map((st) => pill("status", st, count(model.statusCounts, st) + " " + LD.dom.STATUS_LABEL[st])),
-      ["error", "warning", "info"].map((sev) => pill("severity", sev, count(model.severityCounts, sev) + " " + sev))));
+      h("span", { class: "chip-group" }, h("span", { class: "chip" }, model.nodes.length + " nœuds"), h("span", { class: "chip" }, model.links.length + " câbles")),
+      h("span", { class: "chip-group" }, STATUSES.map(statusChip)),
+      h("span", { class: "chip-group" }, ["error", "warning", "info"].map(severityChip))));
   }
 
   function toolbar(model, graph, status) {
@@ -29,30 +41,40 @@ var LD = globalThis.LD || (globalThis.LD = {});
       h("input", { id: "t-search", type: "search", placeholder: "chercher un équipement", "aria-label": "chercher un équipement",
         oninput: (e) => { graph.state.query = e.target.value; graph.repaint(); } }),
       h("button", { type: "button", onclick: () => graph.fit() }, "recentrer"),
+      h("button", { type: "button", id: "t-legend", "aria-pressed": "true", title: "afficher ou masquer la légende", onclick: (e) => {
+        const legend = document.getElementById("graph-legend");
+        legend.hidden = !legend.hidden;
+        e.target.setAttribute("aria-pressed", legend.hidden ? "false" : "true");
+      } }, "légende"),
       h("button", { type: "button", title: "oublie les déplacements faits à la main", onclick: () => status(graph.resetPins()) }, "replacer"),
       h("span", { class: "muted", id: "graph-status" })));
   }
 
+  // La légende, en groupes nommés : chaque entrée a son nuancier, rien n'y est de la prose (l'aide est dans la vue d'ensemble).
   function legend(model, graph, status) {
     const item = (st) => h("button", { type: "button", id: "l-" + st, class: "legend-item status-" + st, "aria-pressed": "true", title: "afficher ou masquer ces câbles",
-      onclick: () => {
-        const hidden = graph.state.hiddenStatuses;
-        if (hidden.has(st)) hidden.delete(st); else hidden.add(st);
-        status(graph.render(true));
-      } }, h("span", { class: "swatch" }), LD.dom.STATUS_LABEL[st]);
+      onclick: () => toggleStatus(graph, status, st) }, h("span", { class: "swatch" }), LD.dom.STATUS_LABEL[st]);
+    const span = (cls) => h("span", { class: cls });
+    const note = (swatch, text, title) => h("span", { class: "legend-note", title: title || null }, swatch, text);
+    const group = (name, ...items) => h("span", { class: "legend-group" }, h("span", { class: "group-name" }, name), items);
+    const icon = (type) => s("svg", { class: "legend-icon", viewBox: "0 0 16 16", "aria-hidden": "true" }, s("path", { d: LD.icons.path(type) }));
     clear(document.getElementById("graph-legend")).appendChild(h("div", { class: "legend-row" },
-      STATUSES.map(item),
-      h("span", { class: "legend-note" }, h("span", { class: "dot severity-warning" }), "contrôle warning"),
-      h("span", { class: "legend-note" }, h("span", { class: "dot severity-error" }), "contrôle error"),
-      h("span", { class: "legend-note" }, h("span", { class: "band" }), "faisceau d'agrégat (étiquette : peer-link, MLAG)"),
-      h("span", { class: "legend-note" }, h("span", { class: "frame" }), "cluster HA"),
-      h("span", { class: "legend-note" }, h("span", { class: "halo" }), "heartbeat HA"),
-      h("span", { class: "legend-note" }, "contour pointillé : autre infra · contour rouge : injoignable · orange : collecte partielle")));
+      group("câbles", STATUSES.map(item), note(span("swatch down"), "down (estompé)")),
+      group("contrôles", note(span("dot severity-warning"), "warning"), note(span("dot severity-error"), "error")),
+      group("structures", note(span("band"), "faisceau"), note(span("band degraded"), "dégradé"), note(span("frame"), "cluster HA"),
+        note(span("halo"), "heartbeat"), note(span("role-swatch lead"), "forwarde", "rôle HA active, ou primary en active_passive"),
+        note(span("role-swatch follow"), "en attente", "rôle HA standby, ou secondary en active_passive")),
+      group("équipements", note(span("box external"), "autre infra"), note(span("box unreachable"), "injoignable"),
+        note(span("box partial"), "collecte partielle"), note(span("box not_collected"), "non collecté"), note(span("box stub"), "voisin inconnu")),
+      group("types", LD.icons.TYPES.map((type) => note(icon(type), LD.icons.LABEL[type])))));
   }
 
-  function tabs(activate) {
+  // Les onglets portent leurs comptes : on sait ce qu'il y a derrière sans les ouvrir.
+  function tabs(activate, model) {
+    const counts = { structures: model.aggregates.length, checks: model.checks.length, sources: model.links.length };
     const bar = clear(document.getElementById("tabs"));
-    TABS.forEach(([id, label]) => bar.appendChild(h("button", { type: "button", role: "tab", id: "tab-" + id, "aria-selected": "false", onclick: () => activate(id) }, label)));
+    TABS.forEach(([id, label]) => bar.appendChild(h("button", { type: "button", role: "tab", id: "tab-" + id, "aria-selected": "false", "aria-controls": "view-" + id,
+      onclick: () => activate(id) }, label, id in counts ? h("span", { class: "tab-count" }, " · " + counts[id]) : null)));
   }
 
   // L'état de vue vit dans le fragment d'URL (#view=checks&node=sw-core-01) : une page ouverte sur un élément
@@ -106,28 +128,40 @@ var LD = globalThis.LD || (globalThis.LD = {});
     const openInGraph = (selection) => { activate("graph"); graph.reveal(selection); status(); };
     const onSelect = (selection) => {
       LD.inspect.show(inspector, model, selection, (next) => { graph.reveal(next); status(); });
+      const live = document.getElementById("live");
+      if (live) live.textContent = LD.inspect.describe(model, selection);
       if (graph) writeHash(view, graph, model);
     };
     const status = (counts) => {
       const shown = counts || { nodes: graph.state.nodeEls.size, links: graph.state.linkEls.size };
       const hidden = []; // dire ce qui est masqué et pourquoi : l'en-tête annonce le total, le graphe peut en montrer moins
-      if (shown.nodes < model.nodes.length) hidden.push((model.nodes.length - shown.nodes) + " voisins inconnus masqués");
+      const stubs = model.nodes.length - shown.nodes;
+      if (stubs > 0) hidden.push(stubs + (stubs > 1 ? " voisins inconnus masqués" : " voisin inconnu masqué"));
       if (graph.state.hiddenStatuses.size) hidden.push("statuts masqués : " + Array.from(graph.state.hiddenStatuses).map((st) => LD.dom.STATUS_LABEL[st]).join(", "));
       document.getElementById("graph-status").textContent = shown.nodes + " nœuds sur " + model.nodes.length + " et " + shown.links + " câbles sur "
         + model.links.length + " affichés" + (hidden.length ? " · " + hidden.join(" · ") : "");
       const box = document.getElementById("t-stubs");
       if (box) box.checked = graph.state.showStubs; // un élément ouvert depuis une table peut avoir rallumé un filtre
-      STATUSES.forEach((st) => document.getElementById("l-" + st).setAttribute("aria-pressed", graph.state.hiddenStatuses.has(st) ? "false" : "true"));
+      STATUSES.forEach((st) => ["l-", "c-"].forEach((prefix) => {
+        const el = document.getElementById(prefix + st);
+        if (el) el.setAttribute("aria-pressed", graph.state.hiddenStatuses.has(st) ? "false" : "true");
+      }));
       const ports = document.getElementById("t-ports");
       if (ports) ports.checked = graph.state.showPorts;
       writeHash(view, graph, model);
     };
 
-    header(model);
-    tabs(activate);
     graph = LD.graph.create(document.getElementById("canvas"), model, onSelect);
+    const openChecks = (severity) => { activate("checks"); if (LD.tables.setChecksSeverity) LD.tables.setChecksSeverity(severity); };
+    header(model, graph, status, openChecks);
+    tabs(activate, model);
     toolbar(model, graph, status);
     legend(model, graph, status);
+    // Sur une toile étroite, la carte de légende recouvrirait le graphe : masquée par défaut, le bouton la rappelle.
+    if (typeof matchMedia === "function" && matchMedia("(max-width: 1199px)").matches) {
+      document.getElementById("graph-legend").hidden = true;
+      document.getElementById("t-legend").setAttribute("aria-pressed", "false");
+    }
     // Applique l'adresse : au démarrage, puis chaque fois qu'elle est modifiée à la main dans une page ouverte.
     const applyHash = (first) => {
       const wanted = readHash();

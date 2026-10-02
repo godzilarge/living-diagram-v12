@@ -1,69 +1,23 @@
 // Le graphe : un nœud par équipement, un tracé par câble (deux câbles entre les mêmes équipements restent deux
-// tracés), coloré par statut ; sous les câbles, une bande par faisceau d'agrégat et un cadre par cluster HA.
-// Rien n'est déduit ici : ce qui est dessiné est dans le snapshot.
+// tracés), coloré par statut ; sous les câbles, une bande par faisceau d'agrégat et un cadre par cluster HA ; une
+// bulle au survol (tip.js). La géométrie pure est dans geometry.js. Rien n'est déduit ici : ce qui est dessiné est
+// dans le snapshot.
 var LD = globalThis.LD || (globalThis.LD = {});
 (function () {
   "use strict";
 
   const { s, clear } = LD.dom;
-  const TYPE_TAG = { switch: "SW", router: "RT", firewall: "FW", load_balancer: "LB", wireless_controller: "WLC", server: "SRV", other: "·" };
-  const NODE_W = 46, NODE_H = 30, STUB_R = 8, FAN = 14, FAN_MAX = 110, CLICK_SLOP = 4, HULL_PAD = 40, CHAR_W = 6.6, BAND = 18, HIT_MARGIN = 8;
+  const { curve, hull, beamWidths, beamLabel, clusterLabel, CHAR_W } = LD.geometry;
+  const NODE_W = 48, NODE_H = 40, STUB_R = 8, CLICK_SLOP = 4, ICON_SCALE = 1.3, LABEL_MAX = 22;
+  const ICON_PX = LD.icons.SIZE * ICON_SCALE;
+  const ZOOM_FAR = 0.7, ZOOM_NEAR = 1.2;
 
-  function curve(p, q, link) {
-    if (link.a.hostname === link.b.hostname) { // câble entre deux ports du même équipement : une boucle au-dessus
-      const reach = 46 + link.indexInPair * 12;
-      return { path: `M${p.x - 8},${p.y - 12} C${p.x - reach},${p.y - reach - 30} ${p.x + reach},${p.y - reach - 30} ${p.x + 8},${p.y - 12}`,
-        mid: { x: p.x, y: p.y - reach * 0.75 - 22 }, ends: [{ x: p.x - 26, y: p.y - 30 }, { x: p.x + 26, y: p.y - 30 }] };
-    }
-    const dx = q.x - p.x, dy = q.y - p.y;
-    const length = Math.max(Math.hypot(dx, dy), 0.01);
-    const spacing = Math.min(FAN, FAN_MAX / link.pairCount);
-    const offset = (link.indexInPair - (link.pairCount - 1) / 2) * spacing;
-    const nx = -dy / length, ny = dx / length;
-    const c = { x: (p.x + q.x) / 2 + nx * offset * 2, y: (p.y + q.y) / 2 + ny * offset * 2 };
-    const at = (t) => ({ x: (1 - t) * (1 - t) * p.x + 2 * (1 - t) * t * c.x + t * t * q.x, y: (1 - t) * (1 - t) * p.y + 2 * (1 - t) * t * c.y + t * t * q.y });
-    // L'étiquette suit la courbe de son câble, assez loin du nœud pour ne pas couvrir son nom, et s'ancre du côté où
-    // la courbe s'écarte : deux câbles parallèles verticaux ont leurs noms de part et d'autre, pas l'un sur l'autre.
-    const inset = Math.min(0.4, 78 / length);
-    const side = nx * offset;
-    const anchor = side > 0.5 ? "start" : side < -0.5 ? "end" : "middle";
-    return { path: `M${p.x},${p.y} Q${c.x},${c.y} ${q.x},${q.y}`, mid: at(0.5), ends: [at(inset), at(1 - inset)], anchor };
-  }
-
-  // Le cadre d'un cluster : la boîte de ses membres visibles, élargie ; assez large pour le plus long des hostnames
-  // (revue, 11) ; son étiquette dans le coin haut gauche.
-  function hull(points, longest) {
-    const box = LD.layout.bounds(new Map(points.map((p, i) => [i, p])));
-    const padX = Math.max(HULL_PAD, (CHAR_W * (longest || 0)) / 2 + 12);
-    return { x: box.x - padX, y: box.y - HULL_PAD - 6, width: box.width + 2 * padX, height: box.height + 2 * HULL_PAD + 6 };
-  }
-
-  // La bande d'un faisceau couvre l'éventail de ses câbles, avec une marge visible et cliquable de chaque côté (revue, 5).
-  function beamWidths(beam) {
-    const reach = Math.max(0, ...beam.links.map((link) => {
-      const spacing = Math.min(FAN, FAN_MAX / link.pairCount);
-      return Math.abs((link.indexInPair - (link.pairCount - 1) / 2) * spacing);
-    }));
-    const band = BAND + 2 * reach;
-    return { band, hit: band + 2 * HIT_MARGIN };
-  }
-
-  // L'étiquette d'un faisceau : ses deux agrégats, puis ce qu'il est (peer-link, MLAG n). Sur le graphe, la forme
-  // courte ne garde que la nature ; les noms apparaissent avec ceux des ports, ou quand le faisceau est éclairé.
-  function beamLabel(beam, full) {
-    const parts = full === false ? [] : [beam.a.aggregate + " ⇄ " + beam.b.aggregate];
-    if (beam.peerLink) parts.push("peer-link");
-    beam.mlags.forEach((domain) => parts.push("MLAG " + domain.raw.mlag_id));
-    return parts.join(" · ");
-  }
-
-  function clusterLabel(cluster) {
-    return "HA · " + (cluster.raw.cluster_name || cluster.hosts.join(" + ")) + " · " + cluster.raw.mode;
-  }
+  // Un hostname très long est raccourci au milieu sur la toile ; le nom complet reste dans la bulle, la fiche et aria-label.
+  const shortName = (name) => (name.length <= LABEL_MAX ? name : name.slice(0, 11) + "…" + name.slice(-10));
 
   function nodeShape(node) {
     if (node.kind === "stub") return s("circle", { class: "node-shape", r: STUB_R });
-    return s("rect", { class: "node-shape", x: -NODE_W / 2, y: -NODE_H / 2, width: NODE_W, height: NODE_H, rx: 6 });
+    return s("rect", { class: "node-shape", x: -NODE_W / 2, y: -NODE_H / 2, width: NODE_W, height: NODE_H, rx: 9 });
   }
 
   function create(svg, model, onSelect) {
@@ -77,9 +31,16 @@ var LD = globalThis.LD || (globalThis.LD = {});
     const nodeLayer = s("g", { class: "nodes" });
     [clusterLayer, beamLayer, linkLayer, labelLayer, nodeLayer].forEach((layer) => viewport.appendChild(layer));
     clear(svg).appendChild(viewport);
+    const tip = LD.tip.create(svg); // au-dessus du viewport, en coordonnées d'écran
 
     const visibleNodes = () => model.nodes.filter((n) => state.showStubs || n.kind !== "stub");
-    const applyView = () => viewport.setAttribute("transform", `translate(${state.view.tx},${state.view.ty}) scale(${state.view.k})`);
+    // Les classes du svg : sélection, noms des ports, et le palier de zoom (de loin, les petites étiquettes disparaissent).
+    function svgClasses() {
+      const k = state.view.k;
+      svg.setAttribute("class", [state.selection ? "has-selection" : "", state.showPorts ? "show-ports" : "", k < ZOOM_FAR ? "zoom-far" : k >= ZOOM_NEAR ? "zoom-near" : ""].filter(Boolean).join(" "));
+    }
+    const applyView = () => { viewport.setAttribute("transform", `translate(${state.view.tx},${state.view.ty}) scale(${state.view.k})`); svgClasses(); };
+    let dragging = false, pan = null; // un équipement en cours de glissé, une vue en cours de panoramique : pas de bulle
 
     function visibleLinks(shown) {
       return model.links.filter((l) => shown.has(l.a.hostname) && shown.has(l.b.hostname) && !state.hiddenStatuses.has(l.status));
@@ -120,13 +81,16 @@ var LD = globalThis.LD || (globalThis.LD = {});
       const hit = s("path", { class: "link-hit" });
       const mark = link.worst === "error" || link.worst === "warning" ? s("circle", { class: "link-mark severity-" + link.worst, r: 4.5 }) : null;
       const ports = [link.a.interface, link.b.interface].map((name) => s("text", { class: "port-label" }, name));
-      const group = s("g", { class: `link status-${link.status}${link.raw.oper === "down" ? " oper-down" : ""}${link.pairCount > 2 ? " crowded" : ""}${link.heartbeat ? " heartbeat" : ""}` },
-        s("title", {}, `${LD.model.endLabel(link.a)} ↔ ${LD.model.endLabel(link.b)} · ${LD.dom.STATUS_LABEL[link.status]} · ${link.combo}`),
+      const classes = `link status-${link.status}${link.raw.oper === "down" ? " oper-down" : ""}${link.pairCount > 2 ? " crowded" : ""}${link.heartbeat ? " heartbeat" : ""}`;
+      // L'identité est portée par le groupe : le clic (lu au relâchement, sur la cible de l'appui) et le survol remontent
+      // du point touché jusqu'à lui. Pas de <title> natif : la bulle de la page est la seule.
+      const group = s("g", { class: classes, "data-link": String(link.index), tabindex: 0, role: "button",
+        "aria-label": `${LD.model.endLabel(link.a)} ↔ ${LD.model.endLabel(link.b)} · ${LD.dom.STATUS_LABEL[link.status]} · ${link.combo}` },
         halo, line, hit, mark, ports);
-      hit.setAttribute("data-link", String(link.index)); // le clic est lu au relâchement, sur la cible de l'appui
       const els = { group, line, hit, halo, mark, ports };
       state.linkEls.set(link.id, els);
       placeLink(link, els);
+      bindFocus(group, { kind: "link", id: link.id }, () => toScreen(curve(state.positions.get(link.a.hostname), state.positions.get(link.b.hostname), link).mid));
       return group;
     }
 
@@ -162,17 +126,16 @@ var LD = globalThis.LD || (globalThis.LD = {});
       const hit = s("path", { class: "beam-hit", "stroke-width": widths.hit });
       const label = s("text", { class: "beam-label" }, beamLabel(beam, false));
       const labelHit = s("rect", { class: "beam-label-hit" });
-      const tag = s("g", { class: "beam-tag" }, labelHit, label);
+      const tag = s("g", { class: "beam-tag", "data-beam": String(beam.index) }, labelHit, label);
       const classes = `beam${beam.peerLink ? " peer-link" : ""}${beam.degraded ? " degraded" : ""}${beam.mlags.length ? " mlag" : ""}`;
-      const group = s("g", { class: classes },
-        s("title", {}, `faisceau ${LD.model.endLabel({ hostname: beam.a.hostname, interface: beam.a.aggregate })} ⇄ ${LD.model.endLabel({ hostname: beam.b.hostname, interface: beam.b.aggregate })} · ${beam.links.length} câble(s)`),
+      const group = s("g", { class: classes, "data-beam": String(beam.index), tabindex: 0, role: "button",
+        "aria-label": `faisceau ${LD.model.endLabel({ hostname: beam.a.hostname, interface: beam.a.aggregate })} ⇄ ${LD.model.endLabel({ hostname: beam.b.hostname, interface: beam.b.aggregate })} · ${beam.links.length} câble(s)` },
         band, hit);
-      hit.setAttribute("data-beam", String(beam.index));
-      labelHit.setAttribute("data-beam", String(beam.index));
       const els = { group, band, hit, label, labelHit, tag, widths };
       state.beamEls.set(beam.id, els);
       labelLayer.appendChild(tag);
       placeBeam(beam, els);
+      bindFocus(group, { kind: "beam", id: beam.id }, () => toScreen(midpoint(beam.a.hostname, beam.b.hostname)));
       return group;
     }
 
@@ -187,24 +150,35 @@ var LD = globalThis.LD || (globalThis.LD = {});
     function drawCluster(cluster) {
       const rect = s("rect", { class: "cluster-hull", rx: 12 });
       const label = s("text", { class: "cluster-label" }, clusterLabel(cluster));
-      const group = s("g", { class: "cluster" }, s("title", {}, clusterLabel(cluster)), rect, label);
-      rect.setAttribute("data-cluster", String(cluster.index));
+      const group = s("g", { class: "cluster", "data-cluster": String(cluster.index), tabindex: 0, role: "button", "aria-label": clusterLabel(cluster) }, rect, label);
       const els = { group, rect, label };
       state.clusterEls.set(cluster.id, els);
       placeCluster(cluster, els);
+      bindFocus(group, { kind: "cluster", id: cluster.id }, () => toScreen({ x: Number(rect.getAttribute("x")) + 20, y: Number(rect.getAttribute("y")) + 20 }));
       return group;
     }
 
     function drawNode(node) {
       const checks = model.checksByNode.get(node.hostname) || [];
       const worst = LD.model.worst(checks);
-      const group = s("g", { class: `node kind-${node.kind} collection-${node.collection || "none"}`, tabindex: 0 },
-        s("title", {}, `${node.hostname} · ${LD.dom.KIND_LABEL[node.kind]}${node.collection ? " · collecte : " + node.collection : ""}`),
+      // Le rôle HA d'un membre, tel qu'enregistré dans le snapshot (primary, secondary, active, standby, member) : écrit
+      // sous l'étiquette de type, et une classe par famille de rôle pour le fond.
+      const memberships = model.haMembershipsByHost.get(node.hostname) || [];
+      const ha = memberships[0] || null;
+      const haState = memberships.some((m) => m.member.state === "down") ? "down" : ha ? ha.member.state : null;
+      const haClasses = ha ? ` ha-member ha-${LD.model.haRoleGroup(ha.cluster.raw.mode, ha.member.role)} ha-state-${haState}` : "";
+      // Entrée sélectionne : pour un lecteur d'écran c'est un bouton, pas un groupe (revue, B7).
+      // Le nom domine ; le type est une icône dessinée (icons.js), le rôle HA s'écrit sous l'icône.
+      const typeLabel = node.type ? LD.icons.LABEL[node.type] || node.type : null;
+      const group = s("g", { class: `node kind-${node.kind} collection-${node.collection || "none"}${haClasses}`, tabindex: 0, role: "button", "data-node": node.hostname,
+          "aria-label": `${node.hostname} · ${LD.dom.KIND_LABEL[node.kind]}${typeLabel ? " · " + typeLabel : ""}${node.collection ? " · collecte : " + node.collection : ""}${ha ? " · HA " + ha.member.role : ""}` },
         nodeShape(node),
-        node.kind === "stub" ? null : s("text", { class: "node-tag", y: 4 }, TYPE_TAG[node.type] || "?"),
-        s("text", { class: "node-label", y: node.kind === "stub" ? 22 : 30 }, node.hostname),
+        node.kind === "stub" ? null : s("path", { class: "node-icon", d: LD.icons.path(node.type),
+          transform: `translate(${-ICON_PX / 2},${ha ? -NODE_H / 2 + 3 : -ICON_PX / 2}) scale(${ICON_SCALE})` }),
+        ha ? s("text", { class: "node-role", y: NODE_H / 2 - 5 }, ha.member.role) : null,
+        s("text", { class: "node-label", y: node.kind === "stub" ? 22 : NODE_H / 2 + 14 }, shortName(node.hostname)),
         node.stack ? s("text", { class: "node-stack", x: NODE_W / 2 + 4, y: 4 }, "×" + node.stack.member_count) : null,
-        worst === "error" || worst === "warning" ? s("circle", { class: "node-badge severity-" + worst, cx: NODE_W / 2 - 2, cy: -NODE_H / 2 + 2, r: 5 }) : null);
+        worst === "error" || worst === "warning" ? s("circle", { class: "node-badge severity-" + worst, cx: NODE_W / 2 - 1, cy: -NODE_H / 2 + 1, r: 6 }) : null);
       state.nodeEls.set(node.hostname, group);
       moveNode(node.hostname);
       bindNode(group, node.hostname);
@@ -223,10 +197,39 @@ var LD = globalThis.LD || (globalThis.LD = {});
       model.clusters.forEach((cluster) => { const els = state.clusterEls.get(cluster.id); if (els && cluster.hosts.includes(hostname)) placeCluster(cluster, els); });
     }
 
+    // La position d'un équipement à l'écran, et s'il est dans le cadre du canevas.
+    function screenPoint(hostname) {
+      const p = state.positions.get(hostname);
+      return { x: p.x * state.view.k + state.view.tx, y: p.y * state.view.k + state.view.ty };
+    }
+    const onScreen = (point, rect) => point.x >= 0 && point.x <= rect.width && point.y >= 0 && point.y <= rect.height;
+    const toScreen = (p) => ({ x: p.x * state.view.k + state.view.tx, y: p.y * state.view.k + state.view.ty });
+    const midpoint = (h1, h2) => { const p = state.positions.get(h1), q = state.positions.get(h2); return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }; };
+
+    // Au clavier, tout élément du graphe se sélectionne par Entrée ; son focus l'amène en vue s'il est hors cadre, montre sa
+    // bulle à côté de lui et la lui rattache ; la perte du focus la cache. Le focus reçu à l'appui ne rallume pas la bulle
+    // que l'appui vient de cacher (revue, B1, B2, B7).
+    function bindFocus(group, selection, pointOf) {
+      group.addEventListener("keydown", (event) => { if (event.key === "Enter") select(selection); });
+      group.addEventListener("focus", () => {
+        if (dragging || pan) return;
+        const rect = svg.getBoundingClientRect();
+        if (!onScreen(pointOf(), rect)) centerOn(selection);
+        const point = pointOf();
+        tip.show(selection.kind + ":" + selection.id, () => tipLines(selection), point.x, point.y, rect);
+        group.setAttribute("aria-describedby", tip.id);
+      });
+      group.addEventListener("blur", () => { tip.hide(); group.removeAttribute("aria-describedby"); });
+    }
+
     function bindNode(group, hostname) {
       let start = null;
+      const end = () => { start = null; dragging = false; };
       group.addEventListener("pointerdown", (event) => {
+        if (event.button > 0) return; // clic droit ou central : ni glissé ni sélection
         event.stopPropagation();
+        dragging = true;
+        tip.hide();
         start = { x: event.clientX, y: event.clientY, origin: { ...state.positions.get(hostname) }, moved: false };
         group.setPointerCapture(event.pointerId);
       });
@@ -241,23 +244,39 @@ var LD = globalThis.LD || (globalThis.LD = {});
         moveNode(hostname);
         follow(hostname);
       });
-      group.addEventListener("pointerup", () => { if (start && !start.moved) select({ kind: "node", id: hostname }); start = null; });
-      group.addEventListener("keydown", (event) => { if (event.key === "Enter") select({ kind: "node", id: hostname }); });
+      group.addEventListener("pointerup", () => { if (start && !start.moved) select({ kind: "node", id: hostname }); end(); });
+      // Un appui annulé (toucher ou stylet interrompu, fenêtre qui perd le focus, nœud redessiné) n'a jamais de
+      // relâchement : on libère quand même, sinon le nœud suivrait la souris sans appui et la bulle resterait morte (revue, H1).
+      group.addEventListener("pointercancel", end);
+      group.addEventListener("lostpointercapture", end);
+      bindFocus(group, { kind: "node", id: hostname }, () => screenPoint(hostname));
     }
 
-    // Ce que l'appui a touché : un câble, un faisceau, un cluster, ou le fond.
-    function targetSelection(target) {
-      if (!target || !target.getAttribute) return null;
-      const link = target.getAttribute("data-link"), beam = target.getAttribute("data-beam"), cluster = target.getAttribute("data-cluster");
-      if (link !== null) return { kind: "link", id: model.links[Number(link)].id };
-      if (beam !== null) return { kind: "beam", id: model.beams[Number(beam)].id };
-      if (cluster !== null) return { kind: "cluster", id: model.clusters[Number(cluster)].id };
+    // Ce que le pointeur a touché : un câble, un faisceau, un cluster, un équipement, ou le fond. On remonte du point
+    // touché (un tracé, une étiquette, une forme) jusqu'au groupe qui porte l'identité.
+    function entityAt(target) {
+      for (let el = target; el && el !== svg && el.getAttribute; el = el.parentNode) {
+        const link = el.getAttribute("data-link"), beam = el.getAttribute("data-beam"), cluster = el.getAttribute("data-cluster"), node = el.getAttribute("data-node");
+        if (link !== null) return { kind: "link", id: model.links[Number(link)].id };
+        if (beam !== null) return { kind: "beam", id: model.beams[Number(beam)].id };
+        if (cluster !== null) return { kind: "cluster", id: model.clusters[Number(cluster)].id };
+        if (node !== null) return { kind: "node", id: node };
+      }
       return null;
     }
 
+    function tipLines(selection) {
+      const entity = LD.model.entityOf(model, selection);
+      if (selection.kind === "link") return LD.tip.linkLines(model, entity);
+      if (selection.kind === "node") return LD.tip.nodeLines(model, entity);
+      if (selection.kind === "beam") return LD.tip.beamLines(entity);
+      return LD.tip.clusterLines(entity);
+    }
+
     function bindCanvas() {
-      let pan = null;
       svg.addEventListener("pointerdown", (event) => {
+        if (event.button > 0) return;
+        tip.hide();
         pan = { x: event.clientX, y: event.clientY, tx: state.view.tx, ty: state.view.ty, moved: false, target: event.target };
         svg.setPointerCapture(event.pointerId); // la capture détourne l'événement click : on ne s'appuie pas dessus
       });
@@ -270,9 +289,20 @@ var LD = globalThis.LD || (globalThis.LD = {});
         applyView();
       });
       svg.addEventListener("pointerup", () => {
-        if (pan && !pan.moved) select(targetSelection(pan.target));
+        if (pan && !pan.moved) select(entityAt(pan.target));
         pan = null;
       });
+      svg.addEventListener("pointercancel", () => { pan = null; }); // un appui annulé ne laisse pas la vue suivre la souris (revue, H1)
+      svg.addEventListener("lostpointercapture", () => { pan = null; });
+      // Le survol : la bulle suit le pointeur tant qu'il reste sur le même élément ; un glissé (vue ou équipement) la cache.
+      svg.addEventListener("pointermove", (event) => {
+        if (pan || dragging) { tip.hide(); return; }
+        const entity = entityAt(event.target);
+        if (!entity) { tip.hide(); return; }
+        const rect = svg.getBoundingClientRect();
+        tip.show(entity.kind + ":" + entity.id, () => tipLines(entity), event.clientX - rect.left, event.clientY - rect.top, rect);
+      });
+      svg.addEventListener("pointerleave", () => tip.hide());
       svg.addEventListener("wheel", (event) => {
         event.preventDefault();
         const rect = svg.getBoundingClientRect();
@@ -313,7 +343,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
       const selection = state.selection;
       const related = relatedTo(selection);
       const is = (kind, id) => !!selection && selection.kind === kind && selection.id === id;
-      svg.setAttribute("class", (selection ? "has-selection" : "") + (state.showPorts ? " show-ports" : ""));
+      svgClasses();
       const query = state.query.trim().toLowerCase();
       state.nodeEls.forEach((el, id) => {
         el.classList.toggle("selected", is("node", id) || (!!selection && selection.kind === "aggregate" && LD.model.entityOf(model, selection).hostname === id));
@@ -329,8 +359,6 @@ var LD = globalThis.LD || (globalThis.LD = {});
         els.group.classList.toggle("related", related.beams.has(id));
         els.tag.classList.toggle("selected", is("beam", id));
         els.tag.classList.toggle("related", related.beams.has(id));
-        els.label.textContent = beamLabel(model.beamById.get(id), is("beam", id)); // complète seulement sur le faisceau choisi
-        placeBeam(model.beamById.get(id), els);
       });
       state.clusterEls.forEach((els, id) => {
         els.group.classList.toggle("selected", is("cluster", id));
@@ -359,6 +387,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
       const links = visibleLinks(shown);
       const pinned = new Map(Array.from(state.pinned).filter(([id]) => shown.has(id)));
       state.positions = LD.layout.run(shown, layoutEdges(), pinned);
+      tip.hide(); // l'élément survolé va être redessiné
       [state.nodeEls, state.linkEls, state.beamEls, state.clusterEls].forEach((map) => map.clear());
       [clusterLayer, beamLayer, linkLayer, labelLayer, nodeLayer].forEach(clear);
       visibleClusters(shown).forEach((cluster) => clusterLayer.appendChild(drawCluster(cluster)));
@@ -405,5 +434,5 @@ var LD = globalThis.LD || (globalThis.LD = {});
       resetPins: () => { state.pinned.clear(); return render(false); } };
   }
 
-  LD.graph = { create, curve, hull, beamWidths, beamLabel, clusterLabel, TYPE_TAG };
+  LD.graph = { create };
 })();

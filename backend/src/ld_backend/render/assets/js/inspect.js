@@ -44,7 +44,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
     const parsed = itf.description_parsed;
     return h("div", { class: "port" }, title, definition([
       ["état", itf.oper_status + " (admin " + itf.admin_status + ")" + (itf.oper_reason ? " · " + itf.oper_reason : "")],
-      ["type · vitesse", itf.type + (itf.speed_mbps ? " · " + itf.speed_mbps + " Mb/s" : "") + (itf.duplex ? " · " + itf.duplex : "")],
+      ["type · vitesse", itf.type + (itf.speed_mbps ? " · " + LD.dom.speedText(itf.speed_mbps) : "") + (itf.duplex ? " · " + itf.duplex : "")],
+      ["média", itf.media],
       ["agrégat", aggregate || (itf.aggregate ? itf.aggregate.name + (itf.aggregate.member_status ? " (" + itf.aggregate.member_status + ")" : "") : null)],
       ["rôles", itf.roles.length ? itf.roles.join(", ") : null],
       ["description brute", itf.description === null ? "(aucune)" : h("code", { class: "wrap" }, itf.description)],
@@ -101,7 +102,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
         h("span", { class: "arrow" }, " ↔ "),
         h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "node", id: raw.b.hostname }) }, raw.b.hostname), " · " + raw.b.interface),
       h("p", { class: "why" }, why),
-      definition([["état", raw.oper], ["vitesse commune", raw.speed_mbps ? raw.speed_mbps + " Mb/s" : "différente ou inconnue"],
+      definition([["état", raw.oper], ["vitesse commune", raw.speed_mbps ? LD.dom.speedText(raw.speed_mbps) : "différente ou inconnue"],
         ["agrégats", aggregateEnds(model, link, onSelect)], ["faisceau", link.beam ? LD.structures.beamButton(link.beam, onSelect) : null]]),
       h("h4", { class: "section" }, "Sources : " + raw.evidence.length + " évidence" + (raw.evidence.length > 1 ? "s" : "")),
       h("ul", { class: "evidences" }, raw.evidence.map((e) => evidenceCard(model, e))),
@@ -168,20 +169,28 @@ var LD = globalThis.LD || (globalThis.LD = {});
     ];
   }
 
+  // La vue d'ensemble ne répète pas les comptes de l'en-tête : elle dit ce qu'il ne dit pas, et comment lire la page.
   function overview(model) {
-    const count = (map, key) => map.get(key) || 0;
     return [
       h("div", { class: "panel-head" }, h("span", { class: "eyebrow" }, "vue d'ensemble")),
-      h("p", { class: "why" }, "Cliquer un câble montre ses sources ; cliquer un équipement montre sa fiche. Glisser un équipement le déplace, la molette zoome."),
+      h("p", { class: "why" }, "Cliquer un câble montre ses sources ; cliquer un équipement montre sa fiche. Survoler un câble donne vitesse, duplex, média et état "
+        + "des deux bouts. Glisser un équipement le déplace, la molette zoome, Tab parcourt les éléments."),
       definition([
-        ["équipements collectés", count(model.kindCounts, "device")], ["d'une autre infra", count(model.kindCounts, "external")],
-        ["voisins inconnus", count(model.kindCounts, "stub") + " (masqués par défaut)"],
-        ["câbles confirmés", count(model.statusCounts, "confirmed")], ["observés seuls", count(model.statusCounts, "observed_only")],
-        ["documentés seuls", count(model.statusCounts, "documented_only")],
-        ["agrégats · faisceaux", model.aggregates.length + " · " + model.beams.length + " (bandes sous les câbles)"],
+        ["voisins inconnus", (model.kindCounts.get("stub") || 0) + " (masqués par défaut)"],
+        ["agrégats", String(model.aggregates.length)], ["faisceaux", model.beams.length + " (bandes sous les câbles)"],
         ["domaines MLAG", String(model.mlagDomains.length)], ["clusters HA", model.clusters.length + " (cadres autour des membres)"],
       ]),
     ];
+  }
+
+  // Une ligne pour la zone live : ce qui vient d'être sélectionné, pour un lecteur d'écran, sans lui lire tout le panneau.
+  const KIND_WORD = { link: "câble", node: "équipement", aggregate: "agrégat", beam: "faisceau", cluster: "cluster HA" };
+  function describe(model, selection) {
+    const entity = LD.model.entityOf(model, selection);
+    if (!entity) return "";
+    const label = { link: () => LD.model.endLabel(entity.a) + " ↔ " + LD.model.endLabel(entity.b), node: () => entity.hostname,
+      aggregate: () => entity.hostname + " · " + entity.name, beam: () => LD.geometry.beamLabel(entity, true), cluster: () => LD.geometry.clusterLabel(entity) }[selection.kind]();
+    return KIND_WORD[selection.kind] + " " + label + " sélectionné";
   }
 
   function show(container, model, selection, onSelect) {
@@ -195,7 +204,9 @@ var LD = globalThis.LD || (globalThis.LD = {});
     if (entity && selection.kind === "cluster") content = LD.structures.clusterPanel(model, entity, onSelect);
     container.appendChild(h("div", { class: "panel" }, content));
     container.scrollTop = 0;
+    // Sous 900 px l'inspecteur est sous la toile : un panneau rempli hors écran ferait croire que le clic n'a rien fait.
+    if (selection && typeof matchMedia === "function" && matchMedia("(max-width: 900px)").matches && container.scrollIntoView) container.scrollIntoView({ block: "start" });
   }
 
-  LD.inspect = { show, checkList };
+  LD.inspect = { show, checkList, describe };
 })();

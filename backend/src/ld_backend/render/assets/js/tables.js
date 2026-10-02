@@ -38,8 +38,10 @@ var LD = globalThis.LD || (globalThis.LD = {});
     const body = h("div", {});
     const draw = () => {
       const text = state.text.trim().toLowerCase();
+      // Les plus graves d'abord, puis par code, puis dans l'ordre du snapshot : les erreurs ne sont jamais enterrées.
       const rows = model.checks.filter((c) => (!state.severity || c.severity === state.severity) && (!state.code || c.code === state.code)
-        && (!text || JSON.stringify([c.refs, c.details]).toLowerCase().includes(text)));
+        && (!text || JSON.stringify([c.refs, c.details]).toLowerCase().includes(text)))
+        .sort((x, y) => LD.model.SEVERITY_RANK[x.severity] - LD.model.SEVERITY_RANK[y.severity] || (x.code < y.code ? -1 : x.code > y.code ? 1 : 0) || x.index - y.index);
       clear(body).appendChild(h("p", { class: "muted" }, rows.length + " contrôle" + (rows.length > 1 ? "s" : "") + " sur " + model.checks.length));
       body.appendChild(table(["sévérité", "code", "vise", "détails", "règle"], checkRows(model, rows, onSelect), { empty: "aucun contrôle ne correspond" }));
     };
@@ -52,6 +54,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
         h("label", { class: "field" }, "contient", h("input", { id: "f-text", type: "search", placeholder: "hostname, port…", oninput: (e) => { state.text = e.target.value; draw(); } }))),
       glossary(model, codes), body));
     draw();
+    // Les pastilles de l'en-tête (« 2 error ») ouvrent cette vue filtrée sur une sévérité.
+    LD.tables.setChecksSeverity = (severity) => { state.severity = severity; const field = document.getElementById("f-severity"); if (field) field.value = severity; draw(); };
   }
 
   function glossary(model, codes) {

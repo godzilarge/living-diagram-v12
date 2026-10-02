@@ -14,20 +14,23 @@
   <div class="counts" id="run-counts"></div>
 </header>
 <nav class="tabs" id="tabs" role="tablist"></nav>
+<p id="live" class="sr-only" aria-live="polite"></p>
 <main>
   <section class="view" id="view-shell" hidden></section>
-  <section class="view" id="view-graph">
+  <section class="view" id="view-graph" role="tabpanel" aria-labelledby="tab-graph">
     <div class="canvas-wrap">
       <div class="toolbar" id="graph-toolbar"></div>
-      <svg id="canvas" role="img" aria-label="Graphe des équipements et des câbles"></svg>
-      <div class="legend" id="graph-legend"></div>
+      <div class="canvas-stage">
+        <svg id="canvas" role="group" aria-label="Graphe des équipements et des câbles"></svg>
+        <div class="legend" id="graph-legend"></div>
+      </div>
     </div>
-    <aside class="inspector" id="inspector" aria-live="polite"></aside>
+    <aside class="inspector" id="inspector"></aside>
   </section>
-  <section class="view" id="view-structures" hidden></section>
-  <section class="view" id="view-checks" hidden></section>
-  <section class="view" id="view-quality" hidden></section>
-  <section class="view" id="view-sources" hidden></section>
+  <section class="view" id="view-structures" role="tabpanel" aria-labelledby="tab-structures" hidden></section>
+  <section class="view" id="view-checks" role="tabpanel" aria-labelledby="tab-checks" hidden></section>
+  <section class="view" id="view-quality" role="tabpanel" aria-labelledby="tab-quality" hidden></section>
+  <section class="view" id="view-sources" role="tabpanel" aria-labelledby="tab-sources" hidden></section>
 </main>
 <noscript><p class="fatal">Cette page a besoin de JavaScript : tout le rendu se fait dans le navigateur, sans réseau.</p></noscript>
 <script type="application/json" id="ld-data">{{DATA}}</script>

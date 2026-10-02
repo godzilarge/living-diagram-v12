@@ -68,6 +68,12 @@ var LD = globalThis.LD || (globalThis.LD = {});
     return facts.length ? label + " (" + facts.map(([k, v]) => k + " " + plain(v)).join(", ") + ")" : label;
   }
 
+  // Une vitesse lue en Mbit/s, écrite comme on la lit : « 10 Gb/s », « 2,5 Gb/s », « 100 Mb/s » ; non lue, elle reste null.
+  function speedText(mbps) {
+    if (mbps === null || mbps === undefined) return null;
+    return mbps >= 1000 ? String(mbps / 1000).replace(".", ",") + " Gb/s" : mbps + " Mb/s";
+  }
+
   function definition(rows) {
     return h("dl", { class: "kv" }, rows.filter((row) => row && row[1] !== null && row[1] !== undefined && row[1] !== "").map(
       ([label, value]) => [h("dt", {}, label), h("dd", {}, typeof value === "object" ? value : String(value))]));
@@ -85,6 +91,6 @@ var LD = globalThis.LD || (globalThis.LD = {});
     return h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, head), h("tbody", {}, body, empty)));
   }
 
-  LD.dom = { h, s, clear, pill, sourcePill, statusPill, severityPill, plain, definition, table,
+  LD.dom = { h, s, clear, pill, sourcePill, statusPill, severityPill, plain, speedText, definition, table,
     SOURCE_LABEL, STATUS_LABEL, KIND_LABEL, RESOLUTION_LABEL };
 })();

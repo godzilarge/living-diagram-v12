@@ -34,9 +34,9 @@ test("deux câbles entre les mêmes équipements gardent chacun leur tracé", ()
   const pair = model.links.filter((l) => l.a.hostname === "sw-core-01" && l.b.hostname === "sw-core-02");
   assert.equal(pair.length >= 2, true);
   assert.deepEqual(clone(pair.map((l) => l.pairCount)), clone(pair.map(() => pair.length)));
-  const paths = pair.map((l) => LD.graph.curve({ x: 0, y: 0 }, { x: 200, y: 0 }, l).path);
+  const paths = pair.map((l) => LD.geometry.curve({ x: 0, y: 0 }, { x: 200, y: 0 }, l).path);
   assert.equal(new Set(paths).size, pair.length);
-  const loop = LD.graph.curve({ x: 5, y: 5 }, { x: 5, y: 5 }, { a: { hostname: "x" }, b: { hostname: "x" }, indexInPair: 0, pairCount: 1 });
+  const loop = LD.geometry.curve({ x: 5, y: 5 }, { x: 5, y: 5 }, { a: { hostname: "x" }, b: { hostname: "x" }, indexInPair: 0, pairCount: 1 });
   assert.match(loop.path, /^M.* C/);
   assert.equal(Number.isFinite(loop.mid.y), true);
 });
@@ -63,7 +63,7 @@ test("la page démarre : en-tête, graphe sans les voisins inconnus, puis avec",
   assert.match(document.getElementById("run-counts").textContent, /6 nœuds.*6 câbles/);
   assert.equal(canvas.withClass("node").length, 5);
   assert.equal(canvas.withClass("link").length, 5);
-  assert.match(document.getElementById("graph-status").textContent, /5 nœuds sur 6 et 5 câbles sur 6 affichés · 1 voisins inconnus masqués/);
+  assert.match(document.getElementById("graph-status").textContent, /5 nœuds sur 6 et 5 câbles sur 6 affichés · 1 voisin inconnu masqué/);
   assert.equal(canvas.withClass("kind-external").length, 1);
   assert.equal(canvas.withClass("collection-unreachable").length, 1, "fw-edge-02 est injoignable");
   assert.equal(canvas.withClass("link-mark").length, 1, "un seul câble porte un contrôle warning");
@@ -249,7 +249,7 @@ test("le modèle indexe les structures : agrégats, faisceaux, domaines MLAG, cl
   assert.equal(model.aggregates.length, 5);
   assert.deepEqual(clone(model.beams.map((b) => [b.a.aggregate, b.b.aggregate, b.links.length, b.peerLink, b.mlags.map((d) => d.raw.mlag_id)])), [
     ["agg-core", "port-channel20", 1, false, [20]], ["agg-core", "port-channel20", 1, false, [20]], ["port-channel10", "port-channel10", 2, true, []]]);
-  assert.deepEqual(clone(load(page).LD.graph.beamWidths(model.beams[2])), { band: 32, hit: 48 }, "la bande couvre l'éventail de ses deux câbles");
+  assert.deepEqual(clone(load(page).LD.geometry.beamWidths(model.beams[2])), { band: 32, hit: 48 }, "la bande couvre l'éventail de ses deux câbles");
   const po10 = model.aggregateByKey.get(PO10_CORE_2);
   assert.equal(po10.cables.length, 2);
   assert.deepEqual(clone(po10.checks.map((c) => c.code)), ["aggregate_member_not_bundled"]);
@@ -278,7 +278,8 @@ test("le graphe dessine une bande par faisceau et un cadre par cluster, cliquabl
   canvas.fire("pointerdown", { target: hit });
   canvas.fire("pointerup", { target: hit });
   assert.equal(LD.app.graph.state.selection.kind, "beam");
-  assert.match(canvas.withClass("beam-label")[2].textContent, /port-channel10 ⇄ port-channel10 · peer-link/, "forme complète quand éclairé");
+  assert.equal(canvas.withClass("beam-label")[2].textContent, "peer-link", "l'étiquette reste courte sur la toile : la complète est dans la bulle et l'inspecteur");
+  assert.equal(canvas.withClass("beam-tag")[2].classList.contains("selected"), true);
   const inspector = document.getElementById("inspector");
   assert.match(inspector.textContent, /faisceau.*2 câbles entre les membres de port-channel10 et de port-channel10.*peer-link/s);
   assert.match(inspector.textContent, /aggregate_member_not_bundled/);
@@ -484,4 +485,259 @@ test("une forme HA non résolue se lit dans la qualité des données, avec sa ra
   assert.match(quality, /description_ha_unresolved/);
   assert.match(quality, /priority_undecided/);
   assert.match(quality, /fw-edge-01 · x1/);
+});
+
+// ---------------------------------------------------------------- démonstration : bulles au survol, rôle HA (2026-10-02)
+
+const STUB_LINK = ["srv-hyp-07", "3c:ec:ef:12:34:56", "sw-core-02", "Ethernet1/3"].join("\u0000");
+const WAN_LINK = ["rt-wan-01", "GigabitEthernet0/0/0", "sw-core-01", "Ethernet1/4"].join("\u0000");
+const joined = (lines) => lines.map((cells) => cells.map((cell) => cell.text).join(" ")).join("\n");
+
+test("une vitesse s'écrit en Gb/s ou en Mb/s ; non lue, elle ne s'écrit pas", () => {
+  const { LD } = load(page);
+  assert.deepEqual(clone([10000, 2500, 1000, 100, 20000, null].map(LD.dom.speedText)), ["10 Gb/s", "2,5 Gb/s", "1 Gb/s", "100 Mb/s", "20 Gb/s", null]);
+});
+
+test("la bulle d'un câble donne, par bout, vitesse, duplex, média et état, tels que lus", () => {
+  const { LD } = load(page, page.data);
+  const model = LD.app.model;
+  const core = joined(LD.tip.linkLines(model, model.linkById.get(CORE_LINK)));
+  assert.match(core, /^sw-core-01 · Ethernet1\/2 ↔ sw-core-02 · Ethernet1\/2\nconfirmé · LLDP \+ Description · down\n/);
+  assert.match(core, /\nvitesse 10 Gb\/s 10 Gb\/s\nduplex full full\nmédia 10Gbase-SR 10Gbase-SR\nétat up down · suspended by LACP\n/);
+  assert.match(core, /\nwarning · aggregate_member_not_bundled\nwarning · description_disagrees_with_observed\nwarning · link_oper_mismatch$/, "un contrôle par ligne, les plus graves d'abord");
+  const stub = joined(LD.tip.linkLines(model, model.linkById.get(STUB_LINK)));
+  assert.match(stub, /\nvitesse — 10 Gb\/s\n/, "un bout absent de interfaces[] n'a pas de valeur : un tiret, jamais une valeur inventée");
+  assert.match(stub, /\nmédia — 10Gbase-SR\n/);
+  assert.match(stub, /\nsrv-hyp-07 · 3c:ec:ef:12:34:56 : absent de interfaces\[\]\n/, "un bout absent est nommé comme tel, le tiret n'affirme rien");
+});
+
+test("un câble dont aucun bout n'a de caractéristique le dit sans inventer de raison", () => {
+  const data = clone(page.data);
+  Object.assign(data.snapshot.interfaces.find((i) => i.hostname === "sw-core-01" && i.name === "Ethernet1/4"), { speed_mbps: null, duplex: null, media: null });
+  const { LD } = load(page, data);
+  const model = LD.app.model;
+  const text = joined(LD.tip.linkLines(model, model.linkById.get(WAN_LINK)));
+  assert.match(text, /vitesse, duplex, média : aucune valeur/);
+  assert.doesNotMatch(text, /non lu/, "null n'est pas une raison");
+  assert.doesNotMatch(text, /\nvitesse /);
+  assert.match(text, /\nétat — up(\n|$)/, "l'état reste connu du côté collecté");
+});
+
+test("survoler un tracé affiche la bulle, quitter la cache ; un appui la cache aussi", () => {
+  const { LD, document } = load(page, page.data);
+  const canvas = document.getElementById("canvas");
+  const model = LD.app.model;
+  const core = model.linkById.get(CORE_LINK);
+  const group = canvas.withClass("link").find((g) => g.getAttribute("data-link") === String(core.index));
+  const hit = group.withClass("link-hit")[0];
+  const tip = canvas.withClass("tip")[0];
+  assert.equal(tip.getAttribute("visibility"), "hidden");
+  canvas.fire("pointermove", { target: hit, clientX: 120, clientY: 90 });
+  assert.equal(tip.getAttribute("visibility"), "visible");
+  assert.match(tip.textContent, /10Gbase-SR/);
+  assert.match(tip.getAttribute("transform"), /^translate\(-?\d+(\.\d+)?,-?\d+(\.\d+)?\)$/);
+  canvas.fire("pointermove", { target: canvas, clientX: 300, clientY: 300 });
+  assert.equal(tip.getAttribute("visibility"), "hidden");
+  const shape = canvas.withClass("node").find((g) => g.getAttribute("data-node") === "fw-edge-01").withClass("node-shape")[0];
+  canvas.fire("pointermove", { target: shape, clientX: 10, clientY: 10 });
+  assert.match(tip.textContent, /fw-edge-01 · équipement collecté · firewall/);
+  assert.match(tip.textContent, /HA · EDGE-CLUSTER · active_passive · primary · up · priorité 200/);
+  canvas.fire("pointerdown", { target: canvas });
+  assert.equal(tip.getAttribute("visibility"), "hidden");
+  canvas.fire("pointerup", {});
+  canvas.fire("pointermove", { target: shape, clientX: 10, clientY: 10 });
+  assert.equal(tip.getAttribute("visibility"), "visible");
+  canvas.fire("pointerleave", {});
+  assert.equal(tip.getAttribute("visibility"), "hidden");
+  assert.equal(canvas.all((n) => n.tagName === "title").length, 0, "plus de <title> natif : une seule bulle");
+});
+
+test("un membre de cluster HA porte son rôle sur le graphe, tel qu'enregistré", () => {
+  const { document } = load(page, page.data);
+  const canvas = document.getElementById("canvas");
+  const node = (host) => canvas.withClass("node").find((g) => g.getAttribute("data-node") === host);
+  assert.equal(node("fw-edge-01").classList.contains("ha-lead"), true);
+  assert.equal(node("fw-edge-01").withClass("node-role")[0].textContent, "primary");
+  assert.equal(node("fw-edge-02").classList.contains("ha-follow"), true);
+  assert.equal(node("fw-edge-02").classList.contains("ha-state-down"), true);
+  assert.equal(node("fw-edge-02").withClass("node-role")[0].textContent, "secondary");
+  assert.equal(node("sw-core-01").withClass("node-role").length, 0, "un équipement hors cluster ne porte aucun rôle");
+});
+
+// ---------------------------------------------------------------- revue de la page de démonstration (2026-10-02)
+
+test("la bulle d'un faisceau nomme ses deux équipements ; celle d'un cluster liste ses membres", () => {
+  const { LD } = load(page, page.data);
+  const model = LD.app.model;
+  const titles = model.beams.map((beam) => LD.tip.beamLines(beam)[0][0].text);
+  assert.equal(new Set(titles).size, model.beams.length, "deux faisceaux d'un même agrégat vers deux voisins ont deux bulles distinctes (revue, M2)");
+  const peer = joined(LD.tip.beamLines(model.beams.find((b) => b.peerLink)));
+  assert.match(peer, /^faisceau sw-core-01 · port-channel10 ⇄ sw-core-02 · port-channel10 · peer-link\n2 câbles · .*un agrégat dégradé\n/);
+  assert.match(peer, /aggregate_member_not_bundled/);
+  const cluster = joined(LD.tip.clusterLines(model.clusterById.get(CLUSTER_ID)));
+  assert.match(cluster, /^HA · EDGE-CLUSTER · active_passive\nfw-edge-01 primary · up · priorité 200\nfw-edge-02 secondary · down · priorité 100\nerror · ha_member_down\n/);
+});
+
+test("les contrôles d'une bulle portent leur nombre par code ; le reste est compté en contrôles (revue, M3)", () => {
+  const { LD } = load(page, page.data);
+  const checks = Array.from({ length: 9 }, () => ({ severity: "warning", code: "neighbor_unknown" }))
+    .concat([{ severity: "error", code: "link_oper_mismatch" }], Array.from({ length: 7 }, (_, i) => ({ severity: "info", code: "info_" + i })));
+  const beam = { a: { hostname: "a", aggregate: "po1" }, b: { hostname: "b", aggregate: "po2" }, known: [], links: [1, 2], degraded: false, peerLink: false, mlags: [], checks };
+  assert.match(joined(LD.tip.beamLines(beam)), /\nerror · link_oper_mismatch\nwarning · neighbor_unknown ×9\ninfo · info_0\ninfo · info_1\ninfo · info_2\ninfo · info_3\n… et 3 autres contrôles$/);
+});
+
+test("un appui annulé libère le glissé : le nœud ne suit plus la souris, la bulle revit (revue, H1)", () => {
+  const { LD, document } = load(page, page.data);
+  const canvas = document.getElementById("canvas");
+  const state = LD.app.graph.state;
+  const node = canvas.withClass("node").find((g) => g.getAttribute("data-node") === "sw-core-01");
+  const tip = canvas.withClass("tip")[0];
+  const before = clone(state.positions.get("sw-core-01"));
+  node.fire("pointerdown", { clientX: 10, clientY: 10 });
+  node.fire("pointercancel", {});
+  node.fire("pointermove", { clientX: 90, clientY: 40 });
+  assert.deepEqual(clone(state.positions.get("sw-core-01")), before, "sans appui, le nœud ne bouge pas");
+  canvas.fire("pointermove", { target: node.withClass("node-shape")[0], clientX: 10, clientY: 10 });
+  assert.equal(tip.getAttribute("visibility"), "visible", "la bulle n'est pas restée morte");
+  node.fire("pointerdown", { clientX: 10, clientY: 10, button: 2 });
+  node.fire("pointermove", { clientX: 90, clientY: 40 });
+  assert.deepEqual(clone(state.positions.get("sw-core-01")), before, "le clic droit ne glisse rien");
+  const tx = state.view.tx;
+  canvas.fire("pointerdown", { target: canvas });
+  canvas.fire("pointercancel", {});
+  canvas.fire("pointermove", { target: canvas, clientX: 60, clientY: 0 });
+  assert.equal(state.view.tx, tx, "un appui annulé sur le fond ne laisse pas la vue suivre la souris");
+});
+
+test("glisser puis relâcher rend le survol ; le focus montre la bulle et la rattache, la perte du focus la cache (revue, M5, B1, B7)", () => {
+  const { LD, document } = load(page, page.data);
+  const canvas = document.getElementById("canvas");
+  const node = canvas.withClass("node").find((g) => g.getAttribute("data-node") === "sw-core-01");
+  const shape = node.withClass("node-shape")[0];
+  const tip = canvas.withClass("tip")[0];
+  node.fire("pointerdown", { clientX: 10, clientY: 10 });
+  node.fire("focus", {}); // le focus reçu à l'appui
+  assert.equal(tip.getAttribute("visibility"), "hidden", "le focus de l'appui ne rallume pas la bulle");
+  canvas.fire("pointermove", { target: shape, clientX: 50, clientY: 30 });
+  assert.equal(tip.getAttribute("visibility"), "hidden", "pas de bulle pendant un glissé");
+  node.fire("pointermove", { clientX: 90, clientY: 40 });
+  node.fire("pointerup", {});
+  canvas.fire("pointermove", { target: shape, clientX: 90, clientY: 40 });
+  assert.equal(tip.getAttribute("visibility"), "visible", "après le relâchement, le survol revit");
+  canvas.fire("pointerleave", {});
+  node.fire("focus", {});
+  assert.equal(tip.getAttribute("visibility"), "visible");
+  assert.match(tip.textContent, /sw-core-01 · équipement collecté · switch/);
+  assert.equal(node.getAttribute("aria-describedby"), "ld-tip");
+  assert.equal(node.getAttribute("role"), "button");
+  assert.equal(tip.getAttribute("role"), "tooltip");
+  node.fire("blur", {});
+  assert.equal(tip.getAttribute("visibility"), "hidden");
+  assert.equal(node.getAttribute("aria-describedby"), null);
+  assert.equal(LD.app.graph.state.pinned.size, 1, "le glissé a bien épinglé le nœud");
+});
+
+test("le fond du rôle ne dit forwarde / en attente que là où le snapshot le dit (revue, M1)", () => {
+  const { LD } = load(page);
+  const group = LD.model.haRoleGroup;
+  assert.deepEqual([group("active_passive", "primary"), group("active_passive", "secondary"), group("active_active", "primary"), group("active_active", "secondary"),
+    group("active_active", "active"), group("other", "standby"), group("active_passive", "member")], ["lead", "follow", "plain", "plain", "lead", "follow", "plain"]);
+});
+
+test("un équipement dans deux clusters porte le rôle du premier, l'état down de n'importe lequel, et la bulle liste les deux (revue, B4)", () => {
+  const data = clone(page.data);
+  data.snapshot.ha_clusters.push({ cluster_name: "ODD", mode: "active_active", heartbeat_interfaces: [], members: [
+    { hostname: "fw-edge-01", role: "standby", state: "down", priority: null, reported_by: ["fw-edge-01"] },
+    { hostname: "sw-core-02", role: "active", state: "up", priority: null, reported_by: ["fw-edge-01"] }] });
+  const { LD, document } = load(page, data);
+  const node = document.getElementById("canvas").withClass("node").find((g) => g.getAttribute("data-node") === "fw-edge-01");
+  assert.equal(node.classList.contains("ha-lead"), true, "rôle du premier cluster, dans l'ordre canonique");
+  assert.equal(node.classList.contains("ha-state-down"), true, "down dans le second cluster : visible sur le nœud");
+  assert.match(joined(LD.tip.nodeLines(LD.app.model, LD.app.model.nodeByHost.get("fw-edge-01"))),
+    /HA · EDGE-CLUSTER · active_passive · primary · up · priorité 200\nHA · ODD · active_active · standby · down\n/);
+});
+
+
+// ---------------------------------------------------------------- passe de finition après la critique design (2026-10-02)
+
+test("l'en-tête n'est pas inerte : une sévérité ouvre les contrôles filtrés, un statut se bascule comme dans la légende", () => {
+  const { LD, document } = load(page, page.data);
+  document.getElementById("c-error").fire("click", {});
+  assert.equal(document.getElementById("view-checks").hidden, false);
+  assert.match(document.getElementById("view-checks").textContent, /2 contrôles sur 11/);
+  assert.equal(document.getElementById("f-severity").value, "error");
+  document.getElementById("c-documented_only").fire("click", {});
+  assert.equal(LD.app.graph.state.hiddenStatuses.has("documented_only"), true);
+  assert.equal(document.getElementById("c-documented_only").getAttribute("aria-pressed"), "false");
+  assert.equal(document.getElementById("l-documented_only").getAttribute("aria-pressed"), "false", "la légende et l'en-tête disent la même chose");
+  assert.match(document.getElementById("run-meta").textContent, /^infra-lab · run 66db3f0e9a1c2b0012f4a7d1collecte du/, "identité sur une ligne, métadonnées sur la suivante");
+});
+
+test("les contrôles sont triés par sévérité puis par code ; les onglets portent leurs comptes", () => {
+  const { LD, document } = load(page, page.data);
+  LD.app.activate("checks");
+  const rows = document.getElementById("view-checks").all((n) => n.tagName === "tr").slice(1);
+  const severities = rows.map((row) => row.withClass("pill")[0].textContent);
+  assert.deepEqual(severities.slice(0, 2), ["error", "error"], "les erreurs d'abord");
+  assert.equal(severities.join(","), severities.slice().sort((x, y) => LD.model.SEVERITY_RANK[x] - LD.model.SEVERITY_RANK[y]).join(","));
+  assert.match(document.getElementById("tab-checks").textContent, /^Contrôles · 11$/);
+  assert.match(document.getElementById("tab-sources").textContent, /^Sources · 6$/);
+  assert.equal(document.getElementById("tab-checks").getAttribute("aria-controls"), "view-checks");
+});
+
+test("un nœud porte une icône de type dessinée et son nom raccourci au besoin ; la légende montre les types", () => {
+  const data = clone(page.data);
+  const long = "sw-distribution-building-b-floor-12-rack-07";
+  data.snapshot.nodes.find((n) => n.hostname === "rt-wan-01").hostname = long;
+  data.snapshot.links.forEach((l) => [l.a, l.b].forEach((end) => { if (end.hostname === "rt-wan-01") end.hostname = long; }));
+  data.snapshot.links.forEach((l) => l.evidence.forEach((e) => { [e.witness, e.remote_resolved].forEach((end) => { if (end.hostname === "rt-wan-01") end.hostname = long; }); }));
+  data.snapshot.checks.forEach((c) => c.refs.forEach((r) => { if (r.hostname === "rt-wan-01") r.hostname = long; if (r.a && r.a.hostname === "rt-wan-01") r.a.hostname = long; if (r.b && r.b.hostname === "rt-wan-01") r.b.hostname = long; }));
+  const { document } = load(page, data);
+  const canvas = document.getElementById("canvas");
+  const node = (host) => canvas.withClass("node").find((g) => g.getAttribute("data-node") === host);
+  assert.match(node("sw-core-01").withClass("node-icon")[0].getAttribute("d"), /^M/, "une icône dessinée, pas un glyphe");
+  assert.equal(node("sw-core-01").withClass("node-tag").length, 0, "le type n'est plus un texte dans le nœud");
+  assert.match(node("sw-core-01").getAttribute("aria-label"), /sw-core-01 · équipement collecté · switch/);
+  const label = node(long).withClass("node-label")[0].textContent;
+  assert.equal(label.length <= 23 && label.includes("…"), true, "nom raccourci au milieu sur la toile");
+  assert.match(node(long).getAttribute("aria-label"), new RegExp("^" + long), "le nom complet reste accessible");
+  assert.equal(document.getElementById("graph-legend").withClass("legend-icon").length, 7, "une icône par type du contrat");
+  assert.equal(document.getElementById("graph-legend").withClass("legend-group").length, 5);
+  const toggle = document.getElementById("t-legend");
+  toggle.fire("click", { target: toggle });
+  assert.equal(document.getElementById("graph-legend").hidden, true, "la légende se masque depuis la barre d'outils");
+  assert.equal(toggle.getAttribute("aria-pressed"), "false");
+});
+
+test("un câble se sélectionne et se décrit au clavier ; la zone live dit ce qui est sélectionné", () => {
+  const { LD, document } = load(page, page.data);
+  const canvas = document.getElementById("canvas");
+  const group = canvas.withClass("link").find((g) => g.getAttribute("data-link") === String(LD.app.model.linkById.get(CORE_LINK).index));
+  assert.equal(group.getAttribute("tabindex"), "0");
+  assert.equal(group.getAttribute("role"), "button");
+  const tip = canvas.withClass("tip")[0];
+  group.fire("focus", {});
+  assert.equal(tip.getAttribute("visibility"), "visible");
+  assert.match(tip.textContent, /10Gbase-SR/);
+  group.fire("keydown", { key: "Enter" });
+  assert.equal(LD.app.graph.state.selection.id, CORE_LINK);
+  assert.equal(document.getElementById("live").textContent, "câble sw-core-01 · Ethernet1/2 ↔ sw-core-02 · Ethernet1/2 sélectionné");
+  group.fire("blur", {});
+  assert.equal(tip.getAttribute("visibility"), "hidden");
+  assert.equal(canvas.withClass("beam").every((b) => b.getAttribute("tabindex") === "0"), true, "les faisceaux aussi");
+  assert.equal(canvas.withClass("cluster")[0].getAttribute("tabindex"), "0", "et les clusters");
+  LD.app.graph.select(null);
+  assert.equal(document.getElementById("live").textContent, "");
+});
+
+test("le palier de zoom se lit sur le svg : de loin, les petites étiquettes sont masquées par la feuille de style", () => {
+  const { LD, document } = load(page, page.data);
+  const canvas = document.getElementById("canvas");
+  LD.app.graph.state.view.k = 0.5;
+  LD.app.graph.repaint();
+  assert.equal(canvas.classList.contains("zoom-far"), true);
+  LD.app.graph.state.view.k = 1.5;
+  LD.app.graph.repaint();
+  assert.equal(canvas.classList.contains("zoom-near"), true);
+  assert.equal(canvas.classList.contains("zoom-far"), false);
 });

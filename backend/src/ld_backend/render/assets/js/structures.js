@@ -10,8 +10,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
   const aggregateLabel = (aggregate) => aggregate.hostname + " · " + aggregate.name;
   const aggregateButton = (aggregate, onSelect) => h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "aggregate", id: aggregate.key }) }, aggregateLabel(aggregate));
   const nodeButton = (hostname, onSelect) => h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "node", id: hostname }) }, hostname);
-  const beamButton = (beam, onSelect) => h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "beam", id: beam.id }) }, LD.graph.beamLabel(beam));
-  const clusterButton = (cluster, onSelect) => h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "cluster", id: cluster.id }) }, LD.graph.clusterLabel(cluster));
+  const beamButton = (beam, onSelect) => h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "beam", id: beam.id }) }, LD.geometry.beamLabel(beam));
+  const clusterButton = (cluster, onSelect) => h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "cluster", id: cluster.id }) }, LD.geometry.clusterLabel(cluster));
 
   function topicPill(model, hostname, topic) {
     const coverage = model.coverage.find((c) => c.hostname === hostname);

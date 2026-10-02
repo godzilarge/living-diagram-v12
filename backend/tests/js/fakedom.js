@@ -40,6 +40,7 @@ class FakeNode {
     if (name === "value") this.value = String(value); // comme un champ neuf : l'attribut est la valeur initiale
   }
   getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
+  removeAttribute(name) { this.attributes.delete(name); }
   appendChild(child) { child.parentNode = this; this.childNodes.push(child); return child; }
   removeChild(child) { this.childNodes = this.childNodes.filter((c) => c !== child); child.parentNode = null; return child; }
   addEventListener(type, listener) {

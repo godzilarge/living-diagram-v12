@@ -20,7 +20,19 @@ from typing import Any
 from ld_contracts.snapshot.codes import CATALOGUE
 
 ASSETS = files("ld_backend.render") / "assets"
-JS_FILES = ("model.js", "layout.js", "dom.js", "graph.js", "inspect.js", "structures.js", "tables.js", "main.js")
+JS_FILES = (
+    "model.js",
+    "layout.js",
+    "dom.js",
+    "icons.js",
+    "geometry.js",
+    "graph.js",
+    "inspect.js",
+    "structures.js",
+    "tip.js",
+    "tables.js",
+    "main.js",
+)
 PLACEHOLDER = re.compile(r"\{\{([A-Z]+)\}\}")
 JSON_ESCAPES = {"<": "\\u003c", ">": "\\u003e", "&": "\\u0026", " ": "\\u2028", " ": "\\u2029"}
 
