@@ -1,14 +1,24 @@
-"""CLI : ``ld-contracts validate | schema | docs | anonymize``."""
+"""CLI : ``ld-contracts validate | schema | docs | anonymize | generate``."""
 
 import argparse
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from ld_contracts.anonymize import PseudonymCollisionError, anonymize_bundle
 from ld_contracts.docgen import DOC_PATH, generate_markdown, write_markdown
 from ld_contracts.schema import CONTRACTS, generate_schema, write_schema
+from ld_contracts.synth import (
+    MUTATION_CATALOGUE,
+    GenerationError,
+    GenerationSpec,
+    SpecError,
+    check_series,
+    generate_series,
+    write_series,
+)
 from ld_contracts.validate import ValidationReport, validate_file, validate_snapshot_file
 
 EXIT_OK, EXIT_INVALID, EXIT_USAGE = 0, 1, 2
@@ -119,6 +129,55 @@ def _cmd_anonymize(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _parse_start(text: str | None) -> datetime | None:
+    """Début de la première run, ISO 8601 ; `Z` accepté pour UTC. Une date naïve est refusée par la spécification."""
+    return None if text is None else datetime.fromisoformat(text.replace("Z", "+00:00"))
+
+
+def _cmd_generate(args: argparse.Namespace) -> int:
+    out = Path(args.out)
+    if out.exists() and not out.is_dir():
+        print(f"output path is not a directory: {out}", file=sys.stderr)
+        return EXIT_USAGE
+    if out.exists() and any(out.iterdir()):
+        print(f"output directory is not empty: {out}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        start = _parse_start(args.start)
+        fields = {"start": start} if start is not None else {}
+        spec = GenerationSpec(
+            seed=args.seed,
+            devices=args.devices,
+            runs=args.runs,
+            infrastructure=args.infrastructure,
+            mutations_per_run=args.mutations_per_run,
+            scenario=tuple(k for k in (args.scenario or "").split(",") if k),
+            **fields,
+        )
+    except (SpecError, ValueError) as exc:
+        print(f"invalid generation spec: {exc}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        series = generate_series(spec)
+        check_series(series)
+        paths = write_series(series, out)
+    except GenerationError as exc:
+        print(f"generation failed: {exc}", file=sys.stderr)
+        return EXIT_INVALID
+    except OSError as exc:
+        print(f"cannot write series: {exc}", file=sys.stderr)
+        return EXIT_INVALID
+    for run in series.manifest["runs"]:
+        counts = run["counts"]
+        kinds = ", ".join(m["kind"] for m in run["mutations"]) or "baseline"
+        print(
+            f"{run['file']}: devices {counts['devices']} · interfaces {counts['interfaces']} · lldp {counts['lldp']}"
+            f" · cables {counts['cables']} · {kinds}"
+        )
+    print(f"series written to {out} ({len(paths)} files)")
+    return EXIT_OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ld-contracts", description="Living Diagram — contrats RunBundle (entrée) et Snapshot (sortie)"
@@ -164,6 +223,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_anon.add_argument("--keep-extras", action="store_true")
     p_anon.add_argument("--keep-description-options", action="store_true")
     p_anon.set_defaults(func=_cmd_anonymize)
+
+    p_gen = sub.add_parser("generate", help="génère une série de bundles synthétiques valides, à graine")
+    p_gen.add_argument("--seed", required=True, help="graine : même graine, mêmes octets")
+    p_gen.add_argument("--devices", type=int, default=24, help="devices de l'infrastructure, exactement (≥ 6)")
+    p_gen.add_argument("--runs", type=int, default=1, help="runs successives (la première n'est jamais mutée)")
+    p_gen.add_argument("--out", required=True, help="répertoire de sortie, vide ou inexistant")
+    p_gen.add_argument("--infrastructure", default="infra-synth")
+    p_gen.add_argument("--start", default=None, help="début de la première run, ISO 8601 avec fuseau")
+    p_gen.add_argument("--mutations-per-run", type=int, default=3, help="mutations tirées par run après la première")
+    p_gen.add_argument(
+        "--scenario",
+        default=None,
+        help="mutations imposées à chaque run suivante, séparées par des virgules : " + ", ".join(MUTATION_CATALOGUE),
+    )
+    p_gen.set_defaults(func=_cmd_generate)
     return parser
 
 

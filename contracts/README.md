@@ -201,6 +201,73 @@ d'écrire. **Les clés nullables absentes de l'entrée restent absentes de la so
 reproduit les mêmes constats `nullable_key_absent` que l'original (seul l'anonymisé sort de l'infra, un
 driver incomplet doit s'y diagnostiquer).
 
+## Générer des bundles synthétiques
+
+```
+uv run ld-contracts generate --seed demo --devices 24 --runs 3 --out ../serie-demo
+uv run ld-contracts generate --seed s --devices 10 --runs 4 --scenario cable_moved,ha_failover --out ../serie-s
+uv run ld-contracts generate --seed scale --devices 500 --runs 3 --out ../serie-500     # ~5 s, 20 Mo par bundle
+cd ../backend && uv run ld render ../serie-demo/run-02.json --out page.html            # la voir dans les pages
+```
+
+`generate` écrit `run-01.json … run-NN.json` et `manifest.json` dans un répertoire vide. C'est le **générateur de
+topologies synthétiques** (2026-10-03) : la source de toute donnée de test au-delà de la fixture, la condition du diff
+B3 et la jauge de performance du moteur (500 nœuds / 1 500 câbles).
+
+**Un monde, puis une projection.** Le générateur construit d'abord une vérité terrain immuable (devices, ports, câbles,
+agrégats, clusters HA, stubs, pannes de collecte), puis un émetteur produit le bundle qu'écrirait un **exportateur
+parfait** depuis ce que chaque source voit : LLDP et CDP aux deux bouts d'un câble Cisco ↔ Cisco (IOS-XE annonce la
+forme courte de son port en LLDP, NX-OS la forme longue, CDP toujours la longue), **rien d'observé vers un firewall**
+(LLDP n'y est jamais activé : ses câbles n'existent que par les descriptions, comme en production), descriptions
+`C1|voisin|port|` partout, forme HA positionnelle sur les firewalls, topics par plateforme (`interfaces`, `lldp`,
+`cdp`, `aggregates`, `system` sur Cisco ; `interfaces`, `aggregates`, `ha`, `system` sur FortiOS).
+
+**Motif par site.** Deux cœurs NX-OS en vPC (peer-link `port-channel10`, Ethernet1/49-50) ; des accès Catalyst IOS-XE,
+certains en stack, double-attachés en vPC (un `port-channel1xx` par accès, port cœur Ethernet1/xx) ; un cluster
+FortiGate actif-passif en `agg-core` (un vPC par membre sur Ethernet1/41-42, heartbeat `ha1` direct) ; un routeur WAN
+(Ethernet1/43) vers un PE d'une autre infrastructure (externe connu) ; serveurs, téléphones IP et bornes en stubs LLDP
+sur les ports d'accès. Les sites sont chaînés par leurs cœurs (Ethernet1/53-54). `--devices N` donne **exactement N**
+devices dans l'infrastructure (minimum 6 : un site complet avec un accès), le nombre de sites s'en déduit (~25 par
+site). Ethernet1/44-48 restent libres : la réserve des mutations.
+
+**Mutations.** La première run n'est jamais mutée. Ensuite, à chaque run, `--mutations-per-run` mutations tirées au
+hasard parmi celles qui ont un sujet, ou la liste `--scenario` appliquée dans l'ordre (une sorte inapplicable est une
+erreur, pas un silence). Trois sont **transitoires** (effacées au début de la run suivante) : `device_unreachable`,
+`topic_failed`, `ha_member_down` (le membre est injoignable, ses câbles sont tombés aux deux bouts pour la run, le
+survivant le voit `down` ; la run suivante le retrouve). `reboot` n'est pas transitoire : l'uptime repart de cette run et
+recompte ensuite, sept jours par run. Les autres persistent :
+
+| Mutation | Effet |
+|---|---|
+| `device_added` | un accès de plus, double-attaché, avec ses stubs |
+| `device_removed` | un accès décommissionné ; les descriptions des ports cœur **restent** (périmées) |
+| `cable_moved` | un uplink déplacé sur un port de réserve du cœur ; l'ancienne description reste, le nouveau port n'en a pas |
+| `cable_down` | un câble tombé : deux bouts down, plus rien d'observé, descriptions intactes |
+| `description_changed` | la description d'un port **observé** réécrite vers un autre port du même voisin : B1 voit le désaccord |
+| `ha_failover` | rôles échangés, priorités inchangées (la forme HA des descriptions ne bouge pas) |
+| `aggregate_member_suspended` | un membre `suspended` aux deux bouts, port down « suspended by LACP », toujours vu en LLDP |
+| `speed_degraded` | un uplink négocié à 1 Gb/s côté accès seulement |
+| `stub_added` / `stub_removed` | un serveur de plus ; un stub débranché, description conservée ; un numéro de stub n'est jamais réutilisé |
+
+Le `manifest.json` est l'oracle : la spécification, puis pour chaque run son fichier, son `collector_run_id`, ses
+mutations (`kind`, `subject`, `details`) et ses comptes. Les tests de B3 y liront ce qu'un diff doit trouver.
+
+**Trois garanties, testées.** Même graine ⇒ **mêmes octets**, aussi entre processus sous plusieurs `PYTHONHASHSEED`
+(le monde est trié par clé naturelle, jamais parcouru par un ensemble). Chaque bundle passe
+`validate --strict-findings` à **zéro constat** : toutes les clés nullables sont écrites, aucun constat référentiel.
+Et le monde garde ses **invariants** après chaque run (`check_world` : un câble entre deux ports existants, un agrégat et
+ses membres d'accord dans les deux sens, un stub par port d'accès monté, noms et MAC uniques) : les problèmes de données
+sont dans la topologie (désaccords, câbles documentés seuls, device injoignable), jamais dans la forme ni dans la
+cohérence du générateur.
+
+**Ce qu'il montre déjà de B1.** Un téléphone IP annonce sa MAC comme port-id en LLDP et « Port 1 » en CDP : B1 en fait
+deux câbles observés et deux `multiple_observed_neighbors` par téléphone. C'est la question H2 (CLAUDE.md), qui n'est
+plus abstraite. Le générateur reste fidèle ; c'est à B1 de réconcilier.
+
+Depuis Python : `from ld_contracts.synth import GenerationSpec, generate_series, write_series, apply_mutation` ;
+`generate_series(GenerationSpec(seed="x", devices=24, runs=3)).bundles` sont des dictionnaires prêts pour
+`validate_dict`, et `apply_mutation(kind, world, rng, run_index)` s'utilise seul dans un test.
+
 ## Arborescence
 
 ```
@@ -247,10 +314,25 @@ contracts/
 │   ├── schema/runbundle-v1.schema.json   schéma versionné (un test échoue s'il dérive des modèles)
 │   ├── schema/snapshot-v1.schema.json    idem pour le snapshot
 │   ├── anonymize.py               pseudonymisation
-│   └── cli.py                     ld-contracts validate | schema [--contract] | docs | anonymize
-└── tests/                         398 tests : modèles, bundle, constats, clés absentes, vrf, schéma, référence,
-    └── snapshot/                  anonymiseur, CLI ; snapshot : ordre, refs, nœuds, interfaces, liens, structures,
-                                   contrôles, document, schéma, partie B, squelette
+│   ├── synth/                     générateur de topologies synthétiques (2026-10-03)
+│   │   ├── spec.py                GenerationSpec : graine, devices, runs, plan de mutations ; SpecError
+│   │   ├── catalogue.py           les 14 mutations, nom et sens ; lesquelles sont transitoires
+│   │   ├── world.py               le monde immuable (Device, Port, Cable, Aggregate, HaCluster, Stub, World), ses
+│   │   │                          mises à jour par copie toujours retriées, check_world (invariants)
+│   │   ├── naming.py              noms, MAC, serials, formes LLDP / CDP, topics et VLAN par plateforme et par rôle
+│   │   ├── draft.py               le brouillon de construction ; draft_of / world_of pour les mutations
+│   │   ├── build_site.py          cœurs, firewalls, routeur et PE d'un site ; chaînage des sites
+│   │   ├── build_access.py        un accès double-attaché et ses stubs ; numéros de stubs jamais réutilisés
+│   │   ├── build.py               exactement N devices répartis en sites, un brouillon par site (linéaire)
+│   │   ├── emit.py                monde → RunBundle : ce que chaque source voit
+│   │   ├── mutations.py           une fonction par mutation, NotApplicableError, Mutation
+│   │   └── series.py              runs successives, manifeste, check_series, write_series
+│   └── cli.py                     ld-contracts validate | schema [--contract] | docs | anonymize | generate
+└── tests/                         543 tests : modèles, bundle, constats, clés absentes, vrf, schéma, référence,
+    ├── snapshot/                  anonymiseur, CLI ; snapshot : ordre, refs, nœuds, interfaces, liens, structures,
+    │                              contrôles, document, schéma, partie B, squelette
+    └── synth/                     spécification, monde, émission (zéro constat), chaque mutation, séries
+                                   (déterminisme entre processus, échelle 500 devices)
 ```
 
 ## Vérifier et faire évoluer

@@ -1,7 +1,8 @@
 # Living Diagram v12 — démarrage rapide
 
-Ce qui marche aujourd'hui (2026-09-20) : valider un bundle, l'archiver, le corréler (B1 : nœuds et câbles avec leurs
-sources), et **générer une page HTML** qui montre le résultat. Tout tourne hors ligne. Détails : `backend/README.md`,
+Ce qui marche aujourd'hui (2026-10-03) : valider un bundle, l'archiver, le corréler (B1 : nœuds, câbles, agrégats,
+clusters avec leurs sources), **générer une page HTML** qui montre le résultat, et **générer des topologies synthétiques**
+sur plusieurs runs pour tout essayer sans donnée réelle. Tout tourne hors ligne. Détails : `backend/README.md`,
 `contracts/README.md`, format du bundle : `contracts/CONTRAT.md`.
 
 ## 0. Une fois
@@ -11,7 +12,7 @@ cd contracts && uv sync && cd ../backend && uv sync        # Python 3.14 et dép
 ```
 
 Toutes les commandes `ld …` se lancent depuis `backend/` avec `uv run`. Bundle d'exemple (synthétique) :
-`contracts/fixtures/bundle-minimal.json`.
+`contracts/fixtures/bundle-minimal.json` ; pour plus gros et plusieurs runs, § 1 bis.
 
 ## 1. Le plus court : un bundle → une page
 
@@ -30,6 +31,27 @@ de mise au point d'un exportateur : corriger l'export, relancer la commande, raf
 - Valider sans dessiner : `cd contracts && uv run ld-contracts validate mon-bundle.json`
   (`--show-values` pour voir les hostnames dans le rapport, `--strict-findings` pour échouer aussi sur les constats :
   à mettre dans les tests de l'exportateur).
+
+## 1 bis. Fabriquer des bundles de test : `ld-contracts generate`
+
+`ld render` consomme un bundle ; `ld-contracts generate` en **fabrique**. Il invente une infrastructure plausible et écrit
+un bundle par run, avec des pannes connues d'une run à l'autre : de quoi essayer B1, les pages et bientôt le diff (B3)
+sans attendre un bundle réel ni en écrire à la main. Outil de test uniquement, rien en production n'en dépend.
+
+```
+cd contracts
+uv run ld-contracts generate --seed demo --devices 24 --runs 3 --out ../serie-demo
+uv run ld-contracts generate --seed s --devices 10 --runs 4 --scenario cable_moved,ha_failover --out ../serie-s
+cd ../backend && uv run ld render ../serie-demo/run-03.json --out page.html
+```
+
+Un site complet par ~25 devices (deux cœurs NX-OS en vPC, accès Catalyst double-attachés, cluster FortiGate
+actif-passif sans LLDP, routeur WAN vers une autre infrastructure, serveurs et téléphones en stubs). La première run
+est la référence ; chacune des suivantes applique des mutations (device retiré ou injoignable, câble déplacé ou tombé,
+description réécrite, bascule HA, membre d'agrégat suspendu, vitesse dégradée…), listées avec leur sujet dans
+`manifest.json`. Même graine ⇒ mêmes octets ; chaque bundle est valide à zéro constat. Détail et catalogue :
+`contracts/README.md` § Générer des bundles synthétiques. `ld ingest` les archive comme n'importe quel bundle (un
+`run_id` différent par run).
 
 ## 2. Lire la page
 
@@ -130,3 +152,4 @@ cd backend   && uv run pytest --cov=ld_backend   && uv run ruff check src tests 
 | recalculer après une correction de B1 | `ld correlate --infrastructure X [--run-id Y]` |
 | valider un snapshot | `ld-contracts validate --contract snapshot snapshot.json` |
 | partager sans fuite | `ld-contracts anonymize in.json out.json`, puis `ld render out.json` |
+| fabriquer des bundles de test, N runs, pannes connues | `ld-contracts generate --seed X --devices 24 --runs 3 --out DIR` (dans `contracts/`) |

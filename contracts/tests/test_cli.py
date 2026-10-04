@@ -50,3 +50,55 @@ def test_anonymize_without_seed_fails_with_usage_error(tmp_path, minimal_path):
     )
     assert res.returncode == 2
     assert "LD_CONTRACTS_SEED" in res.stderr
+
+
+def test_generate_writes_a_valid_series(tmp_path):
+    out = tmp_path / "series"
+    res = run("generate", "--seed", "cli", "--devices", "8", "--runs", "2", "--out", str(out))
+    assert res.returncode == 0, res.stderr
+    assert (out / "manifest.json").exists() and (out / "run-02.json").exists()
+    assert run("validate", str(out / "run-02.json"), "--strict-findings").returncode == 0
+    assert "run-02.json" in res.stdout
+
+
+def test_generate_refuses_a_bad_spec(tmp_path):
+    res = run("generate", "--seed", "cli", "--devices", "3", "--out", str(tmp_path / "x"))
+    assert res.returncode == 2
+    assert "devices" in res.stderr
+
+
+def test_generate_refuses_a_non_empty_directory(tmp_path):
+    (tmp_path / "keep.txt").write_text("x", encoding="utf-8")
+    res = run("generate", "--seed", "cli", "--devices", "6", "--out", str(tmp_path))
+    assert res.returncode == 2
+    assert "empty" in res.stderr or "vide" in res.stderr
+
+
+def test_generate_scenario_is_applied(tmp_path):
+    out = tmp_path / "s"
+    scenario = "reboot,ha_failover"
+    res = run("generate", "--seed", "cli", "--devices", "8", "--runs", "2", "--scenario", scenario, "--out", str(out))
+    assert res.returncode == 0, res.stderr
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    assert [m["kind"] for m in manifest["runs"][1]["mutations"]] == ["reboot", "ha_failover"]
+
+
+def test_generate_accepts_an_iso_start_and_refuses_a_naive_one(tmp_path):
+    out = tmp_path / "s"
+    res = run("generate", "--seed", "cli", "--devices", "6", "--start", "2027-03-01T00:00:00Z", "--out", str(out))
+    assert res.returncode == 0, res.stderr
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["spec"]["start"] == "2027-03-01T00:00:00Z"
+    naive_start = "2027-03-01T00:00:00"
+    naive = run("generate", "--seed", "cli", "--devices", "6", "--start", naive_start, "--out", str(tmp_path / "n"))
+    assert naive.returncode == 2 and "start" in naive.stderr
+    garbage = run("generate", "--seed", "cli", "--devices", "6", "--start", "hier", "--out", str(tmp_path / "g"))
+    assert garbage.returncode == 2
+
+
+def test_generate_refuses_a_file_as_output(tmp_path):
+    target = tmp_path / "afile.json"
+    target.write_text("{}", encoding="utf-8")
+    res = run("generate", "--seed", "cli", "--devices", "6", "--out", str(target))
+    assert res.returncode == 2
+    assert "directory" in res.stderr
