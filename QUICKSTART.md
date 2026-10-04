@@ -19,6 +19,8 @@ Toutes les commandes `ld …` se lancent depuis `backend/` avec `uv run`. Bundle
 ```
 cd backend
 uv run ld render ../contracts/fixtures/bundle-minimal.json --out page.html
+uv run ld diff avant.json apres.json                        # ce qui a changé entre deux exports (B3), sans archive
+uv run ld render apres.json --out page.html --from avant.json   # la page avec les changements peints, onglet Diff
 xdg-open page.html                                          # ou double-clic : aucun serveur, aucun réseau
 ```
 
@@ -80,6 +82,8 @@ uv run ld ingest mon-bundle.json --archive ./archive                 # valide, a
 uv run ld runs --infrastructure <infra> --archive ./archive          # les runs archivées, par début de collecte
 uv run ld render --infrastructure <infra> --run-id <run> --archive ./archive --out page.html
 uv run ld correlate --infrastructure <infra> --archive ./archive     # recalcule les snapshots (après une correction de B1)
+uv run ld diff --infrastructure <infra> --archive ./archive          # ce qui a changé à la dernière run (B3) ; --from / --to, --out diff.json
+uv run ld render --infrastructure <infra> --run-id <run> --from <run d'avant> --archive ./archive --out page.html   # la page avec les changements
 ```
 
 Une run archivée ne change jamais : renvoyer le même bundle = `already_present`, un bundle **différent pour la même
@@ -106,10 +110,13 @@ curl -s -X POST http://127.0.0.1:8000/api/ingest/bundles -H "$H" -H "Content-Typ
 curl -s -G http://127.0.0.1:8000/api/ingest/bundles -H "$H" --data-urlencode "infrastructure=<infra>"
 curl -s -G http://127.0.0.1:8000/api/ingest/report  -H "$H" --data-urlencode "infrastructure=<infra>" --data-urlencode "run_id=<run>"
 curl -s -G http://127.0.0.1:8000/api/snapshot       -H "$H" --data-urlencode "infrastructure=<infra>" --data-urlencode "run_id=<run>" -o snapshot.json
-# 3. dessiner la run archivée (même dossier d'archive que le serveur)
+# 2 bis. ce qui a changé entre deux runs (B3) : calculé à la demande, jamais archivé
+curl -s -G http://127.0.0.1:8000/api/diff           -H "$H" --data-urlencode "infrastructure=<infra>" --data-urlencode "from=<run d'avant>" --data-urlencode "to=<run>" -o diff.json
+# 3. dessiner la run archivée (même dossier d'archive que le serveur) ; --from <run d'avant> pour y peindre les changements
 uv run ld render --infrastructure <infra> --run-id <run> --archive ./archive --out page.html
 # 4. ou la lire dans le navigateur, sans rien générer : la page servie par l'API
 #    http://127.0.0.1:8000/view?infrastructure=<infra>&run_id=<run>
+#    http://127.0.0.1:8000/view?infrastructure=<infra>&run_id=<run>&from=<run d'avant>     (avec le diff ; la liste des runs propose « avec la précédente »)
 ```
 
 Dans la réponse du POST, `correlation` dit ce que B1 a fait : `created` (avec le nombre de nœuds, de câbles et de
@@ -150,6 +157,9 @@ cd backend   && uv run pytest --cov=ld_backend   && uv run ruff check src tests 
 | dessiner une run archivée | `ld render --infrastructure X --run-id Y --out page.html` |
 | la lire dans le navigateur, serveur lancé | `http://127.0.0.1:8000/view?infrastructure=X&run_id=Y` (jeton saisi dans la page) |
 | recalculer après une correction de B1 | `ld correlate --infrastructure X [--run-id Y]` |
+| comparer deux runs (B3) | `ld diff --infrastructure X [--from A] [--to B] [--out diff.json]`, `ld diff avant.json apres.json`, ou `GET /api/diff?infrastructure=X&from=A&to=B` |
+| dessiner une run avec ses changements | `ld render … --from <fichier ou run d'avant>` ; dans le navigateur, `/view?…&from=A` |
 | valider un snapshot | `ld-contracts validate --contract snapshot snapshot.json` |
+| valider un diff | `ld-contracts validate --contract diff diff.json` |
 | partager sans fuite | `ld-contracts anonymize in.json out.json`, puis `ld render out.json` |
 | fabriquer des bundles de test, N runs, pannes connues | `ld-contracts generate --seed X --devices 24 --runs 3 --out DIR` (dans `contracts/`) |

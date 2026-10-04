@@ -61,8 +61,8 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
 
 Pipeline de briques pures, détaillé dans l'artefact publié
 <https://claude.ai/code/artifact/630b787d-6862-4e3c-8e1c-7d40fd373e3c> (copie locale
-`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v18 du 2026-10-03 ; second artefact
-« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v15 du 2026-10-03 : son
+`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v19 du 2026-10-04 ; second artefact
+« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v16 du 2026-10-04 : son
 tableau « B1 : ce qui est fait, ce qui reste » se tient à jour à chaque étape) :
 
 ```
@@ -621,6 +621,36 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   l'embryon d'`engine/` en TS plutôt qu'une feuille blanche ; B4 se conçoit avec la toile (premier patch = épingle), pas
   avant. Ordre proposé : B3 diff (prêt : fonction pure sur deux snapshots, oracle = `manifest.json` du générateur,
   peint dans la page actuelle) → toile → B4 épingles. Hors chemin : B2 Mongo (le disque suffit), table MAC, H2 téléphones.
+- **B3, le diff typé : contrat `Diff` v1, moteur, API, CLI, page** (2026-10-04, « d'accord avec ton plan » d'Orhan sur
+  l'ordre diff → toile → B4 et sur six décisions, session autonome ; `docs/07-diff.md` écrit avant le code). **Contrat**
+  `contracts/src/ld_contracts/diff/`, partie C de `CONTRAT.md`, `diff-v1.schema.json`, `validate|schema --contract diff` :
+  une identité par entité, celle du snapshot ; `added` / `removed` entité complète, `changed` référence + champs
+  `(path, before, after)` ; deux volatils déclarés (`uptime_seconds`, `last_change_age_seconds`), exclus et comptés ;
+  événements `rebooted` (uptime < écart) et `flapped` (âge < écart, même `oper_status`) ; contrôles `(code, refs)` en
+  multi-ensemble ; résumé et écart vérifiés par le type. **B3** `backend/src/ld_backend/diff/` (fields, sections, events,
+  engine ; 100 % couvert), fonction pure, `DiffError` sans valeur sur deux infrastructures ; **jamais stocké** :
+  `GET /api/diff?infrastructure=&from=&to=` calcule à la demande (404 qui nomme le côté), `ld diff` en deux modes (fichiers
+  bundles ou snapshots ; archive, par défaut les deux dernières runs), `ld render --from` et `/view?…&from=` embarquent le
+  diff dans la page : **fantômes** (câbles, équipements, interfaces retirés, lus dans le diff, jamais comptés, sans
+  contrôle de cette run), halo sous un câble ajouté / changé, couronne autour d'un nœud, bascule « changements »
+  (`#diff=0`), onglet Diff, fiches avant → après, bulle, « avec la précédente » dans la liste des runs. Oracle = le
+  `manifest.json` du générateur, une sorte par run ; deux vérités apprises : un switch retiré **survit en stub** (la
+  description périmée des cœurs le cite encore ; `docs/07` §6 corrigé), les port-channels des cœurs s'ajoutent ou se
+  retirent, pas les ports de réserve. Rendu vérifié par captures Chromium. **Parqués, comportement prudent** (`docs/07`
+  §7) : identité d'un cluster par ses membres (Q1), interfaces d'un nœud ajouté ou retiré listées une à une (Q2), gros diff
+  d'un device injoignable (Q3), le mot `flapped` (Q4). **Revue indépendante consignée et traitée le même jour**
+  (`docs/revues/2026-10-04-b3-diff.md` : 0 critique, 1 haut, 5 moyens, 8 bas ; sept sondes rejouables) : les interfaces
+  retirées ont leurs propres index dans la page, un équipement injoignable ne montre plus les faits de la run d'avant
+  comme actuels (H1) ; trois refus que la partie C annonçait sans les appliquer (`events_without_elapsed`,
+  `identity_in_several_parts`, `field_change_volatile`, la déclaration des volatils vit dans le contrat), détails
+  d'événement typés, `path` en identifiants pointés, validateurs partagés avec le snapshot (membres MLAG, majeure) ;
+  fantômes comptés à part de l'en-tête et de l'état du graphe, « était confirmé » pour un câble retiré ; `DiffError`
+  traduite en 500 dans l'API, exception ordinaire, snapshot `to` lu une fois ; `--from` égal à la run : avertissement.
+  **Tranché par la spécification, à confirmer** : un nœud `rebooted` n'a aucun port `flapped` (le redémarrage explique
+  ses ports, `docs/07` §6 l'annonçait). **Mesure** : à la jauge, `GET /api/diff` coûte ~3,2 s dont ~2,2 s à relire et
+  revalider les deux snapshots (« quelques millisecondes » retiré partout). **Parqués, questions Q5 à Q7 de `docs/07`** :
+  identité à l'octet alors que le snapshot compare sans la casse (un test fige le comportement), revalidation à chaque
+  appel ou diff N-1 stocké, sévérité hors de l'identité d'un contrôle. Contracts 579 tests, backend 422, 50 sous Node.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -642,7 +672,7 @@ en deux parties entrée / sortie, `docs/05` validé) → **Phase 1a, la tranche 
 étape 1 (fait) → branchement de B1 (fait) → pages HTML (incréments A et B faits : `ld render`, `/view` ; R4 de B1
 tirée dans la tranche le 2026-09-26) de visualisation avec les sources → premier bundle réel (exportateur
 minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden (faits le 2026-09-26), générateur synthétique
-(fait le 2026-10-03), table MAC (`docs/06`), B2, B3,
+(fait le 2026-10-03), **B3 diff (fait le 2026-10-04)**, table MAC (`docs/06`, parquée), B2,
 en TDD sur fixtures au format réel des collections → Phase 2 socle toile (jauge
 de perf 500 nœuds / 1 500 liens) → Phase 3 placement → Phase 4 timeline + diff peint →
 Phase 5 intention + réconciliation → Phase 6 LOD complet, vues nommées, overlays L2/L3.
@@ -657,6 +687,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
 - `docs/05-snapshot-et-correlation.md` — **conception du snapshot (second contrat) et des règles de
   B1** (2026-09-10) : modèle, règles R0 à R6, codes de contrôle, dix scénarios de la fixture, huit
   questions. **Validé par Orhan le 2026-09-20 (sept questions sur huit tranchées, la 6 non bloquante).**
+- `docs/07-diff.md` — **conception du diff B3** (2026-10-04) : contrat `Diff` v1, règles D0 à D6, branchement, oracle du
+  générateur, quatre questions parquées. Validé sur le principe par Orhan le jour même, codé le jour même.
 - `docs/06-evidence-table-mac.md` — **conception de l'évidence table MAC** (2026-10-03) : topic `mac_table` restreint au
   parc, règle R7 (port de bordure), clusters à MAC virtuelle, six questions. **À valider par Orhan.**
 - `docs/guides-collecte/` — guides **producteur** par plateforme (2026-09-24 : `fortios-interfaces.md`, commandes et chronologie
@@ -665,8 +697,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `2026-09-20-b1-etape-1.md`, sa contre-revue, `2026-09-20-branchement-b1.md`, `2026-09-20-pages-ld-render.md` ; 2026-09-22 : `2026-09-22-r1-bis-agregat-port-id.md` ;
   2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
   2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`,
-  `2026-10-02-pages-demo-bulles-role-ha.md` ; 2026-10-03 : `2026-10-03-generateur-synthetique.md`)
-  et leurs sondes rejouables
+  `2026-10-02-pages-demo-bulles-role-ha.md` ; 2026-10-03 : `2026-10-03-generateur-synthetique.md` ; 2026-10-04 :
+  `2026-10-04-b3-diff.md`) et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
 - `prompts.md` — échanges bruts du propriétaire (historique)
@@ -679,7 +711,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `src/ld_contracts/schema/`, contrôles référentiels, anonymiseur, CLI
   (`uv run ld-contracts validate|schema|anonymize`), fixture `fixtures/bundle-minimal.json`.
   Tests : `cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests`
-  (état 2026-10-03 : 543 tests, 97 %, **générateur de topologies synthétiques** `synth/` et commande `generate`, revue traitée ; 2026-10-02 : 415 tests, `standalone` ⇒ `members` vide imposé (`ha_standalone_with_members`), `mlag_peer_link` nullable et refus `mlag_peer_link_with_id`, code Snapshot `description_ha_unresolved` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
+  (état 2026-10-04 : 579 tests, **contrat `Diff` v1** `diff/` en partie C de `CONTRAT.md`, `validate|schema --contract diff`, fixtures `diff-skeleton.json` et `snapshot-skeleton-cable-down.json`, revue de B3 traitée (détails d'événements typés, trois refus ajoutés, `VOLATILE_PATHS` déclaré ici) ; 2026-10-03 : 543 tests, 97 %, **générateur de topologies synthétiques** `synth/` et commande `generate`, revue traitée ; 2026-10-02 : 415 tests, `standalone` ⇒ `members` vide imposé (`ha_standalone_with_members`), `mlag_peer_link` nullable et refus `mlag_peer_link_with_id`, code Snapshot `description_ha_unresolved` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
   2026-09-19 : 291 tests, 97 %, clé nullable absente lue comme `null` et comptée, `vrf` `"default"` = table globale, une passe de revue indépendante appliquée ; 2026-09-18 : 246 tests, `lldp` / `cdp` réduits à six champs et MAC reconnue à sa forme, une
   passe de revue indépendante appliquée ;
   2026-09-16 : `allowed_vlans` en liste d'intervalles (chevauchements refusés), `access_vlan` ajouté avec refus de cohérence VLAN / mode, `last_change_age_seconds` en `entier ≥ 0 | "never" | null`
@@ -704,10 +736,10 @@ Détail : `docs/00-analyse-fondation.md` §10.
   branchement, fait le 2026-09-20** (`snapshots.py`, `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages :
   incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). **R2 forme HA
   des descriptions le 2026-10-02** (`descriptions.py`, scénario 11 en mémoire, revue traitée) ; un `ha` standalone ne
-  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 % ; page de démonstration le même jour (`tip.js`, `icons.js`, `geometry.js`, `tests/browser.py`, 37 tests sous Node, 352 tests) ; **2026-10-03 : 357 tests**, dont `tests/correlate/test_synth.py` (B1 sur les séries du générateur, compte exact des téléphones).
-- À venir (cap du 2026-10-04) : B3 diff (sur les séries de `ld-contracts generate`, peint dans la page), toile
-  (`engine/` TS, décision ③ à trancher), B4 intention (épingles d'abord), `shell/` (React). Parqués : `docs/06` table MAC
-  (conçu, non validé), B2 Mongo, H2 téléphones.
+  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 % ; page de démonstration le même jour (`tip.js`, `icons.js`, `geometry.js`, `tests/browser.py`, 37 tests sous Node, 352 tests) ; **2026-10-03 : 357 tests**, dont `tests/correlate/test_synth.py` (B1 sur les séries du générateur, compte exact des téléphones) ; **2026-10-04 : 422 tests** (B3 `diff/` à 100 %, `diffs.py`, `GET /api/diff`, `ld diff`, `ld render --from`, page avec fantômes et onglet Diff, revue traitée le même jour, 50 tests sous Node).
+- À venir (cap du 2026-10-04 ; B3 diff fait le jour même) : la toile (`engine/` TS depuis la page `ld render`, décision ③ à
+  trancher), B4 intention (épingles d'abord), `shell/` (React). Parqués : `docs/06` table MAC (conçu, non validé), B2 Mongo,
+  H2 téléphones.
 
 ## Conventions de code (rappel des règles globales)
 
