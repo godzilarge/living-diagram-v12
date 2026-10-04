@@ -142,7 +142,7 @@ def _diff_files_problem(args: argparse.Namespace) -> str | None:
     if args.infrastructure or args.from_run or args.to_run:  # avant le compte : le mélange des modes est la vraie faute
         return "des fichiers ne se combinent pas avec --infrastructure / --from / --to : choisir l'un ou l'autre"
     if len(args.files) != 2:
-        return "deux fichiers sont attendus : celui d'avant, puis celui d'après"
+        return "deux fichiers sont attendus, celui d'avant puis celui d'après : chacun un bundle ou un snapshot"
     if args.out and any(Path(args.out).resolve() == Path(f).resolve() for f in args.files):
         return "--out désigne un fichier d'entrée : rien n'est écrit"
     return None
@@ -197,7 +197,10 @@ def _cmd_diff(args: argparse.Namespace) -> int:
             return EXIT_INVALID
         return _emit_diff(before, after, args.out)
     if not args.infrastructure:
-        print("indiquer deux fichiers (bundle ou snapshot), ou une infrastructure archivée par --infrastructure")
+        print(
+            "indiquer deux fichiers, chacun un bundle ou un snapshot (reconnu à snapshot_version), "
+            "ou une infrastructure archivée par --infrastructure"
+        )
         return EXIT_USAGE
     try:
         before, after = archived_pair(
@@ -329,7 +332,9 @@ def _add_diff(sub, archive_default: str) -> None:
     p_diff.add_argument(
         "files",
         nargs="*",
-        help="deux fichiers, d'avant puis d'après : bundle, ou snapshot (reconnu à snapshot_version)",
+        metavar="fichier.json",
+        help="deux fichiers, celui d'avant puis celui d'après ; chacun est un bundle (validé puis corrélé) "
+        "ou un snapshot (reconnu à sa clé snapshot_version)",
     )
     p_diff.add_argument(
         "--out", default=None, help="fichier JSON du diff, forme canonique ; sans --out, le résumé seul"
@@ -353,8 +358,8 @@ def _add_render(sub, archive_default: str) -> None:
         "--from",
         dest="from_ref",
         default=None,
-        help="embarque le diff depuis une run d'avant : un fichier (bundle ou snapshot) avec un fichier, un run_id "
-        "avec --infrastructure / --run-id",
+        help="embarque le diff depuis la run d'avant : avec un fichier, le fichier d'avant (bundle ou snapshot, "
+        "reconnu à sa clé snapshot_version) ; avec --infrastructure / --run-id, le run_id d'avant",
     )
     p_render.add_argument("--archive", default=archive_default)
     p_render.set_defaults(func=_cmd_render)

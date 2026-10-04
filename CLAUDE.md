@@ -62,7 +62,7 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
 Pipeline de briques pures, détaillé dans l'artefact publié
 <https://claude.ai/code/artifact/630b787d-6862-4e3c-8e1c-7d40fd373e3c> (copie locale
 `docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v19 du 2026-10-04 ; second artefact
-« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v16 du 2026-10-04 : son
+« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v17 du 2026-10-04 : son
 tableau « B1 : ce qui est fait, ce qui reste » se tient à jour à chaque étape) :
 
 ```

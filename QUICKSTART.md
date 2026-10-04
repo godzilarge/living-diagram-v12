@@ -19,8 +19,8 @@ Toutes les commandes `ld …` se lancent depuis `backend/` avec `uv run`. Bundle
 ```
 cd backend
 uv run ld render ../contracts/fixtures/bundle-minimal.json --out page.html
-uv run ld diff avant.json apres.json                        # ce qui a changé entre deux exports (B3), sans archive
-uv run ld render apres.json --out page.html --from avant.json   # la page avec les changements peints, onglet Diff
+uv run ld diff bundle-avant.json bundle-apres.json          # ce qui a changé entre deux exports (B3), sans archive
+uv run ld render bundle-apres.json --out page.html --from bundle-avant.json   # la page avec les changements, onglet Diff
 xdg-open page.html                                          # ou double-clic : aucun serveur, aucun réseau
 ```
 
@@ -30,6 +30,10 @@ de mise au point d'un exportateur : corriger l'export, relancer la commande, raf
 - Bundle hors contrat : la commande sort en 1 et liste les erreurs (chemin, règle), aucune page n'est écrite.
 - Le snapshot JSON sans rien archiver : `uv run ld correlate mon-bundle.json --out snapshot.json` (mêmes octets que
   l'archive rangerait ; c'est aussi ce qui régénère `contracts/fixtures/snapshot-minimal.json`, le snapshot de référence).
+- `ld diff` et `--from` acceptent **deux sortes de fichiers** : un **bundle** (l'export, validé puis corrélé à la
+  volée) ou un **snapshot** (celui de `ld correlate --out`, ou `archive/<infra>/<run>/snapshot.json`). La commande
+  reconnaît un snapshot à sa clé `snapshot_version`, qu'un bundle n'a pas ; chaque côté est lu pour lui-même : un
+  bundle d'un côté et un snapshot de l'autre donnent le même diff.
 - Valider sans dessiner : `cd contracts && uv run ld-contracts validate mon-bundle.json`
   (`--show-values` pour voir les hostnames dans le rapport, `--strict-findings` pour échouer aussi sur les constats :
   à mettre dans les tests de l'exportateur).
@@ -157,7 +161,7 @@ cd backend   && uv run pytest --cov=ld_backend   && uv run ruff check src tests 
 | dessiner une run archivée | `ld render --infrastructure X --run-id Y --out page.html` |
 | la lire dans le navigateur, serveur lancé | `http://127.0.0.1:8000/view?infrastructure=X&run_id=Y` (jeton saisi dans la page) |
 | recalculer après une correction de B1 | `ld correlate --infrastructure X [--run-id Y]` |
-| comparer deux runs (B3) | `ld diff --infrastructure X [--from A] [--to B] [--out diff.json]`, `ld diff avant.json apres.json`, ou `GET /api/diff?infrastructure=X&from=A&to=B` |
+| comparer deux runs (B3) | `ld diff --infrastructure X [--from A] [--to B] [--out diff.json]`, `ld diff bundle-avant.json bundle-apres.json` (bundles ou snapshots, § 1), ou `GET /api/diff?infrastructure=X&from=A&to=B` |
 | dessiner une run avec ses changements | `ld render … --from <fichier ou run d'avant>` ; dans le navigateur, `/view?…&from=A` |
 | valider un snapshot | `ld-contracts validate --contract snapshot snapshot.json` |
 | valider un diff | `ld-contracts validate --contract diff diff.json` |

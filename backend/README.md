@@ -69,8 +69,8 @@ uv run ld correlate --infrastructure infra-lab --archive ./archive              
 uv run ld correlate ../contracts/fixtures/bundle-minimal.json --out snapshot.json   # le snapshot d'un bundle fichier, sans archive ni serveur
 uv run ld render ../contracts/fixtures/bundle-minimal.json --out page.html          # une page HTML autonome, sans archive ni serveur
 uv run ld diff --infrastructure infra-lab --archive ./archive                       # ce qui a changé à la dernière run (B3) ; --from / --to pour choisir, --out diff.json pour le document
-uv run ld diff avant.json apres.json --out diff.json                                # deux fichiers (bundles ou snapshots), sans archive ni serveur
-uv run ld render apres.json --out page.html --from avant.json                       # la page avec les changements peints et l'onglet Diff
+uv run ld diff bundle-avant.json bundle-apres.json --out diff.json                  # deux bundles, ou deux snapshots (reconnus à snapshot_version), sans archive ni serveur
+uv run ld render bundle-apres.json --out page.html --from bundle-avant.json         # la page avec les changements peints et l'onglet Diff
 
 export LD_API_TOKEN='un-jeton-long-et-secret'                                       # obligatoire : le service refuse de démarrer sans
 export LD_ARCHIVE_DIR=./archive                                                     # défaut ./archive
@@ -374,7 +374,7 @@ snapshots archivés à chaque appel, soit ~3,2 s par `GET /api/diff` (`docs/07` 
 | Entrée | Sortie |
 |---|---|
 | `ld diff --infrastructure X` | le résumé du diff entre les deux dernières runs archivées (`--from` / `--to` pour choisir ; `--out diff.json` écrit le document canonique) ; `--from` seul désigne la dernière run : la CLI avertit que les deux runs sont la même, le diff est vide, sortie 0 |
-| `ld diff avant.json apres.json [--out diff.json]` | deux fichiers, bundles (validés, corrélés) ou snapshots (reconnus à `snapshot_version`), sans archive ni serveur ; même garde que `correlate` (`--out` ≠ entrée, pas de mélange des modes) |
+| `ld diff bundle-avant.json bundle-apres.json [--out diff.json]` | deux fichiers, celui d'avant puis celui d'après ; chacun est un **bundle** (validé puis corrélé) ou un **snapshot** (`ld correlate --out`, `archive/X/Y/snapshot.json`), reconnu à sa clé `snapshot_version` ; un bundle d'un côté et un snapshot de l'autre donnent les mêmes octets (testé) ; sans archive ni serveur ; même garde que `correlate` (`--out` ≠ entrée, pas de mélange des modes) |
 | `GET /api/diff?infrastructure=&from=&to=` | le `Diff` JSON ; 404 qui nomme le côté manquant, 422 à la forme de l'API, jamais une valeur dans un message |
 | `ld render … --from …` | la page avec le diff embarqué : voir ci-dessous |
 
@@ -394,7 +394,7 @@ comprendre d'où vient chaque câble, et corriger l'exportateur ou les données.
 |---|---|
 | `ld render bundle.json --out page.html` | valide, corrèle, écrit la page ; **ne touche ni archive ni serveur** (boucle de mise au point : ré-exporter la même run corrigée ne rencontre pas le 409 de l'archive). Bundle hors contrat : sortie 1, erreurs listées, aucune page |
 | `ld render --infrastructure X --run-id Y --out page.html` | la page du snapshot et du rapport **tels qu'archivés** ; sortie 1 si la run est inconnue ou sans snapshot |
-| `ld render apres.json --out page.html --from avant.json` | la même page avec le **diff** depuis le fichier d'avant (bundle ou snapshot) : onglet Diff, câbles et équipements ajoutés / retirés / changés peints, fantômes de ce qui a disparu (2026-10-04) |
+| `ld render bundle-apres.json --out page.html --from bundle-avant.json` | la même page avec le **diff** depuis le fichier d'avant (bundle ou snapshot, reconnu à `snapshot_version`) : onglet Diff, câbles et équipements ajoutés / retirés / changés peints, fantômes de ce qui a disparu (2026-10-04) |
 | `ld render --infrastructure X --run-id Y --from Z --out page.html` | idem depuis la run archivée Z ; sortie 1 si Z est inconnue ou sans snapshot |
 
 La page est un seul fichier (environ 60 Ko de visualiseur, plus les données : 90 Ko pour la fixture), ouvrable par

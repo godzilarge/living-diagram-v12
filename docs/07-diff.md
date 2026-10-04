@@ -163,10 +163,11 @@ lisent dans les sections (descriptions, contrôles). Les comptes du résumé son
 - **API** : `GET /api/diff?infrastructure=&from=&to=` (paramètres de requête, jamais le chemin). 404 « run `from`
   inconnue » / « run `to` inconnue » / « run archivée sans snapshot : lancer `ld correlate` », sans écho de valeur ;
   422 à la forme de l'API. Réponse = le contrat `Diff` (`$ref` vers son schéma dans OpenAPI, comme le snapshot).
-- **CLI** : `ld diff before.json after.json --out diff.json` (deux bundles ou deux snapshots, reconnus à
-  `snapshot_version`, sans archive ni serveur) ; `ld diff --infrastructure X [--from R1] [--to R2] [--out]` sur l'archive,
-  `--to` = dernière run, `--from` = celle qui la précède : `ld diff --infrastructure X` répond « qu'est-ce qui a changé
-  à la dernière run ? ». Même garde que `correlate` / `render` : pas de mélange des modes, `--out` ≠ entrée.
+- **CLI** : `ld diff bundle-avant.json bundle-apres.json --out diff.json` (chaque fichier est un bundle, validé puis
+  corrélé, ou un snapshot, reconnu à sa clé `snapshot_version` ; sans archive ni serveur) ;
+  `ld diff --infrastructure X [--from R1] [--to R2] [--out]` sur l'archive, `--to` = dernière run, `--from` = celle qui
+  la précède : `ld diff --infrastructure X` répond « qu'est-ce qui a changé à la dernière run ? ». Même garde que
+  `correlate` / `render` : pas de mélange des modes, `--out` ≠ entrée.
 - **Page** : `ld render … --from <bundle|run>` embarque le diff dans la page ; `/view` lit `?from=` et propose
   « comparer avec la précédente » dans la liste des runs. Peinture : câbles `diff-added` (vert), `diff-removed`
   (fantômes gris pointillés dessinés depuis `links.removed`), `diff-changed` (ambre) ; nœuds ajoutés / retirés de même ;
