@@ -109,8 +109,12 @@ class Tab:
         self.session = chrome.call("Target.attachToTarget", {"targetId": target, "flatten": True})["sessionId"]
         for domain in ("Page", "Runtime", "Log"):
             self.call(f"{domain}.enable")
+        self.navigate(url)
+
+    def navigate(self, url: str) -> None:
+        """Charge une adresse dans ce même onglet : `sessionStorage` est propre à l'onglet, pas à la fenêtre."""
         self.call("Page.navigate", {"url": url})
-        chrome.wait_event("Page.loadEventFired")
+        self.chrome.wait_event("Page.loadEventFired")
 
     def call(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.chrome.call(method, params, self.session)
@@ -121,8 +125,29 @@ class Tab:
             raise RuntimeError(json.dumps(result["exceptionDetails"])[:800])
         return result["result"].get("value")
 
-    def mouse_move(self, x: float, y: float) -> None:
-        self.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y, "button": "none"})
+    def _mouse(self, kind: str, x: float, y: float, pressed: bool) -> None:
+        event = {"type": kind, "x": x, "y": y, "button": "left" if pressed or kind != "mouseMoved" else "none"}
+        self.call("Input.dispatchMouseEvent", {**event, "buttons": 1 if pressed else 0, "clickCount": 1})
+
+    def mouse_move(self, x: float, y: float, *, pressed: bool = False) -> None:
+        self._mouse("mouseMoved", x, y, pressed)
+
+    def mouse_press(self, x: float, y: float) -> None:
+        self._mouse("mousePressed", x, y, True)
+
+    def mouse_release(self, x: float, y: float) -> None:
+        self._mouse("mouseReleased", x, y, False)
+
+    def drag(self, start: tuple[float, float], end: tuple[float, float], steps: int = 6) -> None:
+        """Un glissé réel : appui, mouvements intermédiaires bouton enfoncé, relâchement."""
+        self.mouse_move(*start)
+        self.mouse_press(*start)
+        for step in range(1, steps + 1):
+            fraction = step / steps
+            self.mouse_move(
+                start[0] + (end[0] - start[0]) * fraction, start[1] + (end[1] - start[1]) * fraction, pressed=True
+            )
+        self.mouse_release(*end)
 
     def screenshot(self, path: Path) -> None:
         import base64

@@ -17,7 +17,7 @@ def test_diff_schema_is_a_versioned_draft_2020_12_document():
     assert schema["title"] == "Diff"
     assert schema["$id"].endswith("diff-v1.schema.json")
     assert {"before", "after", "links", "events", "summary"} <= set(schema["properties"])
-    assert set(CONTRACTS) == {"bundle", "snapshot", "diff"}
+    assert set(CONTRACTS) == {"bundle", "snapshot", "diff", "intent"}
 
 
 def test_committed_diff_schema_matches_generated():

@@ -19,7 +19,13 @@ from ld_contracts.synth import (
     generate_series,
     write_series,
 )
-from ld_contracts.validate import ValidationReport, validate_diff_file, validate_file, validate_snapshot_file
+from ld_contracts.validate import (
+    ValidationReport,
+    validate_diff_file,
+    validate_file,
+    validate_intent_file,
+    validate_snapshot_file,
+)
 
 EXIT_OK, EXIT_INVALID, EXIT_USAGE = 0, 1, 2
 SEED_ENV = "LD_CONTRACTS_SEED"
@@ -76,8 +82,20 @@ def _print_diff_summary(report: ValidationReport) -> None:
     )
 
 
-VALIDATORS = {"bundle": validate_file, "snapshot": validate_snapshot_file, "diff": validate_diff_file}
-OUTPUT_SUMMARIES = {"snapshot": _print_snapshot_summary, "diff": _print_diff_summary}
+def _print_intent_summary(report: ValidationReport) -> None:
+    i = report.intent
+    assert i is not None
+    print(f"valid: intent {i.intent_version}")
+    print(f"  revision {i.revision} · pins {len(i.pins)}")
+
+
+VALIDATORS = {
+    "bundle": validate_file,
+    "snapshot": validate_snapshot_file,
+    "diff": validate_diff_file,
+    "intent": validate_intent_file,
+}
+OUTPUT_SUMMARIES = {"snapshot": _print_snapshot_summary, "diff": _print_diff_summary, "intent": _print_intent_summary}
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
@@ -205,7 +223,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-CONTRACT_HELP = "bundle (entrée, défaut), snapshot (sortie) ou diff (comparaison)"
+CONTRACT_HELP = "bundle (entrée, défaut), snapshot (sortie), diff (comparaison) ou intent (couche d'intention)"
 
 
 def _add_validate(sub) -> None:

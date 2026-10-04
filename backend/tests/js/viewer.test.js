@@ -74,6 +74,7 @@ test("la page démarre : en-tête, graphe sans les voisins inconnus, puis avec",
   assert.equal(canvas.withClass("link").length, 6);
   for (const path of canvas.withClass("link-line")) assert.doesNotMatch(path.getAttribute("d"), /NaN|undefined/);
   assert.equal(LD.app.graph.state.positions.size, 6);
+  assert.equal(LD.shellApp, undefined, "la coquille servie ne démarre pas dans une page qui embarque son snapshot");
 });
 
 test("cliquer un câble montre ses sources ; cliquer un équipement montre sa fiche", () => {
@@ -403,23 +404,29 @@ test("un drapeau peer-link non lu se lit « non lu », jamais comme un peer-link
 const shell = process.env.LD_SHELL ? readPage(process.env.LD_SHELL) : null;
 const RUN_ID = "66db3f0e9a1c2b0012f4a7d1";
 
+const EMPTY_INTENT = { intent_version: "1.0.0", infrastructure: "infra-lab", revision: 0, updated_at: null, pins: [] };
+const mapStorage = (map) => ({ getItem: (k) => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, v), removeItem: (k) => map.delete(k) });
+
 function fakeApi(page, answers) {
-  const calls = [];
+  const calls = [], requests = [];
   const bodies = {
     "/api/ingest/bundles": { status: 200, body: { infrastructure: "infra-lab", runs: [{ run_id: RUN_ID, run_start: "2026-09-10T02:00:00Z", run_end: null, run_status: "completed", produced_at: "x", stored_at: "2026-09-10T03:00:00Z", sha256: "0" }] } },
     "/api/snapshot": { status: 200, body: page.data.snapshot },
     "/api/ingest/report": { status: 200, body: { summary: page.data.ingest.summary, findings: [] } },
+    "/api/intent": { status: 200, body: EMPTY_INTENT },
     ...(answers || {}),
   };
-  const store = new Map();
+  const store = new Map(), local = new Map();
   return {
-    calls, store,
+    calls, requests, store, local,
     fetch: (url, init) => {
       calls.push([url, init.headers.Authorization]);
+      requests.push([url, init]);
       const answer = bodies[url.split("?")[0]] || { status: 500, body: null };
       return Promise.resolve({ status: answer.status, json: () => Promise.resolve(answer.body) });
     },
-    sessionStorage: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) },
+    sessionStorage: mapStorage(store),
+    localStorage: mapStorage(local),
   };
 }
 
@@ -439,7 +446,7 @@ test("la coquille demande le jeton, liste les runs, puis charge la run par l'API
   assert.match(view.textContent, /Runs archivées de infra-lab : 1.*66db3f0e9a1c2b0012f4a7d1.*completed/s);
   view.withClass("clickable")[0].fire("click", {});
   await LD.shellApp.state.pending;
-  assert.equal(api.calls.length, 3);
+  assert.equal(api.calls.length, 4, "runs, puis snapshot, rapport et intention");
   assert.equal(view.hidden, true);
   assert.ok(LD.app, "le visualiseur a démarré sur les données lues");
   assert.match(document.getElementById("run-meta").textContent, /infra-lab · run 66db3f0e9a1c2b0012f4a7d1.*api · infra-lab · 66db/s);
@@ -926,4 +933,298 @@ test("l'adresse #link= d'un câble retiré l'ouvre, et rallume ce qu'il faut pou
   assert.equal(document.getElementById("canvas").withClass("diff-removed").length, 2);
   assert.doesNotMatch(location.hash, /diff=0/);
   assert.match(location.hash, /stubs=1/);
+});
+
+// ---------------------------------------------------------------- la couche d'intention (2026-10-04, B4)
+
+const intentPage = process.env.LD_PAGE_INTENT ? readPage(process.env.LD_PAGE_INTENT) : null;
+const tick = () => new Promise((resolve) => setImmediate(() => setImmediate(resolve)));
+const nodeOf = (canvas, host) => canvas.withClass("node").find((g) => g.getAttribute("data-node") === host);
+const dragNode = (node) => {
+  node.fire("pointerdown", { clientX: 10, clientY: 10 });
+  node.fire("pointermove", { clientX: 90, clientY: 40 });
+  node.fire("pointerup", {});
+};
+
+test("le modèle indexe les épingles et dit lesquelles sont orphelines", { skip: !intentPage }, () => {
+  const model = load(intentPage).LD.model.build(intentPage.data);
+  assert.equal(model.intent.revision, 2);
+  assert.deepEqual(clone(Array.from(model.pinByHost.keys())), ["gone-host", "sw-core-01"]);
+  assert.deepEqual(clone(model.orphanPins.map((p) => p.hostname)), ["gone-host"], "un hostname absent de la run : épingle orpheline, gardée");
+  assert.equal(load(intentPage).LD.model.build({ ...intentPage.data, intent: undefined }).intent, null, "sans intention, rien n'est inventé");
+});
+
+test("le graphe part des épingles enregistrées, les marque, et « replacer » les garde", { skip: !intentPage }, () => {
+  const { LD, document } = load(intentPage, intentPage.data);
+  const state = LD.app.graph.state;
+  const canvas = document.getElementById("canvas");
+  assert.deepEqual(clone(state.positions.get("sw-core-01")), { x: 120, y: -40 }, "une épingle est une contrainte dure du placement");
+  assert.equal(nodeOf(canvas, "sw-core-01").classList.contains("pinned"), true);
+  assert.equal(nodeOf(canvas, "sw-core-01").withClass("node-pin").length, 1, "le glyphe est dessiné, la classe le montre");
+  assert.equal(nodeOf(canvas, "sw-core-02").classList.contains("pinned"), false);
+  assert.match(document.getElementById("tab-intent").textContent, /^Intentions · 2$/);
+  assert.match(document.getElementById("run-counts").textContent, /2 épingles · 1 orpheline/);
+  dragNode(nodeOf(canvas, "sw-core-02"));
+  assert.equal(nodeOf(canvas, "sw-core-02").classList.contains("pinned"), true, "un glissé épingle localement");
+  assert.match(document.getElementById("graph-status").textContent, /déplacement local de sw-core-02, non enregistré \(page sans serveur\)/);
+  LD.app.graph.resetPins();
+  assert.deepEqual(clone(Array.from(state.pinned.keys())), ["sw-core-01"], "replacer garde les épingles enregistrées, oublie le local ; une orpheline ne place rien");
+  assert.deepEqual(clone(state.positions.get("sw-core-01")), { x: 120, y: -40 });
+});
+
+test("l'onglet Intentions liste les épingles, dit l'orpheline ; la page autonome se dit en lecture seule", { skip: !intentPage }, () => {
+  const { LD, document } = load(intentPage, intentPage.data);
+  LD.app.activate("intent");
+  const view = document.getElementById("view-intent");
+  assert.match(view.textContent, /Lecture seule : cette page a été générée sans serveur/);
+  assert.match(view.textContent, /Épingles enregistrées : 2 · 1 orpheline/);
+  assert.match(view.textContent, /gone-host.*orpheline : équipement absent de cette run/s);
+  assert.match(view.textContent, /sw-core-01.*120.*-40.*orhan.*présente/s);
+  assert.equal(view.all((n) => n.tagName === "button" && n.textContent === "retirer").length, 0, "sans écrivain, rien à retirer");
+  LD.app.graph.select({ kind: "node", id: "sw-core-01" });
+  assert.match(document.getElementById("inspector").textContent, /Épingle.*120, -40.*orhan/s);
+  dragNode(nodeOf(document.getElementById("canvas"), "sw-core-02"));
+  LD.app.graph.select({ kind: "node", id: "sw-core-02" });
+  assert.match(document.getElementById("inspector").textContent, /déplacé dans cette page, non enregistré/);
+});
+
+function fakeWriter(page, author) {
+  const saved = [];
+  let revision = page.data.intent.revision;
+  const current = () => {
+    const pins = new Map(page.data.intent.pins.map((p) => [p.hostname, p]));
+    saved.forEach((op) => { if (op.op === "pin") pins.set(op.hostname, { hostname: op.hostname, x: op.x, y: op.y, author, at: "2026-10-04T19:00:00Z" }); else pins.delete(op.hostname); });
+    return { ...page.data.intent, revision, pins: Array.from(pins.values()).sort((a, b) => (a.hostname < b.hostname ? -1 : 1)) };
+  };
+  const writer = { author, saved, setAuthor(name) { writer.author = name; }, save: async (ops) => { saved.push(...ops); revision += 1; return { ok: true, intent: current() }; } };
+  return writer;
+}
+
+test("avec un écrivain, un glissé relâché envoie pin et la page se réaligne ; retirer les orphelines envoie unpin après confirmation", { skip: !intentPage }, async () => {
+  const { LD, document } = load(intentPage);
+  const writer = fakeWriter(intentPage, "alice");
+  const app = LD.boot(clone(intentPage.data), { writer });
+  const canvas = document.getElementById("canvas");
+  dragNode(nodeOf(canvas, "sw-core-02"));
+  await tick();
+  assert.equal(writer.saved.length, 1);
+  assert.equal(writer.saved[0].op, "pin");
+  assert.equal(writer.saved[0].hostname, "sw-core-02");
+  assert.equal(Number.isInteger(writer.saved[0].x) && Number.isInteger(writer.saved[0].y), true, "coordonnées entières");
+  assert.equal(app.model.pinByHost.get("sw-core-02").author, "alice");
+  assert.equal(app.graph.state.pinned.has("sw-core-02"), true);
+  assert.match(document.getElementById("graph-status").textContent, /épingle de sw-core-02 enregistrée \(alice\)/);
+  assert.match(document.getElementById("tab-intent").textContent, /· 3$/);
+  assert.match(document.getElementById("run-counts").textContent, /3 épingles · 1 orpheline/);
+  app.activate("intent");
+  const view = document.getElementById("view-intent");
+  assert.match(view.textContent, /sous le nom « alice »/);
+  assert.equal(view.all((n) => n.tagName === "button" && n.textContent === "retirer").length, 3);
+  view.all((n) => n.tagName === "button" && /^retirer les épingles orphelines \(1\)$/.test(n.textContent))[0].fire("click", {});
+  assert.equal(writer.saved.length, 1, "rien n'est envoyé avant la confirmation");
+  view.all((n) => n.tagName === "button" && /^confirmer : retirer les épingles orphelines/.test(n.textContent))[0].fire("click", {});
+  await tick();
+  assert.deepEqual(clone(writer.saved[1]), { op: "unpin", hostname: "gone-host" });
+  assert.equal(app.model.orphanPins.length, 0);
+  assert.match(document.getElementById("view-intent").textContent, /Épingles enregistrées : 2\n|Épingles enregistrées : 2Une|Épingles enregistrées : 2[^·]/);
+  assert.match(document.getElementById("graph-status").textContent, /1 épingle retirée/);
+  app.graph.select({ kind: "node", id: "sw-core-01" });
+  document.getElementById("inspector").all((n) => n.tagName === "button" && n.textContent === "retirer l'épingle")[0].fire("click", {});
+  await tick();
+  assert.deepEqual(clone(writer.saved[2]), { op: "unpin", hostname: "sw-core-01" });
+  assert.equal(app.graph.state.pinned.has("sw-core-01"), false, "retirée : le nœud est replacé par le placement");
+});
+
+test("sans nom, rien ne s'enregistre et la page dit quoi faire ; donner son nom dans l'onglet débloque", { skip: !intentPage }, async () => {
+  const { LD, document } = load(intentPage);
+  const writer = fakeWriter(intentPage, "");
+  const app = LD.boot(clone(intentPage.data), { writer });
+  const canvas = document.getElementById("canvas");
+  dragNode(nodeOf(canvas, "sw-core-02"));
+  await tick();
+  assert.equal(writer.saved.length, 0);
+  assert.match(document.getElementById("graph-status").textContent, /donnez votre nom \(onglet Intentions\)/);
+  app.activate("intent");
+  const view = document.getElementById("view-intent");
+  assert.match(view.textContent, /Sans nom, vos déplacements restent locaux/);
+  assert.match(view.textContent, /Déplacements locaux non enregistrés : 1.*sw-core-02/s);
+  const field = document.getElementById("i-author");
+  field.value = " bob ";
+  field.fire("change", { target: field });
+  assert.equal(writer.author, "bob");
+  assert.match(document.getElementById("view-intent").textContent, /sous le nom « bob »/);
+  dragNode(nodeOf(canvas, "sw-core-02"));
+  await tick();
+  assert.equal(writer.saved.length, 1);
+  assert.match(document.getElementById("graph-status").textContent, /enregistrée \(bob\)/);
+});
+
+test("la coquille lit /api/intent, garde le nom dans localStorage et envoie les opérations à l'API", { skip: !shell || !intentPage }, async () => {
+  const api = fakeApi(intentPage, { "/api/intent": { status: 200, body: intentPage.data.intent }, "/api/intent/patches": { status: 200, body: { ...intentPage.data.intent, revision: 3 } } });
+  api.store.set("ld-api-token", "known");
+  api.local.set("ld-author", "orhan");
+  const search = "?infrastructure=infra-lab&run_id=" + RUN_ID;
+  const { LD, document } = load(shell, shell.data, "", { fetch: api.fetch, sessionStorage: api.sessionStorage, localStorage: api.localStorage, search });
+  await LD.shellApp.state.pending;
+  assert.ok(api.calls.some(([url, token]) => url === "/api/intent?infrastructure=infra-lab" && token === "Bearer known"));
+  assert.equal(LD.app.model.intent.revision, 2);
+  assert.equal(LD.app.writer.author, "orhan", "le nom vient de localStorage");
+  assert.match(document.getElementById("run-counts").textContent, /2 épingles/);
+  const outcome = await LD.app.writer.save([{ op: "pin", hostname: "sw-core-02", x: 1, y: 2 }]);
+  assert.equal(outcome.ok, true);
+  assert.equal(outcome.intent.revision, 3);
+  const post = api.requests.find(([url, init]) => url.startsWith("/api/intent/patches?infrastructure=infra-lab") && init.method === "POST");
+  assert.ok(post);
+  assert.deepEqual(JSON.parse(post[1].body), { author: "orhan", ops: [{ op: "pin", hostname: "sw-core-02", x: 1, y: 2 }] });
+  assert.equal(post[1].headers["Content-Type"], "application/json");
+  assert.equal(post[1].headers.Authorization, "Bearer known");
+  LD.app.writer.setAuthor("bob");
+  assert.equal(api.local.get("ld-author"), "bob");
+  const refused = fakeApi(intentPage, { "/api/intent/patches": { status: 404, body: { detail: "aucune run archivée pour cette infrastructure : rien à épingler" } } });
+  refused.store.set("ld-api-token", "known");
+  refused.local.set("ld-author", "orhan");
+  const second = load(shell, shell.data, "", { fetch: refused.fetch, sessionStorage: refused.sessionStorage, localStorage: refused.localStorage, search });
+  await second.LD.shellApp.state.pending;
+  const failed = await second.LD.app.writer.save([{ op: "unpin", hostname: "x" }]);
+  assert.deepEqual(clone(failed), { ok: false, message: "aucune run archivée pour cette infrastructure : rien à épingler" });
+  const form = load(shell, shell.data, "", { fetch: refused.fetch, sessionStorage: refused.sessionStorage, localStorage: refused.localStorage, search: "?infrastructure=infra-lab" });
+  const view = form.document.getElementById("view-shell");
+  assert.match(view.textContent, /votre nom/);
+  assert.equal(view.all((n) => n.getAttribute("id") === "s-author")[0].value, "orhan", "le formulaire propose le nom gardé");
+});
+
+// ---------------------------------------------------------------- après les deux revues du 2026-10-04 (toile B5 ; B4 H1, M3, B3)
+
+test("la page autonome n'appelle jamais fetch, même avec la coquille embarquée (revue de la toile, B5)", () => {
+  const calls = [];
+  const { LD } = load(page, page.data, "", { fetch: (url) => { calls.push(url); return Promise.resolve({ status: 500, json: () => Promise.resolve(null) }); } });
+  assert.ok(LD.app);
+  assert.equal(LD.shellApp, undefined);
+  assert.deepEqual(calls, []);
+});
+
+// Un écrivain dont on contrôle les réponses : chaque `save` rend une promesse résolue par le test, dans l'ordre voulu.
+function slowWriter(page, author) {
+  const pending = [];
+  let revision = page.data.intent.revision;
+  const writer = { author, pending, setAuthor(name) { writer.author = name; },
+    save: (ops) => new Promise((resolve) => pending.push({ ops, resolve, answer: (ok, extra) => {
+      revision += 1;
+      const pins = new Map(page.data.intent.pins.map((p) => [p.hostname, p]));
+      ops.forEach((op) => { if (op.op === "pin") pins.set(op.hostname, { hostname: op.hostname, x: op.x, y: op.y, author, at: "2026-10-04T19:00:00Z" }); else pins.delete(op.hostname); });
+      const intent = { ...page.data.intent, revision, ...(extra || {}), pins: Array.from(pins.values()).sort((a, b) => (a.hostname < b.hostname ? -1 : 1)) };
+      resolve(ok ? { ok: true, intent } : { ok: false, message: "l'API répond 500" });
+    } })) };
+  return writer;
+}
+
+test("une réponse refusée garde l'épingle locale ; une réponse acceptée ne l'efface pas non plus (revue B4, M3)", { skip: !intentPage }, async () => {
+  const { LD, document } = load(intentPage);
+  const writer = slowWriter(intentPage, "alice");
+  const app = LD.boot(clone(intentPage.data), { writer });
+  const canvas = document.getElementById("canvas");
+  dragNode(nodeOf(canvas, "sw-core-02"));
+  dragNode(nodeOf(canvas, "rt-wan-01"));
+  assert.equal(writer.pending.length, 2, "deux envois en attente");
+  assert.equal(app.graph.state.pinned.has("sw-core-02") && app.graph.state.pinned.has("rt-wan-01"), true);
+  writer.pending[0].answer(false);
+  await tick();
+  assert.equal(app.graph.state.pinned.has("sw-core-02"), true, "refusée : l'épingle reste locale, le nœud ne saute pas");
+  assert.match(document.getElementById("graph-status").textContent, /épingle de sw-core-02 non enregistrée : l'API répond 500/);
+  writer.pending[1].answer(true);
+  await tick();
+  assert.equal(app.model.pinByHost.has("rt-wan-01"), true);
+  assert.equal(app.graph.state.pinned.has("sw-core-02"), true, "l'acceptation de rt-wan-01 n'efface pas l'épingle locale de sw-core-02");
+  app.activate("intent");
+  assert.match(document.getElementById("view-intent").textContent, /Déplacements locaux non enregistrés : 1.*sw-core-02/s);
+});
+
+test("une réponse plus ancienne que le document déjà lu est ignorée ; « replacer » pendant un envoi rejoint l'épingle (revue B4, H1, M3)", { skip: !intentPage }, async () => {
+  const { LD, document } = load(intentPage);
+  const writer = slowWriter(intentPage, "alice");
+  const app = LD.boot(clone(intentPage.data), { writer });
+  const canvas = document.getElementById("canvas");
+  dragNode(nodeOf(canvas, "sw-core-02"));
+  const sent = clone(writer.pending[0].ops[0]);
+  app.graph.resetPins(); // « replacer » pendant l'envoi : le nœud retourne à sa place calculée
+  assert.equal(app.graph.state.pinned.has("sw-core-02"), false);
+  writer.pending[0].answer(true);
+  await tick();
+  const placed = app.graph.state.positions.get("sw-core-02");
+  assert.deepEqual(clone(placed), { x: sent.x, y: sent.y }, "le nœud rejoint l'épingle enregistrée sans replacer le reste");
+  assert.equal(nodeOf(canvas, "sw-core-02").classList.contains("pinned"), true);
+  // Une réponse en retard (révision plus basse que celle déjà lue) n'écrase pas le modèle.
+  const stale = { ...app.model.intent, revision: app.model.intent.revision - 1, pins: [] };
+  writer.save = () => Promise.resolve({ ok: true, intent: stale });
+  dragNode(nodeOf(canvas, "fw-edge-01"));
+  await tick();
+  assert.equal(app.model.pinByHost.has("sw-core-02"), true, "la réponse périmée est ignorée");
+  assert.equal(app.model.intent.revision, stale.revision + 1);
+});
+
+test("la coquille envoie les opérations l'une après l'autre, dans l'ordre (revue B4, H1)", { skip: !shell || !intentPage }, async () => {
+  const order = [];
+  let release = null;
+  const first = new Promise((resolve) => { release = resolve; });
+  const api = fakeApi(intentPage, { "/api/intent": { status: 200, body: intentPage.data.intent } });
+  const baseFetch = api.fetch;
+  api.fetch = (url, init) => {
+    if (url.startsWith("/api/intent/patches")) {
+      const body = JSON.parse(init.body);
+      order.push("start " + body.ops[0].hostname);
+      const wait = order.length === 1 ? first : Promise.resolve();
+      return wait.then(() => { order.push("end " + body.ops[0].hostname); return { status: 200, json: () => Promise.resolve({ ...intentPage.data.intent, revision: 2 + order.length }) }; });
+    }
+    return baseFetch(url, init);
+  };
+  api.store.set("ld-api-token", "known");
+  api.local.set("ld-author", "orhan");
+  const { LD } = load(shell, shell.data, "", { fetch: api.fetch, sessionStorage: api.sessionStorage, localStorage: api.localStorage, search: "?infrastructure=infra-lab&run_id=" + RUN_ID });
+  await LD.shellApp.state.pending;
+  const a = LD.app.writer.save([{ op: "pin", hostname: "a", x: 1, y: 1 }]);
+  const b = LD.app.writer.save([{ op: "pin", hostname: "b", x: 2, y: 2 }]);
+  await tick();
+  assert.deepEqual(order, ["start a"], "b attend la fin de a");
+  release();
+  await Promise.all([a, b]);
+  assert.deepEqual(order, ["start a", "end a", "start b", "end b"]);
+});
+
+test("« retirer toutes » envoie par paquets de 500 au plus, et « retirer » ne part qu'une fois (revue B4, B3)", { skip: !intentPage }, async () => {
+  const { LD, document } = load(intentPage);
+  const data = clone(intentPage.data);
+  data.intent.pins = Array.from({ length: 1203 }, (_, i) => ({ hostname: "host-" + String(i).padStart(4, "0"), x: 0, y: 0, author: "orhan", at: "2026-10-04T18:30:00Z" }));
+  const writer = fakeWriter({ data }, "alice");
+  const app = LD.boot(data, { writer });
+  app.activate("intent");
+  const view = document.getElementById("view-intent");
+  view.all((n) => n.tagName === "button" && /^retirer toutes les épingles \(1203\)$/.test(n.textContent))[0].fire("click", {});
+  view.all((n) => n.tagName === "button" && /^confirmer : retirer toutes/.test(n.textContent))[0].fire("click", {});
+  await tick();
+  assert.equal(writer.saved.length, 1203);
+  assert.equal(app.model.intent.pins.length, 0);
+  const remove = document.getElementById("view-intent").all((n) => n.tagName === "button" && n.textContent === "retirer");
+  assert.equal(remove.length, 0);
+  // « retirer » se désactive au clic : un second clic ne renvoie rien.
+  const again = LD.boot(clone(intentPage.data), { writer: fakeWriter(intentPage, "alice") });
+  again.activate("intent");
+  const button = document.getElementById("view-intent").all((n) => n.tagName === "button" && n.textContent === "retirer")[0];
+  button.fire("click", {});
+  assert.equal(button.getAttribute("disabled"), "", "désactivé dès le clic");
+  assert.equal(document.getElementById("i-author").getAttribute("maxlength"), "80");
+});
+
+const intentDiffPage = process.env.LD_PAGE_INTENT_DIFF ? readPage(process.env.LD_PAGE_INTENT_DIFF) : null;
+
+test("un fantôme du diff épinglé est orphelin : il n'est pas placé par l'épingle ni marqué (revue B4, B3)", { skip: !intentDiffPage }, () => {
+  const { LD, document } = load(intentDiffPage, intentDiffPage.data, "#stubs=1");
+  const model = LD.app.model;
+  assert.deepEqual(clone(model.orphanPins.map((p) => p.hostname)), ["srv-hyp-07"]);
+  const canvas = document.getElementById("canvas");
+  const ghost = nodeOf(canvas, "srv-hyp-07");
+  assert.ok(ghost && ghost.classList.contains("diff-removed"), "le fantôme est dessiné avec les changements et les voisins inconnus");
+  assert.equal(ghost.classList.contains("pinned"), false);
+  assert.notDeepEqual(clone(LD.app.graph.state.positions.get("srv-hyp-07")), { x: 400, y: 400 });
+  assert.equal(nodeOf(canvas, "sw-core-01").classList.contains("pinned"), true, "l'épingle d'un nœud vivant s'applique");
+  assert.match(document.getElementById("run-counts").textContent, /2 épingles · 1 orpheline/);
 });

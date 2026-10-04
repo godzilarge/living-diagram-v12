@@ -181,6 +181,10 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .node-label { font: 600 12.5px var(--sans); fill: var(--ink); text-anchor: middle; paint-order: stroke; stroke: var(--ground); stroke-width: 3.5px; pointer-events: none; }
 .kind-stub .node-label { font-weight: 500; font-size: 11px; fill: var(--muted); }
 .node-stack { font: 600 10px var(--sans); fill: var(--muted); pointer-events: none; }
+/* l'épingle (couche d'intention, B4) : un glyphe dans le coin haut gauche d'un équipement dont la place est voulue */
+.node-pin { display: none; fill: var(--surface); stroke: var(--structure); stroke-width: 1.4; stroke-linejoin: round; pointer-events: none; }
+.node.pinned .node-pin { display: block; }
+.node.pinned .node-shape { stroke-dasharray: none; }
 .node:hover .node-shape { stroke-width: 2.5; }
 .node.selected .node-shape { stroke: var(--ink); stroke-width: 3.5; }
 .node:focus-visible, .link:focus-visible, .beam:focus-visible, .cluster:focus-visible { outline: none; }
@@ -269,6 +273,14 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .shell-form input { background: var(--ground); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; font-family: var(--mono); }
 .shell-message { margin: 0; padding: 8px 10px; border: 1px solid var(--warning); border-radius: 6px; color: var(--warning); background: var(--surface); max-width: 560px; }
 .pill.run-completed { border-color: var(--confirmed); color: var(--confirmed); }
+/* l'onglet Intentions */
+.pill.pin-present { border-color: var(--structure); color: var(--structure); }
+.pill.pin-orphan { border-color: var(--warning); color: var(--warning); }
+button.chip.intent-chip { border-color: var(--structure); color: var(--structure); }
+.intent-note { margin: 0; padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--structure); border-radius: 6px; background: var(--surface); max-width: 78ch; }
+.intent-note.warn { border-left-color: var(--warning); }
+.confirm-row { display: inline-flex; gap: 8px; align-items: center; }
+#i-author { width: 18ch; background: var(--ground); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; }
 .pill.run-failed { border-color: var(--error); color: var(--error); }
 
 @media (max-width: 900px) {

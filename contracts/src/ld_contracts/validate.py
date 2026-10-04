@@ -15,6 +15,7 @@ from ld_contracts.bundle import RunBundle
 from ld_contracts.checks import Finding, check_bundle
 from ld_contracts.defaults import absent_nullable_keys
 from ld_contracts.diff import Diff
+from ld_contracts.intent import Intent
 from ld_contracts.snapshot import Snapshot
 
 
@@ -33,6 +34,7 @@ class ValidationReport:
     bundle: RunBundle | None = field(default=None, repr=False)
     snapshot: Snapshot | None = field(default=None, repr=False)
     diff: Diff | None = field(default=None, repr=False)
+    intent: Intent | None = field(default=None, repr=False)
 
 
 def _path(loc: tuple, ctx: dict[str, Any]) -> str:
@@ -101,6 +103,17 @@ def validate_diff_dict(data: object) -> ValidationReport:
     return ValidationReport(ok=True, diff=diff)
 
 
+def validate_intent_dict(data: object) -> ValidationReport:
+    """Une intention n'a pas de constats : valide ou refusée."""
+    if not isinstance(data, dict | Intent):
+        return ValidationReport(ok=False, errors=(Issue("$", "un objet JSON est attendu à la racine de l'intention"),))
+    try:
+        intent = Intent.model_validate(data)
+    except ValidationError as exc:
+        return ValidationReport(ok=False, errors=_output_issues(exc))
+    return ValidationReport(ok=True, intent=intent)
+
+
 def _read_json(path: Path) -> tuple[object, ValidationReport | None]:
     try:
         return json.loads(Path(path).read_text(encoding="utf-8")), None
@@ -122,3 +135,8 @@ def validate_snapshot_file(path: Path) -> ValidationReport:
 def validate_diff_file(path: Path) -> ValidationReport:
     data, failure = _read_json(path)
     return failure if failure is not None else validate_diff_dict(data)
+
+
+def validate_intent_file(path: Path) -> ValidationReport:
+    data, failure = _read_json(path)
+    return failure if failure is not None else validate_intent_dict(data)

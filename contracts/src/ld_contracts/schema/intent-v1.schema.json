@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://living-diagram.internal/contracts/intent-v1.schema.json",
+  "title": "Intent",
+  "$defs": {
+    "Pin": {
+      "additionalProperties": false,
+      "description": "Une épingle : la place voulue d'un équipement sur le dessin, par qui, quand.",
+      "properties": {
+        "hostname": {
+          "description": "Identité stable du nœud épinglé (`nodes[].hostname` du snapshot), à l'octet ; 253 caractères au plus, sans caractère de contrôle.",
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Hostname",
+          "type": "string"
+        },
+        "x": {
+          "description": "Abscisse en unités du dessin, entière, bornée à ±1 000 000.",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "description": "Ordonnée en unités du dessin, entière, bornée à ±1 000 000.",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "Y",
+          "type": "integer"
+        },
+        "author": {
+          "description": "Qui a posé ou déplacé l'épingle (nom déclaré dans la page), 80 caractères au plus, blancs de bord retirés, sans caractère de contrôle.",
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Author",
+          "type": "string"
+        },
+        "at": {
+          "description": "Quand : date UTC écrite par le serveur à l'application de l'opération.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hostname",
+        "x",
+        "y",
+        "author",
+        "at"
+      ],
+      "title": "Pin",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "La couche d'intention d'une infrastructure : ses patchs keyés par identité stable, avec leur auteur et leur date.\n\nLe document ne s'écrit que par opérations (`pin`, `unpin`) ; chaque requête acceptée incrémente `revision`.\nIl n'est lu ni par B1 ni par B3 : `rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`.",
+  "properties": {
+    "intent_version": {
+      "description": "Version semver du contrat Intent, indépendante des trois autres contrats.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Intent Version",
+      "type": "string"
+    },
+    "infrastructure": {
+      "description": "Infrastructure du document : une épingle ne vaut que pour elle.",
+      "minLength": 1,
+      "title": "Infrastructure",
+      "type": "string"
+    },
+    "revision": {
+      "description": "Nombre de requêtes d'écriture acceptées ; 0 = jamais écrit.",
+      "minimum": 0,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "updated_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Date UTC de la dernière écriture ; null si et seulement si `revision` vaut 0.",
+      "title": "Updated At"
+    },
+    "pins": {
+      "description": "Les épingles, triées par `hostname`, uniques ; 10 000 au plus (`too_long`).",
+      "items": {
+        "$ref": "#/$defs/Pin"
+      },
+      "maxItems": 10000,
+      "title": "Pins",
+      "type": "array"
+    }
+  },
+  "required": [
+    "intent_version",
+    "infrastructure",
+    "revision",
+    "updated_at",
+    "pins"
+  ],
+  "type": "object"
+}

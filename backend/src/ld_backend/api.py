@@ -4,6 +4,7 @@ import hmac
 import json
 import re
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -14,7 +15,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from ld_contracts.bundle import RunBundle
 from ld_contracts.diff import Diff
 from ld_contracts.diff.serialize import canonical_json as diff_json
+from ld_contracts.intent import Intent
+from ld_contracts.intent.serialize import canonical_json as intent_json
 from ld_contracts.snapshot import Snapshot
+from pydantic import ValidationError
 from pydantic.json_schema import models_json_schema
 from starlette.requests import ClientDisconnect
 
@@ -23,8 +27,9 @@ from ld_backend.config import Settings
 from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, load_archived_snapshot
 from ld_backend.ingest import ingest_bundle, result_payload
+from ld_backend.intent import IntentCorruptError, IntentLimitError, IntentStore
 from ld_backend.render import render_shell
-from ld_backend.schemas import IngestReport, RunEntry, RunList
+from ld_backend.schemas import IngestReport, IntentOps, RunEntry, RunList
 
 # Une run s'adresse par paramètres de requête, jamais par le chemin : `infrastructure` est un libellé libre et
 # `run_id` vient de l'amont ; un `/` dans l'un ou l'autre rendait la run archivée illisible (404).
@@ -33,11 +38,20 @@ BUNDLE = "/api/ingest/bundle"
 REPORT = "/api/ingest/report"
 SNAPSHOT = "/api/snapshot"
 DIFF = "/api/diff"
+INTENT = "/api/intent"
+INTENT_PATCHES = "/api/intent/patches"
 VIEW = "/view"
 JSON_MEDIA_TYPE = re.compile(r"application/(?:[\w.-]+\+)?json", re.IGNORECASE)
-BUNDLE_SCHEMA_NAME = RunBundle.__name__
 SCHEMA_REF_TEMPLATE = "#/components/schemas/{model}"
-CONTRACT_MODELS = (RunBundle, Snapshot, Diff)
+CONTRACT_MODELS = (RunBundle, Snapshot, Diff, Intent, IntentOps)
+# Les corps lus à la main (en flux, avec une limite) sont déclarés dans OpenAPI ici, pas par FastAPI.
+BODY_MODELS = {
+    BUNDLES: (RunBundle, "RunBundle v1 : la référence est `contracts/CONTRAT.md`."),
+    INTENT_PATCHES: (
+        IntentOps,
+        "Une requête d'écriture de la couche d'intention : auteur et opérations, dans l'ordre.",
+    ),
+}
 
 _bearer = HTTPBearer(
     auto_error=False,
@@ -95,6 +109,31 @@ DIFF_RESPONSES: dict[int | str, dict[str, Any]] = {
     500: {"description": "entrée d'archive illisible, ou snapshot archivé hors contrat : intervention nécessaire"},
 }
 
+INTENT_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "Intent v1 de l'infrastructure, forme canonique ; le document vide (`revision` 0) si rien n'a "
+        "jamais été écrit. Référence : `contracts/CONTRAT.md`, partie D.",
+        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Intent.__name__)}}},
+    },
+    500: {"description": "document d'intention illisible ou incohérent sur disque : intervention nécessaire"},
+}
+
+PATCHES_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "le document résultant, `revision` incrémentée, opérations appliquées dans l'ordre (dernier "
+        "écrivain gagne, par épingle) ; une ligne de journal par requête acceptée",
+        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Intent.__name__)}}},
+    },
+    404: {"description": "infrastructure sans aucune run archivée : rien à épingler"},
+    413: {"description": "corps au-delà de `LD_MAX_INTENT_BYTES`"},
+    415: {"description": "`Content-Type` qui n'est pas `application/json`"},
+    422: {
+        "description": "corps hors forme (auteur vide, liste vide, coordonnée non entière ou hors borne, opération "
+        "inconnue), ou document qui dépasserait 10 000 épingles ; `errors` liste chemin et règle, jamais une valeur"
+    },
+    500: {"description": "document d'intention illisible ou incohérent sur disque : intervention nécessaire"},
+}
+
 Label = Annotated[str, Query(min_length=1)]
 FromLabel = Annotated[str, Query(min_length=1, alias="from", description="run de départ")]
 ToLabel = Annotated[str, Query(min_length=1, alias="to", description="run d'arrivée")]
@@ -127,10 +166,26 @@ def _require_json(request: Request) -> None:
         raise HTTPException(status_code=415, detail="corps attendu en application/json")
 
 
+def _safe_message(error: dict[str, Any]) -> str:
+    """Le message d'une erreur de validation, sans la valeur reçue : Pydantic la recopie dans certains messages (le
+    discriminant d'une union, par exemple), la règle de l'API l'interdit (revue B4, M2)."""
+    if error["type"] == "union_tag_invalid":
+        expected = (error.get("ctx") or {}).get("expected_tags", "")
+        return f"valeur inconnue pour le discriminant ; attendu : {expected}"
+    received = error.get("input")
+    if isinstance(received, str) and received and received in error["msg"]:
+        return error["type"]
+    return error["msg"]
+
+
+def _problem(detail: str, errors: list[dict[str, Any]]) -> JSONResponse:
+    listed = [{"path": ".".join(str(p) for p in e["loc"]), "message": _safe_message(e)} for e in errors]
+    return JSONResponse(status_code=422, content={"detail": detail, "errors": listed})
+
+
 def _query_problem(_: Request, exc: RequestValidationError) -> JSONResponse:
     """Même forme que le reste de l'API ; la valeur reçue (`input`) n'est jamais renvoyée."""
-    errors = [{"path": ".".join(str(p) for p in e["loc"]), "message": e["msg"]} for e in exc.errors()]
-    return JSONResponse(status_code=422, content={"detail": "paramètres de requête invalides", "errors": errors})
+    return _problem("paramètres de requête invalides", list(exc.errors()))
 
 
 def _archived(load: Callable[[], Any]) -> Any:
@@ -188,24 +243,23 @@ def _contract_schemas() -> dict[str, Any]:
 
 
 def _with_contract(base: dict[str, Any]) -> dict[str, Any]:
-    """Nouveau document : schémas du contrat fusionnés et corps du POST déclaré. `base` n'est pas modifié."""
+    """Nouveau document : schémas du contrat fusionnés et corps des POST lus à la main déclarés. `base` n'est pas
+    modifié."""
     components = base.get("components", {})
     schemas = components.get("schemas", {})
     contract = _contract_schemas()
     clashes = sorted(name for name in contract if name in schemas and schemas[name] != contract[name])
     if clashes:
         raise RuntimeError(f"collision de schémas OpenAPI entre l'API et le contrat : {clashes}")
-    body = {
-        "required": True,
-        "description": "RunBundle v1 : la référence est `contracts/CONTRAT.md`.",
-        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=BUNDLE_SCHEMA_NAME)}}},
-    }
-    post = {**base["paths"][BUNDLES]["post"], "requestBody": body}
-    return {
-        **base,
-        "components": {**components, "schemas": {**schemas, **contract}},
-        "paths": {**base["paths"], BUNDLES: {**base["paths"][BUNDLES], "post": post}},
-    }
+    paths = dict(base["paths"])
+    for route, (model, description) in BODY_MODELS.items():
+        body = {
+            "required": True,
+            "description": description,
+            "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=model.__name__)}}},
+        }
+        paths[route] = {**paths[route], "post": {**paths[route]["post"], "requestBody": body}}
+    return {**base, "components": {**components, "schemas": {**schemas, **contract}}, "paths": paths}
 
 
 class IngestApp(FastAPI):
@@ -219,8 +273,18 @@ class IngestApp(FastAPI):
         return self.openapi_schema
 
 
+def _intent_or_500(load: Callable[[], Intent]) -> Intent:
+    try:
+        return load()
+    except IntentCorruptError as exc:
+        raise HTTPException(status_code=500, detail="document d'intention corrompu, intervention nécessaire") from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="document d'intention illisible, intervention nécessaire") from exc
+
+
 def create_app(settings: Settings, archive: BundleArchive | None = None) -> FastAPI:
     store = archive or BundleArchive(settings.archive_dir)
+    intents = IntentStore(settings.archive_dir)
     app = IngestApp(
         title="Living Diagram — ingestion",
         version="0.1.0",
@@ -299,6 +363,43 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
             detail = f"{exc} : archive incohérente, intervention nécessaire"
             raise HTTPException(status_code=500, detail=detail) from exc
         return Response(content=diff_json(result), media_type="application/json")
+
+    @app.get(
+        INTENT,
+        dependencies=[guard],
+        response_class=Response,
+        responses=INTENT_RESPONSES,
+        summary="Lire la couche d'intention d'une infrastructure (B4 : épingles)",
+    )
+    def get_intent(infrastructure: Label) -> Response:
+        intent = _intent_or_500(lambda: intents.load(infrastructure))
+        return Response(content=intent_json(intent), media_type="application/json")
+
+    @app.post(
+        INTENT_PATCHES,
+        dependencies=[guard],
+        response_class=Response,
+        responses=PATCHES_RESPONSES,
+        summary="Appliquer des opérations à la couche d'intention (pin, unpin)",
+        description="Le document ne s'écrit que par opérations : poser ou remplacer une épingle (`pin`), la retirer "
+        "(`unpin`). Appliquées dans l'ordre, journalisées (auteur, date, opérations). Une infrastructure sans run "
+        "archivée est refusée (404).",
+    )
+    async def post_intent_patches(infrastructure: Label, request: Request) -> Response:
+        if not store.list_runs(infrastructure):
+            detail = "aucune run archivée pour cette infrastructure : rien à épingler"
+            raise HTTPException(status_code=404, detail=detail)
+        data = await _read_json_body(request, settings.max_intent_bytes)  # borné, comme un bundle (revue B4, H2)
+        try:
+            ops = IntentOps.model_validate(data)
+        except ValidationError as exc:
+            return _problem("corps de requête invalide", list(exc.errors()))
+        now = datetime.now(UTC).replace(microsecond=0)
+        try:
+            intent = _intent_or_500(lambda: intents.apply(infrastructure, ops, now))
+        except IntentLimitError as exc:
+            return _problem("corps de requête invalide", [{"loc": ("ops",), "type": "too_long", "msg": str(exc)}])
+        return Response(content=intent_json(intent), media_type="application/json")
 
     return app
 

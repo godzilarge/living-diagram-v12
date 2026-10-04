@@ -6,6 +6,7 @@ from ld_contracts import cli, docgen
 from ld_contracts.bundle import RunBundle
 from ld_contracts.diff.codes import DIFF_ERROR_TYPES
 from ld_contracts.docgen import DOC_PATH, ERROR_TYPES, generate_markdown, load_committed_markdown
+from ld_contracts.intent.codes import INTENT_ERROR_TYPES
 from ld_contracts.snapshot.codes import SNAPSHOT_ERROR_TYPES
 
 
@@ -68,3 +69,6 @@ def test_every_raised_error_type_is_catalogued():
     raised_diff = _raised_types((src / "diff").glob("*.py"))
     assert raised_diff, "aucun type trouvé dans diff/ : le motif de recherche est cassé"
     assert raised_diff <= set(DIFF_ERROR_TYPES), sorted(raised_diff - set(DIFF_ERROR_TYPES))
+    raised_intent = _raised_types((src / "intent").glob("*.py"))
+    assert raised_intent, "aucun type trouvé dans intent/ : le motif de recherche est cassé"
+    assert raised_intent <= set(INTENT_ERROR_TYPES), sorted(raised_intent - set(INTENT_ERROR_TYPES))

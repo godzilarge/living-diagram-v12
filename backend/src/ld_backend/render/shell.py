@@ -9,7 +9,7 @@ jeton non.
 
 from ld_backend.render.page import JS_FILES, assemble_page, build_page_data
 
-SHELL_SCRIPTS = (*JS_FILES, "shell.js")
+SHELL_SCRIPTS = JS_FILES  # la coquille est dans la toile : elle démarre quand la page n'embarque pas de snapshot
 
 
 def render_shell() -> str:

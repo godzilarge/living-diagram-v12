@@ -61,8 +61,8 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
 
 Pipeline de briques pures, détaillé dans l'artefact publié
 <https://claude.ai/code/artifact/630b787d-6862-4e3c-8e1c-7d40fd373e3c> (copie locale
-`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v19 du 2026-10-04 ; second artefact
-« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v17 du 2026-10-04 : son
+`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v20 du 2026-10-04 soir ; second artefact
+« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v18 du 2026-10-04 soir : son
 tableau « B1 : ce qui est fait, ce qui reste » se tient à jour à chaque étape) :
 
 ```
@@ -651,6 +651,55 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   revalider les deux snapshots (« quelques millisecondes » retiré partout). **Parqués, questions Q5 à Q7 de `docs/07`** :
   identité à l'octet alors que le snapshot compare sans la casse (un test fige le comportement), revalidation à chaque
   appel ou diff N-1 stocké, sévérité hors de l'identité d'un contrôle. Contracts 579 tests, backend 422, 50 sous Node.
+- **La toile : décision ③ tranchée, la page `ld render` devient `engine/` en TypeScript** (2026-10-04, « Commit et Go, je
+  valide le plan » d'Orhan ; son objectif : « rapidement » un front qui affiche les diagrammes avec le diff et les intentions,
+  pour voir un rendu et faire ses retours). Portage **fidèle, pas réécriture** : douze modules JS → `engine/src/canvas/`
+  (model = B5 analyse, layout = B7, geometry = B8, graph + tip + icons + dom = B9 renderer SVG) et `engine/src/shell/` (main,
+  inspect, structures, tables, shell API, apps) ; types des contrats **générés** des schémas JSON (`engine/types.mjs`,
+  `src/contracts/*.ts`, titres de propriétés retirés pour ne pas fabriquer un alias par champ) ; bundle esbuild 0.28.2 en
+  **un seul fichier `viewer.js` versionné** dans les assets du backend (`absWorkingDir` fixé : mêmes octets d'où que vienne
+  le build) ; **Python n'a jamais besoin de Node** ; test de dérive (`build.mjs --check`, `types.mjs --check`, sauté sans
+  `node_modules`). Preuve de fidélité : 50 tests Node, tests Chromium, **quatre captures identiques à l'octet** avant et
+  après ; la revue (`docs/revues/2026-10-04-toile-engine-ts.md`, 0 critique, 1 haut, 6 moyens, 7 bas) l'a reconfirmé sur
+  21 paires DOM + PNG et une page à la jauge (500 devices) ; **traitée le même soir** : `tsc` strict dans le test de dérive
+  (H1), bloc JSON lu une fois (M1), gardes au lieu de casts sur les références du diff (M3), coutures nommées (`dom.ts`
+  fabrique seule, `format.ts`, `widgets.ts`, `checks.ts`, cycle `inspect ↔ structures` rompu, M5), `npm ci` et
+  `engines` (B2) ; **parqués, motivés** : `noUncheckedIndexedAccess` (72 erreurs, à activer module par module quand
+  B5-B9 évoluent, M2), types de l'API écrits à la main (B3), module LOD (B6 de l'architecture). **Pas de React maintenant** : le shell reste du TS sans
+  framework dans `engine/src/shell/` ; déclencheur pour `shell/` React : des panneaux d'édition d'intention au-delà des
+  épingles. La coquille servie est dans le même bundle, inactive quand la page embarque un snapshot (la CSP sans
+  `connect-src` reste la garantie « aucun réseau »). Guide : `engine/README.md`. `node_modules/` hors dépôt,
+  `package-lock.json` versionné (déterminisme, comme `uv.lock`).
+- **B4, la couche d'intention, épingles d'abord : contrat `Intent` v1, store, API, CLI, page** (2026-10-04, même session,
+  `docs/08-intention.md` écrit avant le code). **Contrat** `contracts/src/ld_contracts/intent/`, partie D de `CONTRAT.md`,
+  `intent-v1.schema.json`, `validate|schema --contract intent`, fixture `intent-skeleton.json` : un document **par
+  infrastructure, jamais par run** ; patchs keyés par identité stable (`hostname` à l'octet), jamais par coordonnée ni run ;
+  une seule sorte en V1, l'épingle `{hostname, x, y, author, at}` (entiers stricts bornés ±1 000 000, auteur ≤ 80) ; `pins`
+  triées et uniques, refusé par le type ; `revision` ↔ `updated_at` (`revision_update_mismatch`) ; le document vide est
+  valide. **Store** `backend/src/ld_backend/intent.py` : `<archive>/_intent/<infra>/intent.json` + `journal.jsonl` (qui,
+  quand, quoi), écrit **par opérations seulement** (`pin`, `unpin`, appliquées dans l'ordre, dernier écrivain gagne par
+  épingle), atomique sous verrou `fcntl` + fil (aucune écriture perdue à deux fils), document corrompu isolé jamais écrasé.
+  **API** : `GET /api/intent?infrastructure=` (document, vide si jamais écrit), `POST /api/intent/patches?infrastructure=`
+  `{author, ops}` (404 sans run archivée, 422 à la forme sans valeur), `Intent` dans OpenAPI ; **CLI** `ld intent` (lecture) ;
+  `ld render --infrastructure` embarque le document (lecture seule), le mode fichier non. **Page** : épingles = contraintes
+  dures du placement, glyphe sur le nœud épinglé, glisser-déposer = `pin` à la relâche (coordonnées arrondies) quand la page
+  a un écrivain avec un **nom** (saisi dans `/view`, `localStorage`), sinon déplacement local dit tel ; onglet
+  **Intentions** (liste, auteur, date, **orphelines** = équipement absent de la run, listées et jamais effacées en silence,
+  retirer une, retirer les orphelines ou toutes avec confirmation dans la page, le nom) ; fiche d'un équipement avec son
+  épingle ; pastille d'en-tête « n épingles · k orphelines » ; « replacer » garde les épingles enregistrées. **Décisions** :
+  dernier écrivain gagne + journal = réponse V1 à la question 6 de `docs/00` (pas de comptes : auteur déclaratif) ; le diff
+  ne lit jamais l'intention ; **limite connue** : seuls les équipements épinglés sont stables entre deux runs (placement
+  seedé N-1 = phase 3). Tests : contracts `tests/intent/`, backend store / API / CLI, 56 tests Node, Chromium (glyphe par
+  la feuille de style, glissé réel), **bout en bout** uvicorn + Chromium : un glissé dans `/view` enregistre l'épingle par
+  l'API sous le nom saisi, rien dans l'adresse. **Revue indépendante consignée et traitée le même soir**
+  (`docs/revues/2026-10-04-b4-intention.md` : 0 critique, 2 hauts, 3 moyens, 7 bas ; sondes rejouables) : envois de la
+  page **sérialisés** et réponse périmée ignorée (H1), corps borné `LD_MAX_INTENT_BYTES`, `hostname` ≤ 253 et `author`
+  ≤ 80 sans caractère de contrôle, `pins` ≤ 10 000, opérations de l'API typées par le contrat (H2), journal ouvert avant
+  l'écriture (M1), messages 422 sans la valeur reçue (M2), fusion des épingles locales après une réponse (M3), fantôme
+  jamais placé par une épingle, « retirer toutes » par paquets de 500, boutons désactivés au clic (B3), `ld render`
+  ouvre la run sans intention si le document est corrompu, comme `/view` (B5). **Parqués, à trancher** : précondition
+  `expected_revision` (409) côté serveur (`docs/08` Q5) ; casse du hostname, épingle sur un stub, auteur déclaratif
+  (Q1-Q3). Contracts 601 tests, backend 450, 62 tests sous Node, `tsc` strict propre.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -662,7 +711,8 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
 - VSX : un document devices par passerelle ou par Virtual System ; VS0 seul ou tous.
 - Énumérations réelles de `type`, `admin_status`, `oper_status`, `duplex` (interfaces) ;
   `site` libre ou référentiel ; échantillon de descriptions réelles anonymisées.
-- Le pari « posséder la toile » (décision ③ de l'artefact) n'est pas tranché.
+- ~~Le pari « posséder la toile » (décision ③ de l'artefact) n'est pas tranché.~~ **Tranché le 2026-10-04** : la page
+  `ld render` est devenue `engine/` (TypeScript pur, sans librairie de toile).
 - Zones fonctionnelles : inférées faute de source (CMDB disparue).
 
 ## Séquencement
@@ -673,9 +723,10 @@ en deux parties entrée / sortie, `docs/05` validé) → **Phase 1a, la tranche 
 tirée dans la tranche le 2026-09-26) de visualisation avec les sources → premier bundle réel (exportateur
 minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden (faits le 2026-09-26), générateur synthétique
 (fait le 2026-10-03), **B3 diff (fait le 2026-10-04)**, table MAC (`docs/06`, parquée), B2,
-en TDD sur fixtures au format réel des collections → Phase 2 socle toile (jauge
-de perf 500 nœuds / 1 500 liens) → Phase 3 placement → Phase 4 timeline + diff peint →
-Phase 5 intention + réconciliation → Phase 6 LOD complet, vues nommées, overlays L2/L3.
+en TDD sur fixtures au format réel des collections → Phase 2 socle toile (**`engine/` depuis la page, 2026-10-04** ; jauge
+de perf 500 nœuds / 1 500 liens tenue par la page) → Phase 3 placement (seedé N-1) → Phase 4 timeline + diff peint (le diff
+est peint depuis le 2026-10-04) → Phase 5 intention + réconciliation (**épingles et orphelines faites le 2026-10-04**) →
+Phase 6 LOD complet, vues nommées, overlays L2/L3.
 Détail : `docs/00-analyse-fondation.md` §10.
 
 ## Repo
@@ -689,6 +740,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
   questions. **Validé par Orhan le 2026-09-20 (sept questions sur huit tranchées, la 6 non bloquante).**
 - `docs/07-diff.md` — **conception du diff B3** (2026-10-04) : contrat `Diff` v1, règles D0 à D6, branchement, oracle du
   générateur, quatre questions parquées. Validé sur le principe par Orhan le jour même, codé le jour même.
+- `docs/08-intention.md` — **conception de la couche d'intention B4** (2026-10-04) : contrat `Intent` v1, règles I0 à I6,
+  branchement (store, API, CLI, page), quatre questions parquées. Codé le jour même.
 - `docs/06-evidence-table-mac.md` — **conception de l'évidence table MAC** (2026-10-03) : topic `mac_table` restreint au
   parc, règle R7 (port de bordure), clusters à MAC virtuelle, six questions. **À valider par Orhan.**
 - `docs/guides-collecte/` — guides **producteur** par plateforme (2026-09-24 : `fortios-interfaces.md`, commandes et chronologie
@@ -698,7 +751,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
   2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`,
   `2026-10-02-pages-demo-bulles-role-ha.md` ; 2026-10-03 : `2026-10-03-generateur-synthetique.md` ; 2026-10-04 :
-  `2026-10-04-b3-diff.md`) et leurs sondes rejouables
+  `2026-10-04-b3-diff.md`, `2026-10-04-toile-engine-ts.md`, `2026-10-04-b4-intention.md`) et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
 - `prompts.md` — échanges bruts du propriétaire (historique)
@@ -737,9 +790,14 @@ Détail : `docs/00-analyse-fondation.md` §10.
   incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). **R2 forme HA
   des descriptions le 2026-10-02** (`descriptions.py`, scénario 11 en mémoire, revue traitée) ; un `ha` standalone ne
   produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 % ; page de démonstration le même jour (`tip.js`, `icons.js`, `geometry.js`, `tests/browser.py`, 37 tests sous Node, 352 tests) ; **2026-10-03 : 357 tests**, dont `tests/correlate/test_synth.py` (B1 sur les séries du générateur, compte exact des téléphones) ; **2026-10-04 : 422 tests** (B3 `diff/` à 100 %, `diffs.py`, `GET /api/diff`, `ld diff`, `ld render --from`, page avec fantômes et onglet Diff, revue traitée le même jour, 50 tests sous Node).
-- À venir (cap du 2026-10-04 ; B3 diff fait le jour même) : la toile (`engine/` TS depuis la page `ld render`, décision ③ à
-  trancher), B4 intention (épingles d'abord), `shell/` (React). Parqués : `docs/06` table MAC (conçu, non validé), B2 Mongo,
-  H2 téléphones.
+- `engine/` — **la toile** (2026-10-04) : moteur de diagramme TypeScript pur, zéro framework, `src/canvas/` (modèle,
+  placement, géométrie, renderer SVG, bulle) et `src/shell/` (page, inspecteur, tableaux, intentions, coquille API), types
+  des contrats générés (`npm run types`), bundle `npm run build` → `backend/src/ld_backend/render/assets/js/viewer.js`
+  (versionné, test de dérive). Guide : `engine/README.md`. Node et `npm ci` seulement pour modifier la toile.
+- À venir (cap du 2026-10-04 ; B3 diff, toile et B4 épingles faits le jour même) : les retours d'Orhan sur le rendu du front
+  (`/view` : diagrammes, diff, épingles), puis selon ses axes : autres sortes d'intention (masquer, annoter), placement seedé
+  N-1 (phase 3), `shell/` React quand les panneaux d'édition le justifient, timeline. Parqués : `docs/06` table MAC (conçu,
+  non validé), B2 Mongo, H2 téléphones.
 
 ## Conventions de code (rappel des règles globales)
 

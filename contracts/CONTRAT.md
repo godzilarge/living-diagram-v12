@@ -2,9 +2,10 @@
 
 > **Document généré** depuis les modèles du paquet `ld-contracts` par `ld-contracts docs --out`.
 > Ne pas l'éditer à la main : modifier les modèles (descriptions comprises), régénérer, un test vérifie
-> qu'il n'a pas dérivé. Trois contrats : la **partie A** décrit ce qui entre (le RunBundle produit par
+> qu'il n'a pas dérivé. Quatre contrats : la **partie A** décrit ce qui entre (le RunBundle produit par
 > l'exportateur B0), la **partie B** ce qui sort (le Snapshot produit par la corrélation B1), la **partie C**
-> ce qui a changé entre deux sorties (le Diff produit par la comparaison B3).
+> ce qui a changé entre deux sorties (le Diff produit par la comparaison B3), la **partie D** ce que l'humain
+> veut en plus (l'Intent de la couche d'intention B4).
 
 ## Partie A — Entrée : RunBundle v1.0.0
 
@@ -2064,3 +2065,106 @@ câble `down`, un contrôle `link_down` apparu), en forme canonique :
 ```
 
 Le JSON Schema équivalent est `src/ld_contracts/schema/diff-v1.schema.json`.
+
+## Partie D — Intention : Intent v1.0.0
+
+L'intention est ce que l'humain veut en plus de ce que la collecte montre : des patchs keyés par identité
+stable, qui survivent aux runs. V1 ne connaît qu'une sorte de patch, l'épingle (la place voulue d'un
+équipement sur le dessin). D'autres sortes viendront comme des listes à côté, sans rien changer à celle-ci.
+Ce document est écrit par l'API de Living Diagram (`POST /api/intent/patches`) et lu par la toile ; il ne
+concerne pas l'exportateur. Sa version suit son propre semver.
+
+### Le document Intent
+
+La couche d'intention d'une infrastructure : ses patchs keyés par identité stable, avec leur auteur et leur date.
+
+Le document ne s'écrit que par opérations (`pin`, `unpin`) ; chaque requête acceptée incrémente `revision`.
+Il n'est lu ni par B1 ni par B3 : `rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `intent_version` | texte, motif `^\d+\.\d+\.\d+$` | oui | Version semver du contrat Intent, indépendante des trois autres contrats. |
+| `infrastructure` | texte non vide | oui | Infrastructure du document : une épingle ne vaut que pour elle. |
+| `revision` | entier ≥ 0 | oui | Nombre de requêtes d'écriture acceptées ; 0 = jamais écrit. |
+| `updated_at` | date-time ISO 8601 avec fuseau \| null | oui | Date UTC de la dernière écriture ; null si et seulement si `revision` vaut 0. |
+| `pins` | liste de [Pin](#pin) | oui | Les épingles, triées par `hostname`, uniques ; 10 000 au plus (`too_long`). |
+
+### Documents
+
+#### Pin
+
+Une épingle : la place voulue d'un équipement sur le dessin, par qui, quand.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `hostname` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Identité stable du nœud épinglé (`nodes[].hostname` du snapshot), à l'octet ; 253 caractères au plus, sans caractère de contrôle. |
+| `x` | entier ≥ -1000000 ≤ 1000000 | oui | Abscisse en unités du dessin, entière, bornée à ±1 000 000. |
+| `y` | entier ≥ -1000000 ≤ 1000000 | oui | Ordonnée en unités du dessin, entière, bornée à ±1 000 000. |
+| `author` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Qui a posé ou déplacé l'épingle (nom déclaré dans la page), 80 caractères au plus, blancs de bord retirés, sans caractère de contrôle. |
+| `at` | date-time ISO 8601 avec fuseau | oui | Quand : date UTC écrite par le serveur à l'application de l'opération. |
+
+### Énumérations
+
+### Règles transverses
+
+Vérifiées à la validation d'une intention, au-delà des types de chaque champ. Un document qui les viole est
+**refusé** (`docs/08`).
+
+- **Un document par infrastructure, jamais par run** : l'intention est longue, les runs passent. Il ne porte
+  aucun `collector_run_id`.
+- **Les patchs sont keyés par identité stable, jamais par coordonnée ni par run** : une épingle vise le
+  `hostname` d'un nœud, à l'octet ; sa valeur est une position entière en unités du dessin. Un nœud absent de la
+  run affichée rend son épingle **orpheline** : elle est listée, jamais effacée en silence (règle I3).
+- **Toutes les clés sont écrites** ; aucun défaut, pas d'`extras` ; entiers stricts, dates ISO 8601 avec fuseau.
+- **Ordre canonique vérifié par le type** : `pins` triées par `hostname`, uniques.
+- **`revision` compte les requêtes d'écriture acceptées** ; `updated_at` est null si et seulement si `revision`
+  vaut 0. Le document ne s'écrit que par opérations (`pin`, `unpin`) : dernier écrivain gagne par épingle, chaque
+  requête est journalisée côté serveur (qui, quand, quoi).
+- **Ni B1 ni B3 ne lisent ce document** : `rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`.
+- **Sérialisation canonique** : `ld_contracts.intent.serialize.canonical_json`, même forme que le snapshot.
+
+### Erreurs de contrat (bloquantes)
+
+| Type | Signification |
+|---|---|
+| `not_canonical_order` | les épingles ne sont pas triées par `hostname` |
+| `duplicate_identity` | deux épingles visent le même `hostname` |
+| `revision_update_mismatch` | `revision` et `updated_at` ne vont pas ensemble (`updated_at` est null si et seulement si `revision` vaut 0) |
+| `pin_after_update` | une épingle est datée après `updated_at` : le document ne peut pas être plus ancien que ce qu'il porte |
+| `too_long` | trop d'épingles (10 000 au plus), ou un texte trop long (`hostname` 253, `author` 80) |
+| `string_pattern_mismatch` | un texte (`hostname`, `author`) contient un caractère de contrôle |
+| `intent_major_unsupported` | la version majeure d'`intent_version` n'est pas celle du validateur |
+| `datetime_numeric` | une date est donnée en nombre (epoch) au lieu d'ISO 8601 avec fuseau |
+| `extra_forbidden` | un champ inconnu est présent (aucun `extras` dans ce contrat) |
+| `missing` | un champ est absent : toutes les clés de l'intention sont requises, `null` compris |
+
+### Exemple : deux épingles
+
+`fixtures/intent-skeleton.json`, en forme canonique :
+
+```json
+{
+  "infrastructure": "infra-lab",
+  "intent_version": "1.0.0",
+  "pins": [
+    {
+      "at": "2026-10-04T18:30:00Z",
+      "author": "orhan",
+      "hostname": "fw-edge-01",
+      "x": -210,
+      "y": 160
+    },
+    {
+      "at": "2026-10-04T18:32:15Z",
+      "author": "orhan",
+      "hostname": "sw-core-01",
+      "x": 0,
+      "y": -80
+    }
+  ],
+  "revision": 2,
+  "updated_at": "2026-10-04T18:32:15Z"
+}
+```
+
+Le JSON Schema équivalent est `src/ld_contracts/schema/intent-v1.schema.json`.

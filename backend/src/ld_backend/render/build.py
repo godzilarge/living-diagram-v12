@@ -18,6 +18,7 @@ from ld_backend.correlate import correlate
 from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, load_archived_snapshot, snapshot_from_data, snapshot_model
 from ld_backend.ingest import delivery_payload, error_payload
+from ld_backend.intent import IntentCorruptError, IntentStore
 from ld_backend.render.page import build_page_data, render_page
 
 
@@ -62,10 +63,15 @@ def page_from_bundle(data: object, *, origin: str, previous: object = None) -> P
 
 
 def page_from_archive(
-    archive: BundleArchive, infrastructure: str, run_id: str, from_run: str | None = None
+    archive: BundleArchive,
+    infrastructure: str,
+    run_id: str,
+    from_run: str | None = None,
+    intents: IntentStore | None = None,
 ) -> PageOutcome:
     """Le snapshot et le rapport tels qu'archivés : la page montre ce que l'API sert. `from_run` : la run d'avant
-    dont la page embarque le diff, comme `GET /api/diff`."""
+    dont la page embarque le diff, comme `GET /api/diff`. `intents` : le store de la couche d'intention, dont la page
+    embarque le document de l'infrastructure (lecture seule : sans serveur, un déplacement reste local)."""
     try:
         if archive.find_run(infrastructure, run_id) is None:
             return PageOutcome(page=None, problem="run inconnue pour cette infrastructure")
@@ -84,5 +90,13 @@ def page_from_archive(
     # Pas de rapport n'est pas « aucun constat » : la page doit pouvoir dire « non disponible ».
     ingest = None if report is None else {"summary": report.get("summary"), "findings": report["findings"]}
     origin = f"archive · {infrastructure} · {run_id}"
-    page = render_page(build_page_data(snapshot, ingest, origin=origin, diff=diff_json))
+    # Un document d'intention corrompu n'empêche pas de lire la run : la page s'ouvre sans lui et le dit, comme `/view`
+    # (revue B4, B5).
+    intent_json = None
+    if intents is not None:
+        try:
+            intent_json = intents.load(infrastructure).model_dump(mode="json")
+        except IntentCorruptError, OSError:
+            origin += " · intention indisponible : document corrompu ou illisible, intervention nécessaire"
+    page = render_page(build_page_data(snapshot, ingest, origin=origin, diff=diff_json, intent=intent_json))
     return PageOutcome(page=page, counts=_counts(snapshot))

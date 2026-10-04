@@ -5,8 +5,9 @@ quittent pas la zone. Les dates écrites par le backend sont en UTC, forme du co
 """
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
+from ld_contracts.intent.intent import Author, Coordinate, PinHostname
 from pydantic import BaseModel, ConfigDict, Field
 
 Status = Literal["created", "already_present", "invalid", "conflict", "archive_error"]
@@ -94,6 +95,38 @@ class IngestReport(ApiModel):
         default=None,
         description="Renseigné quand le bundle est archivé (201, 200). Toujours null dans le rapport archivé : il "
         "décrit l'ingestion, et l'état de la corrélation est la présence du snapshot, qui se recalcule.",
+    )
+
+
+# La couche d'intention (B4, docs/08) s'écrit par opérations, jamais par remplacement du document : deux personnes
+# qui épinglent deux équipements différents ne s'écrasent pas. Les types des valeurs sont **ceux du contrat Intent**
+# (bornes, caractères admis) : ce que le document refuse, la requête ne le laisse pas passer (revue B4, H2).
+
+
+class PinOp(ApiModel):
+    """Poser ou remplacer l'épingle d'un équipement : sa place voulue, en unités du dessin."""
+
+    op: Literal["pin"]
+    hostname: PinHostname = Field(description="Identité stable du nœud (`nodes[].hostname`), à l'octet.")
+    x: Coordinate
+    y: Coordinate
+
+
+class UnpinOp(ApiModel):
+    """Retirer l'épingle d'un équipement ; sans effet si elle n'existe pas."""
+
+    op: Literal["unpin"]
+    hostname: PinHostname
+
+
+class IntentOps(ApiModel):
+    """Une requête d'écriture : qui, et quelles opérations, appliquées dans l'ordre (la dernière gagne)."""
+
+    author: Author = Field(
+        description="Nom déclaré dans la page, 80 caractères au plus ; écrit sur chaque épingle posée."
+    )
+    ops: list[Annotated[PinOp | UnpinOp, Field(discriminator="op")]] = Field(
+        min_length=1, max_length=500, description="Une à cinq cents opérations, appliquées dans l'ordre."
     )
 
 

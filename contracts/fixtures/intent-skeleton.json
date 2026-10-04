@@ -1,0 +1,22 @@
+{
+  "infrastructure": "infra-lab",
+  "intent_version": "1.0.0",
+  "pins": [
+    {
+      "at": "2026-10-04T18:30:00Z",
+      "author": "orhan",
+      "hostname": "fw-edge-01",
+      "x": -210,
+      "y": 160
+    },
+    {
+      "at": "2026-10-04T18:32:15Z",
+      "author": "orhan",
+      "hostname": "sw-core-01",
+      "x": 0,
+      "y": -80
+    }
+  ],
+  "revision": 2,
+  "updated_at": "2026-10-04T18:32:15Z"
+}

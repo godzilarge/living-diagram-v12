@@ -1,4 +1,5 @@
-"""Assemble la page : gabarit, feuille de style, visualiseur et données, en un seul fichier sans ressource externe.
+"""Assemble la page : gabarit, feuille de style, la toile (`viewer.js`, construite depuis `engine/`) et les données, en
+un seul fichier sans ressource externe.
 
 Trois garde-fous contre une chaîne hostile (une description est du texte libre, un voisin LLDP annonce ce qu'il veut) :
 - les données voyagent dans un bloc `application/json`, où `<`, `>` et `&` sont échappés : rien ne peut le fermer ;
@@ -20,19 +21,9 @@ from typing import Any
 from ld_contracts.snapshot.codes import CATALOGUE
 
 ASSETS = files("ld_backend.render") / "assets"
-JS_FILES = (
-    "model.js",
-    "layout.js",
-    "dom.js",
-    "icons.js",
-    "geometry.js",
-    "graph.js",
-    "inspect.js",
-    "structures.js",
-    "tip.js",
-    "tables.js",
-    "main.js",
-)
+# La toile : un seul fichier, construit depuis `engine/src` (TypeScript) par `npm run build` dans `engine/`, versionné
+# ici pour que Python n'ait jamais besoin de Node ; un test vérifie qu'il n'a pas dérivé des sources.
+JS_FILES = ("viewer.js",)
 PLACEHOLDER = re.compile(r"\{\{([A-Z]+)\}\}")
 JSON_ESCAPES = {"<": "\\u003c", ">": "\\u003e", "&": "\\u0026", " ": "\\u2028", " ": "\\u2029"}
 
@@ -43,13 +34,17 @@ def build_page_data(
     *,
     origin: str,
     diff: Mapping[str, Any] | None = None,
+    intent: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Ce que la page embarque : le snapshot, le rapport de la livraison s'il existe, le sens de chaque code, et le
-    diff avec une run précédente quand il a été demandé (`--from`) : la clé n'existe qu'alors."""
+    """Ce que la page embarque : le snapshot, le rapport de la livraison s'il existe, le sens de chaque code, le
+    diff avec une run précédente quand il a été demandé (`--from`), et la couche d'intention de l'infrastructure
+    quand la page vient de l'archive (`intent`, lecture seule) : ces deux clés n'existent qu'alors."""
     catalogue = {code.value: {"meaning": spec.meaning, "rule": spec.rule} for code, spec in CATALOGUE.items()}
     data: dict[str, Any] = {"snapshot": snapshot, "ingest": ingest, "origin": origin, "catalogue": catalogue}
     if diff is not None:
         data["diff"] = diff
+    if intent is not None:
+        data["intent"] = intent
     return data
 
 

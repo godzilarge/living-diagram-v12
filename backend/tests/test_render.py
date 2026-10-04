@@ -199,8 +199,15 @@ def test_hostile_strings_stay_data(bundle_dict):
     assert described["description"] == hostile
 
 
+ENGINE = Path(cli.__file__).resolve().parents[3] / "engine"
+VIEWER = Path(cli.__file__).parent / "render/assets/js/viewer.js"
+
+
 def test_the_viewer_never_writes_html_from_data():
-    sources = "".join(p.read_text(encoding="utf-8") for p in (Path(cli.__file__).parent / "render/assets/js").glob("*"))
+    """Sur les sources TypeScript de la toile et sur le fichier construit qui est embarqué dans la page."""
+    files = [*sorted((ENGINE / "src").rglob("*.ts")), VIEWER]
+    assert len(files) > 10, "les sources de la toile sont dans engine/src"
+    sources = "".join(p.read_text(encoding="utf-8") for p in files)
     forbidden = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "DOMParser"]
     forbidden += ["createContextualFragment", "srcdoc", "javascript:", "setTimeout(", "setInterval("]
     for word in forbidden:
@@ -297,12 +304,73 @@ def test_render_needs_a_file_or_a_run(capsys, tmp_path):
 # ---------------------------------------------------------------- le visualiseur, sous Node
 
 
+ENGINE_TOOLS = ("typescript", "esbuild", "json-schema-to-typescript")
+TSC = ENGINE / "node_modules" / "typescript" / "bin" / "tsc"
+
+
+@pytest.mark.skipif(
+    shutil.which("node") is None or not all((ENGINE / "node_modules" / tool).is_dir() for tool in ENGINE_TOOLS),
+    reason="Node ou `npm ci` dans engine/ absent : types stricts et dérive du bundle ne peuvent pas être vérifiés",
+)
+def test_the_built_viewer_matches_the_engine_sources():
+    """`viewer.js` est versionné pour que Python n'ait jamais besoin de Node : il doit être celui que les sources de
+    `engine/src` produisent (`npm run build` dans `engine/`), ces sources doivent passer `tsc` strict (esbuild ne lit
+    pas les types : sans ce test, une erreur de type se construirait sans bruit ; revue de la toile, H1), et les
+    types générés des contrats doivent être à jour (`npm run types`). Le message d'échec donne la commande."""
+    commands = (
+        ["node", str(TSC), "--noEmit", "-p", str(ENGINE)],
+        ["node", str(ENGINE / "build.mjs"), "--check"],
+        ["node", str(ENGINE / "types.mjs"), "--check"],
+    )
+    for command in commands:
+        done = subprocess.run(command, capture_output=True, text=True, timeout=180, check=False)
+        shown = " ".join(command).replace(str(ENGINE.parent) + "/", "")
+        assert done.returncode == 0, f"`{shown}` a échoué :\n" + done.stdout[-2000:] + done.stderr[-2000:]
+
+
+INTENT_DOC = {
+    "intent_version": "1.0.0",
+    "infrastructure": "infra-lab",
+    "revision": 2,
+    "updated_at": "2026-10-04T18:32:15Z",
+    "pins": [
+        {"hostname": "gone-host", "x": -300, "y": 200, "author": "orhan", "at": "2026-10-04T18:30:00Z"},
+        {"hostname": "sw-core-01", "x": 120, "y": -40, "author": "orhan", "at": "2026-10-04T18:32:15Z"},
+    ],
+}
+
+
+def _intent_page(bundle_dict: dict) -> str:
+    """La page d'une run archivée avec sa couche d'intention : une épingle présente, une orpheline (hostname absent)."""
+    from ld_contracts.intent import Intent
+
+    data = _data(_page(bundle_dict))
+    intent = Intent.model_validate(INTENT_DOC).model_dump(mode="json")
+    origin = "archive · infra-lab · run"
+    return render_page(build_page_data(data["snapshot"], data["ingest"], origin=origin, intent=intent))
+
+
+def _intent_diff_page(bundle_dict: dict) -> str:
+    """La page de diff avec une épingle sur le voisin retiré (fantôme) : orpheline, elle ne place pas le fantôme."""
+    from ld_contracts.intent import Intent
+
+    data = _data(_diff_page(bundle_dict))
+    ghost = {"hostname": "srv-hyp-07", "x": 400, "y": 400, "author": "orhan", "at": "2026-10-04T18:30:00Z"}
+    intent = Intent.model_validate({**INTENT_DOC, "pins": [ghost, INTENT_DOC["pins"][1]]}).model_dump(mode="json")
+    origin = "archive · infra-lab · run"
+    page = build_page_data(data["snapshot"], data["ingest"], origin=origin, diff=data["diff"], intent=intent)
+    return render_page(page)
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node absent : les tests du visualiseur ne tournent pas")
 def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
     page, hub, shell = tmp_path / "page.html", tmp_path / "hub.html", tmp_path / "shell.html"
     aggstop, unread, diff = tmp_path / "aggstop.html", tmp_path / "unread.html", tmp_path / "diff.html"
-    unreachable = tmp_path / "unreachable.html"
+    unreachable, intent = tmp_path / "unreachable.html", tmp_path / "intent.html"
+    intent_diff = tmp_path / "intent-diff.html"
     page.write_text(_page(bundle_dict), encoding="utf-8")
+    intent.write_text(_intent_page(bundle_dict), encoding="utf-8")
+    intent_diff.write_text(_intent_diff_page(bundle_dict), encoding="utf-8")
     diff.write_text(_diff_page(bundle_dict), encoding="utf-8")
     unreachable.write_text(_page_with_previous(_unreachable_pair(bundle_dict)), encoding="utf-8")
     unread.write_text(_page(variant(bundle_dict, _unread)), encoding="utf-8")
@@ -323,6 +391,8 @@ def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
             "LD_PAGE_UNREAD": str(unread),
             "LD_PAGE_DIFF": str(diff),
             "LD_PAGE_UNREACHABLE": str(unreachable),
+            "LD_PAGE_INTENT": str(intent),
+            "LD_PAGE_INTENT_DIFF": str(intent_diff),
         },
         check=False,
     )
@@ -406,5 +476,73 @@ def test_hover_and_keyboard_focus_in_a_real_browser(tmp_path, bundle_dict):
         assert tab.js("document.activeElement.getAttribute('aria-describedby')") == "ld-tip"
         tab.js("document.activeElement.blur()")
         assert tab.js(f"{tip}.getAttribute('visibility')") == "hidden"
+    noise = [entry for entry in chrome.console if "Refused" in json.dumps(entry) or entry.get("type") == "error"]
+    assert not noise, noise
+
+
+# ---------------------------------------------------------------- la couche d'intention dans la page (2026-10-04, B4)
+
+
+def test_render_from_the_archive_embeds_the_intent_read_only_and_the_file_mode_does_not(capsys, tmp_path, bundle_dict):
+    from datetime import UTC, datetime
+
+    from ld_backend.intent import IntentStore
+    from ld_backend.schemas import IntentOps, PinOp
+
+    source, archive, out = tmp_path / "bundle.json", tmp_path / "archive", tmp_path / "page.html"
+    source.write_text(json.dumps(bundle_dict), encoding="utf-8")
+    assert cli.main(["ingest", str(source), "--archive", str(archive)]) == 0
+    run = ["--infrastructure", "infra-lab", "--run-id", RUN_ID, "--archive", str(archive), "--out", str(out)]
+    assert cli.main(["render", *run]) == 0
+    assert _data(out.read_text(encoding="utf-8"))["intent"]["revision"] == 0, "le document vide, même sans épingle"
+    store = IntentStore(archive)
+    request = IntentOps(author="orhan", ops=[PinOp(op="pin", hostname="sw-core-01", x=12, y=-7)])
+    store.apply("infra-lab", request, now=datetime(2026, 10, 4, 18, 30, tzinfo=UTC))
+    assert cli.main(["render", *run]) == 0
+    intent = _data(out.read_text(encoding="utf-8"))["intent"]
+    assert intent["revision"] == 1 and intent["pins"] == [
+        {"hostname": "sw-core-01", "x": 12, "y": -7, "author": "orhan", "at": "2026-10-04T18:30:00Z"}
+    ]
+    assert "intent" not in _data(_page(bundle_dict)), "en mode fichier, pas d'archive : pas d'intention"
+    # Un document d'intention corrompu n'empêche pas de lire la run : la page s'ouvre sans lui et le dit (revue B4, B5).
+    (archive / "_intent" / "infra-lab" / "intent.json").write_text("{broken", encoding="utf-8")
+    assert cli.main(["render", *run]) == 0
+    data = _data(out.read_text(encoding="utf-8"))
+    assert "intent" not in data and "intention indisponible" in data["origin"] and "{broken" not in data["origin"]
+
+
+@pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
+def test_a_pinned_device_shows_its_pin_and_a_real_drag_pins_locally(tmp_path, bundle_dict):
+    """Ce que le faux DOM ne voit pas : le glyphe affiché par la feuille de style, et un glissé réel du pointeur
+    (appui, mouvements bouton enfoncé, relâchement) qui épingle l'équipement sans rien enregistrer, sans serveur."""
+    from tests.browser import Chrome
+
+    page = tmp_path / "intent.html"
+    page.write_text(_intent_page(bundle_dict), encoding="utf-8")
+    node = "document.querySelector('[data-node=\"{}\"]')"
+    display = "getComputedStyle({} .querySelector('.node-pin')).display"
+    with Chrome(CHROMIUM) as chrome:
+        tab = chrome.open(f"file://{page}")
+        assert tab.js(node.format("sw-core-01") + ".classList.contains('pinned')") is True
+        assert tab.js(display.format(node.format("sw-core-01"))) == "block"
+        assert tab.js(display.format(node.format("sw-core-02"))) == "none"
+        where = (
+            "(() => { const st = LD.app.graph.state, p = st.positions.get('sw-core-02');"
+            " const r = document.getElementById('canvas').getBoundingClientRect();"
+            " return { x: r.left + p.x * st.view.k + st.view.tx, y: r.top + p.y * st.view.k + st.view.ty,"
+            " px: p.x, py: p.y }; })()"
+        )
+        start = tab.js(where)
+        tab.drag((start["x"], start["y"]), (start["x"] + 120, start["y"] + 60))
+        assert tab.js("LD.app.graph.state.pinned.has('sw-core-02')") is True
+        assert tab.js(node.format("sw-core-02") + ".classList.contains('pinned')") is True
+        assert tab.js(display.format(node.format("sw-core-02"))) == "block"
+        end = tab.js(where)
+        assert end["px"] > start["px"] and end["py"] > start["py"], "l'équipement a suivi le pointeur"
+        status = tab.js("document.getElementById('graph-status').textContent")
+        assert "déplacement local de sw-core-02, non enregistré (page sans serveur)" in status
+        tab.js("LD.app.activate('intent')")
+        text = tab.js("document.getElementById('view-intent').textContent")
+        assert "Lecture seule" in text and "Déplacements locaux non enregistrés : 1" in text and "gone-host" in text
     noise = [entry for entry in chrome.console if "Refused" in json.dumps(entry) or entry.get("type") == "error"]
     assert not noise, noise

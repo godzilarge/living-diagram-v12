@@ -170,15 +170,17 @@ backend/
 │   ├── ingest.py             ingest_bundle : valider → archiver → corréler → IngestResult ; result_payload (JSON) ; une ligne de journal
 │   ├── snapshots.py          branchement de B1 : correlate_if_missing (ingestion), recorrelate (ld correlate) ; un échec est journalisé, jamais propagé
 │   ├── diffs.py              branchement de B3 : deux snapshots archivés (par défaut les deux dernières runs) ou deux fichiers, résumé texte ; jamais stocké
-│   ├── schemas.py            formes de réponse typées (IngestReport, RunList…) et `utc_z` : une seule forme de date
-│   ├── api.py                create_app : schéma de sécurité Bearer, OpenAPI porté par les trois contrats, POST bundles, GET bundles / bundle / report / snapshot / diff (par paramètres de requête), /api/health
-│   ├── cli.py                ld ingest | runs | correlate | diff | render | serve
+│   ├── intent.py             B4 (2026-10-04, docs/08) : IntentStore, un document Intent par infrastructure sous <archive>/_intent/, écrit par
+│   │                         opérations (pin, unpin), verrou, écriture atomique, journal d'audit ; IntentCorruptError
+│   ├── schemas.py            formes de réponse et de requête typées (IngestReport, RunList, IntentOps : PinOp | UnpinOp) et `utc_z` : une seule forme de date
+│   ├── api.py                create_app : schéma de sécurité Bearer, OpenAPI porté par les quatre contrats, POST bundles, GET bundles / bundle / report /
+│   │                         snapshot / diff / intent, POST intent/patches (par paramètres de requête), /api/health
+│   ├── cli.py                ld ingest | runs | correlate | diff | intent | render | serve
 │   ├── render/               pages HTML de lecture d'un snapshot (2026-09-20), un fichier autonome par run
-│   │   ├── page.py           assemblage : gabarit + style + visualiseur + données ; JSON échappé, CSP par empreinte
-│   │   ├── build.py          deux chemins : fichier bundle (sans archive), run archivée ; `--from` : le diff (B3) embarqué
-│   │   └── assets/           page.html, viewer.css, js/ : model (index, fantômes et index du diff), layout (placement), dom, icons (types),
-│   │                         geometry, graph (halos, couronnes, fantômes), tip (bulle au survol), inspect, structures, tables (dont la vue Diff),
-│   │                         main, shell (page servie par /view, `?from=`)
+│   │   ├── page.py           assemblage : gabarit + style + la toile + données ; JSON échappé, CSP par empreinte
+│   │   ├── build.py          deux chemins : fichier bundle (sans archive), run archivée ; `--from` : le diff (B3) embarqué ; la couche d'intention embarquée (B4)
+│   │   └── assets/           page.html, viewer.css, js/viewer.js : **la toile, construite depuis `engine/` (TypeScript, 2026-10-04) et versionnée ici** ;
+│   │                         ne pas l'éditer, lancer `npm run build` dans engine/ (un test vérifie qu'il n'a pas dérivé des sources)
 │   ├── diff/                 B3 (2026-10-04, docs/07) : diff(before, after) -> Diff, fonction pure et déterministe
 │   │   ├── fields.py         D2 : comparaison champ à champ en chemins pointés, listes en bloc, volatils exclus et comptés
 │   │   ├── sections.py       D1, D3 : appariement par l'identité du snapshot, section par section ; contrôles en multi-ensemble
@@ -200,12 +202,18 @@ backend/
 │       ├── ha.py             R4 : clusters HA (vue de chaque membre, heartbeats sans câble inventé)
 │       ├── state.py          R5 : contrôles d'état des câbles (oper, vitesse, VLAN non tagué, port sans transceiver) et des tasks
 │       └── assemble.py       R6 : nœuds, interfaces, contrôles (dont ceux du contrat), couverture, rapport, tris
-└── tests/                    416 tests : API (dont test_api_diff), archive, service, CLI (dont `ld correlate` fichier, test_cli_diff), config,
-                              branchement de B1, pages (dont la page de diff), /view ;
+└── tests/                    443 tests : API (dont test_api_diff, test_api_intent), archive, service, CLI (dont `ld correlate` fichier, test_cli_diff,
+                              test_cli_intent), config, branchement de B1, store d'intention (test_intent), pages (dont la page de diff et la page
+                              avec épingles), /view (dont un glissé réel dans la page servie, enregistré par l'API) ;
                               correlate/ (174) : grammaire, noms d'interfaces, identité, fusion, structures, état, scénarios de docs/05,
                               assemblage, déterminisme (permutations, graines de hachage, golden à l'octet), test_review*.py (une sonde
                               de revue = un test) ; diff/ : moteur sur la fixture, oracle du générateur sorte par sorte, déterminisme entre
-                              processus ; js/ : 46 tests du visualiseur sous Node (faux DOM), lancés par pytest ; Chromium
+                              processus ; js/ : 56 tests de la toile sous Node (faux DOM), lancés par pytest ; Chromium (rendu, survol, glissé) ;
+                              browser.py : pilote DevTools de Chromium sans dépendance (souris, glissé, navigation, capture)
+
+**Node est nécessaire aux tests de la toile** (`node --test` sur `tests/js/`, sauté s'il manque) ; `engine/node_modules/` (après
+`npm ci` dans `engine/`) l'est pour le test de dérive du fichier construit (sauté sinon). Rien de tout cela n'est requis
+pour **exécuter** le backend.
 ```
 
 ## B1, la corrélation — étape 1, R1-bis, R4, R5
@@ -314,7 +322,7 @@ cd backend && uv run ld correlate ../contracts/fixtures/bundle-minimal.json --ou
 C'est le **mode fichier de `ld correlate`** : valide, corrèle, écrit le snapshot canonique, sans archive ni serveur
 (`snapshots.correlate_data`) ; même empreinte et mêmes octets que si la run était archivée ; bundle hors contrat ⇒
 sortie 1 et la liste des erreurs, rien d'écrit ; `--out` requis avec un fichier. La page montre un bout de câble
-porteur de faits avec ses faits (`dom.js`, `endWithFacts`) : « sw-core-02 · Ethernet1/2 (oper_reason suspended by
+porteur de faits avec ses faits (`dom.ts`, `endWithFacts`) : « sw-core-02 · Ethernet1/2 (oper_reason suspended by
 LACP, oper_status down) ». Tests : `tests/correlate/test_state.py`.
 
 **Revue indépendante consignée et traitée le même jour** (`docs/revues/2026-09-26-b1-r5-etat-et-golden.md` : 0 critique,
@@ -385,10 +393,35 @@ le diff comme `docs/07` §6 l'annonce (`tests/diff/test_synth.py`). Deux vérit�
 des cœurs existaient déjà, ce sont les port-channels qui s'ajoutent ou se retirent. Revue indépendante :
 `docs/revues/2026-10-04-b3-diff.md`.
 
+## B4, la couche d'intention : `ld intent`, `GET /api/intent`, `POST /api/intent/patches` (2026-10-04)
+
+En une phrase : **ce que l'humain veut en plus de ce que la collecte montre ; la première intention est l'épingle, la
+place voulue d'un équipement sur le dessin, keyée par son nom, qui survit aux runs.** Conception : `docs/08-intention.md` ;
+contrat `Intent` v1 : `contracts/CONTRAT.md` partie D. Un document **par infrastructure**, jamais par run ; ni B1 ni B3
+ne le lisent (`rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`).
+
+| Entrée | Sortie |
+|---|---|
+| `GET /api/intent?infrastructure=X` | le document `Intent` (forme canonique) ; le document vide (`revision` 0, `pins` vide) si rien n'a jamais été écrit ; 500 neutre si le fichier est corrompu |
+| `POST /api/intent/patches?infrastructure=X` avec `{"author": "orhan", "ops": [{"op": "pin", "hostname": "sw-core-01", "x": 120, "y": -40}, {"op": "unpin", "hostname": "…"}]}` | le document résultant ; `revision + 1`, `updated_at`, chaque épingle posée porte `author` et `at` (date du serveur) ; opérations appliquées dans l'ordre, **dernier écrivain gagne par épingle** ; 404 pour une infrastructure sans run archivée ; 422 à la forme de l'API (auteur vide ou > 80, liste vide ou > 500, coordonnée non entière ou hors ±1 000 000, opération inconnue), jamais une valeur dans un message |
+| `ld intent --infrastructure X [--archive]` | les épingles, lecture seule ; sortie 1 si le document est corrompu |
+| `ld render --infrastructure X --run-id Y` | la page embarque le document (clé `intent`, **lecture seule** : sans serveur, un déplacement reste local) ; en mode fichier, pas d'intention |
+| `/view` | lit `/api/intent` avec le snapshot ; **le nom saisi dans la page** (champ « votre nom », gardé dans `localStorage`) signe les épingles ; glisser un équipement envoie `pin` à la relâche, l'onglet **Intentions** liste, retire, confirme avant de tout retirer |
+
+Le store (`intent.py`) : `<archive>/_intent/<infra>/intent.json` (forme canonique) et `journal.jsonl` (une ligne par
+requête acceptée : `at`, `author`, `revision`, `ops`) ; écriture atomique sous un verrou de fichier par infrastructure
+(`fcntl`, plus un verrou de processus) : deux requêtes simultanées s'appliquent l'une après l'autre, aucune n'est perdue
+(testé à deux fils). Le dossier `_intent` ne peut pas entrer en collision avec une infrastructure (un nom sûr ne commence
+jamais par `_`, un nom haché porte un suffixe). Une épingle dont l'équipement n'est pas dans la run affichée est
+**orpheline** : la page la liste et la dit telle, jamais effacée en silence ; si l'équipement revient, elle s'applique à
+nouveau. Limite connue : seuls les équipements épinglés sont stables entre deux runs (placement seedé N-1 : phase 3).
+
 ## Les pages de lecture : `ld render`
 
-Un **outil de lecture de B1**, pas le moteur de diagramme : voir ce que la corrélation a produit sur un bundle,
-comprendre d'où vient chaque câble, et corriger l'exportateur ou les données. Mode d'emploi : `QUICKSTART.md`.
+Un **outil de lecture de B1**, devenu l'embryon du moteur de diagramme : depuis le 2026-10-04 la page est **la toile**,
+`engine/` (TypeScript pur, sans framework, `engine/README.md`), construite en un seul fichier `viewer.js` embarqué
+ici. Voir ce que la corrélation a produit sur un bundle, comprendre d'où vient chaque câble, corriger l'exportateur ou
+les données, comparer deux runs, épingler. Mode d'emploi : `QUICKSTART.md`.
 
 | Entrée | Sortie |
 |---|---|
@@ -397,7 +430,7 @@ comprendre d'où vient chaque câble, et corriger l'exportateur ou les données.
 | `ld render bundle-apres.json --out page.html --from bundle-avant.json` | la même page avec le **diff** depuis le fichier d'avant (bundle ou snapshot, reconnu à `snapshot_version`) : onglet Diff, câbles et équipements ajoutés / retirés / changés peints, fantômes de ce qui a disparu (2026-10-04) |
 | `ld render --infrastructure X --run-id Y --from Z --out page.html` | idem depuis la run archivée Z ; sortie 1 si Z est inconnue ou sans snapshot |
 
-La page est un seul fichier (environ 60 Ko de visualiseur, plus les données : 90 Ko pour la fixture), ouvrable par
+La page est un seul fichier (environ 150 Ko de toile, plus les données : 90 Ko pour la fixture), ouvrable par
 double-clic, sans réseau. Six vues (la sixième, **Diff**, seulement avec `--from`) : **graphe** (nœuds par sorte, câbles par statut, deux câbles entre les mêmes
 équipements tracés séparément, clic ⇒ sources, contrôles, ports ; depuis l'incrément B du 2026-09-26, une **bande** par
 faisceau d'agrégat sous ses câbles, étiquetée `peer-link` ou `MLAG n`, un **cadre** par cluster HA autour de ses
@@ -412,7 +445,7 @@ bouts ou ses membres, jamais son rang : l'adresse reste juste quand un export co
 illisible est ignoré. Un contrôle posé sur un port qui porte plusieurs câbles n'est compté que sur le câble que ses détails désignent.
 La fiche d'un équipement dit quels ports ont un câble et lesquels sont up sans rien en face.
 
-**Démonstration (2026-10-02)** : au survol, une **bulle** (`tip.js`) donne pour un câble ses deux bouts, son statut, ses
+**Démonstration (2026-10-02)** : au survol, une **bulle** (`tip.ts` ; depuis le 2026-10-04 ces modules vivent dans `engine/src/`, en TypeScript) donne pour un câble ses deux bouts, son statut, ses
 sources, puis **par bout** vitesse, duplex, média (transceiver) et état, tels que lus dans `interfaces[]` : « — » pour un
 bout qui n'y figure pas (voisin inconnu, autre infra), « vitesse, duplex, média : non lus » quand aucun bout n'a rien, et
 ses contrôles une ligne par (sévérité, code) avec leur nombre (`×9`) ; pour un équipement, sa fiche courte (type,
@@ -428,13 +461,13 @@ qu'enregistré** (`primary`, `secondary`, `active`, `standby`, `member`) sous so
 pour `standby`, ou `secondary` en `active_passive`, sans fond ailleurs (en `active_active`, le `secondary` forwarde
 aussi) ; rôle en rouge dès qu'un cluster dit son état `down`. Au clavier, le focus d'un équipement l'amène en vue s'il
 est hors cadre et montre sa bulle ; un appui annulé (toucher, stylet, fenêtre qui perd le focus) libère toujours le
-glissé. La géométrie pure du graphe (courbes, cadres, bandes, étiquettes) vit dans `geometry.js`. Revue indépendante
+glissé. La géométrie pure du graphe (courbes, cadres, bandes, étiquettes) vit dans `geometry.ts`. Revue indépendante
 consignée et traitée : `docs/revues/2026-10-02-pages-demo-bulles-role-ha.md` (0 critique, 1 haut, 5 moyens, 8 bas).
 
 **Passe de finition après critique design (2026-10-02, skill Impeccable : deux évaluations isolées, score 25 / 40,
 snapshot `.impeccable/critique/`, quatre décisions d'Orhan)** : le **nom domine** sur le nœud (12,5 px semi-gras, raccourci
 au milieu au-delà de 22 caractères, nom complet dans la bulle et `aria-label`), le type est une **icône dessinée en SVG**
-(`icons.js`, une par `type` du contrat, légende « types »), le rôle HA s'écrit sous l'icône (7,5 px, masqué par le
+(`icons.ts`, une par `type` du contrat, légende « types »), le rôle HA s'écrit sous l'icône (7,5 px, masqué par le
 palier de zoom) ; **famille de couleur « structures »** (`--structure`, violet : cluster HA, peer-link, rôle, heartbeat,
 pastilles de rôle et de mode), la sélection se marque en encre épaisse, `--documented` et `--warning` assombris en clair
 (≥ 5:1), l'observé seul porte un tiret long (forme et couleur) ; **les défauts à un clic** : contrôles triés par sévérité
@@ -454,7 +487,7 @@ Décisions (validées par Orhan le 2026-09-20 avant le code) :
 
 1. **Aucune librairie, aucune ressource externe** : la zone peut ne pas avoir d'accès Internet, et rien n'est à faire
    entrer. Un test refuse toute URL dans la page (hors l'identifiant d'espace de noms SVG, jamais chargé).
-2. **Placement force-dirigé écrit à la main, déterministe** (`layout.js`) : positions initiales tirées de l'ordre des
+2. **Placement force-dirigé écrit à la main, déterministe** (`layout.ts`) : positions initiales tirées de l'ordre des
    hostnames, itérations fixes, aucun hasard, arêtes triées ; répulsion bornée en distance ; les équipements sans
    aucun câble sont rangés en ligne sous le graphe au lieu d'être chassés au loin. Un équipement glissé garde sa
    place. Mesuré : 0,2 s à 500 nœuds, 0,7 s à 1 500, 1,5 s à 3 000 (boucle sur tableaux numériques). Les voisins
@@ -487,11 +520,13 @@ dit à quelle run la page est comparée et de combien de temps.
 
 ### La page servie par le backend : `GET /view` (2026-09-26)
 
-La même page, **sans donnée** (`render/shell.py` : le visualiseur plus `shell.js`, `snapshot: null`), servie sans jeton
-comme `/docs`. Elle lit le snapshot et le rapport par l'API (`/api/snapshot`, `/api/ingest/report`,
-`/api/ingest/bundles` pour lister les runs d'une infrastructure, et `/api/diff` quand l'adresse porte `&from=`) avec le
-**jeton saisi dans la page** : gardé dans `sessionStorage` (l'onglet, pas le disque), envoyé en `Authorization`, oublié
-sur un 401 ou sur demande, **jamais dans l'adresse**. L'adresse porte la run (`?infrastructure=&run_id=`), la run d'avant
+La même page, **sans donnée** (`render/shell.py` : la toile, dont la coquille ne démarre que sans snapshot embarqué,
+`snapshot: null`), servie sans jeton comme `/docs`. Elle lit le snapshot et le rapport par l'API (`/api/snapshot`,
+`/api/ingest/report`, `/api/ingest/bundles` pour lister les runs d'une infrastructure, `/api/diff` quand l'adresse porte
+`&from=`, et `/api/intent`, la couche d'intention) avec le **jeton saisi dans la page** : gardé dans `sessionStorage`
+(l'onglet, pas le disque), envoyé en `Authorization`, oublié sur un 401 ou sur demande, **jamais dans l'adresse**. Le
+**nom** saisi à côté (gardé dans `localStorage`, une commodité) signe les épingles posées en glissant un équipement
+(B4) ; sans nom, les déplacements restent locaux et la page le dit. L'adresse porte la run (`?infrastructure=&run_id=`), la run d'avant
 (`&from=`, la liste des runs propose « avec la précédente » ; un diff indisponible n'empêche pas d'ouvrir la run,
 l'en-tête dit pourquoi) et l'état de vue (`#view=…`) : elle se partage.
 Seule différence de CSP avec la page autonome : `connect-src 'self'` (la page autonome n'a aucun réseau, un test le
@@ -502,8 +537,9 @@ oublié, 404 expliqué).
 ## Vérifier et faire évoluer
 
 ```
-uv run pytest --cov=ld_backend      # couverture attendue ≥ 80 %
+uv run pytest --cov=ld_backend      # couverture attendue ≥ 80 % ; Node requis pour les tests de la toile (sautés sinon)
 uv run ruff check src tests
+cd ../engine && npm ci && npm run typecheck && npm run build   # après toute modification de la toile : viewer.js se versionne
 ```
 
 L'archive sur disque est une implémentation ; `BundleArchive` en est l'interface. Une

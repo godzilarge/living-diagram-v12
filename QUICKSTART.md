@@ -63,7 +63,8 @@ description réécrite, bascule HA, membre d'agrégat suspendu, vitesse dégrad�
 
 | Onglet | Ce qu'on y voit |
 |---|---|
-| **Graphe** | Un nœud par équipement, un tracé par câble. Vert = confirmé (observé et documenté), bleu = observé seul (LLDP / CDP), orange pointillé = documenté seul (descriptions). **Cliquer un câble : ses sources** (qui témoigne, ce qu'il annonce, comment le nom a été résolu), ses contrôles, ses deux ports avec leur description brute et lue. Cliquer un équipement : sa fiche, sa couverture de collecte, ses câbles, ses interfaces. Glisser déplace, la molette zoome. Les voisins inconnus (stubs) sont masqués par défaut. **Survoler un câble** : vitesse, duplex, média et état des deux bouts, tels que lus ; survoler un équipement : sa fiche courte. Chaque équipement porte l'icône de son type et son nom ; un membre de cluster HA porte son rôle tel qu'enregistré (fond teinté s'il forwarde, grisé s'il attend, rouge si down). Les pastilles de l'en-tête sont des boutons : « 2 error » ouvre les contrôles filtrés, un statut se masque. Bouton « légende » pour afficher ou replier la carte de légende. Tab parcourt les éléments, Entrée sélectionne. |
+| **Graphe** | Un nœud par équipement, un tracé par câble. **Glisser un équipement l'épingle** (B4) : dans `/view` avec un nom saisi, l'épingle s'enregistre pour tout le monde et survit aux runs ; un glyphe d'épingle marque les équipements épinglés ; « replacer » recalcule le placement autour des épingles. Vert = confirmé (observé et documenté), bleu = observé seul (LLDP / CDP), orange pointillé = documenté seul (descriptions). **Cliquer un câble : ses sources** (qui témoigne, ce qu'il annonce, comment le nom a été résolu), ses contrôles, ses deux ports avec leur description brute et lue. Cliquer un équipement : sa fiche, sa couverture de collecte, ses câbles, ses interfaces. Glisser déplace, la molette zoome. Les voisins inconnus (stubs) sont masqués par défaut. **Survoler un câble** : vitesse, duplex, média et état des deux bouts, tels que lus ; survoler un équipement : sa fiche courte. Chaque équipement porte l'icône de son type et son nom ; un membre de cluster HA porte son rôle tel qu'enregistré (fond teinté s'il forwarde, grisé s'il attend, rouge si down). Les pastilles de l'en-tête sont des boutons : « 2 error » ouvre les contrôles filtrés, un statut se masque. Bouton « légende » pour afficher ou replier la carte de légende. Tab parcourt les éléments, Entrée sélectionne. |
+| **Intentions** | La couche d'intention (B4, `docs/08`) : les épingles enregistrées (qui, quand, où), les orphelines (équipement absent de cette run : dites telles, jamais effacées en silence), retirer une ou toutes (confirmation dans la page), votre nom. En page générée : lecture seule. |
 | **Contrôles** | Tout ce que B1 signale (désaccord description / LLDP, voisin inconnu, vu d'un seul côté…), filtrable ; cliquer une cible l'ouvre dans le graphe. |
 | **Qualité des données** | Ce qui sert à corriger l'exportateur : couverture par équipement et par topic, constats du contrat d'entrée (clés oubliées, interface locale inconnue…), descriptions non lues, voisins non résolus, normalisations. |
 | **Sources** | Combien de câbles par combinaison de sources (LLDP + description, description seule…), et la liste de tous les câbles. |
@@ -88,6 +89,7 @@ uv run ld render --infrastructure <infra> --run-id <run> --archive ./archive --o
 uv run ld correlate --infrastructure <infra> --archive ./archive     # recalcule les snapshots (après une correction de B1)
 uv run ld diff --infrastructure <infra> --archive ./archive          # ce qui a changé à la dernière run (B3) ; --from / --to, --out diff.json
 uv run ld render --infrastructure <infra> --run-id <run> --from <run d'avant> --archive ./archive --out page.html   # la page avec les changements
+uv run ld intent --infrastructure <infra> --archive ./archive        # les épingles de la couche d'intention (B4), lecture seule
 ```
 
 Une run archivée ne change jamais : renvoyer le même bundle = `already_present`, un bundle **différent pour la même
@@ -116,6 +118,10 @@ curl -s -G http://127.0.0.1:8000/api/ingest/report  -H "$H" --data-urlencode "in
 curl -s -G http://127.0.0.1:8000/api/snapshot       -H "$H" --data-urlencode "infrastructure=<infra>" --data-urlencode "run_id=<run>" -o snapshot.json
 # 2 bis. ce qui a changé entre deux runs (B3) : calculé à la demande, jamais archivé
 curl -s -G http://127.0.0.1:8000/api/diff           -H "$H" --data-urlencode "infrastructure=<infra>" --data-urlencode "from=<run d'avant>" --data-urlencode "to=<run>" -o diff.json
+# 2 ter. la couche d'intention (B4) : lire, puis épingler ou retirer (dernier écrivain gagne, par épingle ; journalisé)
+curl -s -G http://127.0.0.1:8000/api/intent         -H "$H" --data-urlencode "infrastructure=<infra>"
+curl -s -X POST "http://127.0.0.1:8000/api/intent/patches?infrastructure=<infra>" -H "$H" -H "Content-Type: application/json" \
+     -d '{"author": "orhan", "ops": [{"op": "pin", "hostname": "<hostname>", "x": 120, "y": -40}]}'
 # 3. dessiner la run archivée (même dossier d'archive que le serveur) ; --from <run d'avant> pour y peindre les changements
 uv run ld render --infrastructure <infra> --run-id <run> --archive ./archive --out page.html
 # 4. ou la lire dans le navigateur, sans rien générer : la page servie par l'API
@@ -128,9 +134,11 @@ contrôles), `already_present`, ou `failed`. Un échec de B1 ne fait pas échoue
 trace est dans le journal du serveur, `ld correlate` rattrape après correction. Régler le timeout du client à 60 s.
 
 `GET /view` sert la **même page que `ld render`, sans donnée** : elle se sert sans jeton, comme `/docs`, et lit le
-snapshot et le rapport par l'API. **Le jeton se saisit dans la page** ; il reste dans l'onglet (`sessionStorage`) et
-n'entre jamais dans l'adresse. Sans `run_id`, la page liste les runs de l'infrastructure. L'adresse
-(`/view?infrastructure=&run_id=#view=graph&node=…`) se partage : elle porte la run et l'état de vue, pas le jeton.
+snapshot, le rapport et la couche d'intention par l'API. **Le jeton se saisit dans la page** ; il reste dans l'onglet
+(`sessionStorage`) et n'entre jamais dans l'adresse. **Votre nom**, saisi à côté (gardé dans `localStorage`), signe
+les épingles que vous posez en glissant un équipement ; sans nom, les déplacements restent locaux. Sans `run_id`, la
+page liste les runs de l'infrastructure. L'adresse (`/view?infrastructure=&run_id=#view=graph&node=…`) se partage :
+elle porte la run et l'état de vue, pas le jeton.
 
 ## 5. Un premier bundle réel
 
@@ -145,8 +153,12 @@ ils sortent en orange pointillé).
 
 ```
 cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests
-cd backend   && uv run pytest --cov=ld_backend   && uv run ruff check src tests    # inclut les tests du visualiseur (Node requis, sinon ignorés)
+cd backend   && uv run pytest --cov=ld_backend   && uv run ruff check src tests    # inclut les tests de la toile (Node requis, sinon ignorés)
+cd engine    && npm ci && npm run typecheck && npm run build                       # seulement pour modifier la toile : viewer.js se versionne
 ```
+
+La page est **la toile** (`engine/`, TypeScript, `engine/README.md`) construite en un seul fichier embarqué par le
+backend : Python n'a jamais besoin de Node pour fonctionner.
 
 ## Aide-mémoire
 
@@ -158,6 +170,8 @@ cd backend   && uv run pytest --cov=ld_backend   && uv run ruff check src tests 
 | archiver et corréler | `ld ingest bundle.json --archive ./archive` ou `POST /api/ingest/bundles` |
 | lister les runs | `ld runs --infrastructure X` ou `GET /api/ingest/bundles?infrastructure=X` |
 | récupérer le snapshot (JSON) | `GET /api/snapshot?infrastructure=X&run_id=Y`, ou `archive/X/Y/snapshot.json` |
+| épingler un équipement (B4) | glisser dans `/view` avec un nom saisi ; ou `POST /api/intent/patches?infrastructure=X` `{"author","ops":[{"op":"pin","hostname","x","y"}]}` |
+| lire les épingles | `ld intent --infrastructure X`, `GET /api/intent?infrastructure=X`, onglet **Intentions** |
 | dessiner une run archivée | `ld render --infrastructure X --run-id Y --out page.html` |
 | la lire dans le navigateur, serveur lancé | `http://127.0.0.1:8000/view?infrastructure=X&run_id=Y` (jeton saisi dans la page) |
 | recalculer après une correction de B1 | `ld correlate --infrastructure X [--run-id Y]` |

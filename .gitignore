@@ -10,8 +10,15 @@ archive/
 /backend/archive/
 
 # Pages produites par `ld render` : aussi sensibles que le bundle qui les nourrit
-# (anonymiser puis rendre pour sortir une capture). Aucun HTML légitime à la racine.
+# (anonymiser puis rendre pour sortir une capture). Aucun HTML légitime à la racine ni dans samples/.
 /*.html
+samples/*.html
+
+# --- Outillage Node du moteur (engine/) --------------------------------------
+# Les dépendances s'installent par `npm install` dans engine/ ; `package-lock.json` reste versionné
+# (déterminisme des versions, comme `uv.lock`). Le fichier construit, `viewer.js`, est versionné dans
+# les assets du backend : Python n'a jamais besoin de Node.
+node_modules/
 
 # --- Environnements et caches Python ----------------------------------------
 .venv/

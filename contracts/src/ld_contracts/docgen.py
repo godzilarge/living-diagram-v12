@@ -1,7 +1,7 @@
 """Génération de la référence `CONTRAT.md` depuis les modèles : une seule source, aucune dérive possible.
 
 Partie A (RunBundle) ici ; partie B (Snapshot) dans `docgen_snapshot` ; partie C (Diff) dans `docgen_diff` ;
-rendu commun dans `docgen_render`.
+partie D (Intent) dans `docgen_intent` ; rendu commun dans `docgen_render`.
 """
 
 from pathlib import Path
@@ -9,6 +9,7 @@ from pathlib import Path
 from ld_contracts.bundle import CONTRACT_VERSION
 from ld_contracts.checks import FINDING_CODES
 from ld_contracts.docgen_diff import diff_part
+from ld_contracts.docgen_intent import intent_part
 from ld_contracts.docgen_render import reference_names, render_reference
 from ld_contracts.docgen_snapshot import snapshot_part
 from ld_contracts.schema import generate_schema
@@ -181,13 +182,15 @@ def generate_markdown() -> str:
         "",
         "> **Document généré** depuis les modèles du paquet `ld-contracts` par `ld-contracts docs --out`.",
         "> Ne pas l'éditer à la main : modifier les modèles (descriptions comprises), régénérer, un test vérifie",
-        "> qu'il n'a pas dérivé. Trois contrats : la **partie A** décrit ce qui entre (le RunBundle produit par",
+        "> qu'il n'a pas dérivé. Quatre contrats : la **partie A** décrit ce qui entre (le RunBundle produit par",
         "> l'exportateur B0), la **partie B** ce qui sort (le Snapshot produit par la corrélation B1), la **partie C**",
-        "> ce qui a changé entre deux sorties (le Diff produit par la comparaison B3).",
+        "> ce qui a changé entre deux sorties (le Diff produit par la comparaison B3), la **partie D** ce que l'humain",
+        "> veut en plus (l'Intent de la couche d'intention B4).",
         "",
         *bundle_part(),
         *snapshot_part(bundle_names, ERROR_TYPES),
         *diff_part(bundle_names | snapshot_names, SNAPSHOT_ERROR_TYPES),
+        *intent_part(bundle_names | snapshot_names),
     ]
     return "\n".join(out)
 

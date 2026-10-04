@@ -29,6 +29,8 @@ class FakeNode {
         node.setAttribute("class", Array.from(names).join(" "));
         return on;
       },
+      add: (name) => node.classList.toggle(name, true),
+      remove: (name) => node.classList.toggle(name, false),
     };
   }
   get firstChild() { return this.childNodes[0] || null; }
@@ -84,7 +86,7 @@ function readPage(path) {
 // Exécute le visualiseur. Sans `data`, seules les parties pures (modèle, placement) sont utilisables.
 // `hash` : le fragment d'URL au démarrage. `location`, `history` et `window` sont assez faux pour que le chemin
 // « l'URL est l'état de vue » s'exécute : lecture au démarrage, réécriture, événement hashchange.
-// `extras` : ce que la coquille servie attend en plus (fetch, sessionStorage, search = la partie ?… de l'adresse).
+// `extras` : ce que la coquille servie attend en plus (fetch, sessionStorage, localStorage, search = la partie ?… de l'adresse).
 function load(page, data, hash, extras) {
   const document = createDocument(page.html);
   if (data) document.getElementById("ld-data").text = JSON.stringify(data);
@@ -97,7 +99,7 @@ function load(page, data, hash, extras) {
   } };
   const window = new FakeNode(document, "window");
   const context = vm.createContext({ document, console, location, history, window, URLSearchParams,
-    fetch: extras && extras.fetch, sessionStorage: extras && extras.sessionStorage });
+    fetch: extras && extras.fetch, sessionStorage: extras && extras.sessionStorage, localStorage: extras && extras.localStorage });
   vm.runInContext(page.script, context, { filename: "viewer.js" });
   const go = (next) => { location.hash = next; window.fire("hashchange", {}); };
   return { LD: context.LD, document, location, go };

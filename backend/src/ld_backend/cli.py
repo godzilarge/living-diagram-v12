@@ -16,8 +16,9 @@ from ld_backend.config import DEFAULT_ARCHIVE_DIR, ConfigError, Settings
 from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, archived_pair, snapshot_from_data, summary_lines
 from ld_backend.ingest import error_payload, ingest_bundle, result_payload
+from ld_backend.intent import IntentCorruptError, IntentStore
 from ld_backend.render import PageOutcome, page_from_archive, page_from_bundle
-from ld_backend.schemas import CorrelationSummary
+from ld_backend.schemas import CorrelationSummary, utc_z
 from ld_backend.snapshots import correlate_data, recorrelate, summarize
 
 EXIT_OK, EXIT_INVALID, EXIT_USAGE = 0, 1, 2
@@ -60,6 +61,24 @@ def _cmd_runs(args: argparse.Namespace) -> int:
         print(f"{r.run_id}\t{r.run_start}\t{r.run_status}\t{r.produced_at}\t{r.stored_at}\t{r.sha256[:12]}")
     if not runs:
         print("aucune run archivée pour cette infrastructure")
+    return EXIT_OK
+
+
+def _cmd_intent(args: argparse.Namespace) -> int:
+    """Lit la couche d'intention d'une infrastructure (B4) : ses épingles, qui, quand ; lecture seule."""
+    try:
+        intent = IntentStore(Path(args.archive)).load(args.infrastructure)
+    except IntentCorruptError, OSError:
+        print("document d'intention corrompu ou illisible : intervention nécessaire")
+        return EXIT_INVALID
+    print(
+        f"révision {intent.revision} · {len(intent.pins)} épingle(s)"
+        + (f" · {utc_z(intent.updated_at)}" if intent.updated_at else "")
+    )
+    for pin in intent.pins:
+        print(f"{pin.hostname}\t{pin.x}\t{pin.y}\t{pin.author}\t{utc_z(pin.at)}")
+    if not intent.pins:
+        print("aucune épingle pour cette infrastructure")
     return EXIT_OK
 
 
@@ -230,7 +249,8 @@ def _render_outcome(args: argparse.Namespace) -> PageOutcome | None:
         return page_from_bundle(data, origin=Path(args.file).name, previous=previous)
     if args.infrastructure and args.run_id:
         archive = BundleArchive(Path(args.archive))
-        return page_from_archive(archive, args.infrastructure, args.run_id, from_run=args.from_ref)
+        intents = IntentStore(Path(args.archive))
+        return page_from_archive(archive, args.infrastructure, args.run_id, from_run=args.from_ref, intents=intents)
     return None
 
 
@@ -305,6 +325,10 @@ def _add_ingest_and_runs(sub, archive_default: str) -> None:
     p_runs.add_argument("--infrastructure", required=True)
     p_runs.add_argument("--archive", default=archive_default)
     p_runs.set_defaults(func=_cmd_runs)
+    p_intent = sub.add_parser("intent", help="liste les épingles (couche d'intention, B4) d'une infrastructure")
+    p_intent.add_argument("--infrastructure", required=True)
+    p_intent.add_argument("--archive", default=archive_default)
+    p_intent.set_defaults(func=_cmd_intent)
 
 
 def _add_correlate(sub, archive_default: str) -> None:

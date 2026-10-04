@@ -182,6 +182,19 @@ retirées sont celles du snapshot, écrites en entier). Ce qui lui est propre :
 `fixtures/diff-skeleton.json` est le diff entre `snapshot-skeleton.json` et `snapshot-skeleton-cable-down.json` (le
 même squelette une semaine plus tard, câble tombé), ce que B3 produit, à l'octet (test côté backend).
 
+## Le document Intent, en bref
+
+C'est la couche d'intention (B4, 2026-10-04, `docs/08`) : ce que l'humain veut en plus de ce que la collecte montre,
+décrit en partie D de `CONTRAT.md`. Il ne concerne pas l'exportateur ; il est écrit par l'API de Living Diagram
+(`POST /api/intent/patches`) et lu par la toile. Un document **par infrastructure**, jamais par run. V1 ne connaît
+qu'une sorte de patch, l'**épingle** : la place voulue d'un équipement (`x`, `y` entiers, en unités du dessin, bornés),
+keyée par son `hostname` à l'octet, avec `author` et `at`. Mêmes principes que le snapshot et le diff : refusé plutôt
+que signalé, toutes les clés écrites, pas d'`extras`, `pins` triées par `hostname` et uniques (refusé par le type) ;
+`revision` compte les requêtes d'écriture acceptées et `updated_at` est null si et seulement si elle vaut 0
+(`revision_update_mismatch`) ; `intent_version` suit son propre semver. D'autres sortes de patch viendront comme des
+listes à côté (additif). Ni B1 ni B3 ne lisent ce document. `fixtures/intent-skeleton.json` : deux épingles, forme
+canonique (`ld_contracts.intent.serialize.canonical_json`).
+
 ## Utiliser le paquet depuis votre exportateur
 
 ```python
@@ -331,6 +344,10 @@ contracts/
 │   │   ├── diff.py                Diff : majeure, écart signé, comptes vérifiés ; elapsed_seconds_between
 │   │   ├── codes.py               DIFF_ERROR_TYPES, DIFF_SHARED_ERROR_TYPES
 │   │   └── serialize.py           canonical_json
+│   ├── intent/                    contrat de la couche d'intention Intent v1 (2026-10-04, docs/08) : écrit par l'API, lu par la toile
+│   │   ├── intent.py              Pin (hostname, x, y, author, at) · Intent (revision ↔ updated_at, pins triées) · empty_intent
+│   │   ├── codes.py               INTENT_ERROR_TYPES
+│   │   └── serialize.py           canonical_json
 │   ├── snapshot/                  contrat de sortie Snapshot v1 (2026-09-20)
 │   │   ├── enums.py               sortes de nœuds, statuts, sources, sévérités, origines
 │   │   ├── order.py               natural_key + require_canonical : l'ordre canonique, partagé avec B1
@@ -344,13 +361,16 @@ contracts/
 │   │   ├── report.py              Source · Coverage · Report
 │   │   ├── snapshot.py            Snapshot : version, ordre canonique, références, couverture, comptes
 │   │   └── serialize.py           canonical_json · snapshot_sha256
-│   ├── schema.py                  génération des JSON Schema (CONTRACTS : bundle, snapshot)
+│   ├── schema.py                  génération des JSON Schema (CONTRACTS : bundle, snapshot, diff, intent)
 │   ├── docgen.py                  CONTRAT.md partie A (RunBundle) et assemblage
 │   ├── docgen_snapshot.py         CONTRAT.md partie B (Snapshot)
-│   ├── docgen_diff.py           partie C de CONTRAT.md (Diff)
+│   ├── docgen_diff.py             partie C de CONTRAT.md (Diff)
+│   ├── docgen_intent.py           partie D de CONTRAT.md (Intent)
 │   ├── docgen_render.py           rendu Markdown commun (tables, documents, énumérations)
 │   ├── schema/runbundle-v1.schema.json   schéma versionné (un test échoue s'il dérive des modèles)
 │   ├── schema/snapshot-v1.schema.json    idem pour le snapshot
+│   ├── schema/diff-v1.schema.json        idem pour le diff
+│   ├── schema/intent-v1.schema.json      idem pour l'intention ; les trois derniers nourrissent aussi les types TS de la toile (`engine/types.mjs`)
 │   ├── anonymize.py               pseudonymisation
 │   ├── synth/                     générateur de topologies synthétiques (2026-10-03)
 │   │   ├── spec.py                GenerationSpec : graine, devices, runs, plan de mutations ; SpecError
@@ -366,9 +386,11 @@ contracts/
 │   │   ├── mutations.py           une fonction par mutation, NotApplicableError, Mutation
 │   │   └── series.py              runs successives, manifeste, check_series, write_series
 │   └── cli.py                     ld-contracts validate | schema [--contract] | docs | anonymize | generate
-└── tests/                         543 tests : modèles, bundle, constats, clés absentes, vrf, schéma, référence,
+└── tests/                         599 tests : modèles, bundle, constats, clés absentes, vrf, schéma, référence,
     ├── snapshot/                  anonymiseur, CLI ; snapshot : ordre, refs, nœuds, interfaces, liens, structures,
     │                              contrôles, document, schéma, partie B, squelette
+    ├── diff/                      contrat Diff : refus, surface (schéma, partie C, fixture, CLI)
+    ├── intent/                    contrat Intent : refus, surface (schéma, partie D, fixture, CLI)
     └── synth/                     spécification, monde, émission (zéro constat), chaque mutation, séries
                                    (déterminisme entre processus, échelle 500 devices)
 ```
@@ -381,11 +403,13 @@ uv run ruff check src tests             # lint
 uv run ld-contracts schema --out                      # à relancer après tout changement de modèle du bundle
 uv run ld-contracts schema --contract snapshot --out  # idem pour le snapshot
 uv run ld-contracts schema --contract diff --out      # idem pour le diff
-uv run ld-contracts docs --out                        # idem : régénère CONTRAT.md (parties A, B et C)
+uv run ld-contracts schema --contract intent --out    # idem pour l'intention
+uv run ld-contracts docs --out                        # idem : régénère CONTRAT.md (parties A, B, C et D)
+cd ../engine && npm run types                         # puis les types TS de la toile, générés des schémas (versionnés)
 ```
 
-`contract_version` (bundle), `snapshot_version` (snapshot) et `diff_version` (diff) suivent chacun leur semver,
-indépendants : les trois contrats évoluent à des rythmes différents. Champ optionnel ou valeur d'énumération ajoutés :
+`contract_version` (bundle), `snapshot_version` (snapshot), `diff_version` (diff) et `intent_version` (intention)
+suivent chacun leur semver, indépendants : les quatre contrats évoluent à des rythmes différents. Champ optionnel ou valeur d'énumération ajoutés :
 mineure. Champ obligatoire ajouté, renommé, ou sémantique changée : majeure, refusée par
 B1 tant qu'il ne la supporte pas. Le contrat est **votre** standard autant que le mien :
 challengez un champ, une énumération ou une règle, la modification se fait ici, avec son
@@ -393,6 +417,15 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-10-04** — **Contrat `Intent` v1, quatrième contrat** (B4, `docs/08`, plan annoncé après le « Go » d'Orhan sur la
+  toile et les épingles). Un document par infrastructure, jamais par run ; patchs keyés par identité stable (le `hostname`
+  d'un nœud, à l'octet), jamais par coordonnée ni par run ; une seule sorte en V1, l'épingle (`x`, `y` entiers stricts bornés
+  à ±1 000 000, `author` ≤ 80 caractères, `at` écrit par le serveur) ; `pins` triées et uniques (ordre refusé par le type,
+  `require_canonical` partagé avec le snapshot) ; `revision` ↔ `updated_at` liés (`revision_update_mismatch`) ; le document
+  vide est valide (ce que l'API sert avant la première épingle). Écarté : un document par run (l'intention est longue, les
+  runs passent) ; des coordonnées flottantes (du bruit dans un document versionné) ; un remplacement entier du document par
+  l'API (deux personnes s'écraseraient : les opérations `pin` / `unpin` sont dans l'API du backend, pas dans le contrat).
+  Ni B1 ni B3 ne lisent ce document.
 - **2026-10-04** — **Contrat `Diff` v1, troisième contrat** (plan et six décisions validés par Orhan le jour même,
   `docs/07`). Une identité par entité, celle du snapshot (un cluster HA s'identifie par ses membres : un membre perdu
   est un cluster retiré et un cluster ajouté, Q1 ouverte) ; `added` / `removed` = entité complète, `changed` = référence

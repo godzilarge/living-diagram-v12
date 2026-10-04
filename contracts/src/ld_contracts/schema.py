@@ -1,5 +1,6 @@
-"""JSON Schema des trois contrats (RunBundle en entrée, Snapshot en sortie, Diff en comparaison) : généré depuis
-les modèles, versionné avec le paquet. Un test échoue si un fichier versionné dérive des modèles."""
+"""JSON Schema des quatre contrats (RunBundle en entrée, Snapshot en sortie, Diff en comparaison, Intent pour la
+couche d'intention) : généré depuis les modèles, versionné avec le paquet. Un test échoue si un fichier versionné
+dérive des modèles."""
 
 import json
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 
 from ld_contracts.bundle import RunBundle
 from ld_contracts.diff import Diff
+from ld_contracts.intent import Intent
 from ld_contracts.snapshot import Snapshot
 
 SCHEMA_DIR = Path(__file__).resolve().parent / "schema"
@@ -27,6 +29,7 @@ CONTRACTS: dict[str, ContractSpec] = {
     "bundle": ContractSpec(RunBundle, "runbundle-v1.schema.json", "RunBundle"),
     "snapshot": ContractSpec(Snapshot, "snapshot-v1.schema.json", "Snapshot"),
     "diff": ContractSpec(Diff, "diff-v1.schema.json", "Diff"),
+    "intent": ContractSpec(Intent, "intent-v1.schema.json", "Intent"),
 }
 
 
