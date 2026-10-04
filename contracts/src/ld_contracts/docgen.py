@@ -1,15 +1,18 @@
 """Génération de la référence `CONTRAT.md` depuis les modèles : une seule source, aucune dérive possible.
 
-Partie A (RunBundle) ici ; partie B (Snapshot) dans `docgen_snapshot` ; rendu commun dans `docgen_render`.
+Partie A (RunBundle) ici ; partie B (Snapshot) dans `docgen_snapshot` ; partie C (Diff) dans `docgen_diff` ;
+rendu commun dans `docgen_render`.
 """
 
 from pathlib import Path
 
 from ld_contracts.bundle import CONTRACT_VERSION
 from ld_contracts.checks import FINDING_CODES
+from ld_contracts.docgen_diff import diff_part
 from ld_contracts.docgen_render import reference_names, render_reference
 from ld_contracts.docgen_snapshot import snapshot_part
 from ld_contracts.schema import generate_schema
+from ld_contracts.snapshot.codes import SNAPSHOT_ERROR_TYPES
 
 DOC_PATH = Path(__file__).resolve().parents[2] / "CONTRAT.md"
 SKELETON_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "bundle-skeleton.json"
@@ -171,16 +174,20 @@ def bundle_part() -> list[str]:
 
 
 def generate_markdown() -> str:
+    bundle_names = reference_names(generate_schema("bundle"))
+    snapshot_names = reference_names(generate_schema("snapshot"))
     out = [
         "# Contrats Living Diagram — référence",
         "",
         "> **Document généré** depuis les modèles du paquet `ld-contracts` par `ld-contracts docs --out`.",
         "> Ne pas l'éditer à la main : modifier les modèles (descriptions comprises), régénérer, un test vérifie",
-        "> qu'il n'a pas dérivé. Deux contrats : la **partie A** décrit ce qui entre (le RunBundle produit par",
-        "> l'exportateur B0), la **partie B** ce qui sort (le Snapshot produit par la corrélation B1).",
+        "> qu'il n'a pas dérivé. Trois contrats : la **partie A** décrit ce qui entre (le RunBundle produit par",
+        "> l'exportateur B0), la **partie B** ce qui sort (le Snapshot produit par la corrélation B1), la **partie C**",
+        "> ce qui a changé entre deux sorties (le Diff produit par la comparaison B3).",
         "",
         *bundle_part(),
-        *snapshot_part(reference_names(generate_schema("bundle")), ERROR_TYPES),
+        *snapshot_part(bundle_names, ERROR_TYPES),
+        *diff_part(bundle_names | snapshot_names, SNAPSHOT_ERROR_TYPES),
     ]
     return "\n".join(out)
 

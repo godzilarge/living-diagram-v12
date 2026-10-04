@@ -1,0 +1,298 @@
+{
+  "after": {
+    "bundle_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "collector_run_id": "66e49a2d9a1c2b0012f4a8e2",
+    "end_datetime": "2026-09-17T02:13:05Z",
+    "snapshot_version": "1.0.0",
+    "start_datetime": "2026-09-17T02:00:00Z",
+    "status": "completed"
+  },
+  "aggregates": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "before": {
+    "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "collector_run_id": "66db3f0e9a1c2b0012f4a7d1",
+    "end_datetime": "2026-09-10T02:14:32Z",
+    "snapshot_version": "1.0.0",
+    "start_datetime": "2026-09-10T02:00:00Z",
+    "status": "completed"
+  },
+  "checks": {
+    "appeared": [
+      {
+        "code": "link_down",
+        "details": {
+          "states": [
+            {
+              "hostname": "sw-a",
+              "interface": "Ethernet1/1",
+              "oper_reason": null,
+              "oper_status": "down"
+            },
+            {
+              "hostname": "sw-b",
+              "interface": "Ethernet1/1",
+              "oper_reason": null,
+              "oper_status": "down"
+            }
+          ]
+        },
+        "origin": "correlation",
+        "refs": [
+          {
+            "a": {
+              "hostname": "sw-a",
+              "interface": "Ethernet1/1"
+            },
+            "b": {
+              "hostname": "sw-b",
+              "interface": "Ethernet1/1"
+            },
+            "kind": "link"
+          }
+        ],
+        "severity": "info"
+      }
+    ],
+    "persisted": 0,
+    "resolved": []
+  },
+  "coverage": {
+    "changed": []
+  },
+  "diff_version": "1.0.0",
+  "elapsed_seconds": 604800,
+  "events": [],
+  "ha_clusters": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "infrastructure": "infra-lab",
+  "interfaces": {
+    "added": [],
+    "changed": [
+      {
+        "fields": [
+          {
+            "after": "down",
+            "before": "up",
+            "path": "oper_status"
+          }
+        ],
+        "ref": {
+          "hostname": "sw-a",
+          "kind": "interface",
+          "name": "Ethernet1/1"
+        }
+      },
+      {
+        "fields": [
+          {
+            "after": "down",
+            "before": "up",
+            "path": "oper_status"
+          }
+        ],
+        "ref": {
+          "hostname": "sw-b",
+          "kind": "interface",
+          "name": "Ethernet1/1"
+        }
+      }
+    ],
+    "removed": []
+  },
+  "links": {
+    "added": [],
+    "changed": [
+      {
+        "fields": [
+          {
+            "after": [
+              {
+                "remote_raw": {
+                  "name": "sw-b",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "sw-a",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                }
+              }
+            ],
+            "before": [
+              {
+                "remote_raw": {
+                  "name": "sw-b",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "sw-a",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "sw-b",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "sw-a",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                }
+              }
+            ],
+            "path": "evidence"
+          },
+          {
+            "after": "down",
+            "before": "up",
+            "path": "oper"
+          },
+          {
+            "after": "documented_only",
+            "before": "confirmed",
+            "path": "status"
+          }
+        ],
+        "ref": {
+          "a": {
+            "hostname": "sw-a",
+            "interface": "Ethernet1/1"
+          },
+          "b": {
+            "hostname": "sw-b",
+            "interface": "Ethernet1/1"
+          },
+          "kind": "link"
+        }
+      }
+    ],
+    "removed": []
+  },
+  "mlag_domains": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "nodes": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "summary": {
+    "aggregates": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "checks": {
+      "appeared": 1,
+      "persisted": 0,
+      "resolved": 0
+    },
+    "coverage": {
+      "changed": 0
+    },
+    "events": {
+      "flapped": 0,
+      "rebooted": 0
+    },
+    "ha_clusters": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "interfaces": {
+      "added": 0,
+      "changed": 2,
+      "removed": 0
+    },
+    "links": {
+      "added": 0,
+      "changed": 1,
+      "removed": 0
+    },
+    "mlag_domains": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "nodes": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "volatile_changes": 4
+  }
+}

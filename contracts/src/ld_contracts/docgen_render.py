@@ -1,4 +1,4 @@
-"""Rendu Markdown d'un JSON Schema Pydantic : tables de champs, documents, énumérations. Commun aux deux parties."""
+"""Rendu Markdown d'un JSON Schema Pydantic : tables de champs, documents, énumérations. Commun aux trois parties."""
 
 from typing import Any
 
@@ -112,15 +112,24 @@ def reference_names(schema: dict[str, Any]) -> frozenset[str]:
     return frozenset(model_names_in_order(schema)) | frozenset(enums)
 
 
-def _shared_line(names: list[str]) -> list[str]:
+SHARED_WITH_BUNDLE = "Types partagés avec le RunBundle, définis en partie A"
+
+
+def _shared_line(names: list[str], label: str) -> list[str]:
     links = ", ".join(f"[{name}](#{name.lower()})" for name in names)
-    return [f"Types partagés avec le RunBundle, définis en partie A : {links}.", ""]
+    return [f"{label} : {links}.", ""]
 
 
-def render_reference(schema: dict[str, Any], level: int, shared: frozenset[str] = frozenset()) -> list[str]:
+def render_reference(
+    schema: dict[str, Any],
+    level: int,
+    shared: frozenset[str] = frozenset(),
+    shared_label: str = SHARED_WITH_BUNDLE,
+) -> list[str]:
     """Sections « Le document », « Documents » et « Énumérations » d'un contrat, titres au niveau `level`.
 
-    Les noms dans `shared` sont déjà définis par une autre partie : une ligne de renvoi, pas une seconde table.
+    Les noms dans `shared` sont déjà définis par une autre partie : une ligne de renvoi (`shared_label`), pas une
+    seconde table.
     """
     h, sub = "#" * level, "#" * (level + 1)
     defs = schema["$defs"]
@@ -140,7 +149,7 @@ def render_reference(schema: dict[str, Any], level: int, shared: frozenset[str] 
             continue
         model = defs[name]
         out += [f"{sub} {name}", "", (model.get("description") or "").strip(), "", *fields_table(model, defs), ""]
-    out += _shared_line(shared_models) if shared_models else []
+    out += _shared_line(shared_models, shared_label) if shared_models else []
     out += [f"{h} Énumérations", ""]
     enums = [name for name, model in defs.items() if "enum" in model]
     for name in enums:
@@ -148,5 +157,5 @@ def render_reference(schema: dict[str, Any], level: int, shared: frozenset[str] 
             values = " \\| ".join(f"`{v}`" for v in defs[name]["enum"])
             out += [f"{sub} {name}", "", values, ""]
     shared_enums = [name for name in enums if name in shared]
-    out += _shared_line(shared_enums) if shared_enums else []
+    out += _shared_line(shared_enums, shared_label) if shared_enums else []
     return out

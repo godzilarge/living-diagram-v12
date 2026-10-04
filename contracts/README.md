@@ -5,10 +5,11 @@
 `ld-contracts` est **le langage commun** entre votre exportateur B0 (zone sécurisée) et
 Living Diagram, et **le contrôle à la porte** qui vérifie qu'un document le respecte.
 
-- **C'est** : la définition des deux documents qui traversent la frontière, `RunBundle` (ce qui entre,
-  produit par votre exportateur) et `Snapshot` (ce qui sort de la corrélation B1), en modèles Pydantic +
-  JSON Schema ; un validateur qui dit exactement ce qui ne va pas, un anonymiseur pour partager un cas
-  réel sans son contenu, et des fixtures de référence.
+- **C'est** : la définition des trois documents qui traversent la frontière, `RunBundle` (ce qui entre,
+  produit par votre exportateur), `Snapshot` (ce qui sort de la corrélation B1) et `Diff` (ce qui a changé entre
+  deux snapshots, sortie de la comparaison B3), en modèles Pydantic + JSON Schema ; un validateur qui dit
+  exactement ce qui ne va pas, un anonymiseur pour partager un cas réel sans son contenu, un générateur de
+  bundles synthétiques, et des fixtures de référence.
 - **Ce n'est pas** : la porte elle-même. La route `POST /api/ingest/bundles` (réception,
   archivage, déclenchement de la corrélation B1) sera dans `backend/`, et s'appuiera sur
   ce paquet pour valider. B1 n'existe pas encore.
@@ -28,10 +29,11 @@ Living Diagram, et **le contrôle à la porte** qui vérifie qu'un document le r
 |---|---|---|
 | **Entrée** | un bundle par (run, infrastructure) | un fichier JSON, structure `RunBundle` ci-dessous |
 | **Sortie de `validate`** | verdict + erreurs de contrat + constats de données | texte, code de sortie 0 (valide) / 1 (invalide) |
-| **Sortie de `schema`** | le JSON Schema 2020-12 du bundle (`--contract bundle`, défaut) ou du snapshot (`--contract snapshot`) | JSON, pour un générateur de types ou un éditeur |
+| **Sortie de `schema`** | le JSON Schema 2020-12 du bundle (`--contract bundle`, défaut), du snapshot (`--contract snapshot`) ou du diff (`--contract diff`) | JSON, pour un générateur de types ou un éditeur |
 | **Sortie de `anonymize`** | un bundle pseudonymisé, toujours valide | un fichier JSON |
 | **Sortie pour B1** | l'objet Python `RunBundle` | `from ld_contracts.bundle import RunBundle` |
-| **Sortie de B1** (à venir) | l'objet Python `Snapshot`, sérialisé en forme canonique | `from ld_contracts.snapshot import Snapshot` ; `ld_contracts.snapshot.serialize.canonical_json` |
+| **Sortie de B1** | l'objet Python `Snapshot`, sérialisé en forme canonique | `from ld_contracts.snapshot import Snapshot` ; `ld_contracts.snapshot.serialize.canonical_json` |
+| **Sortie de B3** | l'objet Python `Diff`, sérialisé en forme canonique, jamais archivé | `from ld_contracts.diff import Diff` ; `ld_contracts.diff.serialize.canonical_json` |
 
 ## Démarrer en cinq commandes
 
@@ -157,6 +159,29 @@ contrôles). Il n'est jamais écrit à la main : `cd backend && uv run ld correl
 **fixture ⊕ contrat d'entrée ⊕ B1** : `source.bundle_sha256` est l'empreinte de la forme canonique du bundle, donc un
 changement du contrat d'entrée le change aussi, à relire avant de régénérer. Fin de ligne LF, fixée par `.gitattributes`.
 
+## Le document Diff, en bref
+
+C'est la sortie de B3 (2026-10-04, `docs/07`) : ce qui a changé entre deux snapshots d'une même infrastructure, décrit
+en partie C de `CONTRAT.md`. Il ne concerne pas l'exportateur. Mêmes principes que le snapshot : il se refuse, il ne se
+signale pas ; ordre canonique vérifié par le type ; toutes les clés écrites ; types partagés (les entités ajoutées ou
+retirées sont celles du snapshot, écrites en entier). Ce qui lui est propre :
+
+- **une identité par entité, celle du snapshot, à l'octet** (la casse compte : `docs/07` Q5) ; `added` / `removed`
+  portent l'entité complète, `changed` la référence typée (celles du snapshot, plus `MlagDomainRef`) et les champs
+  `(path, before, after)`, `path` en identifiants pointés, listes comparées en bloc ; une identité ne figure que dans
+  une part (`identity_in_several_parts`) ;
+- **deux champs volatils déclarés** (`VOLATILE_PATHS`, lus par B3), exclus de `changed` (`field_change_volatile`) et
+  comptés (`nodes[].uptime_seconds`, `interfaces[].last_change_age_seconds`) ; `source` et `report` jamais comparés ;
+  les **événements** `rebooted` / `flapped` en sont lus, détails typés (`RebootedDetails`, `FlappedDetails`), fenêtre
+  recopiée et vérifiée, aucun à rebours (`events_without_elapsed`) ; un nœud redémarré n'a pas de port `flapped` ;
+- **contrôles** en `appeared` / `resolved` / `persisted` (disjoints), identité `(code, refs)`, les détails décrivent
+  sans identifier ;
+- `summary` vérifié contre les listes, `elapsed_seconds` vérifié contre les deux débuts de run, signé ; `diff_version`
+  suit son propre semver.
+
+`fixtures/diff-skeleton.json` est le diff entre `snapshot-skeleton.json` et `snapshot-skeleton-cable-down.json` (le
+même squelette une semaine plus tard, câble tombé), ce que B3 produit, à l'octet (test côté backend).
+
 ## Utiliser le paquet depuis votre exportateur
 
 ```python
@@ -281,7 +306,9 @@ contracts/
 │   │                              cluster Fortinet (1 membre injoignable), voisin d'une autre infra, stub
 │   │                              serveur, désaccord description / LLDP, port sans SFP, tâche CDP en échec
 │   ├── snapshot-skeleton.json     le plus petit snapshot qui dit quelque chose, en forme canonique
-│   └── snapshot-minimal.json      snapshot de référence de bundle-minimal.json (golden de B1), généré, jamais édité
+│   ├── snapshot-minimal.json      snapshot de référence de bundle-minimal.json (golden de B1), généré, jamais édité
+│   ├── snapshot-skeleton-cable-down.json  le squelette une semaine plus tard, câble tombé : la paire du diff
+│   └── diff-skeleton.json         le diff entre les deux squelettes, forme canonique, ce que B3 produit à l'octet
 ├── src/ld_contracts/
 │   ├── enums.py                   toutes les énumérations fermées
 │   ├── common.py                  types de base : modèle strict et immuable, MAC, IP, dates, entiers stricts
@@ -294,6 +321,16 @@ contracts/
 │   ├── checks.py                  constats référentiels (Finding, FINDING_CODES), alias de topics amont
 │   ├── defaults.py                clés nullables absentes : lues comme null, comptées (nullable_key_absent)
 │   ├── validate.py                validate_dict / validate_file → ValidationReport
+│   ├── diff/                      contrat de comparaison Diff v1 (2026-10-04, docs/07) : la sortie de B3
+│   │   ├── enums.py               EventKind (rebooted, flapped)
+│   │   ├── refs.py                MlagDomainRef · DiffRef (les références du snapshot, plus le domaine MLAG) · diff_ref_key
+│   │   ├── order.py               clés de tri des entités (R6), nommées une fois pour le contrat et pour B3
+│   │   ├── changes.py             FieldChange · EntityChange · Event ; refus de sorte (change_ref_kind_mismatch, event_ref_kind_mismatch)
+│   │   ├── sections.py            NodeChanges … HaClusterChanges, CheckChanges, CoverageChanges
+│   │   ├── summary.py             RunRef · Summary
+│   │   ├── diff.py                Diff : majeure, écart signé, comptes vérifiés ; elapsed_seconds_between
+│   │   ├── codes.py               DIFF_ERROR_TYPES, DIFF_SHARED_ERROR_TYPES
+│   │   └── serialize.py           canonical_json
 │   ├── snapshot/                  contrat de sortie Snapshot v1 (2026-09-20)
 │   │   ├── enums.py               sortes de nœuds, statuts, sources, sévérités, origines
 │   │   ├── order.py               natural_key + require_canonical : l'ordre canonique, partagé avec B1
@@ -310,6 +347,7 @@ contracts/
 │   ├── schema.py                  génération des JSON Schema (CONTRACTS : bundle, snapshot)
 │   ├── docgen.py                  CONTRAT.md partie A (RunBundle) et assemblage
 │   ├── docgen_snapshot.py         CONTRAT.md partie B (Snapshot)
+│   ├── docgen_diff.py           partie C de CONTRAT.md (Diff)
 │   ├── docgen_render.py           rendu Markdown commun (tables, documents, énumérations)
 │   ├── schema/runbundle-v1.schema.json   schéma versionné (un test échoue s'il dérive des modèles)
 │   ├── schema/snapshot-v1.schema.json    idem pour le snapshot
@@ -342,11 +380,12 @@ uv run pytest --cov=ld_contracts        # tests + couverture (attendu ≥ 80 %, 
 uv run ruff check src tests             # lint
 uv run ld-contracts schema --out                      # à relancer après tout changement de modèle du bundle
 uv run ld-contracts schema --contract snapshot --out  # idem pour le snapshot
-uv run ld-contracts docs --out                        # idem : régénère CONTRAT.md (parties A et B)
+uv run ld-contracts schema --contract diff --out      # idem pour le diff
+uv run ld-contracts docs --out                        # idem : régénère CONTRAT.md (parties A, B et C)
 ```
 
-`contract_version` (bundle) et `snapshot_version` (snapshot) suivent chacun leur semver, indépendants :
-les deux contrats évoluent à des rythmes différents. Champ optionnel ou valeur d'énumération ajoutés :
+`contract_version` (bundle), `snapshot_version` (snapshot) et `diff_version` (diff) suivent chacun leur semver,
+indépendants : les trois contrats évoluent à des rythmes différents. Champ optionnel ou valeur d'énumération ajoutés :
 mineure. Champ obligatoire ajouté, renommé, ou sémantique changée : majeure, refusée par
 B1 tant qu'il ne la supporte pas. Le contrat est **votre** standard autant que le mien :
 challengez un champ, une énumération ou une règle, la modification se fait ici, avec son
@@ -354,6 +393,26 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-10-04** — **Contrat `Diff` v1, troisième contrat** (plan et six décisions validés par Orhan le jour même,
+  `docs/07`). Une identité par entité, celle du snapshot (un cluster HA s'identifie par ses membres : un membre perdu
+  est un cluster retiré et un cluster ajouté, Q1 ouverte) ; `added` / `removed` = entité complète, `changed` = référence
+  typée + champs `(path, before, after)`, listes comparées en bloc ; deux volatils déclarés, exclus et comptés ;
+  événements `rebooted` / `flapped` lus dans les volatils, seulement si l'écart est positif ; contrôles identifiés par
+  `(code, refs)` en multi-ensemble. Refus propres : `diff_major_unsupported`, `elapsed_mismatch`, `counts_mismatch`,
+  `change_ref_kind_mismatch`, `event_ref_kind_mismatch`, `field_change_equal` ; ordre canonique et bouts de lien hérités
+  du snapshot. `MlagDomainRef` ajoutée au diff seulement (aucun contrôle ne référence un domaine). Fixtures :
+  `snapshot-skeleton-cable-down.json` et `diff-skeleton.json`, produit à l'octet par B3.
+- **2026-10-04 (bis)** — **Revue indépendante de B3 appliquée au contrat** (`docs/revues/2026-10-04-b3-diff.md`, M3 et
+  B1) : trois refus que la partie C annonçait sans les appliquer, `events_without_elapsed` (événements avec
+  `elapsed_seconds` ≤ 0), `identity_in_several_parts` (`added` / `removed` / `changed` disjoints par section,
+  `appeared` / `resolved` disjoints), `field_change_volatile` (un volatil déclaré dans `changed` ; la déclaration
+  `VOLATILE_PATHS` vit maintenant dans le contrat, B3 la lit) ; détails d'événement **typés** (`RebootedDetails`,
+  `FlappedDetails`, discriminés par `kind` : `event_details_mismatch`, `event_not_in_window`, `event_elapsed_mismatch`) ;
+  `path` d'un `FieldChange` en identifiants pointés (jamais un indice de liste) ; `MlagDomainRef` refuse deux agrégats
+  d'un même device et `RunRef.snapshot_version` une majeure inconnue, par les validateurs partagés du snapshot
+  (`require_mlag_members`, `require_supported_major`) ; `too_short` nommé au catalogue. **Documenté, non changé** :
+  l'identité est l'octet (un stub devenu device n'est un `changed` que si le nom s'écrit à l'identique, `docs/07` Q5) ;
+  un `flapped` n'est jamais émis sur un nœud `rebooted` (règle de B3, écrite dans la partie C).
 - **2026-10-02** — **`HaStatus` : `standalone` ⇒ `members` vide, imposé** (remarque d'Orhan : « si c'est un
   firewall standalone, autoriser `members` en liste vide », traitée avant tout code, plan validé). L'entrée « lui-même »
   exigée depuis le 2026-09-14 ne portait aucune information que B1 lise : rôle forcé à `member`, état `up` tautologique

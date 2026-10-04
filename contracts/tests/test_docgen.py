@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ld_contracts import cli, docgen
 from ld_contracts.bundle import RunBundle
+from ld_contracts.diff.codes import DIFF_ERROR_TYPES
 from ld_contracts.docgen import DOC_PATH, ERROR_TYPES, generate_markdown, load_committed_markdown
 from ld_contracts.snapshot.codes import SNAPSHOT_ERROR_TYPES
 
@@ -64,3 +65,6 @@ def test_every_raised_error_type_is_catalogued():
     raised_snapshot = _raised_types((src / "snapshot").glob("*.py"))
     assert raised_snapshot, "aucun type trouvé dans snapshot/ : le motif de recherche est cassé"
     assert raised_snapshot <= set(SNAPSHOT_ERROR_TYPES), sorted(raised_snapshot - set(SNAPSHOT_ERROR_TYPES))
+    raised_diff = _raised_types((src / "diff").glob("*.py"))
+    assert raised_diff, "aucun type trouvé dans diff/ : le motif de recherche est cassé"
+    assert raised_diff <= set(DIFF_ERROR_TYPES), sorted(raised_diff - set(DIFF_ERROR_TYPES))

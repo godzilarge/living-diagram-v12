@@ -1,7 +1,7 @@
 [project]
 name = "ld-contracts"
 version = "1.0.0"
-description = "Living Diagram — contrats RunBundle v1 (entrée) et Snapshot v1 (sortie) : modèles Pydantic, JSON Schema, validateur, anonymiseur"
+description = "Living Diagram — contrats RunBundle v1 (entrée), Snapshot v1 (sortie) et Diff v1 (comparaison) : modèles Pydantic, JSON Schema, validateur, anonymiseur, générateur"
 readme = "README.md"
 requires-python = ">=3.14"
 license = { text = "Proprietary" }

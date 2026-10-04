@@ -2,8 +2,9 @@
 
 > **Document généré** depuis les modèles du paquet `ld-contracts` par `ld-contracts docs --out`.
 > Ne pas l'éditer à la main : modifier les modèles (descriptions comprises), régénérer, un test vérifie
-> qu'il n'a pas dérivé. Deux contrats : la **partie A** décrit ce qui entre (le RunBundle produit par
-> l'exportateur B0), la **partie B** ce qui sort (le Snapshot produit par la corrélation B1).
+> qu'il n'a pas dérivé. Trois contrats : la **partie A** décrit ce qui entre (le RunBundle produit par
+> l'exportateur B0), la **partie B** ce qui sort (le Snapshot produit par la corrélation B1), la **partie C**
+> ce qui a changé entre deux sorties (le Diff produit par la comparaison B3).
 
 ## Partie A — Entrée : RunBundle v1.0.0
 
@@ -1441,3 +1442,625 @@ Hérités des types partagés avec la partie A (`IpAddress`, `VlanRange`, dates,
 
 Le JSON Schema équivalent est `src/ld_contracts/schema/snapshot-v1.schema.json`. Le snapshot de référence
 de `bundle-minimal.json` sera produit par B1 (golden, test de dérive).
+
+## Partie C — Comparaison : Diff v1.0.0
+
+Le diff dit ce qui a changé entre deux snapshots d'une même infrastructure : c'est ce que B3 produit, ce que
+la timeline résume et ce que le moteur de diagramme peint (câbles ajoutés, retirés, changés). Il parle en
+entités du snapshot, ne lit jamais la couche d'intention ni le rendu, se calcule à la demande et n'est jamais
+archivé. Déterministe : mêmes snapshots ⇒ mêmes octets. Sa version suit son propre semver.
+
+### Le document Diff
+
+Ce qui a changé entre deux snapshots d'une même infrastructure, par entité, en mots du snapshot.
+
+Calculé à la demande par B3, jamais archivé, déterministe : mêmes snapshots ⇒ mêmes octets. Ne lit jamais la
+couche d'intention. `before` → `after` est la direction demandée, quel que soit l'ordre des dates.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `diff_version` | texte, motif `^\d+\.\d+\.\d+$` | oui | Version semver du contrat Diff, indépendante des deux autres contrats. |
+| `infrastructure` | texte non vide | oui | Infrastructure des deux snapshots (B3 refuse deux infrastructures). |
+| `before` | [RunRef](#runref) | oui | La run de départ. |
+| `after` | [RunRef](#runref) | oui | La run d'arrivée. |
+| `elapsed_seconds` | entier | oui | `after.start_datetime − before.start_datetime` en secondes, signé ; négatif = runs comparées à rebours, et alors aucun événement n'est calculé. |
+| `summary` | [Summary](#summary) | oui | Comptes par section et par sorte, vérifiés contre les listes. |
+| `nodes` | [NodeChanges](#nodechanges) | oui | Nœuds. |
+| `interfaces` | [InterfaceChanges](#interfacechanges) | oui | Interfaces. |
+| `links` | [LinkChanges](#linkchanges) | oui | Liens. |
+| `aggregates` | [AggregateChanges](#aggregatechanges) | oui | Agrégats. |
+| `mlag_domains` | [MlagDomainChanges](#mlagdomainchanges) | oui | Domaines MLAG. |
+| `ha_clusters` | [HaClusterChanges](#haclusterchanges) | oui | Clusters HA. |
+| `checks` | [CheckChanges](#checkchanges) | oui | Contrôles apparus, résolus, persistants. |
+| `coverage` | [CoverageChanges](#coveragechanges) | oui | Couverture changée. |
+| `events` | liste de [Event](#event) | oui | Faits lus dans les champs volatils, triés par (sorte, référence) ; vide si `elapsed_seconds` ≤ 0 (refusé sinon), chacun recopiant `elapsed_seconds` dans ses détails. |
+
+### Documents
+
+#### RunRef
+
+Une des deux runs comparées : la carte d'identité de son snapshot, recopiée de `source`.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `collector_run_id` | texte non vide | oui | Run amont. |
+| `bundle_sha256` | texte, motif `^[0-9a-f]{64}$` | oui | Empreinte du bundle archivé dont le snapshot vient. |
+| `snapshot_version` | texte, motif `^\d+\.\d+\.\d+$` | oui | `snapshot_version` du snapshot comparé, de la majeure que le contrat Snapshot accepte. |
+| `start_datetime` | date-time ISO 8601 avec fuseau | oui | Début de la run ; `elapsed_seconds` se calcule sur ce champ. |
+| `end_datetime` | date-time ISO 8601 avec fuseau \| null | oui | Fin de la run ; null si absente. |
+| `status` | [RunStatus](#runstatus) | oui | État global de la run. |
+
+#### Summary
+
+Ce que la timeline affiche sans ouvrir le diff ; chaque compte est vérifié contre sa liste.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `nodes` | [SectionSummary](#sectionsummary) | oui | Nœuds. |
+| `interfaces` | [SectionSummary](#sectionsummary) | oui | Interfaces. |
+| `links` | [SectionSummary](#sectionsummary) | oui | Liens. |
+| `aggregates` | [SectionSummary](#sectionsummary) | oui | Agrégats. |
+| `mlag_domains` | [SectionSummary](#sectionsummary) | oui | Domaines MLAG. |
+| `ha_clusters` | [SectionSummary](#sectionsummary) | oui | Clusters HA. |
+| `checks` | [CheckSummary](#checksummary) | oui | Contrôles. |
+| `coverage` | [CoverageSummary](#coveragesummary) | oui | Couverture. |
+| `events` | [EventSummary](#eventsummary) | oui | Événements. |
+| `volatile_changes` | entier ≥ 0 | oui | Nombre de différences sur les champs volatils (`uptime_seconds`, `last_change_age_seconds`), exclues de `changed` ; non vérifiable depuis le document. |
+
+#### SectionSummary
+
+Comptes d'une section d'entités.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `added` | entier ≥ 0 | oui | Taille de `added`. |
+| `removed` | entier ≥ 0 | oui | Taille de `removed`. |
+| `changed` | entier ≥ 0 | oui | Taille de `changed`. |
+
+#### CheckSummary
+
+Comptes des contrôles.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `appeared` | entier ≥ 0 | oui | Taille de `checks.appeared`. |
+| `resolved` | entier ≥ 0 | oui | Taille de `checks.resolved`. |
+| `persisted` | entier ≥ 0 | oui | Égal à `checks.persisted`. |
+
+#### CoverageSummary
+
+Comptes de la couverture.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `changed` | entier ≥ 0 | oui | Taille de `coverage.changed`. |
+
+#### EventSummary
+
+Comptes des événements, par sorte.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `rebooted` | entier ≥ 0 | oui | Nœuds redémarrés. |
+| `flapped` | entier ≥ 0 | oui | Interfaces qui ont changé d'état dans la fenêtre. |
+
+#### NodeChanges
+
+Nœuds ajoutés, retirés, changés. Identité : `hostname`, à l'octet (un stub devenu device est un nœud changé si
+le nom s'écrit à l'identique, `docs/07` Q5).
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `added` | liste de [Node](#node) | oui | Nœuds présents dans `after` seulement, tels qu'ils y sont ; triés par (sorte, hostname). |
+| `removed` | liste de [Node](#node) | oui | Nœuds présents dans `before` seulement, tels qu'ils y étaient ; triés par (sorte, hostname). |
+| `changed` | liste de [EntityChange](#entitychange) | oui | Nœuds présents des deux côtés dont un champ non volatil diffère ; référence `node`, triés par identité. |
+
+#### EntityChange
+
+Une entité présente dans les deux runs, avec ses champs changés (jamais vide : sinon elle n'est pas listée).
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `ref` | [NodeRef](#noderef) \| [InterfaceRef](#interfaceref) \| [LinkRef](#linkref) \| [AggregateRef](#aggregateref) \| [ClusterRef](#clusterref) \| [MlagDomainRef](#mlagdomainref) | oui | L'entité, par sa référence typée ; sa sorte est celle de la section. |
+| `fields` | liste de [FieldChange](#fieldchange) (au moins 1) | oui | Champs non volatils dont la valeur diffère, triés par `path`, sans doublon. |
+
+#### MlagDomainRef
+
+Référence à un domaine MLAG, par son identifiant et ses deux agrégats.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | `mlag_domain` | oui | Discriminant. |
+| `mlag_id` | entier | oui | `mlag_id` du domaine. |
+| `members` | liste de [MlagMember](#mlagmember) (exactement 2) | oui | Les deux agrégats, de deux devices distincts, triés par (hostname, nom naturel) ; clé de `mlag_domains[]` avec `mlag_id`. |
+
+#### FieldChange
+
+Un champ dont la valeur diffère entre les deux runs.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `path` | texte, motif `^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*$` | oui | Chemin pointé dans l'entité (`oper_status`, `aggregate.member_status`), identifiants séparés par des points ; une liste se compare en bloc, son chemin est celui de la liste, jamais un indice. |
+| `before` | valeur JSON | oui | Valeur dans la run `before`. |
+| `after` | valeur JSON | oui | Valeur dans la run `after`, différente de `before`. |
+
+#### InterfaceChanges
+
+Interfaces ajoutées, retirées, changées. Identité : `(hostname, name)`.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `added` | liste de [SnapshotInterface](#snapshotinterface) | oui | Interfaces présents dans `after` seulement, tels qu'ils y sont ; triés par (hostname, nom naturel). |
+| `removed` | liste de [SnapshotInterface](#snapshotinterface) | oui | Interfaces présents dans `before` seulement, tels qu'ils y étaient ; triés par (hostname, nom naturel). |
+| `changed` | liste de [EntityChange](#entitychange) | oui | Interfaces présents des deux côtés dont un champ non volatil diffère ; référence `interface`, triés par identité. |
+
+#### LinkChanges
+
+Liens ajoutés, retirés, changés. Identité : la paire triée des bouts (`kind` n'en fait pas partie en V1).
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `added` | liste de [Link](#link) | oui | Liens présents dans `after` seulement, tels qu'ils y sont ; triés par paire de bouts. |
+| `removed` | liste de [Link](#link) | oui | Liens présents dans `before` seulement, tels qu'ils y étaient ; triés par paire de bouts. |
+| `changed` | liste de [EntityChange](#entitychange) | oui | Liens présents des deux côtés dont un champ non volatil diffère ; référence `link`, triés par identité. |
+
+#### AggregateChanges
+
+Agrégats ajoutés, retirés, changés. Identité : `(hostname, name)`.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `added` | liste de [SnapshotAggregate](#snapshotaggregate) | oui | Agrégats présents dans `after` seulement, tels qu'ils y sont ; triés par (hostname, nom naturel). |
+| `removed` | liste de [SnapshotAggregate](#snapshotaggregate) | oui | Agrégats présents dans `before` seulement, tels qu'ils y étaient ; triés par (hostname, nom naturel). |
+| `changed` | liste de [EntityChange](#entitychange) | oui | Agrégats présents des deux côtés dont un champ non volatil diffère ; référence `aggregate`, triés par identité. |
+
+#### MlagDomainChanges
+
+Domaines MLAG ajoutés, retirés, changés. Identité : `(mlag_id, membres)`.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `added` | liste de [MlagDomain](#mlagdomain) | oui | Domaines présents dans `after` seulement, tels qu'ils y sont ; triés par (`mlag_id`, membres). |
+| `removed` | liste de [MlagDomain](#mlagdomain) | oui | Domaines présents dans `before` seulement, tels qu'ils y étaient ; triés par (`mlag_id`, membres). |
+| `changed` | liste de [EntityChange](#entitychange) | oui | Domaines présents des deux côtés dont un champ non volatil diffère ; référence `mlag_domain`, triés par identité. |
+
+#### HaClusterChanges
+
+Clusters HA ajoutés, retirés, changés. Identité : l'ensemble des membres (un membre perdu = cluster retiré
+et cluster ajouté, docs/07 Q1).
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `added` | liste de [HaCluster](#hacluster) | oui | Clusters présents dans `after` seulement, tels qu'ils y sont ; triés par membres. |
+| `removed` | liste de [HaCluster](#hacluster) | oui | Clusters présents dans `before` seulement, tels qu'ils y étaient ; triés par membres. |
+| `changed` | liste de [EntityChange](#entitychange) | oui | Clusters présents des deux côtés dont un champ non volatil diffère ; référence `cluster`, triés par identité. |
+
+#### CheckChanges
+
+Contrôles apparus, résolus, persistants. Identité : `(code, refs)` ; les `details` décrivent, ils
+n'identifient pas (un contrôle dont seuls les détails changent persiste).
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `appeared` | liste de [Check](#check) | oui | Contrôles de `after` sans équivalent dans `before`, triés par (code, références, détails). |
+| `resolved` | liste de [Check](#check) | oui | Contrôles de `before` sans équivalent dans `after`, triés par (code, références, détails). |
+| `persisted` | entier ≥ 0 | oui | Nombre de contrôles présents des deux côtés. |
+
+#### CoverageChanges
+
+Couverture changée sur un device présent des deux côtés : statut de collecte ou statut d'un topic. Les
+devices ajoutés ou retirés se lisent dans `nodes`.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `changed` | liste de [EntityChange](#entitychange) | oui | Référence `node` ; champs `status`, `topics.<topic>` ; triés par hostname. |
+
+#### Event
+
+Un fait lu dans les champs volatils, qu'aucun `changed` ne porte.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | [EventKind](#eventkind) | oui | `rebooted` : l'uptime du nœud dans `after` est plus court que le temps écoulé entre les runs ; `flapped` : le port a changé d'état dans la fenêtre alors que son `oper_status` est le même aux deux runs, sur un nœud qui n'a pas redémarré (le redémarrage explique ses ports). |
+| `ref` | [NodeRef](#noderef) \| [InterfaceRef](#interfaceref) \| [LinkRef](#linkref) \| [AggregateRef](#aggregateref) \| [ClusterRef](#clusterref) \| [MlagDomainRef](#mlagdomainref) | oui | Le nœud (`rebooted`) ou l'interface (`flapped`). |
+| `details` | [RebootedDetails](#rebooteddetails) \| [FlappedDetails](#flappeddetails) | oui | Ce que l'événement a lu, typé par sa sorte : `RebootedDetails` ou `FlappedDetails`. |
+
+#### RebootedDetails
+
+Ce qu'un `rebooted` a lu : l'uptime d'avant (null si non lu), celui d'après, et la fenêtre.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `uptime_before` | entier \| null | oui | `uptime_seconds` du nœud dans `before` ; null si non lu. |
+| `uptime_after` | entier ≥ 0 | oui | `uptime_seconds` du nœud dans `after`, plus court que la fenêtre. |
+| `elapsed_seconds` | entier | oui | `elapsed_seconds` du diff, recopié : la fenêtre. |
+
+#### FlappedDetails
+
+Ce qu'un `flapped` a lu : l'âge du dernier changement dans `after`, et la fenêtre.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `age_after` | entier ≥ 0 | oui | `last_change_age_seconds` du port dans `after`, plus court que la fenêtre. |
+| `elapsed_seconds` | entier | oui | `elapsed_seconds` du diff, recopié : la fenêtre. |
+
+Types partagés avec le RunBundle et le Snapshot, définis en parties A et B : [Node](#node), [Stack](#stack), [StackMember](#stackmember), [NodeEvidence](#nodeevidence), [SeenBy](#seenby), [NodeRef](#noderef), [InterfaceRef](#interfaceref), [LinkRef](#linkref), [Endpoint](#endpoint), [AggregateRef](#aggregateref), [ClusterRef](#clusterref), [MlagMember](#mlagmember), [SnapshotInterface](#snapshotinterface), [ParsedDescription](#parseddescription), [VlanRange](#vlanrange), [IpAddress](#ipaddress), [AggregateMembership](#aggregatemembership), [Link](#link), [LinkEvidence](#linkevidence), [RemoteRaw](#remoteraw), [ResolvedRemote](#resolvedremote), [SnapshotAggregate](#snapshotaggregate), [AggregateMember](#aggregatemember), [LinkKey](#linkkey), [MlagDomain](#mlagdomain), [HaCluster](#hacluster), [HaClusterMember](#haclustermember), [HeartbeatInterface](#heartbeatinterface), [Check](#check).
+
+### Énumérations
+
+#### EventKind
+
+`rebooted` \| `flapped`
+
+Types partagés avec le RunBundle et le Snapshot, définis en parties A et B : [AdminStatus](#adminstatus), [AggregationProtocol](#aggregationprotocol), [ChassisRole](#chassisrole), [ChassisState](#chassisstate), [CheckCode](#checkcode), [CheckOrigin](#checkorigin), [CollectionStatus](#collectionstatus), [DeviceType](#devicetype), [Duplex](#duplex), [EvidenceSource](#evidencesource), [EvidenceStatus](#evidencestatus), [HaMode](#hamode), [HaRole](#harole), [HaState](#hastate), [InterfaceRole](#interfacerole), [InterfaceType](#interfacetype), [IpRole](#iprole), [LacpMode](#lacpmode), [LinkKind](#linkkind), [LinkOper](#linkoper), [LinkStatus](#linkstatus), [MemberStatus](#memberstatus), [NodeKind](#nodekind), [OperStatus](#operstatus), [Resolution](#resolution), [RunStatus](#runstatus), [Severity](#severity), [SwitchportMode](#switchportmode).
+
+### Règles transverses
+
+Vérifiées à la validation d'un diff, au-delà des types de chaque champ. Un diff qui les viole est **refusé** :
+un diff incohérent est un bug de B3 (`docs/07`).
+
+- **Toutes les clés sont écrites**, comme pour le snapshot ; aucun défaut, pas d'`extras`.
+- **Une identité par entité, celle du snapshot, à l'octet** : `hostname` d'un nœud ; `(hostname, name)` d'une
+  interface ou d'un agrégat ; paire triée des bouts d'un lien ; `(mlag_id, membres)` d'un domaine MLAG ; membres
+  d'un cluster HA ; `(code, refs)` d'un contrôle (les `details` décrivent, ils n'identifient pas) ; `hostname`
+  d'une couverture. La casse compte : un nom réécrit avec une majuscule est retiré puis ajouté (`docs/07` Q5).
+- **Trois sortes par section, une identité dans une seule** : `added` et `removed` portent l'entité complète,
+  telle qu'elle est dans `after` ou était dans `before` ; `changed` porte la référence typée et les champs
+  `(path, before, after)`, `path` en identifiants séparés par des points, une liste se comparant en bloc (jamais
+  un indice). Une identité ne figure que dans une part (`identity_in_several_parts`). Les contrôles ont leurs
+  mots : `appeared`, `resolved`, `persisted` (compte), `appeared` et `resolved` disjoints.
+- **Deux champs volatils déclarés**, exclus de `changed` (`field_change_volatile`) et comptés dans
+  `summary.volatile_changes` : `nodes[].uptime_seconds` et `interfaces[].last_change_age_seconds`. `source` et
+  `report` ne sont jamais comparés : ce sont les cartes d'identité des runs, recopiées dans `before` et `after`.
+- **Les événements lisent les volatils** : `rebooted` quand l'uptime dans `after` est plus court que
+  `elapsed_seconds` ; `flapped` quand l'âge du dernier changement dans `after` est plus court que
+  `elapsed_seconds` alors que `oper_status` est le même aux deux runs, **sur un nœud qui n'a pas redémarré** (le
+  redémarrage explique ses ports montés au démarrage). Détails typés par sorte, fenêtre recopiée et vérifiée ;
+  rien si `elapsed_seconds` ≤ 0 (refusé sinon).
+- **Ordre canonique, vérifié par le type** : `added` / `removed` dans l'ordre de leur section dans le snapshot
+  (R6) ; `changed` par (sorte, identité) de la référence ; `events` par (`kind`, référence) ; `fields` par
+  `path`.
+- **Le résumé et l'écart sont vérifiés** : chaque compte égale la taille de sa liste ; `elapsed_seconds` égale
+  l'écart entre les deux `start_datetime`, signé.
+- **Sérialisation canonique** : `ld_contracts.diff.serialize.canonical_json`, même forme que le snapshot.
+
+### Erreurs de contrat (bloquantes)
+
+| Type | Signification |
+|---|---|
+| `diff_major_unsupported` | la version majeure de `diff_version` n'est pas celle du validateur |
+| `elapsed_mismatch` | `elapsed_seconds` n'est pas `after.start_datetime − before.start_datetime` |
+| `counts_mismatch` | un compte de `summary` diffère de la taille de la liste correspondante |
+| `identity_in_several_parts` | une même identité apparaît dans deux parts d'une section (`added` / `removed` / `changed`, ou `appeared` / `resolved`) |
+| `change_ref_kind_mismatch` | la référence d'un `changed` n'est pas de la sorte de sa section |
+| `field_change_volatile` | un `FieldChange` porte un champ volatil déclaré (`uptime_seconds`, `last_change_age_seconds`) : il appartient à `summary.volatile_changes` |
+| `field_change_equal` | un `FieldChange` a la même valeur avant et après |
+| `events_without_elapsed` | des événements alors que `elapsed_seconds` ≤ 0 : à rebours, les volatils ne disent rien |
+| `event_ref_kind_mismatch` | la référence d'un événement n'est pas de la sorte attendue (`rebooted` → nœud, `flapped` → interface) |
+| `event_details_mismatch` | les détails d'un événement ne sont pas ceux de sa sorte (`RebootedDetails`, `FlappedDetails`) |
+| `event_not_in_window` | l'uptime ou l'âge lu n'est pas plus court que la fenêtre : ce n'est pas un événement |
+| `event_elapsed_mismatch` | la fenêtre recopiée dans les détails d'un événement n'est pas `elapsed_seconds` |
+| `too_short` | une liste est trop courte : `fields` d'un changement vide (une entité sans différence n'est pas listée), ou moins de deux membres dans une référence de domaine MLAG |
+| `string_pattern_mismatch` | une chaîne n'a pas la forme attendue : `path` d'un changement (identifiants séparés par des points, jamais un indice de liste), empreinte, version |
+| `extra_forbidden` | un champ inconnu est présent (le diff n'a pas d'`extras`) |
+| `missing` | un champ est absent : toutes les clés du diff sont requises, `null` compris |
+
+Hérités des types partagés avec la partie B (ordre des listes, bouts d'un lien) ; les entités ajoutées ou
+retirées sont validées par leurs propres types, dont tous les refus de la partie B s'appliquent :
+
+| Type | Signification |
+|---|---|
+| `duplicate_identity` | deux éléments d'une liste ont la même clé |
+| `not_canonical_order` | une liste n'est pas dans l'ordre canonique (R6) |
+| `link_endpoints_equal` | les deux bouts d'un lien sont le même port |
+| `link_endpoints_unordered` | les bouts d'un lien ne sont pas triés (`a` doit précéder `b`) |
+| `mlag_domain_same_device` | les deux agrégats d'un domaine MLAG sont sur le même device |
+| `snapshot_major_unsupported` | la version majeure de `snapshot_version` n'est pas celle du validateur |
+
+### Exemple : le plus petit diff qui dit quelque chose
+
+`fixtures/diff-skeleton.json` : entre les deux runs du squelette, le câble est tombé (deux ports `down`, le
+câble `down`, un contrôle `link_down` apparu), en forme canonique :
+
+```json
+{
+  "after": {
+    "bundle_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "collector_run_id": "66e49a2d9a1c2b0012f4a8e2",
+    "end_datetime": "2026-09-17T02:13:05Z",
+    "snapshot_version": "1.0.0",
+    "start_datetime": "2026-09-17T02:00:00Z",
+    "status": "completed"
+  },
+  "aggregates": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "before": {
+    "bundle_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "collector_run_id": "66db3f0e9a1c2b0012f4a7d1",
+    "end_datetime": "2026-09-10T02:14:32Z",
+    "snapshot_version": "1.0.0",
+    "start_datetime": "2026-09-10T02:00:00Z",
+    "status": "completed"
+  },
+  "checks": {
+    "appeared": [
+      {
+        "code": "link_down",
+        "details": {
+          "states": [
+            {
+              "hostname": "sw-a",
+              "interface": "Ethernet1/1",
+              "oper_reason": null,
+              "oper_status": "down"
+            },
+            {
+              "hostname": "sw-b",
+              "interface": "Ethernet1/1",
+              "oper_reason": null,
+              "oper_status": "down"
+            }
+          ]
+        },
+        "origin": "correlation",
+        "refs": [
+          {
+            "a": {
+              "hostname": "sw-a",
+              "interface": "Ethernet1/1"
+            },
+            "b": {
+              "hostname": "sw-b",
+              "interface": "Ethernet1/1"
+            },
+            "kind": "link"
+          }
+        ],
+        "severity": "info"
+      }
+    ],
+    "persisted": 0,
+    "resolved": []
+  },
+  "coverage": {
+    "changed": []
+  },
+  "diff_version": "1.0.0",
+  "elapsed_seconds": 604800,
+  "events": [],
+  "ha_clusters": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "infrastructure": "infra-lab",
+  "interfaces": {
+    "added": [],
+    "changed": [
+      {
+        "fields": [
+          {
+            "after": "down",
+            "before": "up",
+            "path": "oper_status"
+          }
+        ],
+        "ref": {
+          "hostname": "sw-a",
+          "kind": "interface",
+          "name": "Ethernet1/1"
+        }
+      },
+      {
+        "fields": [
+          {
+            "after": "down",
+            "before": "up",
+            "path": "oper_status"
+          }
+        ],
+        "ref": {
+          "hostname": "sw-b",
+          "kind": "interface",
+          "name": "Ethernet1/1"
+        }
+      }
+    ],
+    "removed": []
+  },
+  "links": {
+    "added": [],
+    "changed": [
+      {
+        "fields": [
+          {
+            "after": [
+              {
+                "remote_raw": {
+                  "name": "sw-b",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "sw-a",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                }
+              }
+            ],
+            "before": [
+              {
+                "remote_raw": {
+                  "name": "sw-b",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "sw-a",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "sw-b",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "sw-a",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "sw-a",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "sw-b",
+                  "interface": "Ethernet1/1"
+                }
+              }
+            ],
+            "path": "evidence"
+          },
+          {
+            "after": "down",
+            "before": "up",
+            "path": "oper"
+          },
+          {
+            "after": "documented_only",
+            "before": "confirmed",
+            "path": "status"
+          }
+        ],
+        "ref": {
+          "a": {
+            "hostname": "sw-a",
+            "interface": "Ethernet1/1"
+          },
+          "b": {
+            "hostname": "sw-b",
+            "interface": "Ethernet1/1"
+          },
+          "kind": "link"
+        }
+      }
+    ],
+    "removed": []
+  },
+  "mlag_domains": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "nodes": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "summary": {
+    "aggregates": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "checks": {
+      "appeared": 1,
+      "persisted": 0,
+      "resolved": 0
+    },
+    "coverage": {
+      "changed": 0
+    },
+    "events": {
+      "flapped": 0,
+      "rebooted": 0
+    },
+    "ha_clusters": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "interfaces": {
+      "added": 0,
+      "changed": 2,
+      "removed": 0
+    },
+    "links": {
+      "added": 0,
+      "changed": 1,
+      "removed": 0
+    },
+    "mlag_domains": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "nodes": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "volatile_changes": 4
+  }
+}
+```
+
+Le JSON Schema équivalent est `src/ld_contracts/schema/diff-v1.schema.json`.

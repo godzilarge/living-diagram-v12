@@ -51,6 +51,13 @@ def mlag_member_key(member: MlagMember) -> tuple:
     return member.hostname, natural_key(member.aggregate)
 
 
+def require_mlag_members(members: tuple[MlagMember, ...]) -> None:
+    """Les deux agrégats d'un domaine MLAG : triés, sur deux devices distincts (partagé avec la référence du diff)."""
+    require_canonical(members, key=mlag_member_key, section="members")
+    if members[0].hostname == members[1].hostname:
+        raise PydanticCustomError("mlag_domain_same_device", "les deux agrégats du domaine sont sur le même device", {})
+
+
 class MlagDomain(ContractModel):
     """Deux agrégats de deux devices distincts portant le même `mlag_id` (vPC, MC-LAG)."""
 
@@ -67,11 +74,7 @@ class MlagDomain(ContractModel):
 
     @model_validator(mode="after")
     def _members_distinct_devices(self) -> MlagDomain:
-        require_canonical(self.members, key=mlag_member_key, section="members")
-        if self.members[0].hostname == self.members[1].hostname:
-            raise PydanticCustomError(
-                "mlag_domain_same_device", "les deux agrégats du domaine sont sur le même device", {}
-            )
+        require_mlag_members(self.members)
         return self
 
 

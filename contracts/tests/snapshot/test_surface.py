@@ -17,7 +17,7 @@ def test_snapshot_schema_is_a_versioned_draft_2020_12_document():
     assert schema["title"] == "Snapshot"
     assert schema["$id"].endswith("snapshot-v1.schema.json")
     assert "links" in schema["properties"]
-    assert set(CONTRACTS) == {"bundle", "snapshot"}
+    assert set(CONTRACTS) == {"bundle", "snapshot", "diff"}
 
 
 def test_committed_snapshot_schema_matches_generated():

@@ -19,7 +19,7 @@ from ld_contracts.synth import (
     generate_series,
     write_series,
 )
-from ld_contracts.validate import ValidationReport, validate_file, validate_snapshot_file
+from ld_contracts.validate import ValidationReport, validate_diff_file, validate_file, validate_snapshot_file
 
 EXIT_OK, EXIT_INVALID, EXIT_USAGE = 0, 1, 2
 SEED_ENV = "LD_CONTRACTS_SEED"
@@ -52,17 +52,44 @@ def _print_snapshot_summary(report: ValidationReport) -> None:
     )
 
 
+def _print_diff_summary(report: ValidationReport) -> None:
+    d = report.diff
+    assert d is not None
+    s = d.summary
+    print(f"valid: diff {d.diff_version}")
+    sections = " · ".join(
+        f"{name} added {part.added} removed {part.removed} changed {part.changed}"
+        for name, part in (
+            ("nodes", s.nodes),
+            ("interfaces", s.interfaces),
+            ("links", s.links),
+            ("aggregates", s.aggregates),
+            ("mlag_domains", s.mlag_domains),
+            ("ha_clusters", s.ha_clusters),
+        )
+    )
+    print(f"  {sections}")
+    print(
+        f"  checks appeared {s.checks.appeared} resolved {s.checks.resolved} persisted {s.checks.persisted}"
+        f" · coverage changed {s.coverage.changed} · events rebooted {s.events.rebooted} flapped {s.events.flapped}"
+        f" · volatile {s.volatile_changes} · elapsed {d.elapsed_seconds}s"
+    )
+
+
+VALIDATORS = {"bundle": validate_file, "snapshot": validate_snapshot_file, "diff": validate_diff_file}
+OUTPUT_SUMMARIES = {"snapshot": _print_snapshot_summary, "diff": _print_diff_summary}
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
-    is_snapshot = args.contract == "snapshot"
-    report = validate_snapshot_file(Path(args.file)) if is_snapshot else validate_file(Path(args.file))
+    report = VALIDATORS[args.contract](Path(args.file))
     if not report.ok:
         print(f"invalid: {len(report.errors)} error(s)")
         for issue in report.errors:
             detail = f" {json.dumps(issue.detail, ensure_ascii=False)}" if args.show_values and issue.detail else ""
             print(f"  {issue.path}: {issue.message}{detail}")
         return EXIT_INVALID
-    if is_snapshot:
-        _print_snapshot_summary(report)
+    if args.contract in OUTPUT_SUMMARIES:
+        OUTPUT_SUMMARIES[args.contract](report)
         return EXIT_OK
     _print_summary(report, args.show_values)
     return EXIT_INVALID if report.findings and args.strict_findings else EXIT_OK
@@ -178,25 +205,23 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="ld-contracts", description="Living Diagram — contrats RunBundle (entrée) et Snapshot (sortie)"
-    )
-    sub = parser.add_subparsers(dest="command", required=True)
+CONTRACT_HELP = "bundle (entrée, défaut), snapshot (sortie) ou diff (comparaison)"
 
-    p_val = sub.add_parser("validate", help="valide un bundle JSON (constats référentiels) ou un snapshot JSON")
-    p_val.add_argument("file")
-    p_val.add_argument(
-        "--contract", choices=sorted(CONTRACTS), default="bundle", help="bundle (entrée, défaut) ou snapshot (sortie)"
+
+def _add_validate(sub) -> None:
+    p_val = sub.add_parser(
+        "validate", help="valide un bundle JSON (constats référentiels), un snapshot ou un diff JSON"
     )
+    p_val.add_argument("file")
+    p_val.add_argument("--contract", choices=sorted(CONTRACTS), default="bundle", help=CONTRACT_HELP)
     p_val.add_argument("--strict-findings", action="store_true", help="échoue aussi sur les constats")
     p_val.add_argument("--show-values", action="store_true", help="affiche hostnames et valeurs dans le rapport")
     p_val.set_defaults(func=_cmd_validate)
 
+
+def _add_schema_and_docs(sub) -> None:
     p_schema = sub.add_parser("schema", help="affiche ou écrit le JSON Schema d'un contrat")
-    p_schema.add_argument(
-        "--contract", choices=sorted(CONTRACTS), default="bundle", help="bundle (entrée, défaut) ou snapshot (sortie)"
-    )
+    p_schema.add_argument("--contract", choices=sorted(CONTRACTS), default="bundle", help=CONTRACT_HELP)
     p_schema.add_argument(
         "--out",
         nargs="?",
@@ -216,6 +241,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_docs.set_defaults(func=_cmd_docs)
 
+
+def _add_anonymize(sub) -> None:
     p_anon = sub.add_parser("anonymize", help="pseudonymise un bundle pour le partager sans fuite")
     p_anon.add_argument("input")
     p_anon.add_argument("output")
@@ -224,6 +251,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_anon.add_argument("--keep-description-options", action="store_true")
     p_anon.set_defaults(func=_cmd_anonymize)
 
+
+def _add_generate(sub) -> None:
     p_gen = sub.add_parser("generate", help="génère une série de bundles synthétiques valides, à graine")
     p_gen.add_argument("--seed", required=True, help="graine : même graine, mêmes octets")
     p_gen.add_argument("--devices", type=int, default=24, help="devices de l'infrastructure, exactement (≥ 6)")
@@ -238,6 +267,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="mutations imposées à chaque run suivante, séparées par des virgules : " + ", ".join(MUTATION_CATALOGUE),
     )
     p_gen.set_defaults(func=_cmd_generate)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="ld-contracts",
+        description="Living Diagram — contrats RunBundle (entrée), Snapshot (sortie), Diff (comparaison)",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+    for add in (_add_validate, _add_schema_and_docs, _add_anonymize, _add_generate):
+        add(sub)
     return parser
 
 

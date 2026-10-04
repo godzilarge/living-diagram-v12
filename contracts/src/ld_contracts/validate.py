@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from ld_contracts.bundle import RunBundle
 from ld_contracts.checks import Finding, check_bundle
 from ld_contracts.defaults import absent_nullable_keys
+from ld_contracts.diff import Diff
 from ld_contracts.snapshot import Snapshot
 
 
@@ -31,6 +32,7 @@ class ValidationReport:
     findings: tuple[Finding, ...] = ()
     bundle: RunBundle | None = field(default=None, repr=False)
     snapshot: Snapshot | None = field(default=None, repr=False)
+    diff: Diff | None = field(default=None, repr=False)
 
 
 def _path(loc: tuple, ctx: dict[str, Any]) -> str:
@@ -58,12 +60,23 @@ def validate_dict(data: object) -> ValidationReport:
     return ValidationReport(ok=True, findings=findings, bundle=bundle)
 
 
-def _snapshot_path(loc: tuple, ctx: dict[str, Any]) -> str:
+def _output_path(loc: tuple, ctx: dict[str, Any]) -> str:
+    """Chemin du refus d'un document de sortie : le champ, sinon la liste ou le compte que le contexte situe."""
     if loc:
         return ".".join(str(p) for p in loc)
     if "section" not in ctx:
         return "$"
+    if "part" in ctx:
+        return f"summary.{ctx['section']}.{ctx['part']}"
     return f"{ctx['section']}.{ctx['index']}" if "index" in ctx else str(ctx["section"])
+
+
+def _output_issues(exc: ValidationError) -> tuple[Issue, ...]:
+    issues = []
+    for error in exc.errors():
+        detail = {k: v for k, v in (error.get("ctx") or {}).items() if k != "error"}
+        issues.append(Issue(_output_path(error["loc"], detail), error["msg"], detail))
+    return tuple(issues)
 
 
 def validate_snapshot_dict(data: object) -> ValidationReport:
@@ -73,12 +86,19 @@ def validate_snapshot_dict(data: object) -> ValidationReport:
     try:
         snapshot = Snapshot.model_validate(data)
     except ValidationError as exc:
-        issues = []
-        for error in exc.errors():
-            detail = {k: v for k, v in (error.get("ctx") or {}).items() if k != "error"}
-            issues.append(Issue(_snapshot_path(error["loc"], detail), error["msg"], detail))
-        return ValidationReport(ok=False, errors=tuple(issues))
+        return ValidationReport(ok=False, errors=_output_issues(exc))
     return ValidationReport(ok=True, snapshot=snapshot)
+
+
+def validate_diff_dict(data: object) -> ValidationReport:
+    """Un diff n'a pas de constats non plus : valide ou refusé."""
+    if not isinstance(data, dict | Diff):
+        return ValidationReport(ok=False, errors=(Issue("$", "un objet JSON est attendu à la racine du diff"),))
+    try:
+        diff = Diff.model_validate(data)
+    except ValidationError as exc:
+        return ValidationReport(ok=False, errors=_output_issues(exc))
+    return ValidationReport(ok=True, diff=diff)
 
 
 def _read_json(path: Path) -> tuple[object, ValidationReport | None]:
@@ -97,3 +117,8 @@ def validate_file(path: Path) -> ValidationReport:
 def validate_snapshot_file(path: Path) -> ValidationReport:
     data, failure = _read_json(path)
     return failure if failure is not None else validate_snapshot_dict(data)
+
+
+def validate_diff_file(path: Path) -> ValidationReport:
+    data, failure = _read_json(path)
+    return failure if failure is not None else validate_diff_dict(data)

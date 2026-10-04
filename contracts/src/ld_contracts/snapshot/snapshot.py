@@ -23,6 +23,18 @@ SNAPSHOT_VERSION = "1.0.0"
 SNAPSHOT_MAJOR = int(SNAPSHOT_VERSION.split(".")[0])
 
 
+def require_supported_major(value: str) -> str:
+    """Une `snapshot_version` de la majeure que ce validateur connaît (partagé avec `RunRef` du diff)."""
+    major = int(value.split(".")[0])
+    if major != SNAPSHOT_MAJOR:
+        raise PydanticCustomError(
+            "snapshot_major_unsupported",
+            "version majeure du snapshot non supportée",
+            {"received": major, "expected": SNAPSHOT_MAJOR},
+        )
+    return value
+
+
 class Snapshot(ContractModel):
     """Le graphe d'une run : nœuds, interfaces, arêtes typées, structures, contrôles, couverture, rapport.
 
@@ -47,14 +59,7 @@ class Snapshot(ContractModel):
     @field_validator("snapshot_version")
     @classmethod
     def _major_is_supported(cls, value: str) -> str:
-        major = int(value.split(".")[0])
-        if major != SNAPSHOT_MAJOR:
-            raise PydanticCustomError(
-                "snapshot_major_unsupported",
-                "version majeure du snapshot non supportée",
-                {"received": major, "expected": SNAPSHOT_MAJOR},
-            )
-        return value
+        return require_supported_major(value)
 
     @model_validator(mode="after")
     def _consistent(self) -> Snapshot:
