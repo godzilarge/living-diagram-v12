@@ -27,6 +27,20 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
   lui, les règles douteuses se parquent en « ouvert » avec un comportement prudent. **Une** revue indépendante par
   brique, pas de boucle revue → contre-revue → re-revue. Une remarque de fond d'Orhan sur le modèle ou le contrat passe
   avant tout code en cours : s'arrêter, répondre avec un avis et des recommandations.
+- **Être synthétique** (Orhan, 2026-10-03). Une réponse commence par ce que la chose fait, en une phrase qu'il peut
+  répéter (« un générateur d'infrastructures pour faire des tests »), puis le strict nécessaire. Pas de roman : les
+  détails vivent dans `docs/`, les README et ce journal, on les référence. Une brique qu'on ne peut pas nommer en une
+  phrase est suspecte d'« usine à gaz ».
+- **Périmètre V1 : l'infrastructure, jamais les endpoints** (Orhan, 2026-10-03). Téléphones, serveurs, bornes et
+  tout autre endpoint ne sont pas dessinés en V1 ; la V1 est la documentation de l'infrastructure, couche physique (L1).
+  À garder en tête : L2 (VLAN, trunks, spanning-tree) puis L3 (routage, BGP, OSPF, routes statiques), vues du même graphe
+  à arêtes typées, topics additifs. B1 ne filtre toujours rien (2026-09-18) : les stubs restent dans le snapshot, les
+  pages les masquent ; H2 (téléphones) quitte le chemin critique, un bruit de contrôles dû aux stubs se traite par un
+  filtre de page.
+- **Aucun bundle réel, jamais** (Orhan, 2026-10-03). Pour des raisons de sécurité, aucun bundle d'un vrai environnement,
+  même anonymisé ; Orhan est l'intermédiaire entre ce qu'il voit en production et ce qui est à coder. Les retours passent
+  par des rapports sans valeurs (`validate`, onglet Qualité des données, réponses en mots) ; à envisager : un résumé texte
+  du snapshot sans identifiant, à coller tel quel.
 - **Échanger en français.** Le propriétaire (Orhan, ingénieur réseau) attend de la rigueur,
   des propositions argumentées et de la **confrontation** : pas de complaisance. Il tranche
   les questions visuelles par comparaison de captures.
@@ -47,8 +61,8 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
 
 Pipeline de briques pures, détaillé dans l'artefact publié
 <https://claude.ai/code/artifact/630b787d-6862-4e3c-8e1c-7d40fd373e3c> (copie locale
-`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v17 du 2026-10-02 ; second artefact
-« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v14 du 2026-10-02 : son
+`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v18 du 2026-10-03 ; second artefact
+« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v15 du 2026-10-03 : son
 tableau « B1 : ce qui est fait, ce qui reste » se tient à jour à chaque étape) :
 
 ```
@@ -538,6 +552,75 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   sur captures en deux tours (1440, 1024, 1920, sombre, survol). Trois faux positifs du détecteur assumés. Reste visible :
   chevauchement des noms de ports sur une paire de câbles (option « noms des ports »), et le style « pastilles partout »
   si Orhan le juge daté. Backend 352 tests, 37 sous Node.
+- **Générateur de topologies synthétiques écrit : `ld-contracts generate`** (2026-10-03, « Go » d'Orhan sur le plan
+  annoncé le même jour, session autonome ; brique prévue en phase 1b). `contracts/src/ld_contracts/synth/` (spec,
+  catalogue, world, naming, build, emit, mutations, series) ; `ld-contracts generate --seed S --devices N --runs R --out DIR
+  [--scenario a,b] [--mutations-per-run k] [--infrastructure] [--start]`. Cinq décisions : (1) **dans `ld-contracts`**,
+  pas dans les tests du backend : il produit des bundles validés par le contrat, le backend en dépend déjà, B3 et la jauge
+  l'importeront ; (2) **un monde immuable (vérité terrain), puis une projection « exportateur parfait »** : LLDP et CDP
+  aux deux bouts d'un câble Cisco ↔ Cisco (IOS-XE annonce la forme courte en LLDP, NX-OS la longue, CDP toujours la
+  longue), **rien d'observé vers un firewall**, descriptions V1 partout, forme HA positionnelle sur les FortiGate, topics
+  par plateforme ; (3) **motif par site** : deux cœurs NX-OS en vPC (peer-link `port-channel10`), accès Catalyst en stack
+  double-attachés (un vPC par accès), cluster FortiGate actif-passif en `agg-core` (un vPC par membre, heartbeat `ha1`),
+  routeur WAN vers un PE d'une autre infrastructure, stubs serveur / téléphone / borne ; sites chaînés par les cœurs ;
+  `--devices` exact (≥ 6, ~25 par site) ; Ethernet1/44-48 en réserve ; (4) **14 mutations nommées** (`catalogue.py`),
+  trois transitoires effacées à chaque run (`device_unreachable`, `topic_failed`, `ha_member_down` : le membre mort a ses
+  câbles tombés aux deux bouts pour la run), `reboot` qui date le démarrage sur le device (l'uptime recompte ensuite), les
+  autres persistantes ; première run jamais mutée ; `--scenario` imposé à chaque run suivante, sorte inapplicable =
+  erreur, jamais un silence ; `manifest.json` = l'oracle (kind, subject, details, comptes) que les tests de B3 liront ;
+  (5) **trois garanties testées** : mêmes octets entre processus sous trois `PYTHONHASHSEED` (monde trié par clé
+  naturelle, jamais parcouru par un ensemble), chaque bundle à **zéro constat strict** (`check_series` dans la CLI :
+  les problèmes sont dans la topologie, jamais dans la forme), et les invariants du monde après chaque run
+  (`check_world`, levé en `GenerationError`). Mesuré : 500 devices × 3 runs en ~5 s validation comprise, ~310 Mo,
+  20,5 Mo par bundle, 21 000 interfaces, 1 038 câbles plus ~500 stubs (jauge 500 / 1 500 atteinte) ; construction
+  linéaire après revue (1 000 devices en 0,5 s).
+  Vérifié dans B1, `ld render` et Chromium (accès injoignable en rouge, désaccords listés, couverture ; capture :
+  `--virtual-time-budget=15000`, 3 000 ms donne une page blanche). `backend/tests/correlate/test_synth.py` : B1 avale les
+  14 mutations en une run, codes attendus présents, snapshot déterministe. **Découverte : H2 n'est plus abstrait.** Un
+  téléphone IP annonce sa MAC comme port-id LLDP et « Port 1 » en CDP ⇒ B1 produit deux câbles observés et deux
+  `multiple_observed_neighbors` par téléphone (40 sur 24 devices, run de base). Le générateur reste fidèle à ce que les
+  équipements annoncent ; c'est à B1 de réconcilier (R3 ou `docs/06`), **à trancher avec Orhan**. Hors périmètre,
+  volontairement : table MAC, FortiGate avec LLDP (R1-bis), VSX, désordres d'exportateur. Docs : `contracts/README.md`
+  § Générer des bundles synthétiques, `QUICKSTART.md` § 1 bis. **Revue indépendante consignée et traitée le même
+  jour** (`docs/revues/2026-10-03-generateur-synthetique.md` : 0 critique, 2 hauts, 6 moyens, 8 bas ; sondes rejouables
+  recopiées) : numéros de stubs jamais réutilisés (compteur du monde), `reboot` daté sur le device (uptime continu,
+  `"never"` émis), `description_changed` sur un câble observé seulement, `check_world` (invariants du monde, vérifiés
+  après chaque run), construction linéaire (un brouillon par site), `build.py` découpé en quatre, vérités de plateforme
+  dans `naming.py`, manifeste avec `stubs_by_kind`. **Lecture choisie pour `ha_member_down`, à confirmer par Orhan** : le
+  membre meurt pour la run (câbles tombés aux deux bouts à l'émission, membre tiré au hasard) ; l'autre lecture est
+  `device_unreachable`. Parqué : `run.status` toujours `completed` (avec les statuts des tasks). Contracts 543 tests,
+  backend 357.
+- **Réponses d'Orhan aux questions en attente** (2026-10-03) : **aucun Fortinet avec LLDP, à terme** (le rang 1 de
+  R1-bis est sans objet pour Fortinet, la règle reste, générique ; les câbles des firewalls dépendent des descriptions
+  jusqu'à `mac_table`, qui devient le chemin critique) ; **table MAC : crainte du volume sur de grosses infrastructures**,
+  traitée comme contrainte de conception de `docs/06` (le contrat ne demande que ce que B1 consomme : les entrées dont la
+  MAC est celle d'un port d'un device collecté, filtrées en B0 par jointure sur `interfaces` ; volume borné par les ports
+  du parc, pas par les hôtes) ; **guide FortiOS `interfaces` validé** (cinq propositions) ; forme HA et statuts des tasks :
+  exemples demandés, donnés en session ; **aucun bundle réel ne sortira** (sécurité) : un premier extrait passe le contrat
+  « pas trop mal », les retours se feront sur le rapport de `validate` (sans valeurs) et sur l'onglet Qualité des données.
+- **Premier rendu réel** (2026-10-03) : Orhan a passé `ld render` sur une de ses infrastructures, « la première page HTML
+  est vraiment pas trop mal ». Fin de la tranche visible côté rendu ; la boucle de correction de l'exportateur continue
+  chez lui. Recadrage le même jour (règles de travail) : V1 sans endpoints, aucun bundle réel jamais, rigueur à conserver.
+  Ordre proposé pour la suite : `docs/06` table MAC sur le principe (avant le gel du contrat d'entrée) → conception de B3.
+- **`docs/06-evidence-table-mac.md` écrit, à valider** (2026-10-03, « Go » d'Orhan sur la brique « table MAC pour
+  les câbles des firewalls », document d'abord, code après). Décide : topic `mac_table` **dynamique et restreint au
+  parc** (entrées dont la MAC est celle d'une interface du bundle, filtre en B0, clé `(hostname, vlan_id, mac_address)`,
+  refus `mac_entry_duplicate`, constat `mac_entry_without_owner`) ; règle **R7** : câble observé depuis un **port de
+  bordure** seulement (aucun voisin LLDP / CDP vers un autre device, un seul propriétaire ou un seul cluster) ; R3
+  inchangé ; Po ⇒ faisceau, membre par R1-bis des deux côtés sinon `mac_learned_on_aggregate` ; cluster à MAC virtuelle
+  partagée ⇒ membre primaire en actif-passif (prémisse à vérifier : table vide vers le secondaire), sinon description,
+  sinon `mac_owner_ambiguous` ; câbles du passif restent `documented_only`. Snapshot 1.0.0 → 1.1.0. Hors périmètre :
+  ARP, partenaire LACP, entrées statiques, endpoints. Six questions en §8, réponses en mots.
+- **Table MAC déprioritisée ; cap : diff, intention, puis moteur et front** (2026-10-04, Orhan : « pas une priorité
+  pour le moment », les diagrammes actuels « sont pas mal du tout » ; il veut pousser des bundles, comparer des runs d'une
+  infra par le diff, éditer et repositionner lui-même). `docs/06` reste **conçu, non validé, parqué** (topic additif :
+  ne bloque pas le gel du contrat d'entrée) ; les câbles des firewalls restent `documented_only`. **Avis rendu le même
+  jour, à trancher** : le diff et l'intention ne débloquent pas le moteur, c'est la toile qui les rend visibles ; la
+  décision ③ « posséder la toile » (`docs/00` §10 Q5, ouverte depuis août) se prend maintenant, recommandation : la page
+  `ld render` (2 400 lignes de JS sans framework, placement déterministe, SVG, LOD, tests Node + Chromium) devient
+  l'embryon d'`engine/` en TS plutôt qu'une feuille blanche ; B4 se conçoit avec la toile (premier patch = épingle), pas
+  avant. Ordre proposé : B3 diff (prêt : fonction pure sur deux snapshots, oracle = `manifest.json` du générateur,
+  peint dans la page actuelle) → toile → B4 épingles. Hors chemin : B2 Mongo (le disque suffit), table MAC, H2 téléphones.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -558,8 +641,8 @@ Phase 0 contrat pivot **livrée le 2026-09-20** (RunBundle v1 et Snapshot v1 dan
 en deux parties entrée / sortie, `docs/05` validé) → **Phase 1a, la tranche visible (révision du 2026-09-20)** : B1
 étape 1 (fait) → branchement de B1 (fait) → pages HTML (incréments A et B faits : `ld render`, `/view` ; R4 de B1
 tirée dans la tranche le 2026-09-26) de visualisation avec les sources → premier bundle réel (exportateur
-minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden (faits le 2026-09-26), générateur synthétique,
-table MAC (`docs/06`), B2, B3,
+minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden (faits le 2026-09-26), générateur synthétique
+(fait le 2026-10-03), table MAC (`docs/06`), B2, B3,
 en TDD sur fixtures au format réel des collections → Phase 2 socle toile (jauge
 de perf 500 nœuds / 1 500 liens) → Phase 3 placement → Phase 4 timeline + diff peint →
 Phase 5 intention + réconciliation → Phase 6 LOD complet, vues nommées, overlays L2/L3.
@@ -574,13 +657,15 @@ Détail : `docs/00-analyse-fondation.md` §10.
 - `docs/05-snapshot-et-correlation.md` — **conception du snapshot (second contrat) et des règles de
   B1** (2026-09-10) : modèle, règles R0 à R6, codes de contrôle, dix scénarios de la fixture, huit
   questions. **Validé par Orhan le 2026-09-20 (sept questions sur huit tranchées, la 6 non bloquante).**
+- `docs/06-evidence-table-mac.md` — **conception de l'évidence table MAC** (2026-10-03) : topic `mac_table` restreint au
+  parc, règle R7 (port de bordure), clusters à MAC virtuelle, six questions. **À valider par Orhan.**
 - `docs/guides-collecte/` — guides **producteur** par plateforme (2026-09-24 : `fortios-interfaces.md`, commandes et chronologie
   pour le topic `interfaces` sur FortiGate ; 2026-10-02 : convention de description d'un cluster HA)
 - `docs/revues/` — rapports de revue indépendante consignés tels que rendus, avec leur suivi (2026-09-20 :
   `2026-09-20-b1-etape-1.md`, sa contre-revue, `2026-09-20-branchement-b1.md`, `2026-09-20-pages-ld-render.md` ; 2026-09-22 : `2026-09-22-r1-bis-agregat-port-id.md` ;
   2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
   2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`,
-  `2026-10-02-pages-demo-bulles-role-ha.md`)
+  `2026-10-02-pages-demo-bulles-role-ha.md` ; 2026-10-03 : `2026-10-03-generateur-synthetique.md`)
   et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
@@ -594,7 +679,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   `src/ld_contracts/schema/`, contrôles référentiels, anonymiseur, CLI
   (`uv run ld-contracts validate|schema|anonymize`), fixture `fixtures/bundle-minimal.json`.
   Tests : `cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests`
-  (état 2026-10-02 : 415 tests, `standalone` ⇒ `members` vide imposé (`ha_standalone_with_members`), `mlag_peer_link` nullable et refus `mlag_peer_link_with_id`, code Snapshot `description_ha_unresolved` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
+  (état 2026-10-03 : 543 tests, 97 %, **générateur de topologies synthétiques** `synth/` et commande `generate`, revue traitée ; 2026-10-02 : 415 tests, `standalone` ⇒ `members` vide imposé (`ha_standalone_with_members`), `mlag_peer_link` nullable et refus `mlag_peer_link_with_id`, code Snapshot `description_ha_unresolved` ; 2026-09-26 : 400 tests, refus `aggregate_member_duplicate` ajouté avec B1 R4, golden `snapshot-minimal.json` de B1 validé ; 2026-09-20 : 398 tests, 98 %, deux refus ajoutés après la contre-revue de B1, contrat Snapshot v1 en partie B de `CONTRAT.md`, `schema --contract snapshot --out` ;
   2026-09-19 : 291 tests, 97 %, clé nullable absente lue comme `null` et comptée, `vrf` `"default"` = table globale, une passe de revue indépendante appliquée ; 2026-09-18 : 246 tests, `lldp` / `cdp` réduits à six champs et MAC reconnue à sa forme, une
   passe de revue indépendante appliquée ;
   2026-09-16 : `allowed_vlans` en liste d'intervalles (chevauchements refusés), `access_vlan` ajouté avec refus de cohérence VLAN / mode, `last_change_age_seconds` en `entier ≥ 0 | "never" | null`
@@ -619,9 +704,10 @@ Détail : `docs/00-analyse-fondation.md` §10.
   branchement, fait le 2026-09-20** (`snapshots.py`, `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages :
   incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). **R2 forme HA
   des descriptions le 2026-10-02** (`descriptions.py`, scénario 11 en mémoire, revue traitée) ; un `ha` standalone ne
-  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 % ; page de démonstration le même jour (`tip.js`, `icons.js`, `geometry.js`, `tests/browser.py`, 37 tests sous Node, 352 tests).
-- À venir : premier bundle réel dans les pages (fin de la tranche visible), générateur de topologies synthétiques,
-  conception de B3, table MAC (`docs/06`), B2 → B4 dans `backend/`, `engine/` (moteur TS), `shell/` (React).
+  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 % ; page de démonstration le même jour (`tip.js`, `icons.js`, `geometry.js`, `tests/browser.py`, 37 tests sous Node, 352 tests) ; **2026-10-03 : 357 tests**, dont `tests/correlate/test_synth.py` (B1 sur les séries du générateur, compte exact des téléphones).
+- À venir (cap du 2026-10-04) : B3 diff (sur les séries de `ld-contracts generate`, peint dans la page), toile
+  (`engine/` TS, décision ③ à trancher), B4 intention (épingles d'abord), `shell/` (React). Parqués : `docs/06` table MAC
+  (conçu, non validé), B2 Mongo, H2 téléphones.
 
 ## Conventions de code (rappel des règles globales)
 

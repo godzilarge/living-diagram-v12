@@ -79,7 +79,7 @@ Sur FortiOS il n'y a pas de forme courte / longue : le nom est canonique tel que
 | `members` | étape 1 `set member "x1" "x2"` sur `type aggregate` / `redundant` **uniquement** | liste des noms ; `[]` partout ailleurs (B1 s'en sert comme repli quand `aggregates` n'est pas en succès, `context.py` : des membres sur un hardware switch fabriqueraient un faux agrégat) |
 | `ip_addresses` | étape 1 `set ip a.b.c.d masque`, `config secondaryip`, `config ipv6` / `set ip6-address` | liste ; `0.0.0.0 0.0.0.0` ⇒ `[]` ; mode `dhcp` / `pppoe` : l'adresse courante est dans l'étape 2 (`ip:`) ou `diagnose ip address list` |
 
-## 5. `set type` FortiOS → `InterfaceType` du contrat (proposition, à valider)
+## 5. `set type` FortiOS → `InterfaceType` du contrat (validé par Orhan le 2026-10-03)
 
 | `set type` | Contrat | Remarques |
 |---|---|---|
@@ -113,6 +113,8 @@ doute sur un type exotique, `other`.
 | `extras` | `alias`, `role`, `snmp-index`, `devindex`, `Permanent_HWaddr`, type FortiOS brut, ports d'un switch | libre |
 
 ## 7. Points à confronter (décisions producteur, pas contrat)
+
+**Validé par Orhan le 2026-10-03** : la table `set type` (§ 5), `description` plutôt qu'`alias`, `mac_address` = MAC courante et gravée dans `extras`, `members` réservé à `aggregate` / `redundant`, séquence rejouée sur chaque membre d'un cluster. Le même jour : **aucun Fortinet avec LLDP, à terme** ; les câbles des firewalls reposent sur les descriptions jusqu'au topic `mac_table` (`docs/06`).
 
 1. **`description` ou `alias` ?** Le contrat lit `description` (`criticité|device|port|options`). Sur FortiOS, `alias`
    est limité à 25 caractères et `description` à 255 : la convention ne tient pas dans `alias`. Si la production a mis
