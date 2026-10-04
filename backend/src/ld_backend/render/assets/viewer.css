@@ -5,6 +5,7 @@
   --accent: #1f5fae; --confirmed: #17794a; --observed: #1f5fae; --documented: #965a00;
   --error: #c0322b; --warning: #915c08; --info: #5a6779; --node: #ffffff; --node-ink: #16202e;
   --structure: #5b4aa8; /* clusters HA, peer-link, rôle, heartbeat : une famille à part, ni accent ni statut */
+  --added: #1b9e77; --changed: #c2418c; --removed: #7a8699; /* le diff : ajouté, changé, retiré (fantôme) ; hors des teintes de statut */
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Liberation Sans", Arial, sans-serif;
 }
@@ -14,6 +15,7 @@
     --accent: #6ea8f0; --confirmed: #4cc38a; --observed: #6ea8f0; --documented: #e0a040;
     --error: #f0706a; --warning: #e0a040; --info: #94a2b5; --node: #212b38; --node-ink: #e4e9f0;
     --structure: #a78bfa;
+    --added: #4fd1a5; --changed: #f084c2; --removed: #94a2b5;
   }
 }
 * { box-sizing: border-box; }
@@ -60,6 +62,15 @@ button.chip[aria-pressed="false"] { opacity: 0.45; text-decoration: line-through
 .severity-warning.pill, .collection-partial.pill { border-color: var(--warning); color: var(--warning); }
 .severity-info.pill, .topic-absent, .collection-not_collected.pill { color: var(--muted); }
 .topic-success, .collection-success.pill { border-color: var(--confirmed); color: var(--confirmed); }
+.pill.diff-added, .legend-note .diff-added { border-color: var(--added); color: var(--added); }
+.pill.diff-changed, .legend-note .diff-changed { border-color: var(--changed); color: var(--changed); }
+.pill.diff-removed, .legend-note .diff-removed { border-color: var(--removed); color: var(--removed); }
+.run-diff { font-size: 12px; color: var(--changed); }
+.run-diff code { color: inherit; }
+button.chip.diff-chip { border-color: var(--changed); color: var(--changed); }
+.diff-note { margin: 0; padding: 6px 10px; border-left: 3px solid var(--removed); background: var(--ground); border-radius: 4px; }
+.diff-note.diff-added { border-left-color: var(--added); }
+.diff-note.diff-removed { border-left-color: var(--removed); color: var(--muted); }
 
 .top, .tabs { flex: 0 0 auto; }
 .tabs { display: flex; gap: 2px; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--line); overflow-x: auto; }
@@ -140,6 +151,18 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .link.oper-down .link-line { stroke-opacity: 0.45; }
 .link:hover .link-line { stroke-width: 3.5; }
 .link.selected .link-line { stroke-width: 4.5; }
+/* le diff sur la toile : un halo sous le tracé (le statut reste lisible), une couronne autour du nœud ; ce qui a
+   disparu est un fantôme en pointillé fin, estompé */
+.diff-halo { fill: none; stroke-width: 11; stroke-opacity: 0.3; stroke-linecap: round; pointer-events: none; }
+.link.diff-added .diff-halo { stroke: var(--added); }
+.link.diff-changed .diff-halo { stroke: var(--changed); }
+.link.diff-removed .diff-halo { stroke: var(--removed); stroke-opacity: 0.14; }
+.link.diff-removed .link-line { stroke: var(--removed); stroke-dasharray: 3 5; stroke-opacity: 0.85; }
+.node-ring { fill: none; stroke-width: 3; stroke-opacity: 0.6; pointer-events: none; }
+.node.diff-added .node-ring { stroke: var(--added); }
+.node.diff-changed .node-ring { stroke: var(--changed); }
+.node.diff-removed .node-shape { stroke: var(--removed); stroke-dasharray: 3 3; fill-opacity: 0.45; }
+.node.diff-removed .node-label, .node.diff-removed .node-icon { opacity: 0.65; }
 .link-mark, .node-badge { stroke: var(--ground); stroke-width: 1.5; pointer-events: none; }
 .link-mark.severity-error, .node-badge.severity-error { fill: var(--error); }
 .link-mark.severity-warning, .node-badge.severity-warning { fill: var(--warning); }
@@ -210,6 +233,10 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .legend-note .box.not_collected { border-style: dotted; border-color: var(--muted); }
 .legend-note .box.stub { width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--muted); background: var(--raised); }
 .legend-note .swatch.down { opacity: 0.45; }
+.legend-note .swatch.diff-added, .legend-note .swatch.diff-changed { border-top: 0; height: 7px; border-radius: 4px; opacity: 0.5; }
+.legend-note .swatch.diff-added { background: var(--added); }
+.legend-note .swatch.diff-changed { background: var(--changed); }
+.legend-note .swatch.diff-removed { border-top: 2px dashed var(--removed); }
 .legend-icon { width: 15px; height: 15px; fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 
 /* la bulle au survol : un groupe SVG en coordonnées d'écran, jamais un style en ligne */
@@ -221,6 +248,9 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .tip-line.severity-error { fill: var(--error); }
 .tip-line.severity-warning { fill: var(--warning); }
 .tip-line.severity-info { fill: var(--muted); }
+.tip-line.tip-diff-added { fill: var(--added); }
+.tip-line.tip-diff-changed { fill: var(--changed); }
+.tip-line.tip-diff-removed { fill: var(--removed); }
 
 .legend-item { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; border-radius: 4px; padding: 0 2px; font-size: 11.5px; color: var(--ink); }
 .legend-item:hover { text-decoration: underline; text-underline-offset: 3px; }

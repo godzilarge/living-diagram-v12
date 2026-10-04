@@ -125,7 +125,7 @@ def test_openapi_types_the_responses(client: TestClient):
     assert {"IngestReport", "IngestError", "IngestFinding", "IngestSummary", "IngestConflict", "RunList"} <= set(
         schemas
     )
-    assert set(doc["paths"]) == {"/api/health", URL, BUNDLE_URL, REPORT_URL, "/api/snapshot", "/view"}
+    assert set(doc["paths"]) == {"/api/health", URL, BUNDLE_URL, REPORT_URL, "/api/snapshot", "/api/diff", "/view"}
     listed = doc["paths"][URL]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert listed == {"$ref": "#/components/schemas/RunList"}
 

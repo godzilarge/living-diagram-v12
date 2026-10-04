@@ -7,7 +7,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
 
   const { h, clear, pill, table } = LD.dom;
   const TOKEN_KEY = "ld-api-token";
-  const ROUTES = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report" };
+  const ROUTES = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff" };
 
   function storage() {
     try { return globalThis.sessionStorage || null; } catch (error) { return null; }
@@ -40,18 +40,24 @@ var LD = globalThis.LD || (globalThis.LD = {});
   }
 
   function create(root, data) {
-    const state = { token: readToken(), infrastructure: query("infrastructure"), runId: query("run_id"), runs: null, message: null, busy: false, pending: null };
+    const state = { token: readToken(), infrastructure: query("infrastructure"), runId: query("run_id"), from: query("from"), runs: null, message: null, busy: false, pending: null };
     const fields = {};
 
     const input = (id, label, type, value, placeholder) => h("label", { class: "field" }, label,
       fields[id] = h("input", { id, type, value, placeholder: placeholder || null, autocomplete: type === "password" ? "off" : null, spellcheck: "false" }));
 
+    // La liste des runs est triée par début de collecte : « comparer avec la précédente » ouvre la run avec le diff
+    // depuis celle d'avant (B3), la première n'en a pas.
     function runsTable() {
       if (!state.runs) return null;
+      const compare = (run, index) => (index === 0 ? "—" : h("button", { type: "button", class: "linklike", onclick: (event) => {
+        event.stopPropagation();
+        state.runId = run.run_id; state.from = state.runs[index - 1].run_id; state.pending = open();
+      } }, "avec la précédente"));
       return [h("h3", {}, "Runs archivées de " + state.infrastructure + " : " + state.runs.length),
-        table(["run", "début de collecte", "statut", "ingérée le"], state.runs.map((run) => ({
-          onclick: () => { state.runId = run.run_id; state.pending = open(); },
-          cells: [h("code", {}, run.run_id), run.run_start, pill("run", run.run_status, run.run_status), run.stored_at] })),
+        table(["run", "début de collecte", "statut", "ingérée le", "comparer"], state.runs.map((run, index) => ({
+          onclick: () => { state.runId = run.run_id; state.from = ""; state.pending = open(); },
+          cells: [h("code", {}, run.run_id), run.run_start, pill("run", run.run_status, run.run_status), run.stored_at, compare(run, index)] })),
           { empty: "aucune run archivée pour cette infrastructure" })];
     }
 
@@ -74,6 +80,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
           input("s-token", "jeton d'API", "password", state.token),
           input("s-infrastructure", "infrastructure", "text", state.infrastructure, "libellé de devices[].infrastructure"),
           input("s-run", "run (collector_run_id, vide = lister les runs)", "text", state.runId),
+          input("s-from", "comparer à la run d'avant (collector_run_id, optionnel : la page embarque alors le diff)", "text", state.from),
           h("div", { class: "toolbar-row" },
             h("button", { type: "submit", disabled: state.busy || null }, state.busy ? "chargement…" : "ouvrir"),
             h("button", { type: "button", onclick: () => { state.token = ""; writeToken(""); state.message = "jeton oublié"; render(); } }, "oublier le jeton"))),
@@ -85,6 +92,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
       state.token = fields["s-token"].value.trim();
       state.infrastructure = fields["s-infrastructure"].value.trim();
       state.runId = fields["s-run"].value.trim();
+      state.from = fields["s-from"].value.trim();
       writeToken(state.token);
     }
 
@@ -108,19 +116,29 @@ var LD = globalThis.LD || (globalThis.LD = {});
       if (response.status === 401) { state.token = ""; writeToken(""); }
     }
 
+    // Le diff (B3) se lit en même temps que le snapshot quand une run d'avant est donnée ; s'il manque (run inconnue,
+    // sans snapshot), la run s'ouvre quand même et l'en-tête dit pourquoi le diff n'est pas là.
     async function open() {
       state.busy = true; state.message = null; render();
       const params = { infrastructure: state.infrastructure, run_id: state.runId };
-      const [snapshot, report] = await Promise.all([call(ROUTES.snapshot, params, state.token), call(ROUTES.report, params, state.token)]);
+      const diffParams = { infrastructure: state.infrastructure, from: state.from, to: state.runId };
+      const [snapshot, report, diff] = await Promise.all([call(ROUTES.snapshot, params, state.token), call(ROUTES.report, params, state.token),
+        state.from ? call(ROUTES.diff, diffParams, state.token) : Promise.resolve(null)]);
       state.busy = false;
       if (snapshot.status !== 200 || !snapshot.body || typeof snapshot.body !== "object") { failed(snapshot); render(); return; }
       data.snapshot = snapshot.body;
       data.ingest = report.status === 200 && report.body ? { summary: report.body.summary, findings: report.body.findings || [] } : null;
       data.origin = "api · " + state.infrastructure + " · " + state.runId;
+      delete data.diff;
+      if (diff) {
+        if (diff.status === 200 && diff.body && typeof diff.body === "object") data.diff = diff.body;
+        else data.origin += " · diff indisponible : " + explain(diff.status, diff.body);
+      }
       root.hidden = true;
       clear(root);
       siblings(false);
-      if (typeof history !== "undefined") history.replaceState(null, "", "?" + new URLSearchParams(params).toString() + (location.hash || ""));
+      const address = state.from ? { ...params, from: state.from } : params;
+      if (typeof history !== "undefined") history.replaceState(null, "", "?" + new URLSearchParams(address).toString() + (location.hash || ""));
       LD.app = LD.boot(data);
     }
 

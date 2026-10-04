@@ -12,12 +12,16 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from ld_contracts.bundle import RunBundle
+from ld_contracts.diff import Diff
+from ld_contracts.diff.serialize import canonical_json as diff_json
 from ld_contracts.snapshot import Snapshot
 from pydantic.json_schema import models_json_schema
 from starlette.requests import ClientDisconnect
 
 from ld_backend.archive import ArchiveCorruptError, BundleArchive
 from ld_backend.config import Settings
+from ld_backend.diff import DiffError, diff
+from ld_backend.diffs import SnapshotUnavailableError, load_archived_snapshot
 from ld_backend.ingest import ingest_bundle, result_payload
 from ld_backend.render import render_shell
 from ld_backend.schemas import IngestReport, RunEntry, RunList
@@ -28,11 +32,12 @@ BUNDLES = "/api/ingest/bundles"
 BUNDLE = "/api/ingest/bundle"
 REPORT = "/api/ingest/report"
 SNAPSHOT = "/api/snapshot"
+DIFF = "/api/diff"
 VIEW = "/view"
 JSON_MEDIA_TYPE = re.compile(r"application/(?:[\w.-]+\+)?json", re.IGNORECASE)
 BUNDLE_SCHEMA_NAME = RunBundle.__name__
 SCHEMA_REF_TEMPLATE = "#/components/schemas/{model}"
-CONTRACT_MODELS = (RunBundle, Snapshot)
+CONTRACT_MODELS = (RunBundle, Snapshot, Diff)
 
 _bearer = HTTPBearer(
     auto_error=False,
@@ -80,7 +85,19 @@ SNAPSHOT_RESPONSES: dict[int | str, dict[str, Any]] = {
     500: {"description": "entrée d'archive illisible pour cette run : intervention nécessaire"},
 }
 
+DIFF_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "Diff v1 entre les snapshots des runs `from` et `to`, calculé à la demande, jamais archivé ; "
+        "référence : `contracts/CONTRAT.md`, partie C.",
+        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Diff.__name__)}}},
+    },
+    404: {"description": "run `from` ou `to` inconnue, ou sans snapshot (`ld correlate`) ; le détail nomme le côté"},
+    500: {"description": "entrée d'archive illisible, ou snapshot archivé hors contrat : intervention nécessaire"},
+}
+
 Label = Annotated[str, Query(min_length=1)]
+FromLabel = Annotated[str, Query(min_length=1, alias="from", description="run de départ")]
+ToLabel = Annotated[str, Query(min_length=1, alias="to", description="run d'arrivée")]
 
 
 def _unauthorized() -> HTTPException:
@@ -127,6 +144,18 @@ def _archived(load: Callable[[], Any]) -> Any:
     return found
 
 
+def _archived_snapshot(store: BundleArchive, infrastructure: str, run_id: str, side: str) -> Snapshot:
+    """Un des deux snapshots du diff : 404 qui nomme le côté (`from` / `to`), 500 neutre sinon."""
+    try:
+        return load_archived_snapshot(store, infrastructure, run_id, side)
+    except SnapshotUnavailableError as exc:
+        if exc.reason == "invalid":
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ArchiveCorruptError, OSError) as exc:
+        raise HTTPException(status_code=500, detail="entrée d'archive corrompue, intervention nécessaire") from exc
+
+
 async def _read_json_body(request: Request, max_bytes: int) -> Any:
     """Lit le corps en flux et coupe dès que la limite est dépassée : jamais tout en mémoire d'abord."""
     _require_json(request)
@@ -150,9 +179,9 @@ async def _read_json_body(request: Request, max_bytes: int) -> Any:
 
 
 def _contract_schemas() -> dict[str, Any]:
-    """Modèles des deux contrats sous `components.schemas`, références réécrites pour le document OpenAPI.
+    """Modèles des trois contrats sous `components.schemas`, références réécrites pour le document OpenAPI.
 
-    Une seule génération pour les deux : les types partagés (bundle et snapshot) n'apparaissent qu'une fois.
+    Une seule génération pour les trois : les types partagés (bundle, snapshot, diff) n'apparaissent qu'une fois.
     """
     _, top = models_json_schema([(model, "validation") for model in CONTRACT_MODELS], ref_template=SCHEMA_REF_TEMPLATE)
     return top["$defs"]
@@ -195,8 +224,8 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
     app = IngestApp(
         title="Living Diagram — ingestion",
         version="0.1.0",
-        description="Porte d'entrée de Living Diagram : reçoit un RunBundle, le valide, l'archive, le corrèle (B1) "
-        "et sert le snapshot.",
+        description="Porte d'entrée de Living Diagram : reçoit un RunBundle, le valide, l'archive, le corrèle (B1), "
+        "sert le snapshot et compare deux runs (B3).",
     )
     app.add_exception_handler(RequestValidationError, _query_problem)
     guard = Depends(_bearer_guard(settings))
@@ -213,7 +242,8 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
         summary="Page de lecture d'une run archivée (le jeton se saisit dans la page)",
         description="La coquille du visualiseur, sans donnée, servie sans jeton comme `/docs`. Elle lit le snapshot "
         "et le rapport par l'API avec le jeton saisi dans la page, gardé dans l'onglet. Adresse partageable : "
-        "`/view?infrastructure=&run_id=#view=graph` ; le jeton n'y entre jamais.",
+        "`/view?infrastructure=&run_id=#view=graph` ; avec `&from=<run_id>`, la page lit aussi le diff depuis cette "
+        "run (`/api/diff`) et peint les changements ; le jeton n'y entre jamais.",
     )
     def view() -> HTMLResponse:
         return HTMLResponse(shell)
@@ -252,6 +282,23 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
         if not raw:
             raise HTTPException(status_code=404, detail="run archivée sans snapshot : lancer `ld correlate`")
         return Response(content=raw, media_type="application/json")
+
+    @app.get(
+        DIFF,
+        dependencies=[guard],
+        response_class=Response,
+        responses=DIFF_RESPONSES,
+        summary="Comparer deux runs archivées (sortie de B3)",
+    )
+    def get_diff(infrastructure: Label, from_run: FromLabel, to_run: ToLabel) -> Response:
+        before = _archived_snapshot(store, infrastructure, from_run, "from")
+        after = _archived_snapshot(store, infrastructure, to_run, "to")
+        try:
+            result = diff(before, after)
+        except DiffError as exc:  # deux snapshots d'une même entrée d'archive qui ne se comparent pas
+            detail = f"{exc} : archive incohérente, intervention nécessaire"
+            raise HTTPException(status_code=500, detail=detail) from exc
+        return Response(content=diff_json(result), media_type="application/json")
 
     return app
 

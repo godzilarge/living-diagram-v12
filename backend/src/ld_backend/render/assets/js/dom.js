@@ -39,10 +39,15 @@ var LD = globalThis.LD || (globalThis.LD = {});
     address: "adresse (IP ou MAC)", stub: "non résolu : voisin inconnu",
   };
 
+  // Le diff (B3) : ce qu'un élément est devenu depuis la run d'avant.
+  const DIFF_LABEL = { added: "ajouté", removed: "retiré", changed: "changé" };
+  const EVENT_LABEL = { rebooted: "redémarré", flapped: "flap" }; // un seul mot partout ; `flapped` reste à confirmer (docs/07 Q4)
+
   const pill = (kind, value, label) => h("span", { class: "pill " + kind + "-" + value }, label === undefined ? value : label);
   const sourcePill = (source) => pill("source", source, SOURCE_LABEL[source] || source);
   const statusPill = (status) => pill("status", status, STATUS_LABEL[status] || status);
   const severityPill = (severity) => pill("severity", severity);
+  const diffPill = (kind) => pill("diff", kind, DIFF_LABEL[kind] || kind);
 
   // Une valeur de `details` : texte, liste, ou bout de câble {hostname, interface}.
   function plain(value) {
@@ -68,6 +73,21 @@ var LD = globalThis.LD || (globalThis.LD = {});
     return facts.length ? label + " (" + facts.map(([k, v]) => k + " " + plain(v)).join(", ") + ")" : label;
   }
 
+  // Une valeur avant / après d'un changement, en bref : une liste d'objets se compte (« 4 éléments »), le reste s'écrit.
+  function brief(value) {
+    if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) return value.length + " élément" + (value.length > 1 ? "s" : "");
+    return plain(value);
+  }
+
+  // L'écart entre deux runs, lu dans `elapsed_seconds`, signé : « 7 j plus tard », « 3 h plus tôt » ; nul quand les deux
+  // runs ont le même début (une run comparée à elle-même).
+  function elapsedText(seconds) {
+    if (seconds === 0) return "même début de collecte";
+    const abs = Math.abs(seconds);
+    const amount = abs >= 86400 ? Math.round(abs / 8640) / 10 + " j" : abs >= 3600 ? Math.round(abs / 360) / 10 + " h" : Math.round(abs / 60) + " min";
+    return amount + (seconds < 0 ? " plus tôt" : " plus tard");
+  }
+
   // Une vitesse lue en Mbit/s, écrite comme on la lit : « 10 Gb/s », « 2,5 Gb/s », « 100 Mb/s » ; non lue, elle reste null.
   function speedText(mbps) {
     if (mbps === null || mbps === undefined) return null;
@@ -91,6 +111,6 @@ var LD = globalThis.LD || (globalThis.LD = {});
     return h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, head), h("tbody", {}, body, empty)));
   }
 
-  LD.dom = { h, s, clear, pill, sourcePill, statusPill, severityPill, plain, speedText, definition, table,
-    SOURCE_LABEL, STATUS_LABEL, KIND_LABEL, RESOLUTION_LABEL };
+  LD.dom = { h, s, clear, pill, sourcePill, statusPill, severityPill, diffPill, plain, brief, speedText, elapsedText, definition, table,
+    SOURCE_LABEL, STATUS_LABEL, KIND_LABEL, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL };
 })();

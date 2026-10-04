@@ -62,23 +62,93 @@ var LD = globalThis.LD || (globalThis.LD = {});
     });
   }
 
-  function buildLinks(model, links) {
+  // Les câbles du snapshot, puis les câbles retirés que le diff rapporte : des fantômes (`ghost`), qui gardent leur
+  // identité, suivent leurs équipements, se sélectionnent et se lisent tels qu'ils étaient, mais ne comptent dans
+  // aucun total et ne portent aucun contrôle de cette run. Les paires se comptent sur les deux listes : un câble
+  // retiré et son remplaçant entre les mêmes équipements restent deux tracés.
+  function buildLinks(model, links, ghosts) {
     const groups = new Map();
-    for (const raw of links) {
+    const add = (raw, ghost) => {
       const sources = Array.from(new Set(raw.evidence.map((e) => e.source))).sort();
-      const link = { index: model.links.length, id: linkId(raw), pair: pairKey(raw), raw, a: raw.a, b: raw.b, status: raw.status, sources, combo: sources.join(" + "), beam: null, heartbeat: false };
-      model.links.push(link);
+      const link = { index: model.links.length + model.ghostLinks.length, id: linkId(raw), pair: pairKey(raw), raw, a: raw.a, b: raw.b, status: raw.status, sources,
+        combo: sources.join(" + "), beam: null, heartbeat: false, ghost, checks: [], portChecks: [], worst: null };
+      (ghost ? model.ghostLinks : model.links).push(link);
       model.linkById.set(link.id, link);
       pushTo(groups, link.pair, link);
       pushTo(model.linksByIface, ifaceKey(raw.a.hostname, raw.a.interface), link);
       pushTo(model.linksByIface, ifaceKey(raw.b.hostname, raw.b.interface), link);
       pushTo(model.linksByNode, raw.a.hostname, link);
       if (raw.b.hostname !== raw.a.hostname) pushTo(model.linksByNode, raw.b.hostname, link);
-    }
+    };
+    links.forEach((raw) => add(raw, false));
+    ghosts.forEach((raw) => { if (!model.linkById.has(linkId(raw))) add(raw, true); });
     groups.forEach((members) => members.forEach((link, index) => {
       link.indexInPair = index;
       link.pairCount = members.length;
     }));
+  }
+
+  // Ce que la run d'avant avait et que celle-ci n'a plus, lu dans le diff : des nœuds et des interfaces fantômes,
+  // que le graphe dessine en pointillé et que la fiche lit tels qu'ils étaient. Un nom déjà présent n'est jamais doublé.
+  // Les interfaces fantômes ont leurs propres index : `ifaceByKey` / `ifacesByNode` ne disent que cette run, sinon la
+  // bulle et la fiche d'un équipement injoignable montreraient les faits de la run d'avant comme actuels (revue, H1).
+  function addGhosts(model, diff) {
+    diff.nodes.removed.forEach((node) => {
+      if (model.nodeByHost.has(node.hostname)) return;
+      const ghost = { ...node, ghost: true };
+      model.ghostNodes.push(ghost);
+      model.nodeByHost.set(node.hostname, ghost);
+    });
+    diff.interfaces.removed.forEach((itf) => {
+      const key = ifaceKey(itf.hostname, itf.name);
+      if (model.ifaceByKey.has(key)) return;
+      const ghost = { ...itf, ghost: true };
+      model.ghostIfaceByKey.set(key, ghost);
+      pushTo(model.ghostIfacesByNode, itf.hostname, ghost);
+    });
+  }
+
+  // L'interface d'un bout : celle de cette run (`ghost: false`) ; pour un élément lui-même retiré, celle de la run d'avant
+  // quand cette run ne l'a plus (`ghost: true`) ; null sinon. Un élément vivant ne lit jamais une interface fantôme.
+  function interfaceAt(model, hostname, name, removed) {
+    const key = ifaceKey(hostname, name);
+    const live = model.ifaceByKey.get(key);
+    if (live) return { itf: live, ghost: false };
+    const gone = removed ? model.ghostIfaceByKey.get(key) : null;
+    return gone ? { itf: gone, ghost: true } : null;
+  }
+
+  // Le diff indexé par identité d'élément : `changeOf("link", id)` rend { kind: added | removed | changed, fields }.
+  const DIFF_SECTIONS = ["nodes", "interfaces", "links", "aggregates", "mlag_domains", "ha_clusters"];
+  function indexDiff(diff) {
+    const of = { node: new Map(), interface: new Map(), link: new Map(), aggregate: new Map(), cluster: new Map(), mlag_domain: new Map() };
+    if (!diff) return of;
+    const mark = (map, key, kind, fields) => map.set(key, { kind, fields: fields || [] });
+    const keys = {
+      node: [(n) => n.hostname, (ref) => ref.hostname],
+      interface: [(i) => ifaceKey(i.hostname, i.name), (ref) => ifaceKey(ref.hostname, ref.name)],
+      link: [linkId, linkId],
+      aggregate: [(a) => aggregateKey(a.hostname, a.name), (ref) => aggregateKey(ref.hostname, ref.name)],
+      cluster: [(c) => clusterId(c.members.map((m) => m.hostname)), (ref) => clusterId(ref.members)],
+      mlag_domain: [(d) => d.mlag_id + SEP + d.members.map((m) => aggregateKey(m.hostname, m.aggregate)).join(SEP),
+        (ref) => ref.mlag_id + SEP + ref.members.map((m) => aggregateKey(m.hostname, m.aggregate)).join(SEP)],
+    };
+    const sections = { node: "nodes", interface: "interfaces", link: "links", aggregate: "aggregates", cluster: "ha_clusters", mlag_domain: "mlag_domains" };
+    Object.entries(sections).forEach(([kind, name]) => {
+      const [entityKey, refKey] = keys[kind];
+      diff[name].added.forEach((entity) => mark(of[kind], entityKey(entity), "added"));
+      diff[name].removed.forEach((entity) => mark(of[kind], entityKey(entity), "removed"));
+      diff[name].changed.forEach((change) => mark(of[kind], refKey(change.ref), "changed", change.fields));
+    });
+    return of;
+  }
+
+  // Ce que l'onglet Diff compte : tout ce qui est listé, sections, contrôles apparus ou résolus, couverture, événements.
+  function diffCount(diff) {
+    if (!diff) return 0;
+    const s = diff.summary;
+    const sections = DIFF_SECTIONS.reduce((sum, name) => sum + s[name].added + s[name].removed + s[name].changed, 0);
+    return sections + s.checks.appeared + s.checks.resolved + s.coverage.changed + s.events.rebooted + s.events.flapped;
   }
 
   // Les structures de R4. Un agrégat porte ses câbles (ceux de ses membres) ; un faisceau est l'ensemble des câbles
@@ -180,7 +250,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
       if (named.length) { named.forEach((link) => link.checks.push(check)); continue; }
       for (const ref of check.refs.filter((r) => r.kind === "interface")) {
         const portKey = ifaceKey(ref.hostname, ref.name);
-        const carried = model.linksByIface.get(portKey) || [];
+        const carried = (model.linksByIface.get(portKey) || []).filter((link) => !link.ghost); // un fantôme ne porte rien de cette run
         const chosen = carried.length === 1 ? carried : carried.filter((link) => concerns(check, link, portKey));
         (chosen.length ? chosen : carried).forEach((link) => (chosen.length ? link.checks : link.portChecks).push(check));
       }
@@ -217,11 +287,13 @@ var LD = globalThis.LD || (globalThis.LD = {});
 
   function build(data) {
     const snapshot = data.snapshot;
+    const diff = data.diff || null;
     const model = {
       source: snapshot.source, report: snapshot.report, coverage: snapshot.coverage, ingest: data.ingest || null,
-      origin: data.origin, catalogue: data.catalogue || {}, snapshotVersion: snapshot.snapshot_version,
-      nodes: snapshot.nodes, nodeByHost: new Map(), interfaces: snapshot.interfaces, ifaceByKey: new Map(),
-      ifacesByNode: new Map(), links: [], linkById: new Map(), linksByNode: new Map(), linksByIface: new Map(), checks: [],
+      origin: data.origin, catalogue: data.catalogue || {}, snapshotVersion: snapshot.snapshot_version, diff,
+      nodes: snapshot.nodes, ghostNodes: [], nodeByHost: new Map(), interfaces: snapshot.interfaces, ifaceByKey: new Map(),
+      ifacesByNode: new Map(), ghostIfaceByKey: new Map(), ghostIfacesByNode: new Map(),
+      links: [], ghostLinks: [], linkById: new Map(), linksByNode: new Map(), linksByIface: new Map(), checks: [],
       checksByNode: new Map(), checksByAggregate: new Map(), checksByCluster: new Map(),
       aggregates: [], aggregateByKey: new Map(), aggregatesByNode: new Map(), mlagDomains: [],
       beams: [], beamById: new Map(), beamsByNode: new Map(), clusters: [], clusterById: new Map(), clustersByHost: new Map(),
@@ -232,7 +304,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
       model.ifaceByKey.set(ifaceKey(itf.hostname, itf.name), itf);
       pushTo(model.ifacesByNode, itf.hostname, itf);
     });
-    buildLinks(model, snapshot.links);
+    if (diff) addGhosts(model, diff);
+    buildLinks(model, snapshot.links, diff ? diff.links.removed : []);
     buildAggregates(model, snapshot);
     buildBeams(model);
     buildClusters(model, snapshot);
@@ -242,6 +315,9 @@ var LD = globalThis.LD || (globalThis.LD = {});
     model.severityCounts = countBy(model.checks, (c) => c.severity);
     model.statusCounts = countBy(model.links, (l) => l.status);
     model.kindCounts = countBy(model.nodes, (n) => n.kind);
+    model.diffOf = indexDiff(diff);
+    model.changeOf = (kind, id) => model.diffOf[kind].get(id) || null;
+    model.diffCount = diffCount(diff);
     return model;
   }
 
@@ -309,6 +385,6 @@ var LD = globalThis.LD || (globalThis.LD = {});
     return null;
   }
 
-  LD.model = { build, ifaceKey, linkId, endLabel, worst, linkToken, linkFromToken, aggregateKey, clusterId, entityOf, hostsOf, tokenOf, selectionFromToken,
-    SEVERITY_RANK, OBSERVED, haRoleGroup, SELECTION_KINDS: ["node", "link", "aggregate", "beam", "cluster"] };
+  LD.model = { build, ifaceKey, interfaceAt, linkId, endLabel, worst, linkToken, linkFromToken, aggregateKey, clusterId, entityOf, hostsOf, tokenOf, selectionFromToken,
+    SEVERITY_RANK, OBSERVED, haRoleGroup, DIFF_SECTIONS, SELECTION_KINDS: ["node", "link", "aggregate", "beam", "cluster"] };
 })();

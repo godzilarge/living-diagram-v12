@@ -4,7 +4,22 @@ var LD = globalThis.LD || (globalThis.LD = {});
 (function () {
   "use strict";
 
-  const { h, clear, sourcePill, statusPill, severityPill, pill, plain, definition, table } = LD.dom;
+  const { h, clear, sourcePill, statusPill, severityPill, diffPill, pill, plain, brief, definition, table } = LD.dom;
+
+  // Ce que le diff dit de l'élément : ajouté dans cette run ; retiré depuis la run d'avant (la fiche le montre alors
+  // tel qu'il était) ; ou ses champs changés, avant → après. Rien quand la page n'a pas de diff.
+  function changeOf(model, kind, id, ghost) {
+    if (ghost) return { kind: "removed", fields: [] };
+    return model.changeOf ? model.changeOf(kind, id) : null;
+  }
+  function diffBlock(model, change, what) {
+    if (!change) return null;
+    const before = model.diff.before.collector_run_id;
+    if (change.kind === "added") return h("p", { class: "diff-note diff-added" }, "Ajouté : ce " + what + " n'était pas dans la run " + before + ".");
+    if (change.kind === "removed") return h("p", { class: "diff-note diff-removed" }, "Retiré : ce " + what + " était dans la run " + before + " et n'est plus dans celle-ci ; la fiche le montre tel qu'il était.");
+    return [h("h4", { class: "section" }, "Changements depuis la run " + before),
+      definition(change.fields.map((f) => [f.path, brief(f.before) + " → " + brief(f.after)]))];
+  }
 
   function checkList(model, checks, onSelect) {
     if (!checks.length) return h("p", { class: "muted" }, "Aucun contrôle sur cet élément.");
@@ -37,12 +52,17 @@ var LD = globalThis.LD || (globalThis.LD = {});
       ]));
   }
 
-  function portCard(model, end, aggregate) {
-    const itf = model.ifaceByKey.get(LD.model.ifaceKey(end.hostname, end.interface));
+  // La carte d'un bout de câble : les faits de cette run ; pour un câble retiré seulement, ceux de la run d'avant quand
+  // le port n'est plus collecté, en le disant (revue, H1).
+  function portCard(model, end, aggregate, removed) {
+    const found = LD.model.interfaceAt(model, end.hostname, end.interface, removed);
     const title = h("h4", {}, LD.model.endLabel(end));
-    if (!itf) return h("div", { class: "port" }, title, h("p", { class: "muted" }, "Port absent de interfaces[] : équipement non collecté, ou nom tel qu'annoncé par le voisin."));
+    if (!found) return h("div", { class: "port" }, title, h("p", { class: "muted" }, "Port absent de interfaces[] : équipement non collecté, ou nom tel qu'annoncé par le voisin."));
+    const itf = found.itf;
     const parsed = itf.description_parsed;
-    return h("div", { class: "port" }, title, definition([
+    return h("div", { class: "port" }, title,
+      found.ghost ? h("p", { class: "muted diff-removed" }, "Interface retirée depuis la run d'avant : valeurs telles qu'elles étaient.") : null,
+      definition([
       ["état", itf.oper_status + " (admin " + itf.admin_status + ")" + (itf.oper_reason ? " · " + itf.oper_reason : "")],
       ["type · vitesse", itf.type + (itf.speed_mbps ? " · " + LD.dom.speedText(itf.speed_mbps) : "") + (itf.duplex ? " · " + itf.duplex : "")],
       ["média", itf.media],
@@ -94,14 +114,16 @@ var LD = globalThis.LD || (globalThis.LD = {});
   function linkPanel(model, link, onSelect) {
     const raw = link.raw;
     const why = whyText(link);
+    const change = changeOf(model, "link", link.id, link.ghost);
     return [
       h("div", { class: "panel-head" }, h("span", { class: "eyebrow" }, "câble"), statusPill(link.status),
-        raw.oper === "down" ? pill("oper", "down", "down") : null),
+        raw.oper === "down" ? pill("oper", "down", "down") : null, change ? diffPill(change.kind) : null),
       h("h3", { class: "ends" },
         h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "node", id: raw.a.hostname }) }, raw.a.hostname), " · " + raw.a.interface,
         h("span", { class: "arrow" }, " ↔ "),
         h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "node", id: raw.b.hostname }) }, raw.b.hostname), " · " + raw.b.interface),
       h("p", { class: "why" }, why),
+      diffBlock(model, change, "câble"),
       definition([["état", raw.oper], ["vitesse commune", raw.speed_mbps ? LD.dom.speedText(raw.speed_mbps) : "différente ou inconnue"],
         ["agrégats", aggregateEnds(model, link, onSelect)], ["faisceau", link.beam ? LD.structures.beamButton(link.beam, onSelect) : null]]),
       h("h4", { class: "section" }, "Sources : " + raw.evidence.length + " évidence" + (raw.evidence.length > 1 ? "s" : "")),
@@ -111,7 +133,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
         h("p", { class: "muted" }, "Ils visent un port qui porte plusieurs câbles, sans dire lequel : ils ne sont pas comptés sur celui-ci."),
         checkList(model, link.portChecks, onSelect)] : null,
       h("h4", { class: "section" }, "Les deux ports"),
-      portCard(model, raw.a, raw.aggregate_a), portCard(model, raw.b, raw.aggregate_b),
+      portCard(model, raw.a, raw.aggregate_a, link.ghost), portCard(model, raw.b, raw.aggregate_b, link.ghost),
     ];
   }
 
@@ -126,11 +148,11 @@ var LD = globalThis.LD || (globalThis.LD = {});
   function interfaceTable(model, ifaces) {
     const holder = h("div", {});
     const cabled = (itf) => model.linksByIface.get(LD.model.ifaceKey(itf.hostname, itf.name)) || [];
-    const lonely = ifaces.filter((itf) => (itf.type === "physical" || itf.type === "management") && itf.oper_status === "up" && !cabled(itf).length);
+    const lonely = ifaces.filter((itf) => (itf.type === "physical" || itf.type === "management") && itf.oper_status === "up" && !cabled(itf).some((l) => !l.ghost));
     const draw = (only) => {
       const rows = (only ? lonely : ifaces).map((itf) => {
         const links = cabled(itf);
-        const facing = links.map((l) => LD.model.endLabel(l.a.hostname === itf.hostname && l.a.interface === itf.name ? l.b : l.a)).join(", ");
+        const facing = links.map((l) => LD.model.endLabel(l.a.hostname === itf.hostname && l.a.interface === itf.name ? l.b : l.a) + (l.ghost ? " (retiré)" : "")).join(", ");
         return { cells: [itf.name, itf.type, itf.oper_status, facing || "—", itf.description === null ? "" : h("code", { class: "wrap" }, itf.description)] };
       });
       clear(holder).appendChild(table(["nom", "type", "état", "câble vers", "description"], rows, { empty: only ? "aucun port physique up sans câble" : "aucune interface collectée" }));
@@ -140,14 +162,29 @@ var LD = globalThis.LD || (globalThis.LD = {});
       "seulement les ports physiques up sans câble (" + lonely.length + ")"), holder];
   }
 
+  // Les interfaces retirées depuis la run d'avant (ou toutes celles d'un équipement lui-même retiré), telles qu'elles
+  // étaient : marquées, hors du compte « Interfaces : N » et du filtre « up sans câble » (revue, H1).
+  function ghostInterfaceTable(model, gone) {
+    const rows = gone.map((itf) => {
+      const links = model.linksByIface.get(LD.model.ifaceKey(itf.hostname, itf.name)) || [];
+      const facing = links.map((l) => LD.model.endLabel(l.a.hostname === itf.hostname && l.a.interface === itf.name ? l.b : l.a) + (l.ghost ? " (retiré)" : "")).join(", ");
+      return { cells: [diffPill("removed"), itf.name, itf.type, itf.oper_status, facing || "—"] };
+    });
+    return table(["changement", "nom", "type", "état (run d'avant)", "câble vers"], rows, { empty: "aucune" });
+  }
+
   function nodePanel(model, node, onSelect) {
     const links = model.linksByNode.get(node.hostname) || [];
+    const gone = links.filter((l) => l.ghost).length; // les câbles retirés sont listés, marqués, hors du compte (revue, M4)
     const ifaces = model.ifacesByNode.get(node.hostname) || [];
+    const ghostIfaces = model.ghostIfacesByNode.get(node.hostname) || [];
     const seen = node.evidence ? node.evidence.seen_by : [];
+    const change = changeOf(model, "node", node.hostname, node.ghost);
     return [
       h("div", { class: "panel-head" }, h("span", { class: "eyebrow" }, LD.dom.KIND_LABEL[node.kind]),
-        node.collection ? pill("collection", node.collection, "collecte : " + node.collection) : null),
+        node.collection ? pill("collection", node.collection, "collecte : " + node.collection) : null, change ? diffPill(change.kind) : null),
       h("h3", {}, node.hostname),
+      diffBlock(model, change, "équipement"),
       definition([
         ["type", node.type], ["constructeur · modèle", [node.vendor, node.model].filter(Boolean).join(" · ") || null],
         ["système", [node.os_name, node.os_version].filter(Boolean).join(" ") || null], ["série", node.serial_number], ["site", node.site],
@@ -157,15 +194,16 @@ var LD = globalThis.LD || (globalThis.LD = {});
       ]),
       node.kind === "device" ? [h("h4", { class: "section" }, "Couverture de la collecte"), coverageRow(model, node.hostname)] : null,
       seen.length ? [h("h4", { class: "section" }, "Vu par"), h("ul", { class: "plain" }, seen.map((w) => h("li", {}, sourcePill(w.source), " ", LD.model.endLabel(w))))] : null,
-      h("h4", { class: "section" }, "Câbles : " + links.length),
+      h("h4", { class: "section" }, "Câbles : " + (links.length - gone) + (gone ? " · " + gone + " retiré" + (gone > 1 ? "s" : "") : "")),
       table(["port local", "en face"], links.map((link) => {
         const local = link.a.hostname === node.hostname ? link.a : link.b, remote = local === link.a ? link.b : link.a;
-        return { onclick: () => onSelect({ kind: "link", id: link.id }), cells: [local.interface, [h("div", {}, LD.model.endLabel(remote)), h("div", {}, statusPill(link.status), link.sources.map(sourcePill))]] };
+        return { onclick: () => onSelect({ kind: "link", id: link.id }), cells: [local.interface, [h("div", {}, LD.model.endLabel(remote)), h("div", {}, link.ghost ? diffPill("removed") : null, statusPill(link.status), link.sources.map(sourcePill))]] };
       }), { empty: "aucun câble" }),
       LD.structures.nodeStructures(model, node.hostname, onSelect),
       h("h4", { class: "section" }, "Contrôles"), checkList(model, model.checksByNode.get(node.hostname) || [], onSelect),
-      h("h4", { class: "section" }, "Interfaces : " + ifaces.length),
-      interfaceTable(model, ifaces),
+      node.ghost ? null : [h("h4", { class: "section" }, "Interfaces : " + ifaces.length), interfaceTable(model, ifaces)],
+      ghostIfaces.length ? [h("h4", { class: "section" }, (node.ghost ? "Interfaces telles qu'elles étaient : " : "Interfaces retirées depuis la run d'avant : ") + ghostIfaces.length),
+        ghostInterfaceTable(model, ghostIfaces)] : null,
     ];
   }
 

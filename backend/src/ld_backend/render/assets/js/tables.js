@@ -3,7 +3,8 @@ var LD = globalThis.LD || (globalThis.LD = {});
 (function () {
   "use strict";
 
-  const { h, clear, severityPill, statusPill, sourcePill, pill, plain, definition, table } = LD.dom;
+  const { h, clear, severityPill, statusPill, sourcePill, diffPill, pill, plain, brief, definition, table } = LD.dom;
+  const CHECK_HEADERS = ["sévérité", "code", "vise", "détails", "règle"];
   const QUALITY_CODES = ["description_unparseable", "description_ha_unresolved", "description_disagrees_with_observed", "neighbor_unknown",
     "neighbor_name_ambiguous",
     "neighbor_name_case_differs", "neighbor_resolved_by_reported_hostname", "neighbor_resolved_by_address", "remote_port_is_mac",
@@ -43,7 +44,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
         && (!text || JSON.stringify([c.refs, c.details]).toLowerCase().includes(text)))
         .sort((x, y) => LD.model.SEVERITY_RANK[x.severity] - LD.model.SEVERITY_RANK[y.severity] || (x.code < y.code ? -1 : x.code > y.code ? 1 : 0) || x.index - y.index);
       clear(body).appendChild(h("p", { class: "muted" }, rows.length + " contrôle" + (rows.length > 1 ? "s" : "") + " sur " + model.checks.length));
-      body.appendChild(table(["sévérité", "code", "vise", "détails", "règle"], checkRows(model, rows, onSelect), { empty: "aucun contrôle ne correspond" }));
+      body.appendChild(table(CHECK_HEADERS, checkRows(model, rows, onSelect), { empty: "aucun contrôle ne correspond" }));
     };
     const select = (id, label, values, key) => h("label", { class: "field" }, label,
       h("select", { id, onchange: (e) => { state[key] = e.target.value; draw(); } }, h("option", { value: "" }, "tous"), values.map((v) => h("option", { value: v }, v))));
@@ -160,5 +161,90 @@ var LD = globalThis.LD || (globalThis.LD = {});
       table(["cluster", "mode", "membres", "heartbeat"], clusterRows, { empty: "aucun cluster : aucun document ha dans le bundle" })));
   }
 
-  LD.tables = { checksView, qualityView, sourcesView, structuresView, targetsOf };
+  // Le diff (B3) : ce qui a changé depuis la run d'avant, section par section, dans les mots du snapshot. Chaque ligne
+  // s'ouvre dans le graphe, les éléments retirés compris (fantômes). Le résumé vient du diff, rien n'est recompté ici.
+  const SECTION_LABEL = { nodes: "équipements", interfaces: "interfaces", links: "câbles", aggregates: "agrégats", mlag_domains: "domaines MLAG", ha_clusters: "clusters HA" };
+  const total = (part) => part.added + part.removed + part.changed;
+  const fieldsCell = (change) => definition(change.fields.map((f) => [f.path, brief(f.before) + " → " + brief(f.after)]));
+  const byHost = (items) => {
+    const counts = new Map();
+    items.forEach((item) => counts.set(item.hostname, (counts.get(item.hostname) || 0) + 1));
+    return Array.from(counts, ([host, n]) => host + " (" + n + ")").join(", ");
+  };
+  const mlagText = (domain) => "MLAG " + domain.mlag_id + " · " + domain.members.map((m) => m.hostname + " · " + m.aggregate).join(" + ");
+
+  function diffNodeRows(model, d, onSelect) {
+    const row = (kind, hostname, node, change) => ({ onclick: () => onSelect({ kind: "node", id: hostname }),
+      cells: [diffPill(kind), hostname, node ? LD.dom.KIND_LABEL[node.kind] : "", node ? plain(node.type) : "", change ? fieldsCell(change) : ""] });
+    return [
+      ...d.nodes.added.map((n) => row("added", n.hostname, n, null)),
+      ...d.nodes.removed.map((n) => row("removed", n.hostname, n, null)),
+      ...d.nodes.changed.map((c) => row("changed", c.ref.hostname, model.nodeByHost.get(c.ref.hostname), c)),
+    ];
+  }
+
+  function diffLinkRows(model, d, onSelect) {
+    const row = (kind, ref, change) => {
+      const id = LD.model.linkId(ref), live = model.linkById.get(id);
+      return { onclick: () => onSelect({ kind: "link", id }),
+        cells: [diffPill(kind), LD.model.endLabel(ref.a), LD.model.endLabel(ref.b),
+          !live ? "" : live.ghost ? h("span", { class: "muted" }, "était " + LD.dom.STATUS_LABEL[live.status]) : statusPill(live.status), change ? fieldsCell(change) : ""] };
+    };
+    return [...d.links.added.map((l) => row("added", l, null)), ...d.links.removed.map((l) => row("removed", l, null)), ...d.links.changed.map((c) => row("changed", c.ref, c))];
+  }
+
+  function diffStructureRows(model, d, onSelect) {
+    const aggregate = (kind, hostname, name, change) => ({ onclick: () => onSelect({ kind: "aggregate", id: LD.model.aggregateKey(hostname, name) }),
+      cells: [diffPill(kind), "agrégat", hostname + " · " + name, change ? fieldsCell(change) : ""] });
+    const domain = (kind, ref, change) => ({ cells: [diffPill(kind), "domaine MLAG", mlagText(ref), change ? fieldsCell(change) : ""] });
+    const cluster = (kind, hosts, change) => ({ onclick: () => onSelect({ kind: "cluster", id: LD.model.clusterId(hosts) }),
+      cells: [diffPill(kind), "cluster HA", hosts.join(" + "), change ? fieldsCell(change) : ""] });
+    return [
+      ...d.aggregates.added.map((a) => aggregate("added", a.hostname, a.name, null)),
+      ...d.aggregates.removed.map((a) => ({ cells: [diffPill("removed"), "agrégat", a.hostname + " · " + a.name, ""] })),
+      ...d.aggregates.changed.map((c) => aggregate("changed", c.ref.hostname, c.ref.name, c)),
+      ...d.mlag_domains.added.map((m) => domain("added", m, null)),
+      ...d.mlag_domains.removed.map((m) => domain("removed", m, null)),
+      ...d.mlag_domains.changed.map((c) => domain("changed", c.ref, c)),
+      ...d.ha_clusters.added.map((c) => cluster("added", c.members.map((m) => m.hostname), null)),
+      ...d.ha_clusters.removed.map((c) => ({ cells: [diffPill("removed"), "cluster HA", c.members.map((m) => m.hostname).join(" + "), ""] })),
+      ...d.ha_clusters.changed.map((c) => cluster("changed", c.ref.members, c)),
+    ];
+  }
+
+  function diffView(container, model, onSelect) {
+    const d = model.diff, s = d.summary;
+    const openNode = (hostname) => () => onSelect({ kind: "node", id: hostname });
+    const summaryRows = Object.entries(SECTION_LABEL).map(([name, label]) => ({ cells: [label, String(s[name].added), String(s[name].removed), String(s[name].changed)] }));
+    const interfaceRows = d.interfaces.changed.map((c) => ({ onclick: openNode(c.ref.hostname), cells: [diffPill("changed"), c.ref.hostname + " · " + c.ref.name, fieldsCell(c)] }));
+    const coverageRows = d.coverage.changed.map((c) => ({ onclick: openNode(c.ref.hostname), cells: [c.ref.hostname, fieldsCell(c)] }));
+    const eventRows = d.events.map((e) => ({ onclick: openNode(e.ref.hostname),
+      cells: [pill("event", e.kind, LD.dom.EVENT_LABEL[e.kind] || e.kind), e.ref.kind === "node" ? e.ref.hostname : e.ref.hostname + " · " + e.ref.name, plain(e.details)] }));
+    clear(container).appendChild(h("div", { class: "page" },
+      h("h2", {}, "Diff"),
+      h("p", { class: "lead" }, "De la run " + d.before.collector_run_id + " (" + d.before.start_datetime + ") à la run " + d.after.collector_run_id + " (" + d.after.start_datetime + "), "
+        + LD.dom.elapsedText(d.elapsed_seconds) + ". Les équipements et câbles ajoutés, retirés ou changés sont peints dans le graphe ; cliquer une ligne l'y ouvre, un élément retiré compris."
+        + " Les champs volatils (uptime, âge du dernier changement) ne comptent pas : " + s.volatile_changes + " différence" + (s.volatile_changes > 1 ? "s" : "") + " ignorée" + (s.volatile_changes > 1 ? "s" : "") + "."),
+      table(["section", "ajoutés", "retirés", "changés"], summaryRows),
+      h("h3", {}, "Équipements : " + total(s.nodes)),
+      table(["changement", "équipement", "sorte", "type", "changements"], diffNodeRows(model, d, onSelect), { empty: "aucun équipement ajouté, retiré ni changé" }),
+      h("h3", {}, "Câbles : " + total(s.links)),
+      table(["changement", "bout a", "bout b", "statut", "changements"], diffLinkRows(model, d, onSelect), { empty: "aucun câble ajouté, retiré ni changé" }),
+      h("h3", {}, "Interfaces : " + total(s.interfaces)),
+      definition([["ajoutées", d.interfaces.added.length ? byHost(d.interfaces.added) : null], ["retirées", d.interfaces.removed.length ? byHost(d.interfaces.removed) : null]]),
+      table(["changement", "interface", "changements"], interfaceRows, { empty: "aucune interface changée" }),
+      h("h3", {}, "Structures : " + (total(s.aggregates) + total(s.mlag_domains) + total(s.ha_clusters))),
+      table(["changement", "sorte", "élément", "changements"], diffStructureRows(model, d, onSelect), { empty: "aucune structure ajoutée, retirée ni changée" }),
+      h("h3", {}, "Contrôles apparus : " + s.checks.appeared),
+      table(CHECK_HEADERS, checkRows(model, d.checks.appeared, onSelect), { empty: "aucun contrôle apparu" }),
+      h("h3", {}, "Contrôles résolus : " + s.checks.resolved + " · persistants : " + s.checks.persisted),
+      table(CHECK_HEADERS, checkRows(model, d.checks.resolved, onSelect), { empty: "aucun contrôle résolu" }),
+      h("h3", {}, "Couverture changée : " + s.coverage.changed),
+      table(["équipement", "changements"], coverageRows, { empty: "aucun changement de couverture" }),
+      h("h3", {}, "Événements : " + (s.events.rebooted + s.events.flapped)),
+      h("p", { class: "muted" }, "Lus dans les champs volatils : un uptime plus court que l'écart entre les runs, c'est un redémarrage ; un âge de dernier changement plus court, à état égal, c'est un flap (le port a bougé puis est revenu au même état), sauf sur un équipement redémarré, dont le redémarrage explique les ports."),
+      table(["sorte", "élément", "détails"], eventRows, { empty: "aucun redémarrage, aucun flap" })));
+  }
+
+  LD.tables = { checksView, qualityView, sourcesView, structuresView, diffView, targetsOf };
 })();

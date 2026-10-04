@@ -7,9 +7,9 @@ défini par `contracts/CONTRAT.md`), le valide avec `ld-contracts`, l'archive te
 renvoie un rapport. C'est le début de B2 (archive des runs). **Depuis le 2026-09-20, la corrélation B1 est
 branchée** : après l'archivage, le snapshot est calculé et rangé à côté du bundle.
 
-- **C'est** : une API REST (une route d'écriture, quatre de lecture), une archive sur disque
-  derrière une interface, une ligne de commande qui suit exactement le même chemin de
-  code que l'API, et un générateur de **pages HTML de lecture** (`ld render`). Pas à pas condensé :
+- **C'est** : une API REST (une route d'écriture, cinq de lecture, dont le **diff de deux runs**, B3), une archive sur
+  disque derrière une interface, une ligne de commande qui suit exactement le même chemin de code que l'API, et un
+  générateur de **pages HTML de lecture** (`ld render`, avec les changements peints par `--from`). Pas à pas condensé :
   `QUICKSTART.md` à la racine du dépôt.
 - **Ce n'est pas** : le contrat (voir `contracts/`), ni le diagramme.
 
@@ -53,6 +53,7 @@ archivée était listée mais illisible (404, test de bout en bout du 2026-09-19
 | `GET /api/ingest/bundle?infrastructure=…&run_id=…` | le bundle archivé, forme canonique, octets vérifiés par empreinte |
 | `GET /api/ingest/report?infrastructure=…&run_id=…` | `IngestReport` de la première ingestion (`correlation` y est toujours `null` : il décrit l'ingestion) |
 | `GET /api/snapshot?infrastructure=…&run_id=…` | le `Snapshot` v1 de la run (`contracts/CONTRAT.md` partie B), octets archivés. 404 « run inconnue » ou 404 « run archivée sans snapshot : lancer `ld correlate` » |
+| `GET /api/diff?infrastructure=…&from=…&to=…` | le `Diff` v1 entre les snapshots des deux runs (`contracts/CONTRAT.md` partie C, `docs/07`), **calculé à la demande, jamais archivé**, mêmes octets à chaque appel. 404 qui nomme le côté (« run `from` : run inconnue… », « run `to` : run archivée sans snapshot… »), 500 neutre si un snapshot archivé est hors contrat (`ld correlate`) |
 
 Paramètre manquant ou vide : 422 `{"detail": "paramètres de requête invalides", "errors": [{path, message}]}`,
 sans écho de la valeur reçue. Run inconnue : 404. Entrée d'archive corrompue : 500 neutre.
@@ -67,6 +68,9 @@ uv run ld runs --infrastructure infra-lab --archive ./archive
 uv run ld correlate --infrastructure infra-lab --archive ./archive                  # recalcule et remplace les snapshots (--run-id pour une seule run)
 uv run ld correlate ../contracts/fixtures/bundle-minimal.json --out snapshot.json   # le snapshot d'un bundle fichier, sans archive ni serveur
 uv run ld render ../contracts/fixtures/bundle-minimal.json --out page.html          # une page HTML autonome, sans archive ni serveur
+uv run ld diff --infrastructure infra-lab --archive ./archive                       # ce qui a changé à la dernière run (B3) ; --from / --to pour choisir, --out diff.json pour le document
+uv run ld diff avant.json apres.json --out diff.json                                # deux fichiers (bundles ou snapshots), sans archive ni serveur
+uv run ld render apres.json --out page.html --from avant.json                       # la page avec les changements peints et l'onglet Diff
 
 export LD_API_TOKEN='un-jeton-long-et-secret'                                       # obligatoire : le service refuse de démarrer sans
 export LD_ARCHIVE_DIR=./archive                                                     # défaut ./archive
@@ -81,6 +85,8 @@ curl -s -G http://127.0.0.1:8000/api/ingest/report -H "Authorization: Bearer $LD
      --data-urlencode "infrastructure=infra-lab" --data-urlencode "run_id=66db3f0e9a1c2b0012f4a7d1"
 curl -s -G http://127.0.0.1:8000/api/snapshot -H "Authorization: Bearer $LD_API_TOKEN" \
      --data-urlencode "infrastructure=infra-lab" --data-urlencode "run_id=66db3f0e9a1c2b0012f4a7d1" -o snapshot.json
+curl -s -G http://127.0.0.1:8000/api/diff -H "Authorization: Bearer $LD_API_TOKEN" \
+     --data-urlencode "infrastructure=infra-lab" --data-urlencode "from=<run d'avant>" --data-urlencode "to=66db3f0e9a1c2b0012f4a7d1" -o diff.json
 ```
 
 `ld serve` écrit une ligne par ingestion, sans valeur du bundle autre que les deux identifiants (en `%r` : un
@@ -163,14 +169,21 @@ backend/
 │   │                         idempotence, ArchiveConflictError, noms de dossiers sûrs
 │   ├── ingest.py             ingest_bundle : valider → archiver → corréler → IngestResult ; result_payload (JSON) ; une ligne de journal
 │   ├── snapshots.py          branchement de B1 : correlate_if_missing (ingestion), recorrelate (ld correlate) ; un échec est journalisé, jamais propagé
+│   ├── diffs.py              branchement de B3 : deux snapshots archivés (par défaut les deux dernières runs) ou deux fichiers, résumé texte ; jamais stocké
 │   ├── schemas.py            formes de réponse typées (IngestReport, RunList…) et `utc_z` : une seule forme de date
-│   ├── api.py                create_app : schéma de sécurité Bearer, OpenAPI porté par le contrat, POST bundles, GET bundles / bundle / report / snapshot (par paramètres de requête), /api/health
-│   ├── cli.py                ld ingest | runs | correlate | render | serve
+│   ├── api.py                create_app : schéma de sécurité Bearer, OpenAPI porté par les trois contrats, POST bundles, GET bundles / bundle / report / snapshot / diff (par paramètres de requête), /api/health
+│   ├── cli.py                ld ingest | runs | correlate | diff | render | serve
 │   ├── render/               pages HTML de lecture d'un snapshot (2026-09-20), un fichier autonome par run
 │   │   ├── page.py           assemblage : gabarit + style + visualiseur + données ; JSON échappé, CSP par empreinte
-│   │   ├── build.py          deux chemins : fichier bundle (sans archive), run archivée
-│   │   └── assets/           page.html, viewer.css, js/ : model (index), layout (placement), dom, icons (types), geometry, graph,
-│   │                         tip (bulle au survol), inspect, structures, tables, main, shell (page servie par /view)
+│   │   ├── build.py          deux chemins : fichier bundle (sans archive), run archivée ; `--from` : le diff (B3) embarqué
+│   │   └── assets/           page.html, viewer.css, js/ : model (index, fantômes et index du diff), layout (placement), dom, icons (types),
+│   │                         geometry, graph (halos, couronnes, fantômes), tip (bulle au survol), inspect, structures, tables (dont la vue Diff),
+│   │                         main, shell (page servie par /view, `?from=`)
+│   ├── diff/                 B3 (2026-10-04, docs/07) : diff(before, after) -> Diff, fonction pure et déterministe
+│   │   ├── fields.py         D2 : comparaison champ à champ en chemins pointés, listes en bloc, volatils exclus et comptés
+│   │   ├── sections.py       D1, D3 : appariement par l'identité du snapshot, section par section ; contrôles en multi-ensemble
+│   │   ├── events.py         D4 : rebooted, flapped, lus dans les volatils
+│   │   └── engine.py         diff() : refus de deux infrastructures, écart signé, résumé
 │   └── correlate/            B1 corrélation (étape 1 le 2026-09-20) : correlate(bundle, bundle_sha256) -> Snapshot
 │       ├── context.py        index immuables sur le bundle (devices, interfaces, MAC, IP, couverture, appartenances, descriptions lues,
 │       │                     formes HA non résolues)
@@ -187,10 +200,12 @@ backend/
 │       ├── ha.py             R4 : clusters HA (vue de chaque membre, heartbeats sans câble inventé)
 │       ├── state.py          R5 : contrôles d'état des câbles (oper, vitesse, VLAN non tagué, port sans transceiver) et des tasks
 │       └── assemble.py       R6 : nœuds, interfaces, contrôles (dont ceux du contrat), couverture, rapport, tris
-└── tests/                    352 tests : API, archive, service, CLI (dont `ld correlate` fichier), config, branchement de B1, pages, /view ;
+└── tests/                    416 tests : API (dont test_api_diff), archive, service, CLI (dont `ld correlate` fichier, test_cli_diff), config,
+                              branchement de B1, pages (dont la page de diff), /view ;
                               correlate/ (174) : grammaire, noms d'interfaces, identité, fusion, structures, état, scénarios de docs/05,
                               assemblage, déterminisme (permutations, graines de hachage, golden à l'octet), test_review*.py (une sonde
-                              de revue = un test) ; js/ : 37 tests du visualiseur sous Node (faux DOM), lancés par pytest ; Chromium
+                              de revue = un test) ; diff/ : moteur sur la fixture, oracle du générateur sorte par sorte, déterminisme entre
+                              processus ; js/ : 46 tests du visualiseur sous Node (faux DOM), lancés par pytest ; Chromium
 ```
 
 ## B1, la corrélation — étape 1, R1-bis, R4, R5
@@ -339,12 +354,36 @@ vitesse lue sur un port down (comparée), duplex différent (aucun code : `link_
 
 `ld correlate` écrit une ligne par run (`run_id`, statut, nœuds, câbles, contrôles par sévérité) et sort en 1 si une
 run est inconnue, si B1 a échoué (trace sur stderr) ou si une entrée d'archive est corrompue : celle-ci a sa ligne,
-son snapshot reste inchangé, **les runs suivantes sont quand même recalculées**. Dans OpenAPI, les modèles des deux contrats sont générés en une
-seule passe (`models_json_schema`) : un type partagé par le bundle et le snapshot n'apparaît qu'une fois ; un test
-refuse tout nom de schéma préfixé par son module, signe que deux classes des deux contrats portent le même nom.
+son snapshot reste inchangé, **les runs suivantes sont quand même recalculées**. Dans OpenAPI, les modèles des trois contrats sont générés en une
+seule passe (`models_json_schema`) : un type partagé par le bundle, le snapshot et le diff n'apparaît qu'une fois ; un
+test refuse tout nom de schéma préfixé par son module, signe que deux classes de deux contrats portent le même nom.
 
 Revue indépendante du branchement : `docs/revues/2026-09-20-branchement-b1.md` (aucun critique, 2 hauts, 4 moyens,
 4 bas, tous traités le jour même ; sondes rejouables à côté).
+
+## B3, le diff de deux runs : `ld diff`, `GET /api/diff` (2026-10-04)
+
+Une fonction pure, `diff(before, after) -> Diff` (`src/ld_backend/diff/`), sur deux snapshots d'une même infrastructure :
+ce qui a changé, en mots du snapshot (nœuds, interfaces, câbles, agrégats, domaines MLAG, clusters HA ajoutés, retirés,
+changés champ par champ ; contrôles apparus, résolus, persistants ; couverture ; événements `rebooted` / `flapped` lus
+dans les champs volatils). Conception : `docs/07-diff.md` ; contrat `Diff` v1 : `contracts/CONTRAT.md` partie C. Jamais
+stocké : dérivé, déterministe (mêmes snapshots ⇒ mêmes octets, testé entre processus). Coût mesuré à la jauge (500
+devices, 21 000 interfaces, 23 Mo par snapshot) : ~1 s pour comparer, mais ~2,2 s pour relire et revalider les deux
+snapshots archivés à chaque appel, soit ~3,2 s par `GET /api/diff` (`docs/07` Q6, ouvert).
+
+| Entrée | Sortie |
+|---|---|
+| `ld diff --infrastructure X` | le résumé du diff entre les deux dernières runs archivées (`--from` / `--to` pour choisir ; `--out diff.json` écrit le document canonique) ; `--from` seul désigne la dernière run : la CLI avertit que les deux runs sont la même, le diff est vide, sortie 0 |
+| `ld diff avant.json apres.json [--out diff.json]` | deux fichiers, bundles (validés, corrélés) ou snapshots (reconnus à `snapshot_version`), sans archive ni serveur ; même garde que `correlate` (`--out` ≠ entrée, pas de mélange des modes) |
+| `GET /api/diff?infrastructure=&from=&to=` | le `Diff` JSON ; 404 qui nomme le côté manquant, 422 à la forme de l'API, jamais une valeur dans un message |
+| `ld render … --from …` | la page avec le diff embarqué : voir ci-dessous |
+
+L'oracle des tests est le `manifest.json` de `ld-contracts generate` : chaque sorte de mutation du générateur se lit dans
+le diff comme `docs/07` §6 l'annonce (`tests/diff/test_synth.py`). Deux vérités apprises de l'oracle : un switch retiré
+**survit en stub** quand la description des ports de cœur, périmée, le cite encore (câbles confirmés → documentés seuls,
+`documented_not_observed` apparu : le diff montre la description à nettoyer, il n'invente rien) ; les ports de réserve
+des cœurs existaient déjà, ce sont les port-channels qui s'ajoutent ou se retirent. Revue indépendante :
+`docs/revues/2026-10-04-b3-diff.md`.
 
 ## Les pages de lecture : `ld render`
 
@@ -355,9 +394,11 @@ comprendre d'où vient chaque câble, et corriger l'exportateur ou les données.
 |---|---|
 | `ld render bundle.json --out page.html` | valide, corrèle, écrit la page ; **ne touche ni archive ni serveur** (boucle de mise au point : ré-exporter la même run corrigée ne rencontre pas le 409 de l'archive). Bundle hors contrat : sortie 1, erreurs listées, aucune page |
 | `ld render --infrastructure X --run-id Y --out page.html` | la page du snapshot et du rapport **tels qu'archivés** ; sortie 1 si la run est inconnue ou sans snapshot |
+| `ld render apres.json --out page.html --from avant.json` | la même page avec le **diff** depuis le fichier d'avant (bundle ou snapshot) : onglet Diff, câbles et équipements ajoutés / retirés / changés peints, fantômes de ce qui a disparu (2026-10-04) |
+| `ld render --infrastructure X --run-id Y --from Z --out page.html` | idem depuis la run archivée Z ; sortie 1 si Z est inconnue ou sans snapshot |
 
 La page est un seul fichier (environ 60 Ko de visualiseur, plus les données : 90 Ko pour la fixture), ouvrable par
-double-clic, sans réseau. Cinq vues : **graphe** (nœuds par sorte, câbles par statut, deux câbles entre les mêmes
+double-clic, sans réseau. Six vues (la sixième, **Diff**, seulement avec `--from`) : **graphe** (nœuds par sorte, câbles par statut, deux câbles entre les mêmes
 équipements tracés séparément, clic ⇒ sources, contrôles, ports ; depuis l'incrément B du 2026-09-26, une **bande** par
 faisceau d'agrégat sous ses câbles, étiquetée `peer-link` ou `MLAG n`, un **cadre** par cluster HA autour de ses
 membres, un halo sur un câble de heartbeat ; clic sur une bande ou sur son étiquette ⇒ le faisceau et ses deux
@@ -436,13 +477,23 @@ Revue indépendante : `docs/revues/2026-09-20-pages-ld-render.md` (sécurité va
 navigateur ; 1 haut, 4 moyens, 5 bas, tous traités). Mesuré par la revue : 400 équipements, 1 200 câbles, 3 600
 contrôles ⇒ page de 2,7 Mo, ouverte en 0,9 s. Incrément B (structures) : `docs/revues/2026-09-26-pages-increment-b.md`.
 
+**Le diff dans la page** (2026-10-04, `--from`) : un halo sous un câble ajouté (vert) ou changé (magenta), une couronne
+autour d'un équipement ajouté ou changé, et des **fantômes** pour ce qui a disparu (câbles, équipements, interfaces lus
+dans `diff.*.removed` : pointillé gris, sélectionnables, fiche « tel qu'il était », jamais comptés dans les totaux, aucun
+contrôle de cette run). La bascule « changements » éteint tout cela (`#diff=0` dans l'adresse) ; un fantôme stub suit la
+règle des stubs. L'onglet **Diff** résume puis liste section par section, chaque ligne ouvre l'élément dans le graphe,
+retiré compris ; la fiche d'un élément changé liste ses champs avant → après ; la bulle le dit en une ligne ; l'en-tête
+dit à quelle run la page est comparée et de combien de temps.
+
 ### La page servie par le backend : `GET /view` (2026-09-26)
 
 La même page, **sans donnée** (`render/shell.py` : le visualiseur plus `shell.js`, `snapshot: null`), servie sans jeton
-comme `/docs`. Elle lit le snapshot et le rapport par l'API (`/api/snapshot`, `/api/ingest/report`, et
-`/api/ingest/bundles` pour lister les runs d'une infrastructure) avec le **jeton saisi dans la page** : gardé dans
-`sessionStorage` (l'onglet, pas le disque), envoyé en `Authorization`, oublié sur un 401 ou sur demande, **jamais dans
-l'adresse**. L'adresse porte la run (`?infrastructure=&run_id=`) et l'état de vue (`#view=…`) : elle se partage.
+comme `/docs`. Elle lit le snapshot et le rapport par l'API (`/api/snapshot`, `/api/ingest/report`,
+`/api/ingest/bundles` pour lister les runs d'une infrastructure, et `/api/diff` quand l'adresse porte `&from=`) avec le
+**jeton saisi dans la page** : gardé dans `sessionStorage` (l'onglet, pas le disque), envoyé en `Authorization`, oublié
+sur un 401 ou sur demande, **jamais dans l'adresse**. L'adresse porte la run (`?infrastructure=&run_id=`), la run d'avant
+(`&from=`, la liste des runs propose « avec la précédente » ; un diff indisponible n'empêche pas d'ouvrir la run,
+l'en-tête dit pourquoi) et l'état de vue (`#view=…`) : elle se partage.
 Seule différence de CSP avec la page autonome : `connect-src 'self'` (la page autonome n'a aucun réseau, un test le
 vérifie). Tests : `tests/test_view.py` (route, stabilité, empreintes CSP, coquille servie par uvicorn et lue par
 Chromium) et deux tests sous Node avec un `fetch` simulé (saisie du jeton, liste des runs, chargement, jeton refusé

@@ -741,3 +741,189 @@ test("le palier de zoom se lit sur le svg : de loin, les petites étiquettes son
   assert.equal(canvas.classList.contains("zoom-near"), true);
   assert.equal(canvas.classList.contains("zoom-far"), false);
 });
+
+// ---------------------------------------------------------------- le diff (2026-10-04)
+
+const diffPage = process.env.LD_PAGE_DIFF ? readPage(process.env.LD_PAGE_DIFF) : null;
+const CORE1_LINK = ["sw-core-01", "Ethernet1/1", "sw-core-02", "Ethernet1/1"].join("\u0000");
+const LATER_RUN_ID = "66e49a2d9a1c2b0012f4a8e2";
+
+test("le modèle lit le diff : fantômes, index des changements, compte de l'onglet", { skip: !diffPage }, () => {
+  const model = load(diffPage).LD.model.build(diffPage.data);
+  assert.ok(model.diff);
+  assert.equal(model.links.length, 5, "les câbles de cette run, sans les fantômes");
+  assert.equal(model.ghostLinks.length, 1);
+  assert.deepEqual(clone(model.ghostNodes.map((n) => [n.hostname, n.kind, n.ghost])), [["srv-hyp-07", "stub", true]]);
+  const ghost = model.linkById.get(STUB_LINK);
+  assert.equal(ghost.ghost, true);
+  assert.equal(ghost.checks.length, 0, "un fantôme ne porte aucun contrôle de cette run");
+  assert.equal(model.linksByNode.get("sw-core-02").includes(ghost), true, "il suit encore son équipement");
+  assert.deepEqual(clone(model.changeOf("link", CORE1_LINK).fields.map((f) => f.path)), ["oper"]);
+  assert.equal(model.changeOf("link", STUB_LINK).kind, "removed");
+  assert.equal(model.changeOf("node", "srv-hyp-07").kind, "removed");
+  assert.equal(model.changeOf("interface", ["sw-core-01", "Ethernet1/1"].join("\u0000")).kind, "changed");
+  assert.equal(model.changeOf("link", WAN_LINK), null);
+  const s = model.diff.summary;
+  assert.equal(model.diffCount, 1 + 2 + 3 + s.checks.appeared + s.checks.resolved, "équipements, câbles, interfaces, contrôles");
+  assert.equal(model.statusCounts.get("confirmed"), 3, "les totaux ne comptent pas les fantômes");
+});
+
+test("la page peint le diff : halos, fantômes avec les voisins inconnus, bascule et adresse", { skip: !diffPage }, () => {
+  const { LD, document, location } = load(diffPage, diffPage.data);
+  const canvas = document.getElementById("canvas");
+  assert.match(document.getElementById("run-meta").textContent, /comparée à la run 66db3f0e9a1c2b0012f4a7d1 du 2026-09-10T02:00:00Z · 7 j plus tard/);
+  assert.match(document.getElementById("run-counts").textContent, /diff · câbles \+0 −1 ~1/);
+  assert.ok(document.getElementById("tab-diff"));
+  assert.match(document.getElementById("tab-diff").textContent, /Diff · \d+/);
+  assert.equal(canvas.withClass("diff-changed").length, 1);
+  assert.equal(canvas.withClass("diff-halo").length, 1);
+  assert.equal(canvas.withClass("node-ring").length, 0, "aucun équipement ajouté ni changé");
+  assert.equal(canvas.withClass("diff-removed").length, 0, "le voisin retiré est un stub : masqué comme eux, son câble avec");
+  const stubs = document.getElementById("t-stubs");
+  stubs.checked = true;
+  stubs.fire("change", { target: stubs });
+  assert.equal(canvas.withClass("diff-removed").length, 2, "le câble et le voisin retirés, en fantômes");
+  assert.match(document.getElementById("graph-status").textContent, /^5 nœuds sur 5 et 5 câbles sur 5 affichés · retirés depuis la run d'avant : 1 équipement et 1 câble en fantômes$/,
+    "le même total que l'en-tête, les fantômes à part (revue, M4)");
+  const toggle = document.getElementById("t-diff");
+  toggle.checked = false;
+  toggle.fire("change", { target: toggle });
+  assert.equal(canvas.withClass("diff-removed").length + canvas.withClass("diff-changed").length, 0);
+  assert.match(location.hash, /diff=0/);
+  assert.match(document.getElementById("graph-status").textContent, /5 nœuds sur 5 et 5 câbles sur 5 affichés · changements masqués/);
+  assert.match(document.getElementById("graph-legend").textContent, /changements.*ajouté.*changé.*retiré \(fantôme\)/s);
+});
+
+test("l'onglet Diff liste tout, et une ligne ouvre l'élément dans le graphe, retiré compris", { skip: !diffPage }, () => {
+  const { LD, document } = load(diffPage, diffPage.data, "#view=graph&diff=0");
+  assert.equal(LD.app.graph.state.showDiff, false, "l'adresse porte la bascule");
+  LD.app.activate("diff");
+  const view = document.getElementById("view-diff");
+  const text = view.textContent;
+  assert.match(text, /De la run 66db3f0e9a1c2b0012f4a7d1 \(2026-09-10T02:00:00Z\) à la run 66e49a2d9a1c2b0012f4a8e2 .* 7 j plus tard/);
+  assert.match(text, /Équipements : 1.*retiré.*srv-hyp-07.*voisin inconnu/s);
+  assert.match(text, /Câbles : 2.*retiré.*srv-hyp-07 · 3c:ec:ef:12:34:56.*changé.*sw-core-01 · Ethernet1\/1.*oper.*up → down/s);
+  assert.match(text, /Interfaces : 3.*sw-core-01 · Ethernet1\/1.*oper_status.*up → down.*Ethernet1\/3.*description.*C3\|srv-hyp-07\|eno1\| → —/s);
+  assert.match(text, /Contrôles apparus : 1.*link_down.*Contrôles résolus : 2 · persistants : 9.*neighbor_unknown.*remote_port_is_mac/s);
+  assert.match(text, /Événements : 0.*aucun redémarrage/s);
+  const row = view.withClass("clickable").find((r) => /retiré/.test(r.textContent) && /3c:ec:ef:12:34:56/.test(r.textContent));
+  row.fire("click", {});
+  assert.equal(document.getElementById("view-graph").hidden, false);
+  assert.equal(LD.app.graph.state.showDiff, true, "ouvrir un fantôme rallume les changements");
+  assert.equal(LD.app.graph.state.showStubs, true, "et les voisins inconnus, puisque c'en est un");
+  assert.equal(LD.app.graph.state.selection.id, STUB_LINK);
+  assert.equal(document.getElementById("t-diff").checked, true);
+  const inspector = document.getElementById("inspector");
+  assert.match(inspector.textContent, /câble.*retiré.*Retiré : ce câble était dans la run 66db3f0e9a1c2b0012f4a7d1 et n'est plus dans celle-ci/s);
+  LD.app.graph.select({ kind: "link", id: CORE1_LINK });
+  assert.match(inspector.textContent, /changé.*Changements depuis la run 66db3f0e9a1c2b0012f4a7d1.*oper.*up → down/s);
+  LD.app.graph.select({ kind: "node", id: "srv-hyp-07" });
+  assert.match(inspector.textContent, /voisin inconnu.*retiré.*tel qu'il était.*Câbles : 0 · 1 retiré/s, "un fantôme ne compte pas dans les câbles");
+  LD.app.graph.select({ kind: "node", id: "sw-core-02" });
+  assert.match(inspector.textContent, /Ethernet1\/3.*srv-hyp-07 · 3c:ec:ef:12:34:56 \(retiré\)/s, "la fiche d'un port dit que son câble est retiré");
+});
+
+test("la bulle dit le changement, en une ligne", { skip: !diffPage }, () => {
+  const { LD } = load(diffPage, diffPage.data);
+  const model = LD.app.model;
+  assert.match(joined(LD.tip.linkLines(model, model.linkById.get(CORE1_LINK))), /\nchangé : oper\n/);
+  assert.match(joined(LD.tip.linkLines(model, model.linkById.get(STUB_LINK))), /\nretiré depuis la run d'avant\n/);
+  assert.match(joined(LD.tip.nodeLines(model, model.nodeByHost.get("srv-hyp-07"))), /\nretiré depuis la run d'avant\n/);
+  assert.match(joined(LD.tip.nodeLines(model, model.nodeByHost.get("sw-core-02"))), /3 câbles · 1 câble retiré/, "les fantômes ne comptent pas dans les câbles");
+  assert.doesNotMatch(joined(LD.tip.linkLines(model, model.linkById.get(WAN_LINK))), /ajouté|retiré|changé/);
+});
+
+const TWO_RUNS = { status: 200, body: { infrastructure: "infra-lab", runs: [
+  { run_id: RUN_ID, run_start: "2026-09-10T02:00:00Z", run_end: null, run_status: "completed", produced_at: "x", stored_at: "s", sha256: "0" },
+  { run_id: LATER_RUN_ID, run_start: "2026-09-17T02:00:00Z", run_end: null, run_status: "completed", produced_at: "x", stored_at: "s", sha256: "1" }] } };
+
+test("la coquille lit ?from=, appelle /api/diff, et la liste des runs propose « avec la précédente »", { skip: !shell || !diffPage }, async () => {
+  const api = fakeApi(diffPage, { "/api/diff": { status: 200, body: diffPage.data.diff }, "/api/ingest/bundles": TWO_RUNS });
+  api.store.set("ld-api-token", "known");
+  const search = "?infrastructure=infra-lab&run_id=" + LATER_RUN_ID + "&from=" + RUN_ID;
+  const { LD, document, location } = load(shell, shell.data, "", { fetch: api.fetch, sessionStorage: api.sessionStorage, search });
+  await LD.shellApp.state.pending;
+  assert.ok(LD.app && LD.app.model.diff, "le diff est lu avec le snapshot");
+  assert.ok(api.calls.some(([url]) => url.startsWith("/api/diff?") && url.includes("from=" + RUN_ID) && url.includes("to=" + LATER_RUN_ID)));
+  assert.equal(location.search, "?infrastructure=infra-lab&run_id=" + LATER_RUN_ID + "&from=" + RUN_ID, "l'adresse garde la run d'avant");
+  assert.ok(document.getElementById("tab-diff"));
+  const listing = fakeApi(diffPage, { "/api/diff": { status: 200, body: diffPage.data.diff }, "/api/ingest/bundles": TWO_RUNS });
+  const second = load(shell, shell.data, "", { fetch: listing.fetch, sessionStorage: listing.sessionStorage, search: "?infrastructure=infra-lab" });
+  const view = second.document.getElementById("view-shell");
+  view.all((n) => n.getAttribute("type") === "password")[0].value = "secret";
+  view.all((n) => n.tagName === "form")[0].fire("submit", {});
+  await second.LD.shellApp.state.pending;
+  const buttons = view.all((n) => n.tagName === "button" && /avec la précédente/.test(n.textContent));
+  assert.equal(buttons.length, 1, "la première run n'a pas de précédente");
+  buttons[0].fire("click", {});
+  await second.LD.shellApp.state.pending;
+  assert.equal(second.LD.shellApp.state.from, RUN_ID);
+  assert.equal(second.LD.shellApp.state.runId, LATER_RUN_ID);
+  assert.ok(second.LD.app.model.diff);
+  const missing = fakeApi(diffPage, { "/api/diff": { status: 404, body: { detail: "run `from` : run inconnue pour cette infrastructure" } } });
+  missing.store.set("ld-api-token", "ok");
+  const third = load(shell, shell.data, "", { fetch: missing.fetch, sessionStorage: missing.sessionStorage, search: "?infrastructure=infra-lab&run_id=" + LATER_RUN_ID + "&from=nope" });
+  await third.LD.shellApp.state.pending;
+  assert.ok(third.LD.app, "la run s'ouvre quand même");
+  assert.equal(third.LD.app.model.diff, null);
+  assert.match(third.document.getElementById("run-meta").textContent, /diff indisponible : run `from` : run inconnue/);
+  assert.equal(third.document.getElementById("tab-diff"), null);
+});
+
+// ---------------------------------------------------------------- après la revue de B3 (2026-10-04 : H1, M4, B6)
+
+const unreachablePage = process.env.LD_PAGE_UNREACHABLE ? readPage(process.env.LD_PAGE_UNREACHABLE) : null;
+const FW_X1 = ["fw-edge-01", "x1"].join("\u0000");
+
+test("un équipement injoignable ne montre jamais les faits de la run d'avant comme actuels (H1)", { skip: !unreachablePage }, () => {
+  const { LD, document } = load(unreachablePage, unreachablePage.data);
+  const model = LD.app.model;
+  assert.equal(model.interfaces.filter((i) => i.hostname === "fw-edge-01").length, 0, "la run ne l'a pas collecté");
+  assert.equal(model.ifaceByKey.has(FW_X1), false, "les interfaces retirées ne sont pas dans l'index de la run");
+  assert.equal(model.ghostIfaceByKey.get(FW_X1).ghost, true, "elles ont le leur");
+  assert.equal(LD.model.interfaceAt(model, "fw-edge-01", "x1", false), null, "un élément vivant ne les lit pas");
+  assert.equal(LD.model.interfaceAt(model, "fw-edge-01", "x1", true).ghost, true, "un élément retiré les lit, en le disant");
+  const link = model.links.find((l) => (l.a.hostname === "fw-edge-01" || l.b.hostname === "fw-edge-01") && !l.ghost);
+  const bubble = joined(LD.tip.linkLines(model, link));
+  assert.match(bubble, /fw-edge-01 · x\d : absent de interfaces\[\]/, "la bulle du câble vivant dit l'absence");
+  assert.doesNotMatch(bubble, /run d'avant/);
+  LD.app.graph.select({ kind: "node", id: "fw-edge-01" });
+  const sheet = document.getElementById("inspector").textContent;
+  assert.match(sheet, /collecte : unreachable/);
+  assert.match(sheet, /Interfaces : 0/);
+  assert.match(sheet, /seulement les ports physiques up sans câble \(0\)/, "aucun compte fabriqué sur la run d'avant");
+  assert.match(sheet, /Interfaces retirées depuis la run d'avant : [1-9]\d*.*état \(run d'avant\).*x1.*retiré/s);
+  LD.app.graph.select({ kind: "link", id: link.id });
+  assert.match(document.getElementById("inspector").textContent, /Port absent de interfaces\[\]/, "la carte du port aussi");
+});
+
+test("les fantômes ne comptent nulle part et un câble retiré a son statut au passé (M4, B6)", { skip: !diffPage }, () => {
+  const { LD, document } = load(diffPage, diffPage.data);
+  assert.match(document.getElementById("graph-status").textContent,
+    /^5 nœuds sur 5 et 5 câbles sur 5 affichés · retirés depuis la run d'avant : 1 équipement et 1 câble en fantômes, dont 2 masqués par le filtre des voisins inconnus$/);
+  assert.match(document.getElementById("run-counts").textContent, /5 nœuds/, "l'en-tête et l'état du graphe disent le même total");
+  assert.match(document.getElementById("graph-toolbar").textContent, /voisins inconnus \(0\)/, "le fantôme stub n'est pas un voisin inconnu de cette run");
+  LD.app.graph.select({ kind: "node", id: "sw-core-02" });
+  assert.match(document.getElementById("inspector").textContent, /Câbles : 3 · 1 retiré/);
+  LD.app.activate("diff");
+  const view = document.getElementById("view-diff");
+  const headers = view.all((n) => n.tagName === "th").map((n) => n.textContent);
+  assert.equal(headers.filter((t) => t === "").length, 0, "aucun en-tête vide pour un lecteur d'écran");
+  assert.ok(headers.includes("changement"));
+  const row = view.withClass("clickable").find((r) => /retiré/.test(r.textContent) && /3c:ec:ef:12:34:56/.test(r.textContent));
+  assert.match(row.textContent, /était confirmé/, "le statut d'un câble retiré est celui de la run d'avant, dit comme tel");
+  assert.equal(LD.dom.elapsedText(0), "même début de collecte");
+  assert.equal(LD.dom.EVENT_LABEL.flapped, "flap");
+});
+
+test("l'adresse #link= d'un câble retiré l'ouvre, et rallume ce qu'il faut pour le voir", { skip: !diffPage }, () => {
+  const token = encodeURIComponent(JSON.stringify(["sw-core-02", "Ethernet1/3", "srv-hyp-07", "3c:ec:ef:12:34:56"]));
+  const { LD, document, location } = load(diffPage, diffPage.data, "#view=graph&diff=0&link=" + token);
+  const state = LD.app.graph.state;
+  assert.equal(state.selection && state.selection.id, STUB_LINK);
+  assert.equal(state.showDiff, true, "l'adresse disait diff=0, le fantôme a rallumé les changements");
+  assert.equal(state.showStubs, true);
+  assert.equal(document.getElementById("canvas").withClass("diff-removed").length, 2);
+  assert.doesNotMatch(location.hash, /diff=0/);
+  assert.match(location.hash, /stubs=1/);
+});

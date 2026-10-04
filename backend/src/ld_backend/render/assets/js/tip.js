@@ -19,11 +19,13 @@ var LD = globalThis.LD || (globalThis.LD = {});
   const endLabel = (end) => LD.model.endLabel(end);
 
   // Les faits d'un bout : ce que `interfaces[]` dit du port ; `present: false` s'il n'y figure pas (voisin inconnu,
-  // autre infra, port tel qu'annoncé par le voisin) : alors aucune valeur, et la bulle le dit en toutes lettres.
-  function endFacts(model, end) {
-    const itf = model.ifaceByKey.get(LD.model.ifaceKey(end.hostname, end.interface));
-    if (!itf) return { present: false, speed: null, duplex: null, media: null, state: null };
-    return { present: true, speed: LD.dom.speedText(itf.speed_mbps), duplex: itf.duplex, media: itf.media,
+  // autre infra, port tel qu'annoncé par le voisin, device non collecté à cette run) : alors aucune valeur, et la bulle
+  // le dit en toutes lettres. Seul un câble lui-même retiré lit une interface retirée (`ghost: true`, dit aussi).
+  function endFacts(model, end, removed) {
+    const found = LD.model.interfaceAt(model, end.hostname, end.interface, removed);
+    if (!found) return { present: false, ghost: false, speed: null, duplex: null, media: null, state: null };
+    const itf = found.itf;
+    return { present: true, ghost: found.ghost, speed: LD.dom.speedText(itf.speed_mbps), duplex: itf.duplex, media: itf.media,
       state: itf.oper_status + (itf.oper_reason ? " · " + itf.oper_reason : "") };
   }
 
@@ -41,6 +43,15 @@ var LD = globalThis.LD || (globalThis.LD = {});
     return lines;
   }
 
+  // Ce que le diff dit de l'élément, en une ligne : ajouté, retiré, ou les chemins changés (quatre au plus).
+  const DIFF_WORD = { added: "ajouté dans cette run", removed: "retiré depuis la run d'avant", changed: "changé" };
+  function diffLine(change) {
+    if (!change) return null;
+    const fields = change.fields || [];
+    const paths = change.kind === "changed" ? " : " + fields.slice(0, 4).map((f) => f.path).join(", ") + (fields.length > 4 ? "…" : "") : "";
+    return line(cell(DIFF_WORD[change.kind] + paths, "tip-diff-" + change.kind));
+  }
+
   function sourcesText(sources) {
     const ordered = SOURCE_ORDER.filter((src) => sources.includes(src)).concat(sources.filter((src) => !SOURCE_ORDER.includes(src)));
     return ordered.map((src) => LD.dom.SOURCE_LABEL[src] || src).join(" + ");
@@ -49,14 +60,16 @@ var LD = globalThis.LD || (globalThis.LD = {});
   // Une ligne par caractéristique, seulement si au moins un bout l'a ; l'état à part, connu de tout bout présent.
   function linkLines(model, link) {
     const ends = [link.a, link.b];
-    const facts = ends.map((end) => endFacts(model, end));
+    const facts = ends.map((end) => endFacts(model, end, link.ghost));
     const row = (label, key) => (facts.some((f) => f[key] !== null)
       ? line(cell(label, "tip-muted"), ...facts.map((f) => cell(f[key] === null ? DASH : f[key]))) : null);
     const traits = [row("vitesse", "speed"), row("duplex", "duplex"), row("média", "media")].filter(Boolean);
     return [
       line(cell(endLabel(link.a) + " ↔ " + endLabel(link.b), "tip-title")),
       line(cell(LD.dom.STATUS_LABEL[link.status] + " · " + sourcesText(link.sources) + " · " + link.raw.oper, "tip-muted")),
+      diffLine(link.ghost ? { kind: "removed" } : model.changeOf("link", link.id)),
       ...ends.filter((end, index) => !facts[index].present).map((end) => line(cell(endLabel(end) + " : absent de interfaces[]", "tip-muted"))),
+      ...ends.filter((end, index) => facts[index].ghost).map((end) => line(cell(endLabel(end) + " : interface retirée, valeurs de la run d'avant", "tip-muted"))),
       line(cell(""), cell(link.a.interface, "tip-muted"), cell(link.b.interface, "tip-muted")),
       ...(traits.length ? traits : [line(cell("vitesse, duplex, média : aucune valeur", "tip-muted"))]),
       row("état", "state"),
@@ -69,14 +82,16 @@ var LD = globalThis.LD || (globalThis.LD = {});
 
   function nodeLines(model, node) {
     const memberships = model.haMembershipsByHost.get(node.hostname) || [];
-    const links = model.linksByNode.get(node.hostname) || [];
+    const links = (model.linksByNode.get(node.hostname) || []).filter((l) => !l.ghost);
+    const ghosts = (model.linksByNode.get(node.hostname) || []).length - links.length;
     const hardware = [node.vendor, node.model].filter(Boolean).join(" · ");
     const system = [node.os_name, node.os_version].filter(Boolean).join(" ");
-    const facts = [node.collection ? "collecte : " + node.collection : null, plural(links.length, "câble"),
+    const facts = [node.collection ? "collecte : " + node.collection : null, plural(links.length, "câble") + (ghosts ? " · " + plural(ghosts, "câble retiré") : ""),
       node.stack ? "stack ×" + node.stack.member_count : null,
       node.evidence && node.evidence.capabilities.length ? "capacités : " + node.evidence.capabilities.join(", ") : null].filter(Boolean);
     return [
       line(cell(node.hostname + " · " + LD.dom.KIND_LABEL[node.kind] + (node.type ? " · " + node.type : ""), "tip-title")),
+      diffLine(node.ghost ? { kind: "removed" } : model.changeOf("node", node.hostname)),
       hardware || system ? line(cell([hardware, system].filter(Boolean).join(" · "), "tip-muted")) : null,
       line(cell(facts.join(" · "), "tip-muted")),
       ...memberships.map((ha) => line(cell(LD.geometry.clusterLabel(ha.cluster) + " · " + memberText(ha.member)))), // tous ses clusters (revue, B4)

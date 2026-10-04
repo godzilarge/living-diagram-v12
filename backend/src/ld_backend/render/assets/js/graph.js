@@ -21,7 +21,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
   }
 
   function create(svg, model, onSelect) {
-    const state = { showStubs: false, showPorts: false, hiddenStatuses: new Set(), query: "", pinned: new Map(),
+    const state = { showStubs: false, showPorts: false, showDiff: true, hiddenStatuses: new Set(), query: "", pinned: new Map(),
       positions: new Map(), view: { k: 1, tx: 0, ty: 0 }, selection: null, nodeEls: new Map(), linkEls: new Map(), beamEls: new Map(), clusterEls: new Map() };
     const viewport = s("g", { class: "viewport" });
     const clusterLayer = s("g", { class: "clusters" });
@@ -33,7 +33,13 @@ var LD = globalThis.LD || (globalThis.LD = {});
     clear(svg).appendChild(viewport);
     const tip = LD.tip.create(svg); // au-dessus du viewport, en coordonnées d'écran
 
-    const visibleNodes = () => model.nodes.filter((n) => state.showStubs || n.kind !== "stub");
+    // Les fantômes du diff (retirés depuis la run d'avant) se dessinent avec les changements ; un fantôme stub suit la règle des stubs.
+    const allNodes = () => model.nodes.concat(state.showDiff ? model.ghostNodes : []);
+    const allLinks = () => model.links.concat(state.showDiff ? model.ghostLinks : []);
+    const linkAt = (index) => (index < model.links.length ? model.links[index] : model.ghostLinks[index - model.links.length]);
+    // Rien n'est peint quand les changements sont masqués : ni halo, ni couronne, ni fantôme.
+    const changeOf = (kind, entity, id) => (!state.showDiff ? null : entity.ghost ? "removed" : (model.changeOf(kind, id) || {}).kind || null);
+    const visibleNodes = () => allNodes().filter((n) => state.showStubs || n.kind !== "stub");
     // Les classes du svg : sélection, noms des ports, et le palier de zoom (de loin, les petites étiquettes disparaissent).
     function svgClasses() {
       const k = state.view.k;
@@ -43,7 +49,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
     let dragging = false, pan = null; // un équipement en cours de glissé, une vue en cours de panoramique : pas de bulle
 
     function visibleLinks(shown) {
-      return model.links.filter((l) => shown.has(l.a.hostname) && shown.has(l.b.hostname) && !state.hiddenStatuses.has(l.status));
+      return allLinks().filter((l) => shown.has(l.a.hostname) && shown.has(l.b.hostname) && !state.hiddenStatuses.has(l.status));
     }
     // Un faisceau se dessine entre deux équipements distincts, dès qu'un de ses câbles est visible.
     function visibleBeams(shown, links) {
@@ -66,7 +72,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
     function placeLink(link, els) {
       const p = state.positions.get(link.a.hostname), q = state.positions.get(link.b.hostname);
       const shape = curve(p, q, link);
-      [els.line, els.hit, els.halo].forEach((el) => { if (el) el.setAttribute("d", shape.path); });
+      [els.line, els.hit, els.halo, els.diff].forEach((el) => { if (el) el.setAttribute("d", shape.path); });
       if (els.mark) { els.mark.setAttribute("cx", shape.mid.x); els.mark.setAttribute("cy", shape.mid.y); }
       els.ports.forEach((text, i) => {
         text.setAttribute("x", shape.ends[i].x);
@@ -76,18 +82,20 @@ var LD = globalThis.LD || (globalThis.LD = {});
     }
 
     function drawLink(link) {
+      const change = changeOf("link", link, link.id); // le diff : un halo coloré sous le tracé, le statut reste lisible
+      const diffHalo = change ? s("path", { class: "diff-halo" }) : null;
       const halo = link.heartbeat ? s("path", { class: "link-halo" }) : null; // heartbeat HA : un halo sous le tracé
       const line = s("path", { class: "link-line" });
       const hit = s("path", { class: "link-hit" });
       const mark = link.worst === "error" || link.worst === "warning" ? s("circle", { class: "link-mark severity-" + link.worst, r: 4.5 }) : null;
       const ports = [link.a.interface, link.b.interface].map((name) => s("text", { class: "port-label" }, name));
-      const classes = `link status-${link.status}${link.raw.oper === "down" ? " oper-down" : ""}${link.pairCount > 2 ? " crowded" : ""}${link.heartbeat ? " heartbeat" : ""}`;
+      const classes = `link status-${link.status}${link.raw.oper === "down" ? " oper-down" : ""}${link.pairCount > 2 ? " crowded" : ""}${link.heartbeat ? " heartbeat" : ""}${change ? " diff-" + change : ""}`;
       // L'identité est portée par le groupe : le clic (lu au relâchement, sur la cible de l'appui) et le survol remontent
       // du point touché jusqu'à lui. Pas de <title> natif : la bulle de la page est la seule.
       const group = s("g", { class: classes, "data-link": String(link.index), tabindex: 0, role: "button",
-        "aria-label": `${LD.model.endLabel(link.a)} ↔ ${LD.model.endLabel(link.b)} · ${LD.dom.STATUS_LABEL[link.status]} · ${link.combo}` },
-        halo, line, hit, mark, ports);
-      const els = { group, line, hit, halo, mark, ports };
+        "aria-label": `${LD.model.endLabel(link.a)} ↔ ${LD.model.endLabel(link.b)} · ${LD.dom.STATUS_LABEL[link.status]} · ${link.combo}${change ? " · " + LD.dom.DIFF_LABEL[change] : ""}` },
+        diffHalo, halo, line, hit, mark, ports);
+      const els = { group, line, hit, halo, diff: diffHalo, mark, ports };
       state.linkEls.set(link.id, els);
       placeLink(link, els);
       bindFocus(group, { kind: "link", id: link.id }, () => toScreen(curve(state.positions.get(link.a.hostname), state.positions.get(link.b.hostname), link).mid));
@@ -170,9 +178,12 @@ var LD = globalThis.LD || (globalThis.LD = {});
       // Entrée sélectionne : pour un lecteur d'écran c'est un bouton, pas un groupe (revue, B7).
       // Le nom domine ; le type est une icône dessinée (icons.js), le rôle HA s'écrit sous l'icône.
       const typeLabel = node.type ? LD.icons.LABEL[node.type] || node.type : null;
-      const group = s("g", { class: `node kind-${node.kind} collection-${node.collection || "none"}${haClasses}`, tabindex: 0, role: "button", "data-node": node.hostname,
-          "aria-label": `${node.hostname} · ${LD.dom.KIND_LABEL[node.kind]}${typeLabel ? " · " + typeLabel : ""}${node.collection ? " · collecte : " + node.collection : ""}${ha ? " · HA " + ha.member.role : ""}` },
-        nodeShape(node),
+      const change = changeOf("node", node, node.hostname); // le diff : une couronne autour du nœud ; un fantôme s'estompe
+      const ring = change && change !== "removed" ? (node.kind === "stub" ? s("circle", { class: "node-ring", r: STUB_R + 4 })
+        : s("rect", { class: "node-ring", x: -NODE_W / 2 - 4, y: -NODE_H / 2 - 4, width: NODE_W + 8, height: NODE_H + 8, rx: 12 })) : null;
+      const group = s("g", { class: `node kind-${node.kind} collection-${node.collection || "none"}${haClasses}${change ? " diff-" + change : ""}`, tabindex: 0, role: "button", "data-node": node.hostname,
+          "aria-label": `${node.hostname} · ${LD.dom.KIND_LABEL[node.kind]}${typeLabel ? " · " + typeLabel : ""}${node.collection ? " · collecte : " + node.collection : ""}${ha ? " · HA " + ha.member.role : ""}${change ? " · " + LD.dom.DIFF_LABEL[change] : ""}` },
+        ring, nodeShape(node),
         node.kind === "stub" ? null : s("path", { class: "node-icon", d: LD.icons.path(node.type),
           transform: `translate(${-ICON_PX / 2},${ha ? -NODE_H / 2 + 3 : -ICON_PX / 2}) scale(${ICON_SCALE})` }),
         ha ? s("text", { class: "node-role", y: NODE_H / 2 - 5 }, ha.member.role) : null,
@@ -257,7 +268,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
     function entityAt(target) {
       for (let el = target; el && el !== svg && el.getAttribute; el = el.parentNode) {
         const link = el.getAttribute("data-link"), beam = el.getAttribute("data-beam"), cluster = el.getAttribute("data-cluster"), node = el.getAttribute("data-node");
-        if (link !== null) return { kind: "link", id: model.links[Number(link)].id };
+        if (link !== null) return { kind: "link", id: linkAt(Number(link)).id };
         if (beam !== null) return { kind: "beam", id: model.beams[Number(beam)].id };
         if (cluster !== null) return { kind: "cluster", id: model.clusters[Number(cluster)].id };
         if (node !== null) return { kind: "node", id: node };
@@ -375,7 +386,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
     // Les membres d'un cluster s'attirent comme s'ils étaient câblés : le cadre reste compact, un membre injoignable
     // (sans câble) se place à côté de son pair au lieu d'être rangé sous le graphe.
     function layoutEdges() {
-      const edges = model.links.map((l) => [l.a.hostname, l.b.hostname]);
+      const edges = allLinks().map((l) => [l.a.hostname, l.b.hostname]); // un câble retiré attire encore ses deux bouts : le fantôme se dessine là où il était
       model.clusters.forEach((c) => c.hosts.slice(1).forEach((host) => edges.push([c.hosts[0], host, 2.5])));
       return edges;
     }
@@ -421,6 +432,7 @@ var LD = globalThis.LD || (globalThis.LD = {});
       const hosts = LD.model.hostsOf(model, selection).concat(links.flatMap((link) => [link.a.hostname, link.b.hostname]));
       const needsStubs = hosts.some((host) => (model.nodeByHost.get(host) || {}).kind === "stub");
       let redraw = false;
+      if (entity && entity.ghost && !state.showDiff) { state.showDiff = true; redraw = true; } // un fantôme ne se montre qu'avec les changements
       if (needsStubs && !state.showStubs) { state.showStubs = true; redraw = true; }
       links.forEach((link) => { if (state.hiddenStatuses.has(link.status)) { state.hiddenStatuses.delete(link.status); redraw = true; } });
       if (redraw) render(true);

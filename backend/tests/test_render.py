@@ -14,6 +14,7 @@ import pytest
 from ld_backend import cli
 from ld_backend.render import build_page_data, page_from_bundle, render_page, render_shell
 from tests.correlate.conftest import interface, lldp_doc, variant
+from tests.diff.conftest import LATER_RUN_ID, cable_down_later, later
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 JS_TESTS = Path(__file__).parent / "js"
@@ -53,6 +54,38 @@ def _page(bundle: dict) -> str:
     return outcome.page
 
 
+def _diff_pair(bundle: dict) -> tuple[dict, dict]:
+    """Avant : la fixture. Après, une semaine plus tard : le câble des cœurs est tombé des deux bouts, et le serveur
+    `srv-hyp-07` n'est plus ni observé ni documenté (son câble et lui disparaissent : des fantômes dans la page)."""
+    after = cable_down_later(bundle)
+    after["lldp"] = [doc for doc in after["lldp"] if doc["neighbor"] != "srv-hyp-07"]
+    interface(after, "sw-core-02", "Ethernet1/3")["description"] = None
+    return bundle, after
+
+
+def _unreachable_pair(bundle: dict) -> tuple[dict, dict]:
+    """Une semaine plus tard, `fw-edge-01` est injoignable : ses interfaces disparaissent du snapshot (fantômes sur un
+    nœud vivant), ses câbles documentés depuis les cœurs restent (revue, H1)."""
+    after = later(bundle)
+    for task in after["tasks"]:
+        if task["hostname"] == "fw-edge-01":
+            task["status"], task["status_per_subject"], task["error"] = "unreachable", {}, "ssh: connect timeout"
+    for topic in ("interfaces", "lldp", "cdp", "aggregates", "system", "ha"):
+        after[topic] = [doc for doc in after[topic] if doc["hostname"] != "fw-edge-01"]
+    return bundle, after
+
+
+def _page_with_previous(pair: tuple[dict, dict]) -> str:
+    before, after = pair
+    outcome = page_from_bundle(after, origin="after.json", previous=before)
+    assert outcome.page is not None, (outcome.problem, outcome.errors)
+    return outcome.page
+
+
+def _diff_page(bundle: dict) -> str:
+    return _page_with_previous(_diff_pair(bundle))
+
+
 def _block(page: str, tag: str, marker: str) -> str:
     found = re.search(rf"<{tag}{marker}>(.*?)</{tag}>", page, re.DOTALL)
     assert found, (tag, marker)
@@ -73,9 +106,85 @@ def test_the_page_embeds_the_snapshot_the_delivery_report_and_the_catalogue(bund
 
 
 def test_the_page_is_offline_no_url_no_external_resource(bundle_dict):
-    page = _page(bundle_dict)
-    assert set(re.findall(r"https?://[^\s\"'<>)]+", page)) <= {SVG_NAMESPACE}
-    assert not re.search(r"<link\b|<img\b|<iframe\b|\bsrc\s*=|@import|url\(", page)
+    for page in (_page(bundle_dict), _diff_page(bundle_dict)):
+        assert set(re.findall(r"https?://[^\s\"'<>)]+", page)) <= {SVG_NAMESPACE}
+        assert not re.search(r"<link\b|<img\b|<iframe\b|\bsrc\s*=|@import|url\(", page)
+
+
+# ---------------------------------------------------------------- le diff dans la page (2026-10-04)
+
+
+def test_a_page_built_with_a_previous_run_embeds_the_diff_and_only_then(bundle_dict):
+    data = _data(_diff_page(bundle_dict))
+    assert set(data) == {"catalogue", "diff", "ingest", "origin", "snapshot"}
+    summary = data["diff"]["summary"]
+    assert summary["links"] == {"added": 0, "removed": 1, "changed": 1} and summary["nodes"]["removed"] == 1
+    assert data["diff"]["nodes"]["removed"][0]["hostname"] == "srv-hyp-07"
+    assert (
+        data["diff"]["before"]["collector_run_id"] == RUN_ID
+        and data["diff"]["after"]["collector_run_id"] == LATER_RUN_ID
+    )
+    assert "diff" not in _data(_page(bundle_dict)), "sans run d'avant, la clé n'existe pas"
+    assert 'id="view-diff"' in _page(bundle_dict), "la section existe toujours, l'onglet seulement avec un diff"
+
+
+def test_an_unreachable_device_keeps_its_removed_interfaces_out_of_the_run(bundle_dict):
+    data = _data(_page_with_previous(_unreachable_pair(bundle_dict)))
+    gone = {i["hostname"] for i in data["diff"]["interfaces"]["removed"]}
+    assert gone == {"fw-edge-01"} and data["diff"]["summary"]["interfaces"]["removed"] >= 1
+    assert not [i for i in data["snapshot"]["interfaces"] if i["hostname"] == "fw-edge-01"]
+
+
+def test_render_from_the_run_itself_warns_and_still_writes(capsys, tmp_path, bundle_dict):
+    """Revue B5 : `--from` égal à la run dessinée embarque un diff vide ; la CLI le dit, sans refuser."""
+    b, out = tmp_path / "b.json", tmp_path / "page.html"
+    b.write_text(json.dumps(bundle_dict), encoding="utf-8")
+    assert cli.main(["render", str(b), "--out", str(out), "--from", str(b)]) == 0
+    assert cli.SAME_RUN_WARNING in capsys.readouterr().out
+    assert _data(out.read_text(encoding="utf-8"))["diff"]["elapsed_seconds"] == 0
+    archive = tmp_path / "archive"
+    assert cli.main(["ingest", str(b), "--archive", str(archive)]) == 0
+    capsys.readouterr()
+    args = ["render", "--infrastructure", "infra-lab", "--run-id", RUN_ID, "--archive", str(archive), "--out", str(out)]
+    assert cli.main([*args, "--from", RUN_ID]) == 0 and cli.SAME_RUN_WARNING in capsys.readouterr().out
+    assert cli.main(args) == 0 and cli.SAME_RUN_WARNING not in capsys.readouterr().out
+
+
+def test_render_from_embeds_the_diff_from_a_file_or_from_the_archive(capsys, tmp_path, bundle_dict):
+    before, after = _diff_pair(bundle_dict)
+    a, b, out = tmp_path / "a.json", tmp_path / "b.json", tmp_path / "page.html"
+    a.write_text(json.dumps(before), encoding="utf-8")
+    b.write_text(json.dumps(after), encoding="utf-8")
+    assert cli.main(["render", str(b), "--out", str(out), "--from", str(a)]) == 0
+    assert _data(out.read_text(encoding="utf-8"))["diff"]["summary"]["links"]["changed"] == 1
+    assert cli.main(["render", str(b), "--out", str(a), "--from", str(a)]) == 2
+    assert "--from : rien n'est écrit" in capsys.readouterr().out
+    assert cli.main(["render", str(b), "--out", str(out), "--from", str(tmp_path / "absent.json")]) == 1
+    assert "--from" in capsys.readouterr().out
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps(dict(before, contract_version="9.0.0")), encoding="utf-8")
+    assert cli.main(["render", str(b), "--out", str(out), "--from", str(bad)]) == 1
+    assert "--from hors contrat" in capsys.readouterr().out
+    archive = tmp_path / "archive"
+    for source in (a, b):
+        assert cli.main(["ingest", str(source), "--archive", str(archive)]) == 0
+    args = [
+        "render",
+        "--infrastructure",
+        "infra-lab",
+        "--run-id",
+        LATER_RUN_ID,
+        "--archive",
+        str(archive),
+        "--out",
+        str(out),
+    ]
+    assert cli.main([*args, "--from", RUN_ID]) == 0
+    data = _data(out.read_text(encoding="utf-8"))
+    assert data["diff"]["before"]["collector_run_id"] == RUN_ID and data["origin"].startswith("archive")
+    capsys.readouterr()
+    assert cli.main([*args, "--from", "nope"]) == 1
+    assert "`from`" in capsys.readouterr().out
 
 
 def test_hostile_strings_stay_data(bundle_dict):
@@ -191,8 +300,11 @@ def test_render_needs_a_file_or_a_run(capsys, tmp_path):
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node absent : les tests du visualiseur ne tournent pas")
 def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
     page, hub, shell = tmp_path / "page.html", tmp_path / "hub.html", tmp_path / "shell.html"
-    aggstop, unread = tmp_path / "aggstop.html", tmp_path / "unread.html"
+    aggstop, unread, diff = tmp_path / "aggstop.html", tmp_path / "unread.html", tmp_path / "diff.html"
+    unreachable = tmp_path / "unreachable.html"
     page.write_text(_page(bundle_dict), encoding="utf-8")
+    diff.write_text(_diff_page(bundle_dict), encoding="utf-8")
+    unreachable.write_text(_page_with_previous(_unreachable_pair(bundle_dict)), encoding="utf-8")
     unread.write_text(_page(variant(bundle_dict, _unread)), encoding="utf-8")
     hub.write_text(_page(variant(bundle_dict, _hub)), encoding="utf-8")
     aggstop.write_text(_page(variant(bundle_dict, _aggstop)), encoding="utf-8")
@@ -209,6 +321,8 @@ def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
             "LD_SHELL": str(shell),
             "LD_PAGE_AGGSTOP": str(aggstop),
             "LD_PAGE_UNREAD": str(unread),
+            "LD_PAGE_DIFF": str(diff),
+            "LD_PAGE_UNREACHABLE": str(unreachable),
         },
         check=False,
     )
@@ -237,6 +351,28 @@ def test_the_page_really_renders_in_a_browser_under_its_csp(tmp_path, bundle_dic
     assert 'class="tip"' in dom, "la bulle est dans le canevas"
     assert 'class="fatal"' not in dom.split("<noscript>")[0]
     assert "7 nœuds sur 7 et 7 câbles sur 7 affichés" in dom
+    assert not [line for line in done.stderr.splitlines() if "CONSOLE" in line or "Refused" in line]
+
+
+@pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
+def test_the_diff_page_paints_ghosts_and_halos_in_a_browser(tmp_path, bundle_dict):
+    page = tmp_path / "diff.html"
+    page.write_text(_diff_page(bundle_dict), encoding="utf-8")
+    flags = ["--no-sandbox", "--disable-gpu", "--virtual-time-budget=3000", "--enable-logging=stderr", "--v=0"]
+    done = subprocess.run(
+        [str(CHROMIUM), *flags, "--dump-dom", f"file://{page}#stubs=1"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    dom = done.stdout
+    assert dom.count("diff-removed") >= 2 and dom.count("diff-changed") >= 1, done.stderr[-2000:]
+    assert dom.count('class="diff-halo"') == 2, "un halo sous le câble changé et sous le câble retiré"
+    assert 'id="tab-diff"' in dom and "comparée à la run" in dom
+    assert "5 nœuds sur 5 et 5 câbles sur 5 affichés · retirés depuis la run d'avant : " in dom
+    assert "1 équipement et 1 câble en fantômes" in dom
+    assert 'class="fatal"' not in dom.split("<noscript>")[0]
     assert not [line for line in done.stderr.splitlines() if "CONSOLE" in line or "Refused" in line]
 
 

@@ -37,10 +37,20 @@ PLACEHOLDER = re.compile(r"\{\{([A-Z]+)\}\}")
 JSON_ESCAPES = {"<": "\\u003c", ">": "\\u003e", "&": "\\u0026", " ": "\\u2028", " ": "\\u2029"}
 
 
-def build_page_data(snapshot: Mapping[str, Any], ingest: Mapping[str, Any] | None, *, origin: str) -> dict[str, Any]:
-    """Ce que la page embarque : le snapshot, le rapport de la livraison s'il existe, le sens de chaque code."""
+def build_page_data(
+    snapshot: Mapping[str, Any],
+    ingest: Mapping[str, Any] | None,
+    *,
+    origin: str,
+    diff: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Ce que la page embarque : le snapshot, le rapport de la livraison s'il existe, le sens de chaque code, et le
+    diff avec une run précédente quand il a été demandé (`--from`) : la clé n'existe qu'alors."""
     catalogue = {code.value: {"meaning": spec.meaning, "rule": spec.rule} for code, spec in CATALOGUE.items()}
-    return {"snapshot": snapshot, "ingest": ingest, "origin": origin, "catalogue": catalogue}
+    data: dict[str, Any] = {"snapshot": snapshot, "ingest": ingest, "origin": origin, "catalogue": catalogue}
+    if diff is not None:
+        data["diff"] = diff
+    return data
 
 
 def _embed(data: Mapping[str, Any]) -> str:
