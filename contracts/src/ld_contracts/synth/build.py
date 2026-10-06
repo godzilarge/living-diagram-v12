@@ -52,7 +52,7 @@ def build_world(spec: GenerationSpec) -> World:
     next_index, next_stub = 0, 0
     for site, access_count in zip(sites, access_counts, strict=True):
         fresh = Draft(spec.seed, spec.infrastructure, next_index=next_index, next_stub=next_stub)
-        built = build_site(fresh, rng, site, access_count)
+        built = build_site(fresh, rng, site, access_count, spec.firewall_uplinks)
         next_index, next_stub = built.next_index, built.next_stub
         drafts.append(built)
     draft = chain_sites(_merge(spec.seed, spec.infrastructure, drafts), sites)

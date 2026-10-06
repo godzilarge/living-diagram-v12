@@ -1,4 +1,4 @@
-"""Spécification d'une génération : graine, taille, nombre de runs, plan de mutations.
+"""Spécification d'une génération : graine, taille, nombre de runs, plan de mutations, raccordement des firewalls.
 
 Validée à la construction : une spécification fausse ne produit rien, elle lève `SpecError`.
 """
@@ -6,7 +6,7 @@ Validée à la construction : une spécification fausse ne produit rien, elle l�
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from ld_contracts.synth.catalogue import MUTATION_KINDS
+from ld_contracts.synth.catalogue import FIREWALL_UPLINKS, MUTATION_KINDS
 
 MIN_DEVICES = 6  # un site complet : deux cœurs, un accès, deux firewalls, un routeur
 DEFAULT_START = datetime(2026, 1, 5, 2, 0, tzinfo=UTC)
@@ -26,6 +26,7 @@ class GenerationSpec:
     start: datetime = DEFAULT_START
     mutations_per_run: int = 3
     scenario: tuple[str, ...] = field(default=())
+    firewall_uplinks: str = FIREWALL_UPLINKS[0]
 
     def __post_init__(self) -> None:
         if not isinstance(self.seed, str) or not self.seed:
@@ -44,6 +45,8 @@ class GenerationSpec:
         if unknown:
             raise SpecError(f"scenario : mutations inconnues {unknown} ; catalogue : {list(MUTATION_KINDS)}")
         object.__setattr__(self, "scenario", tuple(self.scenario))
+        if self.firewall_uplinks not in FIREWALL_UPLINKS:
+            raise SpecError(f"firewall_uplinks : une forme parmi {list(FIREWALL_UPLINKS)} attendue")
 
     def as_dict(self) -> dict:
         return {
@@ -54,4 +57,5 @@ class GenerationSpec:
             "start": self.start.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "mutations_per_run": self.mutations_per_run,
             "scenario": list(self.scenario),
+            "firewall_uplinks": self.firewall_uplinks,
         }

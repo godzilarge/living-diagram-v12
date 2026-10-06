@@ -4,7 +4,13 @@ Point d'entrée : `generate_series(GenerationSpec(...))`, ou `ld-contracts gener
 """
 
 from ld_contracts.synth.build import build_world
-from ld_contracts.synth.catalogue import MUTATION_CATALOGUE, MUTATION_KINDS, TRANSIENT_KINDS
+from ld_contracts.synth.catalogue import (
+    FIREWALL_UPLINKS,
+    FIREWALL_UPLINKS_CATALOGUE,
+    MUTATION_CATALOGUE,
+    MUTATION_KINDS,
+    TRANSIENT_KINDS,
+)
 from ld_contracts.synth.emit import emit_bundle
 from ld_contracts.synth.mutations import Mutation, NotApplicableError, apply_mutation
 from ld_contracts.synth.series import (
@@ -19,6 +25,8 @@ from ld_contracts.synth.spec import GenerationSpec, SpecError
 from ld_contracts.synth.world import World, check_world
 
 __all__ = [
+    "FIREWALL_UPLINKS",
+    "FIREWALL_UPLINKS_CATALOGUE",
     "MUTATION_CATALOGUE",
     "MUTATION_KINDS",
     "TRANSIENT_KINDS",

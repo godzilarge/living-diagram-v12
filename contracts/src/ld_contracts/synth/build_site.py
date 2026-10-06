@@ -1,26 +1,23 @@
-"""Le motif d'un site : deux cœurs NX-OS en vPC, un cluster FortiGate actif-passif, un routeur WAN vers un PE
-d'une autre infrastructure ; et le chaînage des sites par leurs cœurs."""
+"""Le motif d'un site : deux cœurs NX-OS en vPC, un cluster FortiGate actif-passif (`build_firewall.py`), un routeur
+WAN vers un PE d'une autre infrastructure ; et le chaînage des sites par leurs cœurs."""
 
 import random
 from dataclasses import replace
 
 from ld_contracts.synth import naming
 from ld_contracts.synth.build_access import add_access_switch
+from ld_contracts.synth.build_firewall import add_firewalls
 from ld_contracts.synth.draft import Draft, core_hostnames, description, new_device, uptime_days
-from ld_contracts.synth.world import Aggregate, Cable, Device, HaCluster, Port, PortRef
+from ld_contracts.synth.world import Aggregate, Cable, Device, Port, PortRef
 
 CORE_PORT_COUNT = 54  # N9K-C93180YC-FX : 48 × 10/25G + 6 × 100G
 CORE_HUNDRED_GIG_FROM = 49
-CORE_FW_PORTS = (41, 42)  # une patte vPC par membre du cluster
 CORE_ROUTER_PORT = 43
 CORE_SPARE_PORTS = range(44, 49)  # réserve des mutations (câble déplacé)
 CORE_PEER_LINK_PORTS = (49, 50)
 CORE_INTERSITE_PORTS = (53, 54)  # 53 vers le site précédent, 54 vers le suivant
-MAX_ACCESS_PER_SITE = CORE_FW_PORTS[0] - 1
+MAX_ACCESS_PER_SITE = 40  # Ethernet1/1-40 ; les firewalls y prennent 33-40 sauf en forme `vpc` (41-42)
 PEER_LINK_PO = 10
-FW_VPC_IDS = (20, 21)
-FW_PRIORITIES = (200, 100)
-FW_UNUSED_PORTS = 4
 TEN_GIG, HUNDRED_GIG, ONE_GIG = 10000, 100000, 1000
 SFP_MEDIA, QSFP_MEDIA, INTERSITE_MEDIA, COPPER_MEDIA, WAN_MEDIA = (
     "10Gbase-SR",
@@ -29,16 +26,15 @@ SFP_MEDIA, QSFP_MEDIA, INTERSITE_MEDIA, COPPER_MEDIA, WAN_MEDIA = (
     "1000base-T",
     "1000base-LX",
 )
-CORE_MGMT_HOSTS, FW_MGMT_HOSTS, ROUTER_MGMT_HOST = (10, 11), (20, 21), 30
-FW_TRANSIT_PREFIX = 29
+CORE_MGMT_HOSTS, ROUTER_MGMT_HOST = (10, 11), 30
 PE_PORT = "GigabitEthernet0/0/0/1"
 
 
-def build_site(draft: Draft, rng: random.Random, site: str, access_count: int) -> Draft:
+def build_site(draft: Draft, rng: random.Random, site: str, access_count: int, firewall_uplinks: str) -> Draft:
     draft = add_cores(draft, rng, site)
     for number in range(1, access_count + 1):
         draft = add_access_switch(draft, rng, site, number, changed_run=None)
-    draft = add_firewalls(draft, rng, site)
+    draft = add_firewalls(draft, rng, site, firewall_uplinks)
     return add_router(draft, rng, site)
 
 
@@ -102,120 +98,6 @@ def add_cores(draft: Draft, rng: random.Random, site: str) -> Draft:
     members = tuple(f"Ethernet1/{n}" for n in CORE_PEER_LINK_PORTS)
     aggregates = [Aggregate(c.hostname, f"port-channel{PEER_LINK_PO}", members, None, True) for c in cores]
     return draft.add(ports=ports, cables=cables, aggregates=aggregates)
-
-
-def _ha_form(site: str, cores: tuple[str, str], members: list[Device]) -> dict[str, str]:
-    """Descriptions partagées des deux membres : une paire par membre, dans l'ordre des priorités HA."""
-    first, second = (f"Ethernet1/{n}" for n in CORE_FW_PORTS)
-    return {
-        "x1": f"C1|{cores[0]}|{first}|{cores[0]}|{second}",
-        "x2": f"C1|{cores[1]}|{first}|{cores[1]}|{second}",
-        "ha1": f"C2|{members[1].hostname}|ha1|{members[0].hostname}|ha1",
-    }
-
-
-def _firewall_ports(device: Device, rank: int, ha_form: dict[str, str], site_no: int) -> list[Port]:
-    host, i, oui = device.hostname, device.index, naming.OUI["fortinet"]
-    x1_mac = naming.mac(oui, i, 1)
-    ports = [
-        Port(host, "x1", "physical", "fw_uplink", TEN_GIG, SFP_MEDIA, x1_mac, ha_form["x1"], "agg-core"),
-        Port(host, "x2", "physical", "fw_uplink", TEN_GIG, SFP_MEDIA, naming.mac(oui, i, 2), ha_form["x2"], "agg-core"),
-        Port(host, "ha1", "physical", "heartbeat", ONE_GIG, COPPER_MEDIA, naming.mac(oui, i, 3), ha_form["ha1"]),
-        Port(host, "ha2", "physical", "unused", None, COPPER_MEDIA, naming.mac(oui, i, 4), state="down"),
-        Port(host, "agg-core", "aggregate", "lag", 2 * TEN_GIG, None, x1_mac),
-        Port(
-            host,
-            f"agg-core.{naming.FIREWALL_TRANSIT_VLAN}",
-            "subinterface",
-            "subif",
-            None,
-            None,
-            x1_mac,
-            ip=(f"10.{site_no}.{naming.FIREWALL_TRANSIT_VLAN // 10}.{1 + rank}", FW_TRANSIT_PREFIX),
-            vlan=naming.FIREWALL_TRANSIT_VLAN,
-        ),
-        Port(
-            host,
-            "mgmt",
-            "management",
-            "mgmt",
-            ONE_GIG,
-            COPPER_MEDIA,
-            naming.mac(oui, i, 0),
-            ip=(f"10.{site_no}.0.{FW_MGMT_HOSTS[rank]}", 24),
-        ),
-    ]
-    ports += [
-        Port(host, f"port{n}", "physical", "unused", None, COPPER_MEDIA, naming.mac(oui, i, 10 + n), state="down")
-        for n in range(1, FW_UNUSED_PORTS + 1)
-    ]
-    return ports
-
-
-def _firewall_legs(
-    draft: Draft, member: Device, rank: int, cores: tuple[str, str]
-) -> tuple[list[Port], list[Cable], list[Aggregate]]:
-    """Côté cœurs : une patte vPC (20 ou 21) par membre, un port par cœur, décrit vers le membre."""
-    core_port = f"Ethernet1/{CORE_FW_PORTS[rank]}"
-    vpc = FW_VPC_IDS[rank]
-    ports: list[Port] = []
-    cables: list[Cable] = []
-    aggregates: list[Aggregate] = []
-    for core, local in zip(cores, ("x1", "x2"), strict=True):
-        mac = naming.mac(naming.OUI["cisco"], draft.device(core).index, CORE_FW_PORTS[rank])
-        ports.append(
-            Port(
-                core,
-                core_port,
-                "physical",
-                "fw_link",
-                TEN_GIG,
-                SFP_MEDIA,
-                mac,
-                description(member.hostname, local),
-                f"port-channel{vpc}",
-            )
-        )
-        ports.append(
-            Port(
-                core,
-                f"port-channel{vpc}",
-                "aggregate",
-                "lag",
-                TEN_GIG,
-                None,
-                mac,
-                description(member.hostname, "agg-core"),
-            )
-        )
-        cables.append(Cable((member.hostname, local), (core, core_port)))
-        aggregates.append(Aggregate(core, f"port-channel{vpc}", (core_port,), vpc, False))
-    return ports, cables, aggregates
-
-
-def add_firewalls(draft: Draft, rng: random.Random, site: str) -> Draft:
-    """Cluster actif-passif : fw-01 (priorité 200) et fw-02 (100), configuration partagée, descriptions en forme HA."""
-    members: list[Device] = []
-    for number in (1, 2):
-        draft, device = new_device(draft, site, "firewall", number, uptime_days=uptime_days(rng))
-        members.append(device)
-    cores = core_hostnames(site)
-    site_no = naming.site_number(site)
-    ha_form = _ha_form(site, cores, members)
-    own: list[Port] = []
-    core_updates: dict[PortRef, Port] = {}
-    cables: list[Cable] = []
-    aggregates: list[Aggregate] = []
-    for rank, member in enumerate(members):
-        own += _firewall_ports(member, rank, ha_form, site_no)
-        aggregates.append(Aggregate(member.hostname, "agg-core", ("x1", "x2"), None, False))
-        legs, leg_cables, leg_aggregates = _firewall_legs(draft, member, rank, cores)
-        core_updates.update({(p.device, p.name): p for p in legs})
-        cables += leg_cables
-        aggregates += leg_aggregates
-    cables.append(Cable((members[0].hostname, "ha1"), (members[1].hostname, "ha1")))
-    cluster = HaCluster(f"{site.upper()}-EDGE", site, (members[0].hostname, members[1].hostname), FW_PRIORITIES)
-    return draft.replace_ports(core_updates).add(ports=own, cables=cables, aggregates=aggregates, clusters=[cluster])
 
 
 def _router_core_links(router: Device, cores: tuple[str, str], site_no: int) -> tuple[list[Port], list[Port]]:

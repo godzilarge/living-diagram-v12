@@ -11,6 +11,8 @@ from ld_contracts.anonymize import PseudonymCollisionError, anonymize_bundle
 from ld_contracts.docgen import DOC_PATH, generate_markdown, write_markdown
 from ld_contracts.schema import CONTRACTS, generate_schema, write_schema
 from ld_contracts.synth import (
+    FIREWALL_UPLINKS,
+    FIREWALL_UPLINKS_CATALOGUE,
     MUTATION_CATALOGUE,
     GenerationError,
     GenerationSpec,
@@ -197,6 +199,7 @@ def _cmd_generate(args: argparse.Namespace) -> int:
             infrastructure=args.infrastructure,
             mutations_per_run=args.mutations_per_run,
             scenario=tuple(k for k in (args.scenario or "").split(",") if k),
+            firewall_uplinks=args.firewall_uplinks,
             **fields,
         )
     except (SpecError, ValueError) as exc:
@@ -283,6 +286,13 @@ def _add_generate(sub) -> None:
         "--scenario",
         default=None,
         help="mutations imposées à chaque run suivante, séparées par des virgules : " + ", ".join(MUTATION_CATALOGUE),
+    )
+    p_gen.add_argument(
+        "--firewall-uplinks",
+        choices=FIREWALL_UPLINKS,
+        default=FIREWALL_UPLINKS[0],
+        help="raccordement du cluster FortiGate aux cœurs : "
+        + " ; ".join(f"{k} ({v})" for k, v in FIREWALL_UPLINKS_CATALOGUE.items()),
     )
     p_gen.set_defaults(func=_cmd_generate)
 

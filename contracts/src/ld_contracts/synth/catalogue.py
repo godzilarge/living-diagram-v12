@@ -22,3 +22,14 @@ MUTATION_CATALOGUE: dict[str, str] = {
 
 MUTATION_KINDS: tuple[str, ...] = tuple(MUTATION_CATALOGUE)
 TRANSIENT_KINDS: frozenset[str] = frozenset({"device_unreachable", "topic_failed", "ha_member_down"})
+
+# Formes de raccordement du cluster FortiGate aux cœurs : la première est le défaut. Le détail des pattes vit dans
+# `build_firewall.py`.
+FIREWALL_UPLINKS_CATALOGUE: dict[str, str] = {
+    "vpc": "agg-core = x1 → cœur 01, x2 → cœur 02 : un vPC par membre",
+    "dual-vpc": "agg-1 = x1 → cœur 01, x2 → cœur 02 ; agg-2 = x3 → cœur 01, x4 → cœur 02 : deux vPC par membre",
+    "per-core": "agg-1 = x1, x2 → cœur 01 ; agg-2 = x3, x4 → cœur 02 : un port-channel par cœur, sans vPC",
+    "single-core": "agg-1 = x1, x2 → cœur 01 ; agg-2 = x3, x4 → cœur 01 : deux port-channels vers le cœur 01 seul",
+}
+
+FIREWALL_UPLINKS: tuple[str, ...] = tuple(FIREWALL_UPLINKS_CATALOGUE)

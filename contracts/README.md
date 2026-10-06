@@ -244,6 +244,7 @@ driver incomplet doit s'y diagnostiquer).
 ```
 uv run ld-contracts generate --seed demo --devices 24 --runs 3 --out ../serie-demo
 uv run ld-contracts generate --seed s --devices 10 --runs 4 --scenario cable_moved,ha_failover --out ../serie-s
+uv run ld-contracts generate --seed f --devices 30 --runs 2 --firewall-uplinks single-core --out ../serie-f
 uv run ld-contracts generate --seed scale --devices 500 --runs 3 --out ../serie-500     # ~5 s, 20 Mo par bundle
 cd ../backend && uv run ld render ../serie-demo/run-02.json --out page.html            # la voir dans les pages
 ```
@@ -267,6 +268,22 @@ FortiGate actif-passif en `agg-core` (un vPC par membre sur Ethernet1/41-42, hea
 sur les ports d'accès. Les sites sont chaînés par leurs cœurs (Ethernet1/53-54). `--devices N` donne **exactement N**
 devices dans l'infrastructure (minimum 6 : un site complet avec un accès), le nombre de sites s'en déduit (~25 par
 site). Ethernet1/44-48 restent libres : la réserve des mutations.
+
+**Raccordement des firewalls : `--firewall-uplinks`** (2026-10-06). Le motif ci-dessus est la forme `vpc`, par défaut
+(mêmes octets qu'avant l'option). Trois autres formes donnent à chaque membre deux agrégats, `agg-1` (x1, x2) et `agg-2`
+(x3, x4), la sous-interface de transit passant sur `agg-1.400` ; elles prennent Ethernet1/33 à 36 des cœurs (33 à 40 du
+cœur 01 pour `single-core`), qu'un accès ajouté ne prend jamais :
+
+| Forme | `agg-1` | `agg-2` | Côté cœurs |
+|---|---|---|---|
+| `vpc` | x1 → cœur 01, x2 → cœur 02 (`agg-core`) | — | un vPC par membre (20, 21) |
+| `dual-vpc` | x1 → cœur 01, x2 → cœur 02 | x3 → cœur 01, x4 → cœur 02 | deux vPC par membre (20 à 23) |
+| `per-core` | x1, x2 → cœur 01 | x3, x4 → cœur 02 | un port-channel par cœur, sans vPC |
+| `single-core` | x1, x2 → cœur 01 | x3, x4 → cœur 01 | deux port-channels vers le cœur 01 seul, sans vPC |
+
+La forme HA des descriptions suit : chaque port xN nomme le port de cœur de chaque membre. Le L1 ne voit que des câbles
+et des agrégats : « one arm » ou « two arms » (VLAN sur un même trunk ou non) ne se distingue pas ici. Toutes les
+mutations s'appliquent à toutes les formes ; la forme est écrite dans `manifest.json` (`spec.firewall_uplinks`).
 
 **Mutations.** La première run n'est jamais mutée. Ensuite, à chaque run, `--mutations-per-run` mutations tirées au
 hasard parmi celles qui ont un sujet, ou la liste `--scenario` appliquée dans l'ordre (une sorte inapplicable est une

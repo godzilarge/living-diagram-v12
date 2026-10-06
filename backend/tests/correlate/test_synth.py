@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 from ld_contracts.snapshot.serialize import canonical_json
-from ld_contracts.synth import MUTATION_KINDS, GenerationSpec, generate_series
+from ld_contracts.synth import FIREWALL_UPLINKS, MUTATION_KINDS, GenerationSpec, generate_series
 from ld_contracts.validate import validate_snapshot_dict
 
 from tests.correlate.conftest import run
@@ -65,3 +65,21 @@ def test_every_mutation_leaves_a_trace_in_the_snapshot(series):
 def test_generated_snapshot_is_deterministic(series):
     first, second = run(series.bundles[1], "0" * 64), run(series.bundles[1], "0" * 64)
     assert canonical_json(first) == canonical_json(second)
+
+
+# forme → (câbles d'un firewall, domaines MLAG) sur 12 devices : sept accès en vPC, plus les vPC des firewalls
+FIREWALL_FORMS = {"vpc": (3, 9), "dual-vpc": (5, 11), "per-core": (5, 7), "single-core": (5, 7)}
+
+
+@pytest.mark.parametrize("form", FIREWALL_UPLINKS)
+def test_every_firewall_form_is_read_without_noise(form):
+    """Chaque forme de `--firewall-uplinks` : forme HA lue sur tous les ports, un câble documenté par patte, aucun
+    contrôle hors des téléphones (H2), et un domaine MLAG par vPC de firewall."""
+    series = generate_series(GenerationSpec(seed="b1", devices=12, start=START, firewall_uplinks=form))
+    snapshot = run(series.bundles[0])
+    links_per_fw, domains = FIREWALL_FORMS[form]
+    assert {c.code for c in snapshot.checks} <= BASELINE_CODES
+    fw_links = [link for link in snapshot.links if "-fw-01" in link.a.hostname + link.b.hostname]
+    assert len(fw_links) == links_per_fw
+    assert {link.status for link in fw_links} == {"documented_only"}
+    assert len(snapshot.mlag_domains) == domains
