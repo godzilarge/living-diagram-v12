@@ -1,31 +1,40 @@
 // Placement force-dirigé (Fruchterman-Reingold), déterministe : positions initiales tirées de l'ordre des
 // identifiants, nombre d'itérations fixe, aucun tirage au hasard. Mêmes nœuds et mêmes arêtes, mêmes positions.
-// Les nœuds épinglés (`pinned`) sont des contraintes dures : ils ne bougent pas, les autres s'organisent autour.
-// Le placement seedé par la run N-1 reste à écrire (phase 3) : seuls les nœuds épinglés sont stables entre deux runs.
+// Les nœuds fixés (`fixed`) sont des contraintes dures : ils ne bougent pas, les autres s'organisent autour. Deux
+// usages : des épingles dans un dessin neuf (les libres partent de la spirale), ou un dessin déjà fait qu'on complète
+// (`extend` : le placement mémorisé, docs/09 ; les libres partent de leurs voisins déjà placés, de proche en proche).
+// Les positions rendues sont entières : ce qui est mémorisé est exactement ce qui est dessiné.
 
 export interface Point { x: number; y: number }
 export type Edge = [string, string] | [string, string, number];
 export interface Box { x: number; y: number; width: number; height: number }
+export interface Options {
+  /** Les nœuds fixés forment un dessin existant : un nœud libre part près de ses voisins déjà placés, à chaleur réduite. */
+  extend?: boolean;
+}
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 export const IDEAL = 170; // longueur visée d'une arête, en unités du dessin
 const MIN_DISTANCE = 0.0001;
 const REACH = IDEAL * 3; // au-delà, deux nœuds ne se repoussent plus : les composantes séparées restent voisines
 const SHELF_GAP = 110; // pas de la rangée des nœuds sans câble
+const HEAT = 1.5; // température de départ d'un dessin neuf, en longueurs d'arête
+const EXTEND_HEAT = 0.5; // celle d'un dessin complété : un nouveau nœud ne traverse pas le dessin avant de se poser
+const NEAR_STEP = 0.3; // écart entre deux nouveaux nœuds partis du même voisin, en pas de spirale
 
 function iterationsFor(count: number): number {
   if (count <= 600) return 300;
   return count <= 1500 ? 150 : 80; // O(n²) par itération : on borne le temps sur les grosses infras
 }
 
-// Spirale de Fermat dans l'ordre des identifiants : points tous distincts, sans hasard.
+// Un point de la spirale de Fermat : tous distincts, sans hasard.
+function spiral(index: number): Point {
+  const radius = IDEAL * 0.6 * Math.sqrt(index + 0.5);
+  return { x: radius * Math.cos(index * GOLDEN_ANGLE), y: radius * Math.sin(index * GOLDEN_ANGLE) };
+}
+
 function seed(ids: string[]): Map<string, Point> {
-  const positions = new Map<string, Point>();
-  ids.forEach((id, index) => {
-    const radius = IDEAL * 0.6 * Math.sqrt(index + 0.5);
-    positions.set(id, { x: radius * Math.cos(index * GOLDEN_ANGLE), y: radius * Math.sin(index * GOLDEN_ANGLE) });
-  });
-  return positions;
+  return new Map(ids.map((id, index) => [id, spiral(index)]));
 }
 
 interface WeightedEdge { from: string; to: string; weight: number }
@@ -46,19 +55,49 @@ function uniqueEdges(edges: Edge[], known: Set<string>): WeightedEdge[] {
   });
 }
 
+/** Les nœuds qu'au moins une arête relie à un autre nœud connu : ceux que les forces placent (les autres sont rangés). */
+export function wired(ids: Iterable<string>, edges: Edge[]): Set<string> {
+  const known = new Set(ids);
+  return new Set(uniqueEdges(edges, known).flatMap((edge) => [edge.from, edge.to]));
+}
+
+// De proche en proche depuis les nœuds fixés : un nœud libre part du barycentre de ses voisins déjà placés, décalé
+// d'un pas de spirale (deux nouveaux voisins d'un même équipement ne partent pas du même point). Un nœud sans
+// chemin vers un nœud fixé garde son point de spirale.
+function seedNear(sorted: string[], links: WeightedEdge[], fixed: Map<string, Point>, points: Map<string, Point>): void {
+  const neighbours = new Map<string, string[]>();
+  const push = (a: string, b: string): void => { const list = neighbours.get(a); if (list) list.push(b); else neighbours.set(a, [b]); };
+  links.forEach(({ from, to }) => { push(from, to); push(to, from); });
+  const placed = new Set(sorted.filter((id) => fixed.has(id)));
+  let rank = 0;
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const id of sorted) {
+      if (placed.has(id)) continue;
+      const near = (neighbours.get(id) || []).filter((other) => placed.has(other)).map((other) => points.get(other) as Point);
+      if (!near.length) continue;
+      const step = spiral(rank++);
+      points.set(id, { x: near.reduce((sum, p) => sum + p.x, 0) / near.length + step.x * NEAR_STEP, y: near.reduce((sum, p) => sum + p.y, 0) / near.length + step.y * NEAR_STEP });
+      placed.add(id);
+      grew = true;
+    }
+  }
+}
+
 interface Simulation {
   count: number; x: Float64Array; y: Float64Array; mx: Float64Array; my: Float64Array;
   from: Int32Array; to: Int32Array; weight: Float64Array; free: boolean[];
 }
 
 // Une itération, sur des tableaux numériques indexés par le rang du nœud : à 500 nœuds, la même boucle écrite
-// avec des dictionnaires prenait dix secondes.
+// avec des dictionnaires prenait dix secondes. Deux nœuds fixés ne se calculent rien : seuls les libres bougent.
 function step(sim: Simulation, temperature: number): void {
   const { count, x, y, mx, my, from, to, weight, free } = sim;
   mx.fill(0);
   my.fill(0);
   for (let i = 0; i < count; i += 1) {
     for (let j = i + 1; j < count; j += 1) {
+      if (!free[i] && !free[j]) continue;
       const dx = x[i] - x[j];
       const dy = y[i] - y[j];
       const squared = Math.max(dx * dx + dy * dy, MIN_DISTANCE);
@@ -99,7 +138,8 @@ function simulation(sorted: string[], points: Map<string, Point>, links: Weighte
 }
 
 // Les nœuds sans aucun câble (équipement injoignable, par exemple) ne sont pas confiés aux forces, qui les
-// chasseraient au loin : ils sont rangés en ligne sous le graphe, dans l'ordre des identifiants.
+// chasseraient au loin : ils sont rangés en ligne sous le graphe, dans l'ordre des identifiants. Un nœud fixé
+// (épinglé, ou mémorisé) garde sa place.
 function shelve(points: Map<string, Point>, lonely: string[], fixed: Map<string, Point>): void {
   const box = bounds(points);
   const perRow = Math.max(1, Math.floor(Math.max(box.width, SHELF_GAP * 4) / SHELF_GAP));
@@ -110,22 +150,25 @@ function shelve(points: Map<string, Point>, lonely: string[], fixed: Map<string,
   });
 }
 
-// ids : identifiants des nœuds à placer ; edges : paires [a, b] ; pinned : Map id → {x, y} imposés (nœuds épinglés).
-export function run(ids: Iterable<string>, edges: Edge[], pinned?: Map<string, Point>): Map<string, Point> {
+// ids : identifiants des nœuds à placer ; edges : paires [a, b] ; fixed : Map id → {x, y} imposés (épingles, places
+// mémorisées) ; options.extend : les nœuds fixés sont un dessin existant à compléter.
+export function run(ids: Iterable<string>, edges: Edge[], fixed?: Map<string, Point>, options: Options = {}): Map<string, Point> {
   const all = Array.from(ids).sort();
-  const fixed = pinned || new Map<string, Point>();
+  const held = fixed || new Map<string, Point>();
   const links = uniqueEdges(edges, new Set(all));
-  const wired = new Set(links.flatMap((edge) => [edge.from, edge.to]));
-  const sorted = all.filter((id) => wired.has(id));
+  const connected = new Set(links.flatMap((edge) => [edge.from, edge.to]));
+  const sorted = all.filter((id) => connected.has(id));
   const points = seed(sorted);
-  fixed.forEach((point, id) => {
+  held.forEach((point, id) => {
     if (points.has(id)) points.set(id, { x: point.x, y: point.y });
   });
-  const sim = simulation(sorted, points, links, fixed);
+  if (options.extend) seedNear(sorted, links, held, points);
+  const sim = simulation(sorted, points, links, held);
   const iterations = iterationsFor(sorted.length);
-  for (let i = 0; i < iterations; i += 1) step(sim, IDEAL * 1.5 * (1 - i / iterations) + 1);
-  sorted.forEach((id, index) => points.set(id, { x: sim.x[index], y: sim.y[index] }));
-  shelve(points, all.filter((id) => !wired.has(id)), fixed);
+  const heat = IDEAL * (options.extend ? EXTEND_HEAT : HEAT);
+  for (let i = 0; i < iterations; i += 1) step(sim, heat * (1 - i / iterations) + 1);
+  sorted.forEach((id, index) => points.set(id, held.has(id) ? (points.get(id) as Point) : { x: Math.round(sim.x[index]), y: Math.round(sim.y[index]) }));
+  shelve(points, all.filter((id) => !connected.has(id)), held);
   return points;
 }
 
@@ -139,4 +182,4 @@ export function bounds(points: Map<unknown, Point>): Box {
   return { x: minX, y: minY, width: Math.max(maxX - minX, 1), height: Math.max(maxY - minY, 1) };
 }
 
-export const layout = { run, bounds, IDEAL };
+export const layout = { run, wired, bounds, IDEAL };

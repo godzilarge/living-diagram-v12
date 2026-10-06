@@ -15,13 +15,15 @@ import { apps } from "./shell/apps";
 import { inspect } from "./shell/inspect";
 import { intent } from "./shell/intent";
 import { boot, startPage } from "./shell/main";
+import { placement } from "./shell/placement";
 import { shell, startShell } from "./shell/shell";
 import type { ShellData } from "./shell/shell";
 import { structures } from "./shell/structures";
 import { tables } from "./shell/tables";
+import { timeline } from "./shell/timeline";
 import { widgets } from "./shell/widgets";
 
-const LD = Object.assign(apps, { model, layout, geometry, dom: { ...dom, ...format, ...widgets }, icons, tip, graph, inspect, intent, structures, tables, boot, shell });
+const LD = Object.assign(apps, { model, layout, geometry, dom: { ...dom, ...format, ...widgets }, icons, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
 export type LD = typeof LD;
 (globalThis as unknown as { LD: LD }).LD = LD;
 

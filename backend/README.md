@@ -170,15 +170,18 @@ backend/
 │   ├── ingest.py             ingest_bundle : valider → archiver → corréler → IngestResult ; result_payload (JSON) ; une ligne de journal
 │   ├── snapshots.py          branchement de B1 : correlate_if_missing (ingestion), recorrelate (ld correlate) ; un échec est journalisé, jamais propagé
 │   ├── diffs.py              branchement de B3 : deux snapshots archivés (par défaut les deux dernières runs) ou deux fichiers, résumé texte ; jamais stocké
+│   ├── files.py              écriture atomique et verrou (fichier + fil) partagés par les stores d'intention et de placement
 │   ├── intent.py             B4 (2026-10-04, docs/08) : IntentStore, un document Intent par infrastructure sous <archive>/_intent/, écrit par
 │   │                         opérations (pin, unpin), verrou, écriture atomique, journal d'audit ; IntentCorruptError
+│   ├── placement.py          le placement mémorisé (2026-10-06, docs/09) : Place, Placement, PlacementWrite (formes typées, OpenAPI),
+│   │                         PlacementStore sous <archive>/_placement/ (load, record : première place gagnante, forget) ; PlacementCorruptError
 │   ├── schemas.py            formes de réponse et de requête typées (IngestReport, RunList, IntentOps : PinOp | UnpinOp) et `utc_z` : une seule forme de date
 │   ├── api.py                create_app : schéma de sécurité Bearer, OpenAPI porté par les quatre contrats, POST bundles, GET bundles / bundle / report /
-│   │                         snapshot / diff / intent, POST intent/patches (par paramètres de requête), /api/health
-│   ├── cli.py                ld ingest | runs | correlate | diff | intent | render | serve
+│   │                         snapshot / diff / intent / placement, POST intent/patches et placement (par paramètres de requête), /api/health
+│   ├── cli.py                ld ingest | runs | correlate | diff | intent | placement | render | serve
 │   ├── render/               pages HTML de lecture d'un snapshot (2026-09-20), un fichier autonome par run
 │   │   ├── page.py           assemblage : gabarit + style + la toile + données ; JSON échappé, CSP par empreinte
-│   │   ├── build.py          deux chemins : fichier bundle (sans archive), run archivée ; `--from` : le diff (B3) embarqué ; la couche d'intention embarquée (B4)
+│   │   ├── build.py          deux chemins : fichier bundle (sans archive), run archivée ; `--from` : le diff (B3) embarqué ; la couche d'intention (B4) et le placement mémorisé (docs/09) embarqués
 │   │   └── assets/           page.html, viewer.css, js/viewer.js : **la toile, construite depuis `engine/` (TypeScript, 2026-10-04) et versionnée ici** ;
 │   │                         ne pas l'éditer, lancer `npm run build` dans engine/ (un test vérifie qu'il n'a pas dérivé des sources)
 │   ├── diff/                 B3 (2026-10-04, docs/07) : diff(before, after) -> Diff, fonction pure et déterministe
@@ -202,9 +205,11 @@ backend/
 │       ├── ha.py             R4 : clusters HA (vue de chaque membre, heartbeats sans câble inventé)
 │       ├── state.py          R5 : contrôles d'état des câbles (oper, vitesse, VLAN non tagué, port sans transceiver) et des tasks
 │       └── assemble.py       R6 : nœuds, interfaces, contrôles (dont ceux du contrat), couverture, rapport, tris
-└── tests/                    443 tests : API (dont test_api_diff, test_api_intent), archive, service, CLI (dont `ld correlate` fichier, test_cli_diff,
-                              test_cli_intent), config, branchement de B1, store d'intention (test_intent), pages (dont la page de diff et la page
-                              avec épingles), /view (dont un glissé réel dans la page servie, enregistré par l'API) ;
+└── tests/                    472 tests : API (dont test_api_diff, test_api_intent, test_api_placement), archive, service, CLI (dont `ld correlate` fichier,
+                              test_cli_diff, test_cli_intent, test_cli_placement), config, branchement de B1, stores d'intention et de placement
+                              (test_intent, test_placement), pages (dont la page de diff, la page avec épingles, la page avec placement mémorisé),
+                              /view (dont un glissé réel dans la page servie, enregistré par l'API ; deux runs ouvertes l'une après l'autre : la
+                              première mémorise le placement, la seconde le garde, « replacer » confirme puis remplace) ;
                               correlate/ (174) : grammaire, noms d'interfaces, identité, fusion, structures, état, scénarios de docs/05,
                               assemblage, déterminisme (permutations, graines de hachage, golden à l'octet), test_review*.py (une sonde
                               de revue = un test) ; diff/ : moteur sur la fixture, oracle du générateur sorte par sorte, déterminisme entre
@@ -414,7 +419,27 @@ requête acceptée : `at`, `author`, `revision`, `ops`) ; écriture atomique sou
 (testé à deux fils). Le dossier `_intent` ne peut pas entrer en collision avec une infrastructure (un nom sûr ne commence
 jamais par `_`, un nom haché porte un suffixe). Une épingle dont l'équipement n'est pas dans la run affichée est
 **orpheline** : la page la liste et la dit telle, jamais effacée en silence ; si l'équipement revient, elle s'applique à
-nouveau. Limite connue : seuls les équipements épinglés sont stables entre deux runs (placement seedé N-1 : phase 3).
+nouveau. Depuis le 2026-10-06, les équipements non épinglés sont stables aussi : voir le placement mémorisé ci-dessous.
+
+## Le placement mémorisé : `ld placement`, `GET` et `POST /api/placement` (2026-10-06)
+
+En une phrase : **chaque infrastructure retient la place de chaque équipement déjà dessiné, et une nouvelle run ne place
+que les nouveaux.** Conception : `docs/09-placement-memorise.md`. Une donnée **dérivée et jetable** (la perdre coûte un
+replacement, aucune épingle), donc hors contrat `ld-contracts` : formes typées dans `placement.py`, présentes dans OpenAPI.
+L'intention gagne toujours sur elle ; les voisins inconnus n'y entrent jamais.
+
+| Entrée | Sortie |
+|---|---|
+| `GET /api/placement?infrastructure=X` | le document `Placement` (`infrastructure`, `revision`, `updated_at`, `places[{hostname, x, y}]` triées) ; vide (`revision` 0) si rien n'a jamais été dessiné ; 500 nommant `ld placement --forget` si le fichier est corrompu |
+| `POST /api/placement?infrastructure=X` avec `{"base_revision": 3, "replace": false, "places": [{"hostname": "sw-acc-20", "x": 120, "y": -40}]}` | le document résultant ; sans `replace`, **n'entrent que les équipements sans place** (la première place est celle qui reste) et rien n'est écrit si la requête n'apporte rien ; avec `replace`, le document devient exactement `places` ; **409 avec le document courant** si `base_revision` n'est pas sa révision et que la requête apporterait quelque chose (la page redessine ses nouveaux venus autour de lui et renvoie) ; 404 sans run archivée ; 413 (`LD_MAX_INTENT_BYTES`, même borne que l'intention) ; 415 ; 422 à la forme de l'API (coordonnée non entière ou hors ±1 000 000, équipement nommé deux fois, `base_revision` ou `replace` absent, plus de 10 000 places), jamais une valeur dans un message |
+| `ld placement --infrastructure X [--archive]` | les places, lecture seule ; sortie 1 si le document est corrompu |
+| `ld placement --infrastructure X --forget` | retire le document, lisible ou non : le placement se recalcule au prochain dessin |
+| `ld render --infrastructure X --run-id Y` | la page embarque le document (clé `placement`, **lecture seule** : un équipement nouveau est placé dans la page, non mémorisé) ; en mode fichier, rien |
+| `/view` | lit `/api/placement` avec le snapshot ; après chaque dessin, envoie les équipements placés sans mémoire ; **« replacer »** recalcule tout et remplace le document pour tout le monde, après confirmation dans la page |
+
+Le store (`placement.py`) : `<archive>/_placement/<infra>/placement.json` (clés triées, indentation 2), écriture atomique
+sous verrou de fichier et de fil (`files.py`, partagé avec l'intention), sans journal ni auteur. Ce qui est mémorisé est
+exactement ce qui est dessiné : la toile rend des positions entières.
 
 ## Les pages de lecture : `ld render`
 
@@ -529,10 +554,22 @@ La même page, **sans donnée** (`render/shell.py` : la toile, dont la coquille 
 (B4) ; sans nom, les déplacements restent locaux et la page le dit. L'adresse porte la run (`?infrastructure=&run_id=`), la run d'avant
 (`&from=`, la liste des runs propose « avec la précédente » ; un diff indisponible n'empêche pas d'ouvrir la run,
 l'en-tête dit pourquoi) et l'état de vue (`#view=…`) : elle se partage.
+**La bande des runs** (2026-10-06, `engine/src/shell/timeline.ts`) : sous l'en-tête, toutes les runs archivées de
+l'infrastructure (relues à chaque ouverture, `/api/ingest/bundles`), dans l'ordre du début de collecte, la courante
+marquée, la comparée en pointillé ; clic, ← →, ou les flèches du clavier depuis la bande rouvrent la run par l'API en
+gardant le fragment (sélection par identité, onglet, bascules) ; le placement mémorisé garde chaque équipement à sa
+place. Le diff suit : → compare à la run qu'on quitte, ← et un clic à la précédente de la run visée, « comparer à »
+à n'importe quelle run antérieure ou à aucune ; `from` est toujours explicite dans l'adresse, une adresse sans `from`
+reste une run sans diff. Pendant le chargement la page reste visible (la bande dit « chargement… ») ; le formulaire ne
+revient qu'en cas d'échec. Un visualiseur qui lâche la page (`App.dispose`) retire son écouteur d'adresse et renouvelle
+la toile (`svg`), rien ne s'accumule de run en run ; une liste des runs indisponible ouvre la run sans bande, l'en-tête
+le dit. La page autonome (`ld render`) n'a qu'une run : pas de bande.
 Seule différence de CSP avec la page autonome : `connect-src 'self'` (la page autonome n'a aucun réseau, un test le
 vérifie). Tests : `tests/test_view.py` (route, stabilité, empreintes CSP, coquille servie par uvicorn et lue par
-Chromium) et deux tests sous Node avec un `fetch` simulé (saisie du jeton, liste des runs, chargement, jeton refusé
-oublié, 404 expliqué).
+Chromium ; **bout en bout sur trois runs** : clic et clavier sur la bande, diff suivi, sélection conservée, une seule
+toile) et les tests sous Node avec un `fetch` simulé (saisie du jeton, liste des runs, chargement, jeton refusé
+oublié, 404 expliqué ; la bande : ordre, marques, ← → et « comparer à », un seul écouteur d'adresse, liste
+indisponible).
 
 ## Vérifier et faire évoluer
 

@@ -11,7 +11,7 @@ import type { Graph } from "../canvas/graph";
 import { applyIntent } from "../canvas/model";
 import type { Intent, Model, Pin, Selection } from "../canvas/types";
 import type { Op, Writer } from "./apps";
-import { definition, pill, table } from "./widgets";
+import { confirmable, definition, pill, table } from "./widgets";
 import type { TableRow } from "./widgets";
 
 export const OPS_PER_REQUEST = 500; // la borne de `POST /api/intent/patches`
@@ -124,18 +124,10 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
     return { cells: [target, String(pin.x), String(pin.y), pin.author, dateText(pin.at), state, remove] };
   }
 
-  // Retirer plusieurs épingles demande une confirmation, dans la page : le bouton devient « confirmer » et « annuler ».
-  function confirmable(label: string, count: number, run: () => void): Child {
-    if (!count) return null;
-    const holder = h("span", { class: "confirm-row" });
-    const ask = (): void => {
-      clear(holder).appendChild(h("button", { type: "button", onclick: () => { clear(holder); run(); } }, "confirmer : " + label + " (" + count + ")"));
-      holder.appendChild(h("button", { type: "button", class: "linklike", onclick: () => { clear(holder).appendChild(first()); } }, "annuler"));
-    };
-    const first = (): HTMLElement => h("button", { type: "button", onclick: ask }, label + " (" + count + ")");
-    holder.appendChild(first());
-    return holder;
-  }
+  // Retirer plusieurs épingles demande une confirmation, dans la page.
+  const removeMany = (label: string, hosts: string[]): Child => (hosts.length
+    ? confirmable(label, () => { void send(unpinOps(hosts), hosts, hosts.length + " épingle" + (hosts.length > 1 ? "s retirées" : " retirée")); }, { count: hosts.length })
+    : null);
 
   function view(): void {
     const container = hooks.container();
@@ -150,19 +142,18 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
     clear(container).appendChild(h("div", { class: "page" },
       h("h2", {}, "Intentions"),
       h("p", { class: "lead" }, "La couche d'intention est ce que vous voulez en plus de ce que la collecte montre. Première intention : l'épingle, la place voulue d'un équipement, "
-        + "keyée par son nom, qui survit aux runs. Glisser un équipement sur le graphe l'épingle ; « replacer » recalcule le placement autour des épingles. Le diff ne lit jamais l'intention."),
+        + "keyée par son nom, qui survit aux runs. Glisser un équipement sur le graphe l'épingle ; « replacer » recalcule le placement autour des épingles. Le diff ne lit jamais l'intention. "
+        + "Les équipements non épinglés gardent aussi leur place d'une run à l'autre : c'est le placement mémorisé, une donnée calculée que « replacer » renouvelle."),
       writerNote(),
       model.intent ? definition([["infrastructure", model.intent.infrastructure], ["révision", String(model.intent.revision)],
         ["dernière écriture", model.intent.updated_at ? dateText(model.intent.updated_at) : "jamais"]]) : null,
       h("h3", {}, "Épingles enregistrées : " + pins.length + (orphans.size ? " · " + orphans.size + " orpheline" + (orphans.size > 1 ? "s" : "") : "")),
       orphans.size ? h("p", { class: "muted" }, "Une épingle orpheline vise un équipement qui n'est pas dans cette run (retiré, renommé, ou pas encore collecté). Elle n'est pas dessinée, elle n'est pas effacée : si l'équipement revient, elle s'applique à nouveau.") : null,
       table(headers, rows, { empty: model.intent ? "aucune épingle : glisser un équipement sur le graphe" : "pas de couche d'intention dans cette page" }),
-      canWrite() ? h("div", { class: "toolbar-row" },
-        confirmable("retirer les épingles orphelines", orphans.size, () => { void send(unpinOps(orphanHosts), orphanHosts, orphanHosts.length + " épingle" + (orphanHosts.length > 1 ? "s retirées" : " retirée")); }),
-        confirmable("retirer toutes les épingles", pins.length, () => { void send(unpinOps(allHosts), allHosts, allHosts.length + " épingle" + (allHosts.length > 1 ? "s retirées" : " retirée")); })) : null,
+      canWrite() ? h("div", { class: "toolbar-row" }, removeMany("retirer les épingles orphelines", orphanHosts), removeMany("retirer toutes les épingles", allHosts)) : null,
       h("h3", {}, "Déplacements locaux non enregistrés : " + local.length),
       local.length ? [h("p", { class: "muted" }, local.join(", ")),
-        h("button", { type: "button", onclick: () => { graph.resetPins(); refresh(); } }, "oublier les déplacements locaux")]
+        h("button", { type: "button", title: "chaque équipement retrouve sa place mémorisée ou son épingle", onclick: () => { graph.resetPins(); refresh(); } }, "oublier les déplacements locaux")]
         : h("p", { class: "muted" }, "aucun")));
   }
 

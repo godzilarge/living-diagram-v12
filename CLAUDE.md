@@ -61,8 +61,8 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
 
 Pipeline de briques pures, détaillé dans l'artefact publié
 <https://claude.ai/code/artifact/630b787d-6862-4e3c-8e1c-7d40fd373e3c> (copie locale
-`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v20 du 2026-10-04 soir ; second artefact
-« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v18 du 2026-10-04 soir : son
+`docs/living-diagram-v12.html`, à republier **par `url`** pour garder le lien ; v21 du 2026-10-06 ; second artefact
+« Le chemin d'un bundle », <https://claude.ai/artifact/FFYf3L28NTfCZmfbZcS4TU>, copie locale `docs/chemin-d-un-bundle.html`, v19 du 2026-10-06 : son
 tableau « B1 : ce qui est fait, ce qui reste » se tient à jour à chaque étape) :
 
 ```
@@ -689,7 +689,7 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   épingle ; pastille d'en-tête « n épingles · k orphelines » ; « replacer » garde les épingles enregistrées. **Décisions** :
   dernier écrivain gagne + journal = réponse V1 à la question 6 de `docs/00` (pas de comptes : auteur déclaratif) ; le diff
   ne lit jamais l'intention ; **limite connue** : seuls les équipements épinglés sont stables entre deux runs (placement
-  seedé N-1 = phase 3). Tests : contracts `tests/intent/`, backend store / API / CLI, 56 tests Node, Chromium (glyphe par
+  seedé N-1 = phase 3 ; **levée le 2026-10-06 par le placement mémorisé**). Tests : contracts `tests/intent/`, backend store / API / CLI, 56 tests Node, Chromium (glyphe par
   la feuille de style, glissé réel), **bout en bout** uvicorn + Chromium : un glissé dans `/view` enregistre l'épingle par
   l'API sous le nom saisi, rien dans l'adresse. **Revue indépendante consignée et traitée le même soir**
   (`docs/revues/2026-10-04-b4-intention.md` : 0 critique, 2 hauts, 3 moyens, 7 bas ; sondes rejouables) : envois de la
@@ -700,6 +700,128 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   ouvre la run sans intention si le document est corrompu, comme `/view` (B5). **Parqués, à trancher** : précondition
   `expected_revision` (409) côté serveur (`docs/08` Q5) ; casse du hostname, épingle sur un stub, auteur déclaratif
   (Q1-Q3). Contracts 601 tests, backend 450, 62 tests sous Node, `tsc` strict propre.
+- **Le placement mémorisé : chaque infrastructure retient la place de chaque équipement déjà dessiné, une nouvelle run ne
+  place que les nouveaux** (2026-10-06, « Tu peux y aller » d'Orhan après mesure ; `docs/09-placement-memorise.md` écrit
+  avant le code, session autonome). Orhan demandait « la suite ? le React ? » : React écarté pour l'instant (rien de visible
+  pour ~1 500 lignes de shell à réécrire ; il entre avec le premier panneau d'édition au-delà des épingles). Il contestait
+  le placement seedé (« si le nœud n'est pas modifié, c'est que le placement convient ») : **mesuré** sur le générateur, un
+  switch ajouté déplace 68 % (24 équipements) à 100 % (100) des équipements non touchés de plus d'une longueur de câble,
+  avec cinq épingles 75 % et 92 % encore ; captures comparées, il a validé. Cinq décisions : **figé plutôt que seedé** (place
+  exacte, zéro dérive, le dessin ne dépend pas de l'ordre des regards ; « replacer » repart de zéro) ; **donnée dérivée et
+  jetable, un document par infrastructure côté serveur** (`<archive>/_placement/<infra>/placement.json`, à côté de
+  l'intention : tout le monde voit le même dessin ; la perdre coûte un replacement, aucune épingle ⇒ pas de cinquième
+  contrat, formes typées dans `backend/placement.py`, OpenAPI, types TS à la main ; écartés : `localStorage`, rejeu de la
+  chaîne des runs, calcul Python à l'ingestion) ; **écrit par la page `/view`, la première place est celle qui reste**
+  (`POST /api/placement` : n'entrent que les équipements sans place, rien n'est écrit si rien n'entre ; `replace` pour
+  « replacer », confirmé dans la page ; aucun nom requis) ; **l'intention gagne toujours** (épingle > mémoire ; « oublier
+  les déplacements locaux » rend chaque équipement à sa place mémorisée sans rien replacer) ; **voisins inconnus jamais
+  mémorisés, et les afficher ne déplace plus aucun équipement** : placement en deux temps dans la toile (infrastructure
+  fixée par épingles puis mémoire, le reste autour ; puis les voisins inconnus autour de l'infrastructure toute fixée).
+  `layout.run(ids, edges, fixed, { extend })` : un nœud libre part du barycentre de ses voisins déjà placés, de proche en
+  proche, chaleur réduite ; **positions entières** (ce qui est mémorisé est ce qui est dessiné) ; `wired()`. Mesuré :
+  0 déplacé à 24, 100 et 500 équipements, le nouveau à 1,2 à 2,2 longueurs de ses cœurs ; jauge 521 nœuds : dessin neuf
+  0,32 s, complété 0,12 s, 1 337 nœuds avec voisins inconnus 0,75 s. Pages `ld render` : depuis l'archive, document
+  embarqué en lecture seule ; depuis un fichier, rien. `ld placement --infrastructure X [--forget]` (lecture ; la sortie
+  pour un document corrompu, isolé, 500 qui nomme la commande). `files.py` : verrou et écriture atomique extraits de
+  `intent.py`, partagés. Tests : store, API, CLI, page, 67 tests Node (dessin complété, mémoire de page, écrivain et
+  réalignement, coquille, stabilité d'une run à l'autre), **bout en bout uvicorn + Chromium sur deux runs** (la première
+  mémorise, la seconde garde, « replacer » confirme puis remplace), captures vérifiées sur la série synthétique. Backend
+  469 tests, 99 %. **Revue indépendante consignée et traitée le même jour** (`docs/revues/2026-10-06-placement-memorise.md` :
+  0 critique, 1 haut, 2 moyens, 5 bas ; six sondes rejouables, tout traité) : **`base_revision` et 409 avec le document
+  courant** (deux premières pages sur deux runs différentes mêlaient deux dessins incompatibles, le nouveau switch de
+  l'une se mémorisait exactement sur un switch de l'autre : une page ne complète que le document qu'elle a lu, refusée
+  elle l'adopte, replace ses nouveaux venus et renvoie, trois fois au plus ; Q5 tranchée pour `record` et `replace`, H1) ;
+  envoi échoué renvoyé au prochain dessin, le document **est** la mémoire de la page (M1) ; un voisin inconnu qui a une
+  place y est dessiné, jamais mémorisé (M2) ; **un équipement épinglé n'est pas mémorisé**, il l'est à l'`unpin` (B1) ;
+  pas de clignotement pendant un « replacer » (B2) ; verrou hors de la boucle d'événements (B3) ; tests ajoutés dont le
+  verrou entre processus (B4) ; textes de `docs/09` (B5). Backend 472 tests, 73 tests Node. **Parqués** (`docs/09` §6) :
+  premier dessin pauvre qui fige (replacer / `--forget`), recâblage vers un autre site (câble long, voulu), fantômes,
+  première vue avec diff.
+- **Bug corrigé : deux faisceaux entre les mêmes équipements n'en montraient qu'un** (2026-10-06, retour d'Orhan sur
+  `/view` : un firewall en quatre câbles vers le même switch, en deux port-channels ; le snapshot avait les deux, la page
+  une seule bande). Cause : le modèle construisait bien deux faisceaux (clé = paire d'agrégats), mais `placeBeam` traçait
+  chaque bande sur l'axe centre-à-centre de la paire, symétrique, étiquette au même point : la seconde recouvrait la
+  première. Correction (`engine/src/canvas/geometry.ts`, `graph.ts`, `model.ts`) : la bande suit **l'axe de ses propres
+  câbles** (`beamBand` remplace `beamWidths` : largeur = éventail de ses câbles, `offset` = écart à l'axe de la paire,
+  tracé par `chord`, la courbe partagée avec les câbles) ; dans l'éventail d'une paire, **les câbles d'un même faisceau
+  sont contigus** (tri par faisceau, ordre du snapshot au sein du groupe) ; l'étiquette s'écarte vers l'extérieur de sa
+  bande quand elle n'est pas au centre. Test Node sur une variante de la fixture (Po10 = Eth1/1 + 1/6, Po11 = Eth1/2 +
+  1/7, entrelacés par nom), capture Chromium vérifiée. Défaut pur, pas de revue. Reste visible : un faisceau ni
+  peer-link ni MLAG n'a pas d'étiquette courte sur la toile (forme courte = nature seule, choix du 2026-09-26).
+- **Retours d'Orhan sur `/view` et plan validé : ergonomie d'abord, les liens manuels sont des intentions** (2026-10-06).
+  Ses manques : multi-sélection ; ajouter / éditer / supprimer des liens ; zones de texte, formes de regroupement, dans un
+  calque ; recherche regex avec actions (« masquer tous les `adm` et leurs liens ») ; la timeline ; un bug (deux Po d'un
+  firewall vers le même switch, une seule bande). Avis rendu et **validé** : la moitié est du modèle, pas de l'ergonomie.
+  Un lien ajouté à la main = **câble déclaré** (quatrième statut, signé, listé dans Intentions, **jamais dans le snapshot
+  ni dans le diff**) ; « supprimer » = masquer ; « éditer » un câble observé = masquer + déclarer, toujours visible comme
+  tel (Orhan a validé qu'un câble déclaré peut remplacer visuellement un observé, affiché « observé, masqué par X le … ») ;
+  la correction durable d'un câble faux est dans la donnée (description du port). **Regroupements par membres** (liste de
+  hostnames + étiquette + couleur, enveloppe comme les clusters HA), pas des formes libres à coordonnées ; texte libre
+  positionné admis comme une épingle. **Masquage par règle** (regex sur un champ), d'abord filtre de vue dans l'URL, puis
+  « enregistrer comme intention ». **Ordre validé** : (1) timeline, (2) sélection + recherche + actions (sans contrat),
+  (3) intentions étendues : `docs/10` à valider, Intent 1.1.0 additif, trois incréments (masque par règle → groupes et
+  notes → câbles déclarés), **React entre ici** pour les panneaux, la toile reste du TS pur.
+- **La bande des runs (timeline) écrite dans `/view`** (2026-10-06, première brique du plan, session autonome).
+  `engine/src/shell/timeline.ts` : sous l'en-tête, toutes les runs archivées (relues à chaque ouverture), ordre du début
+  de collecte, courante marquée, comparée en pointillé ; clic, ← →, flèches du clavier depuis la bande. **Changer de run =
+  rouvrir par l'API en gardant le fragment** (sélection par identité, onglet, bascules) ; le placement mémorisé tient les
+  places. **Le diff suit** : → compare à la run qu'on quitte, ← et clic à la précédente de la run visée, « comparer à »
+  à n'importe quelle run antérieure ou aucune ; **`from` toujours explicite dans l'adresse**, une adresse sans `from`
+  reste une run sans diff (inchangé). Pendant le chargement la page reste visible (bande « chargement… »), le formulaire
+  ne revient qu'en cas d'échec. **`App.dispose()`** : un visualiseur qui lâche la page retire son écouteur `hashchange`,
+  neutralise ses rappels tardifs (`status`, `refreshPage`) et **renouvelle le `svg`** (les écouteurs du graphe partent
+  avec lui : rien ne s'accumule de run en run). Liste des runs indisponible ⇒ run ouverte sans bande, l'en-tête le dit.
+  Page autonome : pas de bande. Tests : trois tests Node (ordre et marques, navigation complète avec un seul écouteur et
+  une seule toile, liste indisponible), **bout en bout uvicorn + Chromium sur trois runs** (clic, clavier avec focus
+  conservé, diff suivi, sélection conservée), capture vérifiée sur la série `demo-dc` d'Orhan (30 devices, 3 runs).
+  Pas de revue indépendante (brique d'ergonomie sans contrat ; à inclure dans la revue de la brique « sélection »).
+- **Générateur : `--firewall-uplinks`, quatre raccordements du cluster FortiGate** (2026-10-06, demande d'Orhan :
+  tester un firewall « one arm » en deux port-channels vers le cœur ; formes choisies par lui). `vpc` (défaut, mêmes
+  octets qu'avant, vérifié), `dual-vpc` (agg-1 / agg-2 chacun en vPC sur les deux cœurs), `per-core` (agg-1 → cœur 01,
+  agg-2 → cœur 02, sans vPC), `single-core` (agg-1 et agg-2 → cœur 01 seul). Une forme = une liste de pattes par
+  membre (`synth/build_firewall.py`, extrait de `build_site.py`) ; ports, câbles, agrégats des deux côtés et forme HA des
+  descriptions s'en déduisent. Ethernet1/33-40 des cœurs, jamais atteints à la construction (≤ 20 accès par site) et
+  exclus d'un accès ajouté (port décrit = pris). Confronté : « one arm » est un fait L2 / L3, le L1 n'en voit que la
+  topologie. B1 lit les quatre formes sans bruit (forme HA lue, un câble `documented_only` par patte, un domaine MLAG par
+  vPC ; `tests/correlate/test_synth.py`), capture Chromium vérifiée. Pas de revue (variante de générateur).
+  Contracts 629 tests.
+- **L'application React commence maintenant ; `/view` devient la page de diagnostic, gelée** (2026-10-06, remarque de
+  fond d'Orhan avant la brique « sélection » : pourquoi coder la coquille sans React alors que la finalité est une
+  application React ; `/view` est une vue **admin**, surchargée, l'onglet Intentions n'est pas pour un utilisateur.
+  Avis rendu, plan validé : « une application React robuste, bien décomposée et évolutive », périmètre simple et solide
+  qu'on étoffe de session en session, retours sur visuel). **Décisions** : (1) **deux faces, une toile** : `/view` et
+  `ld render` = page de lecture de B1 (Qualité des données, Sources, Contrôles, comptabilité des intentions, `replacer`),
+  **gelée** (correctifs seulement ; la bande des runs y reste) ; l'application = ce qu'un utilisateur regarde, **servie
+  à `/`**. (2) **`engine/src/app/`**, troisième face du même paquet (un `npm ci`, un `tsconfig`, `build.mjs` à deux
+  entrées → `assets/app/app.js` + `app.css`, versionnés, déterministes, React embarqué, zéro CDN) ; CSP
+  `script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'`, fichiers lus à la requête (plus le piège
+  « coquille assemblée au démarrage » rencontré ce jour). (3) **React 19.2.7** épinglé (choix d'Orhan) ; **pas de React
+  Flow ni de bibliothèque de toile** (décision ③ maintenue : la toile existe, est prouvée, déterministe, hors du cycle
+  de rendu ; **correction** : l'argument CSP avancé contre React Flow était faux, React pose les styles par le CSSOM que
+  la CSP ne bloque pas, les trois autres raisons tiennent) ; **pas de Tailwind, ni Radix, ni bibliothèque d'état, ni
+  routeur** : composants maison dans `app/ui/`, CSS à jetons, reducer pur + actions typées, adresse = état de vue par un
+  module pur. (4) Couches strictes **`api/ → state/ → components/`** : un composant rend l'état et envoie des actions,
+  ne fait jamais d'appel réseau, ne touche jamais la toile ; seul `Canvas` monte la toile (une fois par run), lui pousse
+  les filtres et lit `onSelect`. (5) Sélection multiple, rectangle, règles `[champ:]regex` et **alignement** (demande
+  d'Orhan : aligner les nœuds sélectionnés horizontalement / verticalement, répartir) vivent **dans la toile**
+  (`graph.ts`, `pointer.ts`, `canvas/query.ts` écrit ce jour, pur) ; alignement = épingles si l'écrivain a un nom, sinon
+  déplacements locaux ; hôtes d'intention et de placement réutilisés sans leur DOM. (6) Tests : logique pure sous Node
+  (bundle de l'application chargé sans DOM), composants dans Chromium (uvicorn + pilote), Python : routes, CSP, aucune
+  URL, `dangerouslySetInnerHTML` interdit par test. (7) **Barre visuelle haute** (Orhan : « moderne, animé, visuel,
+  surtout pas d'usine à gaz ; `/view` est devenu lourd, des données partout, on ne sait pas où poser l'œil ; l'effet
+  wow, pas une page IA random ») : **le diagramme est la page** (toile pleine, sombre par défaut, tout le reste flotte
+  et n'apparaît que quand il sert : barre fine en haut, recherche en palette, panneau qui glisse à la sélection) ; **une
+  chose à lire à la fois** (fiche en trois à cinq faits, « plus » pour le reste, badges plutôt que tables) ; **le
+  mouvement explique** (nœuds qui glissent d'une run à l'autre, halo du diff qui pulse une fois, 150-250 ms,
+  `prefers-reduced-motion`) ; typographie embarquée (Inter variable + JetBrains Mono, OFL, `@fontsource`, `font-src
+  'self'`), icônes Lucide, une couleur d'accent, statuts sémantiques inchangés ; interdits : dégradés décoratifs, emoji,
+  ombres partout, texte « héros ». **Méthode** : la direction visuelle d'abord (jetons, typographie, coquille, trois ou
+  quatre captures : vide, run ouverte, sélection, changement de run) soumise à Orhan **avant** de remplir ; critique
+  Impeccable sur captures en fin de brique. **Périmètre v0** : jeton · infrastructure · bande des runs · diagramme ·
+  recherche / sélection / filtres / alignement · fiche courte (équipement : identité, rôle HA, câbles, structures ;
+  câble : bouts, statut, sources en une phrase, contrôles en badges, les deux ports) · bascule des changements · nom de
+  l'écrivain. Ordre : toile → build et routes → direction visuelle (captures) → application → Chromium → `demo-dc` →
+  docs. **La prochaine session démarre directement sur le code** (plan validé).
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -724,7 +846,7 @@ tirée dans la tranche le 2026-09-26) de visualisation avec les sources → prem
 minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden (faits le 2026-09-26), générateur synthétique
 (fait le 2026-10-03), **B3 diff (fait le 2026-10-04)**, table MAC (`docs/06`, parquée), B2,
 en TDD sur fixtures au format réel des collections → Phase 2 socle toile (**`engine/` depuis la page, 2026-10-04** ; jauge
-de perf 500 nœuds / 1 500 liens tenue par la page) → Phase 3 placement (seedé N-1) → Phase 4 timeline + diff peint (le diff
+de perf 500 nœuds / 1 500 liens tenue par la page) → Phase 3 placement (**placement mémorisé, figé plutôt que seedé, fait le 2026-10-06**) → Phase 4 timeline + diff peint (le diff
 est peint depuis le 2026-10-04) → Phase 5 intention + réconciliation (**épingles et orphelines faites le 2026-10-04**) →
 Phase 6 LOD complet, vues nommées, overlays L2/L3.
 Détail : `docs/00-analyse-fondation.md` §10.
@@ -742,6 +864,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
   générateur, quatre questions parquées. Validé sur le principe par Orhan le jour même, codé le jour même.
 - `docs/08-intention.md` — **conception de la couche d'intention B4** (2026-10-04) : contrat `Intent` v1, règles I0 à I6,
   branchement (store, API, CLI, page), quatre questions parquées. Codé le jour même.
+- `docs/09-placement-memorise.md` — **conception du placement mémorisé** (2026-10-06) : pourquoi (mesures), sept décisions,
+  règles P0 à P6, placement en deux temps, branchement, cinq questions parquées. Codé le jour même.
 - `docs/06-evidence-table-mac.md` — **conception de l'évidence table MAC** (2026-10-03) : topic `mac_table` restreint au
   parc, règle R7 (port de bordure), clusters à MAC virtuelle, six questions. **À valider par Orhan.**
 - `docs/guides-collecte/` — guides **producteur** par plateforme (2026-09-24 : `fortios-interfaces.md`, commandes et chronologie
@@ -789,15 +913,16 @@ Détail : `docs/00-analyse-fondation.md` §10.
   branchement, fait le 2026-09-20** (`snapshots.py`, `GET /api/snapshot`, `ld correlate` ; revue appliquée). Pages :
   incrément B et `GET /view` faits le 2026-09-26 (`render/shell.py`, `assets/js/structures.js`, `shell.js`). **R2 forme HA
   des descriptions le 2026-10-02** (`descriptions.py`, scénario 11 en mémoire, revue traitée) ; un `ha` standalone ne
-  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 % ; page de démonstration le même jour (`tip.js`, `icons.js`, `geometry.js`, `tests/browser.py`, 37 tests sous Node, 352 tests) ; **2026-10-03 : 357 tests**, dont `tests/correlate/test_synth.py` (B1 sur les séries du générateur, compte exact des téléphones) ; **2026-10-04 : 422 tests** (B3 `diff/` à 100 %, `diffs.py`, `GET /api/diff`, `ld diff`, `ld render --from`, page avec fantômes et onglet Diff, revue traitée le même jour, 50 tests sous Node).
+  produit plus de cluster (même jour). État 2026-10-02 : 351 tests, 99 %, `correlate/` à 100 % ; page de démonstration le même jour (`tip.js`, `icons.js`, `geometry.js`, `tests/browser.py`, 37 tests sous Node, 352 tests) ; **2026-10-03 : 357 tests**, dont `tests/correlate/test_synth.py` (B1 sur les séries du générateur, compte exact des téléphones) ; **2026-10-04 : 422 tests** (B3 `diff/` à 100 %, `diffs.py`, `GET /api/diff`, `ld diff`, `ld render --from`, page avec fantômes et onglet Diff, revue traitée le même jour, 50 tests sous Node) ; **2026-10-06 : 469 tests** (`placement.py`, `files.py`, `GET`/`POST /api/placement`, `ld placement`, page archivée avec le placement embarqué, bout en bout sur deux runs ; revue traitée : `base_revision` / 409, renvoi, stubs à leur place ; 73 tests sous Node).
 - `engine/` — **la toile** (2026-10-04) : moteur de diagramme TypeScript pur, zéro framework, `src/canvas/` (modèle,
   placement, géométrie, renderer SVG, bulle) et `src/shell/` (page, inspecteur, tableaux, intentions, coquille API), types
   des contrats générés (`npm run types`), bundle `npm run build` → `backend/src/ld_backend/render/assets/js/viewer.js`
   (versionné, test de dérive). Guide : `engine/README.md`. Node et `npm ci` seulement pour modifier la toile.
-- À venir (cap du 2026-10-04 ; B3 diff, toile et B4 épingles faits le jour même) : les retours d'Orhan sur le rendu du front
-  (`/view` : diagrammes, diff, épingles), puis selon ses axes : autres sortes d'intention (masquer, annoter), placement seedé
-  N-1 (phase 3), `shell/` React quand les panneaux d'édition le justifient, timeline. Parqués : `docs/06` table MAC (conçu,
-  non validé), B2 Mongo, H2 téléphones.
+- À venir (cap du 2026-10-04 ; B3 diff, toile et B4 épingles faits le jour même ; **placement mémorisé fait le 2026-10-06**,
+  phase 3 tenue autrement que par un seed N-1 ; **bande des runs faite le 2026-10-06**) : **l'application React v0**
+  (`engine/src/app/`, servie à `/` ; décisions du 2026-10-06 ci-dessus), puis ses itérations sur les retours visuels
+  d'Orhan, puis les intentions étendues (`docs/10` : masque par règle enregistré, groupes par membres et notes, câbles
+  déclarés) dans l'application. `/view` gelé. Parqués : `docs/06` table MAC (conçu, non validé), B2 Mongo, H2 téléphones.
 
 ## Conventions de code (rappel des règles globales)
 

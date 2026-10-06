@@ -1,6 +1,7 @@
 """Pages de visualisation : un fichier HTML autonome, hors ligne, qui n'écrit jamais une donnée en HTML."""
 
 import base64
+import copy
 import hashlib
 import json
 import os
@@ -39,6 +40,26 @@ def _aggstop(doc: dict) -> None:
         ("fw-edge-01", "x2"),
     ):
         interface(doc, host, name)["description"] = None
+
+
+def _twobeams(doc: dict) -> None:
+    """Deux faisceaux entre les mêmes équipements (bug du 2026-10-06 : la page n'en montrait qu'un) : les cœurs ont
+    quatre câbles en deux port-channels, entrelacés par nom de port (`port-channel10` = Ethernet1/1 + 1/6,
+    `port-channel11` = Ethernet1/2 + 1/7), observés par LLDP des deux bouts et documentés."""
+    for host, other in (("sw-core-01", "sw-core-02"), ("sw-core-02", "sw-core-01")):
+        for port in ("Ethernet1/6", "Ethernet1/7"):
+            physical = copy.deepcopy(interface(doc, host, "Ethernet1/1"))
+            doc["interfaces"].append({**physical, "name": port, "description": f"C1|{other}|{port}|"})
+            doc["lldp"].append(lldp_doc(host, port, other, port))
+        po10 = interface(doc, host, "port-channel10")
+        po11 = {**copy.deepcopy(po10), "name": "port-channel11", "description": f"C1|{other}|port-channel11|"}
+        po10["members"], po11["members"] = ["Ethernet1/1", "Ethernet1/6"], ["Ethernet1/2", "Ethernet1/7"]
+        doc["interfaces"].append(po11)
+        agg10 = next(a for a in doc["aggregates"] if a["hostname"] == host and a["name"] == "port-channel10")
+        agg11 = {**copy.deepcopy(agg10), "name": "port-channel11", "mlag_peer_link": False}
+        agg10["members"] = [{"name": name, "status": "bundled"} for name in ("Ethernet1/1", "Ethernet1/6")]
+        agg11["members"] = [{"name": name, "status": "bundled"} for name in ("Ethernet1/2", "Ethernet1/7")]
+        doc["aggregates"].append(agg11)
 
 
 def _unread(doc: dict) -> None:
@@ -362,12 +383,43 @@ def _intent_diff_page(bundle_dict: dict) -> str:
     return render_page(page)
 
 
+PLACEMENT_DOC = {
+    "infrastructure": "infra-lab",
+    "revision": 3,
+    "updated_at": "2026-10-06T09:00:00Z",
+    "places": [
+        {"hostname": "gone-host", "x": -300, "y": 200},
+        {"hostname": "sw-core-01", "x": 100, "y": 100},
+        {"hostname": "sw-core-02", "x": 400, "y": 100},
+    ],
+}
+
+
+def _placement_page(bundle_dict: dict) -> str:
+    """La page d'une run archivée avec son placement mémorisé (docs/09) : deux cœurs placés, une place orpheline, les
+    autres équipements à placer ; la couche d'intention vide, comme une archive jamais épinglée."""
+    from ld_contracts.intent import empty_intent
+
+    from ld_backend.placement import Placement
+
+    data = _data(_page(bundle_dict))
+    placement = Placement.model_validate(PLACEMENT_DOC).model_dump(mode="json")
+    intent = empty_intent("infra-lab").model_dump(mode="json")
+    origin = "archive · infra-lab · run"
+    return render_page(
+        build_page_data(data["snapshot"], data["ingest"], origin=origin, intent=intent, placement=placement)
+    )
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node absent : les tests du visualiseur ne tournent pas")
 def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
     page, hub, shell = tmp_path / "page.html", tmp_path / "hub.html", tmp_path / "shell.html"
     aggstop, unread, diff = tmp_path / "aggstop.html", tmp_path / "unread.html", tmp_path / "diff.html"
     unreachable, intent = tmp_path / "unreachable.html", tmp_path / "intent.html"
-    intent_diff = tmp_path / "intent-diff.html"
+    intent_diff, placement = tmp_path / "intent-diff.html", tmp_path / "placement.html"
+    twobeams = tmp_path / "twobeams.html"
+    twobeams.write_text(_page(variant(bundle_dict, _twobeams)), encoding="utf-8")
+    placement.write_text(_placement_page(bundle_dict), encoding="utf-8")
     page.write_text(_page(bundle_dict), encoding="utf-8")
     intent.write_text(_intent_page(bundle_dict), encoding="utf-8")
     intent_diff.write_text(_intent_diff_page(bundle_dict), encoding="utf-8")
@@ -393,6 +445,8 @@ def test_the_viewer_passes_its_node_tests(tmp_path, bundle_dict):
             "LD_PAGE_UNREACHABLE": str(unreachable),
             "LD_PAGE_INTENT": str(intent),
             "LD_PAGE_INTENT_DIFF": str(intent_diff),
+            "LD_PAGE_PLACEMENT": str(placement),
+            "LD_PAGE_TWOBEAMS": str(twobeams),
         },
         check=False,
     )
@@ -509,6 +563,30 @@ def test_render_from_the_archive_embeds_the_intent_read_only_and_the_file_mode_d
     assert cli.main(["render", *run]) == 0
     data = _data(out.read_text(encoding="utf-8"))
     assert "intent" not in data and "intention indisponible" in data["origin"] and "{broken" not in data["origin"]
+
+
+def test_render_from_the_archive_embeds_the_placement_read_only_and_the_file_mode_does_not(tmp_path, bundle_dict):
+    from datetime import UTC, datetime
+
+    from ld_backend.placement import Place, PlacementStore, PlacementWrite
+
+    source, archive, out = tmp_path / "bundle.json", tmp_path / "archive", tmp_path / "page.html"
+    source.write_text(json.dumps(bundle_dict), encoding="utf-8")
+    assert cli.main(["ingest", str(source), "--archive", str(archive)]) == 0
+    run = ["--infrastructure", "infra-lab", "--run-id", RUN_ID, "--archive", str(archive), "--out", str(out)]
+    assert cli.main(["render", *run]) == 0
+    assert _data(out.read_text(encoding="utf-8"))["placement"]["revision"] == 0, "le document vide, même sans place"
+    request = PlacementWrite(base_revision=0, replace=False, places=[Place(hostname="sw-core-01", x=12, y=-7)])
+    PlacementStore(archive).record("infra-lab", request, now=datetime(2026, 10, 6, 9, 0, tzinfo=UTC))
+    assert cli.main(["render", *run]) == 0
+    placement = _data(out.read_text(encoding="utf-8"))["placement"]
+    assert placement["revision"] == 1 and placement["places"] == [{"hostname": "sw-core-01", "x": 12, "y": -7}]
+    assert "placement" not in _data(_page(bundle_dict)), "en mode fichier, pas d'archive : pas de mémoire"
+    (archive / "_placement" / "infra-lab" / "placement.json").write_text("{broken", encoding="utf-8")
+    assert cli.main(["render", *run]) == 0
+    data = _data(out.read_text(encoding="utf-8"))
+    assert "placement" not in data and "placement mémorisé indisponible" in data["origin"]
+    assert "{broken" not in data["origin"] and data["intent"]["revision"] == 0, "la run s'ouvre quand même"
 
 
 @pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")

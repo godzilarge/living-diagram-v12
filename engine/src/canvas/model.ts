@@ -3,7 +3,7 @@ import type { Diff } from "../contracts/diff";
 import type { Check, HaMode, HaRole, InterfaceRef, Link, LinkRef, Severity, Snapshot, SnapshotInterface } from "../contracts/snapshot";
 import type {
   Aggregate, Beam, BeamEnd, Change, CheckEntry, Cluster, ComboRow, DiffKind, Entity, Intent, Model, ModelInterface, ModelLink, ModelNode,
-  PageData, Selection, SelectionKind,
+  PageData, Placement, Selection, SelectionKind,
 } from "./types";
 
 const SEP = "\u0000";
@@ -93,10 +93,18 @@ function buildLinks(model: Model, links: Link[], ghosts: Link[]): void {
   };
   links.forEach((raw) => add(raw, false));
   ghosts.forEach((raw) => { if (!model.linkById.has(linkId(raw))) add(raw, true); });
-  groups.forEach((members) => members.forEach((link, index) => {
-    link.indexInPair = index;
-    link.pairCount = members.length;
-  }));
+  // Dans l'éventail d'une paire, les câbles d'un même faisceau sont contigus : deux faisceaux entre les mêmes
+  // équipements se dessinent côte à côte, jamais entrelacés (bug du 2026-10-06, un firewall en deux port-channels
+  // vers le même switch). Les câbles hors faisceau d'abord, puis faisceau par faisceau ; l'ordre du snapshot au sein
+  // de chaque groupe.
+  groups.forEach((members) => {
+    const ranked = members.map((link, rank) => ({ link, rank, beam: beamIdOf(link.raw) || "" }));
+    ranked.sort((x, y) => (x.beam < y.beam ? -1 : x.beam > y.beam ? 1 : x.rank - y.rank));
+    ranked.forEach(({ link }, index) => {
+      link.indexInPair = index;
+      link.pairCount = members.length;
+    });
+  });
 }
 
 // Ce que la run d'avant avait et que celle-ci n'a plus, lu dans le diff : des nœuds et des interfaces fantômes,
@@ -192,15 +200,26 @@ function buildAggregates(model: Model, snapshot: Snapshot): void {
   });
 }
 
-// Un faisceau relie deux équipements distincts : une boucle entre deux agrégats du même équipement reste un câble
-// (ses deux agrégats se lisent sur sa fiche), elle ne fabrique pas de faisceau fantôme (revue, 7).
+// Les deux bouts du faisceau qu'un câble rejoint, dans l'ordre de leurs clés, ou `null` : un faisceau relie deux
+// équipements distincts, une boucle entre deux agrégats du même équipement reste un câble (ses deux agrégats se
+// lisent sur sa fiche), elle ne fabrique pas de faisceau fantôme (revue, 7).
+function beamEndsOf(raw: Link): [BeamEnd, BeamEnd] | null {
+  if (raw.aggregate_a === null || raw.aggregate_b === null || raw.a.hostname === raw.b.hostname) return null;
+  const ends = [{ hostname: raw.a.hostname, aggregate: raw.aggregate_a }, { hostname: raw.b.hostname, aggregate: raw.aggregate_b }]
+    .map((end) => ({ ...end, key: aggregateKey(end.hostname, end.aggregate) }))
+    .sort((x, y) => (x.key < y.key ? -1 : 1));
+  return [ends[0], ends[1]];
+}
+
+const beamIdOf = (raw: Link): string | null => {
+  const ends = beamEndsOf(raw);
+  return ends ? ends[0].key + SEP + ends[1].key : null;
+};
+
 function buildBeams(model: Model): void {
   for (const link of model.links) {
-    const raw = link.raw;
-    if (raw.aggregate_a === null || raw.aggregate_b === null || raw.a.hostname === raw.b.hostname) continue;
-    const ends: BeamEnd[] = [{ hostname: raw.a.hostname, aggregate: raw.aggregate_a }, { hostname: raw.b.hostname, aggregate: raw.aggregate_b }]
-      .map((end) => ({ ...end, key: aggregateKey(end.hostname, end.aggregate) }))
-      .sort((x, y) => (x.key < y.key ? -1 : 1));
+    const ends = beamEndsOf(link.raw);
+    if (!ends) continue;
     const id = ends[0].key + SEP + ends[1].key;
     if (!model.beamById.has(id)) {
       const aggregates = ends.map((end) => model.aggregateByKey.get(end.key) || null);
@@ -318,6 +337,12 @@ export function applyIntent(model: Model, intent: Intent | null): void {
   model.orphanPins = (intent ? intent.pins : []).filter((pin) => { const node = model.nodeByHost.get(pin.hostname); return !node || !!node.ghost; });
 }
 
+// Le placement mémorisé, indexé : une place par hostname. Rappelé après chaque écriture acceptée par l'API.
+export function applyPlacement(model: Model, placement: Placement | null): void {
+  model.placement = placement;
+  model.placeByHost = new Map((placement ? placement.places : []).map((place) => [place.hostname, place]));
+}
+
 export function build(data: PageData): Model {
   const snapshot = data.snapshot;
   const diff = data.diff || null;
@@ -333,7 +358,7 @@ export function build(data: PageData): Model {
     haMembershipsByHost: new Map(),
     combos: [], severityCounts: new Map(), statusCounts: new Map(), kindCounts: new Map(),
     diffOf: emptyDiffIndex(), changeOf: () => null, diffCount: 0,
-    intent: null, pinByHost: new Map(), orphanPins: [],
+    intent: null, pinByHost: new Map(), orphanPins: [], placement: null, placeByHost: new Map(),
   };
   snapshot.nodes.forEach((node) => model.nodeByHost.set(node.hostname, node));
   snapshot.interfaces.forEach((itf) => {
@@ -355,6 +380,7 @@ export function build(data: PageData): Model {
   model.changeOf = (kind, id) => model.diffOf[kind].get(id) || null;
   model.diffCount = diffCount(diff);
   applyIntent(model, data.intent || null);
+  applyPlacement(model, data.placement || null);
   return model;
 }
 
@@ -427,6 +453,6 @@ export function selectionFromToken(model: Model, kind: string, token: string): S
 }
 
 export const model = {
-  build, applyIntent, ifaceKey, interfaceAt, linkId, endLabel, worst, linkToken, linkFromToken, aggregateKey, clusterId, entityOf, hostsOf, tokenOf, selectionFromToken,
+  build, applyIntent, applyPlacement, ifaceKey, interfaceAt, linkId, endLabel, worst, linkToken, linkFromToken, aggregateKey, clusterId, entityOf, hostsOf, tokenOf, selectionFromToken,
   SEVERITY_RANK, OBSERVED, haRoleGroup, DIFF_SECTIONS, SELECTION_KINDS,
 };

@@ -7,11 +7,14 @@ import { path as iconPath, LABEL as ICON_LABEL, TYPES as ICON_TYPES } from "../c
 import { build, selectionFromToken, tokenOf, SELECTION_KINDS } from "../canvas/model";
 import type { Model, PageData, Selection } from "../canvas/types";
 import { apps } from "./apps";
-import type { App, BootOptions, Writer } from "./apps";
+import type { App, BootOptions, Placer, Writer } from "./apps";
 import { describe, show } from "./inspect";
 import { createIntentHost } from "./intent";
+import { createPlacementHost } from "./placement";
+import type { PlacementHost } from "./placement";
 import { tables } from "./tables";
 import type { ChecksHandle } from "./tables";
+import { confirmable } from "./widgets";
 
 type Tab = [string, string];
 const BASE_TABS: Tab[] = [["graph", "Graphe"], ["structures", "Structures"], ["intent", "Intentions"], ["checks", "Contrôles"], ["quality", "Qualité des données"], ["sources", "Sources"]];
@@ -20,6 +23,17 @@ const STATUSES = ["confirmed", "observed_only", "documented_only"];
 const tabsFor = (model: Model): Tab[] => (model.diff ? [BASE_TABS[0], ["diff", "Diff"], ...BASE_TABS.slice(1)] : BASE_TABS);
 type Status = (drawn?: Drawn | null) => void;
 const byId = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
+
+// Une toile neuve, aux mêmes attributs : les écouteurs que le graphe d'avant avait posés sur le `svg` partent avec
+// lui, rien ne s'accumule quand on passe de run en run.
+function renewCanvas(): void {
+  const svg = byId("canvas");
+  const parent = svg.parentNode;
+  if (!parent) return;
+  const fresh = s("svg", {});
+  svg.getAttributeNames().forEach((name) => fresh.setAttribute(name, svg.getAttribute(name) as string));
+  parent.replaceChild(fresh, svg);
+}
 
 function toggleStatus(graph: Graph, status: Status, st: string): void {
   const hidden = graph.state.hiddenStatuses;
@@ -67,7 +81,7 @@ function header(model: Model, graph: Graph, status: Status, openChecks: (severit
     diffChip(), intentChip()));
 }
 
-function toolbar(model: Model, graph: Graph, status: Status): void {
+function toolbar(model: Model, graph: Graph, status: Status, placements: PlacementHost): void {
   const stubs = model.kindCounts.get("stub") || 0;
   // Les stubs changent le placement (recadrer) ; les noms des ports ne demandent qu'un repeint ; les changements
   // ajoutent ou retirent les fantômes sans bouger la vue.
@@ -86,7 +100,10 @@ function toolbar(model: Model, graph: Graph, status: Status): void {
       legend.hidden = !legend.hidden;
       (e.target as HTMLElement).setAttribute("aria-pressed", legend.hidden ? "false" : "true");
     } }, "légende"),
-    h("button", { type: "button", title: "recalcule le placement ; les épingles enregistrées restent, les déplacements non enregistrés sont oubliés", onclick: () => status(graph.resetPins()) }, "replacer"),
+    // « Replacer » renouvelle le placement mémorisé : dans une page servie, c'est pour tout le monde, donc confirmé.
+    placements.needsConfirmation()
+      ? confirmable("replacer", () => status(graph.replaceAll()), { title: placements.replaceTitle() })
+      : h("button", { type: "button", title: placements.replaceTitle(), onclick: () => status(graph.replaceAll()) }, "replacer"),
     h("span", { class: "muted", id: "graph-status" })));
 }
 
@@ -158,10 +175,12 @@ export function boot(data: PageData, options: BootOptions = {}): App {
   const tabs = tabsFor(model);
   const inspector = byId("inspector");
   const writer: Writer | null = options.writer || null;
+  const placer: Placer | null = options.placer || null;
   let graph: Graph | null = null;
   let view = "graph";
-  let note = ""; // ce que la couche d'intention vient de faire (« épingle enregistrée »), sous le graphe
+  let note = ""; // ce que la couche d'intention ou le placement vient de faire (« épingle enregistrée »), sous le graphe
   let checks: ChecksHandle | null = null;
+  let disposed = false; // une autre run a pris la page : ce visualiseur ne touche plus au document
   const built = new Set<string>();
   const g = (): Graph => graph as Graph;
 
@@ -190,6 +209,7 @@ export function boot(data: PageData, options: BootOptions = {}): App {
   // Après une écriture de la couche d'intention : la pastille d'en-tête, le compte de l'onglet, la fiche ouverte, la
   // ligne d'état. L'en-tête n'est pas reconstruit, les bascules de statut gardent leur état (revue B4, B3).
   const refreshPage = (): void => {
+    if (disposed) return;
     const count = document.getElementById("count-intent");
     if (count) count.textContent = " · " + model.pinByHost.size;
     const chip = document.getElementById("c-intent");
@@ -218,6 +238,7 @@ export function boot(data: PageData, options: BootOptions = {}): App {
       + (masked ? ", dont " + masked + " masqué" + (masked > 1 ? "s" : "") + " par le filtre des voisins inconnus" : "");
   };
   const status: Status = () => {
+    if (disposed) return; // une réponse tardive (épingle, placement) de l'ancienne run n'écrit pas sous la nouvelle
     const shown = drawn();
     const total = { nodes: model.nodes.length, links: model.links.length };
     const hidden: string[] = []; // dire ce qui est masqué et pourquoi : l'en-tête annonce le total, le graphe peut en montrer moins
@@ -241,10 +262,11 @@ export function boot(data: PageData, options: BootOptions = {}): App {
     writeHash(view, g(), model);
   };
 
-  graph = createGraph(byId("canvas") as unknown as SVGSVGElement, model, onSelect, { onPin: intents.onPin });
+  const placements = createPlacementHost(model, placer, { graph: g, note: (text) => { note = text; status(); } });
+  graph = createGraph(byId("canvas") as unknown as SVGSVGElement, model, onSelect, { onPin: intents.onPin, onPlaced: placements.onPlaced });
   header(model, graph, status, openChecks, activate);
   mountTabs(tabs, activate, model);
-  toolbar(model, graph, status);
+  toolbar(model, graph, status, placements);
   legend(model, graph, status);
   // Sur une toile étroite, la carte de légende recouvrirait le graphe : masquée par défaut, le bouton la rappelle.
   if (typeof matchMedia === "function" && matchMedia("(max-width: 1199px)").matches) {
@@ -270,8 +292,16 @@ export function boot(data: PageData, options: BootOptions = {}): App {
     status();
   };
   applyHash(true); // avant toute réécriture de l'adresse : `activate` et `select` la réécrivent
-  if (typeof window !== "undefined") window.addEventListener("hashchange", () => applyHash(false));
-  return { model, graph, activate, applyHash, writer };
+  const onHashChange = (): void => { if (!disposed) applyHash(false); };
+  if (typeof window !== "undefined") window.addEventListener("hashchange", onHashChange);
+  // Une autre run s'ouvre dans la même page (bande des runs) : ce visualiseur lâche l'adresse et la toile. Le fragment
+  // reste tel quel, le suivant le lit : la sélection par identité, l'onglet et les bascules traversent les runs.
+  const dispose = (): void => {
+    disposed = true;
+    if (typeof window !== "undefined") window.removeEventListener("hashchange", onHashChange);
+    renewCanvas();
+  };
+  return { model, graph, activate, applyHash, writer, placer, dispose };
 }
 
 // La page autonome démarre sur ses données embarquées (index.ts a déjà lu le bloc de données).

@@ -35,16 +35,20 @@ def build_page_data(
     origin: str,
     diff: Mapping[str, Any] | None = None,
     intent: Mapping[str, Any] | None = None,
+    placement: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Ce que la page embarque : le snapshot, le rapport de la livraison s'il existe, le sens de chaque code, le
-    diff avec une run précédente quand il a été demandé (`--from`), et la couche d'intention de l'infrastructure
-    quand la page vient de l'archive (`intent`, lecture seule) : ces deux clés n'existent qu'alors."""
+    diff avec une run précédente quand il a été demandé (`--from`), et, quand la page vient de l'archive, la couche
+    d'intention de l'infrastructure (`intent`) et son placement mémorisé (`placement`), en lecture seule : ces trois
+    clés n'existent qu'alors."""
     catalogue = {code.value: {"meaning": spec.meaning, "rule": spec.rule} for code, spec in CATALOGUE.items()}
     data: dict[str, Any] = {"snapshot": snapshot, "ingest": ingest, "origin": origin, "catalogue": catalogue}
     if diff is not None:
         data["diff"] = diff
     if intent is not None:
         data["intent"] = intent
+    if placement is not None:
+        data["placement"] = placement
     return data
 
 

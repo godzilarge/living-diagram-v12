@@ -3,7 +3,7 @@
 (() => {
   // src/canvas/dom.ts
   var SVG_NS = "http://www.w3.org/2000/svg";
-  var HANDLERS = /* @__PURE__ */ new Map([["onclick", "click"], ["oninput", "input"], ["onchange", "change"], ["onsubmit", "submit"]]);
+  var HANDLERS = /* @__PURE__ */ new Map([["onclick", "click"], ["oninput", "input"], ["onchange", "change"], ["onsubmit", "submit"], ["onkeydown", "keydown"]]);
   function flatten(children, into = []) {
     for (const child of children) {
       if (Array.isArray(child)) flatten(child, into);
@@ -121,10 +121,14 @@
     ghosts.forEach((raw) => {
       if (!model2.linkById.has(linkId(raw))) add(raw, true);
     });
-    groups.forEach((members) => members.forEach((link, index) => {
-      link.indexInPair = index;
-      link.pairCount = members.length;
-    }));
+    groups.forEach((members) => {
+      const ranked = members.map((link, rank) => ({ link, rank, beam: beamIdOf(link.raw) || "" }));
+      ranked.sort((x, y) => x.beam < y.beam ? -1 : x.beam > y.beam ? 1 : x.rank - y.rank);
+      ranked.forEach(({ link }, index) => {
+        link.indexInPair = index;
+        link.pairCount = members.length;
+      });
+    });
   }
   function addGhosts(model2, diff) {
     diff.nodes.removed.forEach((node) => {
@@ -218,11 +222,19 @@
       });
     });
   }
+  function beamEndsOf(raw) {
+    if (raw.aggregate_a === null || raw.aggregate_b === null || raw.a.hostname === raw.b.hostname) return null;
+    const ends = [{ hostname: raw.a.hostname, aggregate: raw.aggregate_a }, { hostname: raw.b.hostname, aggregate: raw.aggregate_b }].map((end) => ({ ...end, key: aggregateKey(end.hostname, end.aggregate) })).sort((x, y) => x.key < y.key ? -1 : 1);
+    return [ends[0], ends[1]];
+  }
+  var beamIdOf = (raw) => {
+    const ends = beamEndsOf(raw);
+    return ends ? ends[0].key + SEP + ends[1].key : null;
+  };
   function buildBeams(model2) {
     for (const link of model2.links) {
-      const raw = link.raw;
-      if (raw.aggregate_a === null || raw.aggregate_b === null || raw.a.hostname === raw.b.hostname) continue;
-      const ends = [{ hostname: raw.a.hostname, aggregate: raw.aggregate_a }, { hostname: raw.b.hostname, aggregate: raw.aggregate_b }].map((end) => ({ ...end, key: aggregateKey(end.hostname, end.aggregate) })).sort((x, y) => x.key < y.key ? -1 : 1);
+      const ends = beamEndsOf(link.raw);
+      if (!ends) continue;
       const id = ends[0].key + SEP + ends[1].key;
       if (!model2.beamById.has(id)) {
         const aggregates = ends.map((end) => model2.aggregateByKey.get(end.key) || null);
@@ -357,6 +369,10 @@
       return !node || !!node.ghost;
     });
   }
+  function applyPlacement(model2, placement2) {
+    model2.placement = placement2;
+    model2.placeByHost = new Map((placement2 ? placement2.places : []).map((place) => [place.hostname, place]));
+  }
   function build(data2) {
     const snapshot = data2.snapshot;
     const diff = data2.diff || null;
@@ -406,7 +422,9 @@
       diffCount: 0,
       intent: null,
       pinByHost: /* @__PURE__ */ new Map(),
-      orphanPins: []
+      orphanPins: [],
+      placement: null,
+      placeByHost: /* @__PURE__ */ new Map()
     };
     snapshot.nodes.forEach((node) => model2.nodeByHost.set(node.hostname, node));
     snapshot.interfaces.forEach((itf) => {
@@ -428,6 +446,7 @@
     model2.changeOf = (kind, id) => model2.diffOf[kind].get(id) || null;
     model2.diffCount = diffCount(diff);
     applyIntent(model2, data2.intent || null);
+    applyPlacement(model2, data2.placement || null);
     return model2;
   }
   var linkToken = (link) => JSON.stringify([link.a.hostname, link.a.interface, link.b.hostname, link.b.interface]);
@@ -509,6 +528,7 @@
   var model = {
     build,
     applyIntent,
+    applyPlacement,
     ifaceKey,
     interfaceAt,
     linkId,
@@ -556,8 +576,8 @@
   var factRank = (key) => FACT_ORDER.includes(key) ? FACT_ORDER.indexOf(key) : FACT_ORDER.length;
   function endWithFacts(value) {
     const facts = Object.entries(value).filter(([k, v]) => k !== "hostname" && k !== "interface" && v !== null && v !== void 0).sort((x, y) => factRank(x[0]) - factRank(y[0]) || (x[0] < y[0] ? -1 : 1));
-    const label = endLabel(value);
-    return facts.length ? label + " (" + facts.map(([k, v]) => k + " " + plain(v)).join(", ") + ")" : label;
+    const label2 = endLabel(value);
+    return facts.length ? label2 + " (" + facts.map(([k, v]) => k + " " + plain(v)).join(", ") + ")" : label2;
   }
   function brief(value) {
     if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) return value.length + " élément" + (value.length > 1 ? "s" : "");
@@ -581,17 +601,19 @@
   var MIN_DISTANCE = 1e-4;
   var REACH = IDEAL * 3;
   var SHELF_GAP = 110;
+  var HEAT = 1.5;
+  var EXTEND_HEAT = 0.5;
+  var NEAR_STEP = 0.3;
   function iterationsFor(count) {
     if (count <= 600) return 300;
     return count <= 1500 ? 150 : 80;
   }
+  function spiral(index) {
+    const radius = IDEAL * 0.6 * Math.sqrt(index + 0.5);
+    return { x: radius * Math.cos(index * GOLDEN_ANGLE), y: radius * Math.sin(index * GOLDEN_ANGLE) };
+  }
   function seed(ids) {
-    const positions = /* @__PURE__ */ new Map();
-    ids.forEach((id, index) => {
-      const radius = IDEAL * 0.6 * Math.sqrt(index + 0.5);
-      positions.set(id, { x: radius * Math.cos(index * GOLDEN_ANGLE), y: radius * Math.sin(index * GOLDEN_ANGLE) });
-    });
-    return positions;
+    return new Map(ids.map((id, index) => [id, spiral(index)]));
   }
   function uniqueEdges(edges, known2) {
     const weights = /* @__PURE__ */ new Map();
@@ -606,12 +628,43 @@
       return { from, to, weight: (1 + 0.35 * Math.log(count)) * boost };
     });
   }
+  function wired(ids, edges) {
+    const known2 = new Set(ids);
+    return new Set(uniqueEdges(edges, known2).flatMap((edge) => [edge.from, edge.to]));
+  }
+  function seedNear(sorted, links, fixed, points) {
+    const neighbours = /* @__PURE__ */ new Map();
+    const push = (a, b) => {
+      const list = neighbours.get(a);
+      if (list) list.push(b);
+      else neighbours.set(a, [b]);
+    };
+    links.forEach(({ from, to }) => {
+      push(from, to);
+      push(to, from);
+    });
+    const placed2 = new Set(sorted.filter((id) => fixed.has(id)));
+    let rank = 0;
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const id of sorted) {
+        if (placed2.has(id)) continue;
+        const near = (neighbours.get(id) || []).filter((other) => placed2.has(other)).map((other) => points.get(other));
+        if (!near.length) continue;
+        const step2 = spiral(rank++);
+        points.set(id, { x: near.reduce((sum, p) => sum + p.x, 0) / near.length + step2.x * NEAR_STEP, y: near.reduce((sum, p) => sum + p.y, 0) / near.length + step2.y * NEAR_STEP });
+        placed2.add(id);
+        grew = true;
+      }
+    }
+  }
   function step(sim, temperature) {
     const { count, x, y, mx, my, from, to, weight, free } = sim;
     mx.fill(0);
     my.fill(0);
     for (let i = 0; i < count; i += 1) {
       for (let j = i + 1; j < count; j += 1) {
+        if (!free[i] && !free[j]) continue;
         const dx = x[i] - x[j];
         const dy = y[i] - y[j];
         const squared = Math.max(dx * dx + dy * dy, MIN_DISTANCE);
@@ -666,21 +719,23 @@
       points.set(id, pin ? { x: pin.x, y: pin.y } : spot);
     });
   }
-  function run(ids, edges, pinned) {
+  function run(ids, edges, fixed, options = {}) {
     const all = Array.from(ids).sort();
-    const fixed = pinned || /* @__PURE__ */ new Map();
+    const held = fixed || /* @__PURE__ */ new Map();
     const links = uniqueEdges(edges, new Set(all));
-    const wired = new Set(links.flatMap((edge) => [edge.from, edge.to]));
-    const sorted = all.filter((id) => wired.has(id));
+    const connected = new Set(links.flatMap((edge) => [edge.from, edge.to]));
+    const sorted = all.filter((id) => connected.has(id));
     const points = seed(sorted);
-    fixed.forEach((point, id) => {
+    held.forEach((point, id) => {
       if (points.has(id)) points.set(id, { x: point.x, y: point.y });
     });
-    const sim = simulation(sorted, points, links, fixed);
+    if (options.extend) seedNear(sorted, links, held, points);
+    const sim = simulation(sorted, points, links, held);
     const iterations = iterationsFor(sorted.length);
-    for (let i = 0; i < iterations; i += 1) step(sim, IDEAL * 1.5 * (1 - i / iterations) + 1);
-    sorted.forEach((id, index) => points.set(id, { x: sim.x[index], y: sim.y[index] }));
-    shelve(points, all.filter((id) => !wired.has(id)), fixed);
+    const heat = IDEAL * (options.extend ? EXTEND_HEAT : HEAT);
+    for (let i = 0; i < iterations; i += 1) step(sim, heat * (1 - i / iterations) + 1);
+    sorted.forEach((id, index) => points.set(id, held.has(id) ? points.get(id) : { x: Math.round(sim.x[index]), y: Math.round(sim.y[index]) }));
+    shelve(points, all.filter((id) => !connected.has(id)), held);
     return points;
   }
   function bounds(points) {
@@ -694,7 +749,7 @@
     if (minX === Infinity) return { x: 0, y: 0, width: 1, height: 1 };
     return { x: minX, y: minY, width: Math.max(maxX - minX, 1), height: Math.max(maxY - minY, 1) };
   }
-  var layout = { run, bounds, IDEAL };
+  var layout = { run, wired, bounds, IDEAL };
 
   // src/canvas/geometry.ts
   var FAN = 14;
@@ -703,6 +758,10 @@
   var BAND = 18;
   var HIT_MARGIN = 8;
   var CHAR_W = 6.6;
+  function fanOffset(link) {
+    const spacing = Math.min(FAN, FAN_MAX / link.pairCount);
+    return (link.indexInPair - (link.pairCount - 1) / 2) * spacing;
+  }
   function curve(p, q, link) {
     if (link.a.hostname === link.b.hostname) {
       const reach = 46 + link.indexInPair * 12;
@@ -712,10 +771,11 @@
         ends: [{ x: p.x - 26, y: p.y - 30 }, { x: p.x + 26, y: p.y - 30 }]
       };
     }
+    return chord(p, q, fanOffset(link));
+  }
+  function chord(p, q, offset) {
     const dx = q.x - p.x, dy = q.y - p.y;
     const length = Math.max(Math.hypot(dx, dy), 0.01);
-    const spacing = Math.min(FAN, FAN_MAX / link.pairCount);
-    const offset = (link.indexInPair - (link.pairCount - 1) / 2) * spacing;
     const nx = -dy / length, ny = dx / length;
     const c = { x: (p.x + q.x) / 2 + nx * offset * 2, y: (p.y + q.y) / 2 + ny * offset * 2 };
     const at = (t) => ({ x: (1 - t) * (1 - t) * p.x + 2 * (1 - t) * t * c.x + t * t * q.x, y: (1 - t) * (1 - t) * p.y + 2 * (1 - t) * t * c.y + t * t * q.y });
@@ -729,13 +789,11 @@
     const padX = Math.max(HULL_PAD, CHAR_W * (longest || 0) / 2 + 12);
     return { x: box.x - padX, y: box.y - HULL_PAD - 6, width: box.width + 2 * padX, height: box.height + 2 * HULL_PAD + 6 };
   }
-  function beamWidths(beam) {
-    const reach = Math.max(0, ...beam.links.map((link) => {
-      const spacing = Math.min(FAN, FAN_MAX / link.pairCount);
-      return Math.abs((link.indexInPair - (link.pairCount - 1) / 2) * spacing);
-    }));
-    const band = BAND + 2 * reach;
-    return { band, hit: band + 2 * HIT_MARGIN };
+  function beamBand(beam) {
+    const offsets = beam.links.length ? beam.links.map(fanOffset) : [0];
+    const lo = Math.min(...offsets), hi = Math.max(...offsets);
+    const band = BAND + (hi - lo);
+    return { band, hit: band + 2 * HIT_MARGIN, offset: (lo + hi) / 2 };
   }
   function beamLabel(beam, full) {
     const parts = full === false ? [] : [beam.a.aggregate + " ⇄ " + beam.b.aggregate];
@@ -746,7 +804,7 @@
   function clusterLabel(cluster) {
     return "HA · " + (cluster.raw.cluster_name || cluster.hosts.join(" + ")) + " · " + cluster.raw.mode;
   }
-  var geometry = { curve, hull, beamWidths, beamLabel, clusterLabel, CHAR_W };
+  var geometry = { curve, chord, fanOffset, hull, beamBand, beamLabel, clusterLabel, CHAR_W };
 
   // src/canvas/icons.ts
   var PATHS = {
@@ -827,7 +885,7 @@
   function linkLines(model2, link) {
     const ends = [link.a, link.b];
     const facts = ends.map((end) => endFacts(model2, end, link.ghost));
-    const row = (label, key) => facts.some((f) => f[key] !== null) ? line(cell(label, "tip-muted"), ...facts.map((f) => cell(f[key] === null ? DASH : f[key]))) : null;
+    const row = (label2, key) => facts.some((f) => f[key] !== null) ? line(cell(label2, "tip-muted"), ...facts.map((f) => cell(f[key] === null ? DASH : f[key]))) : null;
     const traits = [row("vitesse", "speed"), row("duplex", "duplex"), row("média", "media")].filter(present);
     return [
       line(cell(endLabel(link.a) + " ↔ " + endLabel(link.b), "tip-title")),
@@ -948,6 +1006,7 @@
       const node = model2.nodeByHost.get(host);
       return !!node && !node.ghost;
     }).map(([host, pin]) => [host, { x: pin.x, y: pin.y }]));
+    const savedPlaces = () => new Map(Array.from(model2.placeByHost, ([host, place2]) => [host, { x: place2.x, y: place2.y }]));
     const state = {
       showStubs: false,
       showPorts: false,
@@ -955,6 +1014,7 @@
       hiddenStatuses: /* @__PURE__ */ new Set(),
       query: "",
       pinned: savedPins(),
+      placed: savedPlaces(),
       positions: /* @__PURE__ */ new Map(),
       view: { k: 1, tx: 0, ty: 0 },
       selection: null,
@@ -1054,16 +1114,18 @@
     }
     function placeBeam(beam, els) {
       const p = at(beam.a.hostname), q = at(beam.b.hostname);
-      const path2 = `M${p.x},${p.y} L${q.x},${q.y}`;
-      els.band.setAttribute("d", path2);
-      els.hit.setAttribute("d", path2);
+      const axis = chord(p, q, els.shape.offset);
+      els.band.setAttribute("d", axis.path);
+      els.hit.setAttribute("d", axis.path);
       const dx = q.x - p.x, dy = q.y - p.y, length = Math.max(Math.hypot(dx, dy), 0.01);
       let angle = Math.atan2(dy, dx) * 180 / Math.PI;
       if (angle > 90) angle -= 180;
       if (angle <= -90) angle += 180;
-      const side = -dy / length < 0 ? -1 : 1;
-      const away = els.widths.band / 2 + 8;
-      const x = (p.x + q.x) / 2 + -dy / length * side * away, y = (p.y + q.y) / 2 + dx / length * side * away;
+      const nx = -dy / length, ny = dx / length;
+      const up = ny <= 0 ? 1 : -1;
+      const side = els.shape.offset === 0 ? up : Math.sign(els.shape.offset);
+      const away = els.shape.band / 2 + 8;
+      const x = axis.mid.x + nx * side * away, y = axis.mid.y + ny * side * away;
       const text = els.label.textContent || "";
       const width = CHAR_W * 0.95 * text.length + 10;
       els.label.setAttribute("x", String(x));
@@ -1076,12 +1138,12 @@
       els.tag.setAttribute("visibility", text ? "visible" : "hidden");
     }
     function drawBeam(beam) {
-      const widths = beamWidths(beam);
-      const band = s("path", { class: "beam-band", "stroke-width": widths.band });
-      const hit = s("path", { class: "beam-hit", "stroke-width": widths.hit });
-      const label = s("text", { class: "beam-label" }, beamLabel(beam, false));
+      const shape = beamBand(beam);
+      const band = s("path", { class: "beam-band", "stroke-width": shape.band });
+      const hit = s("path", { class: "beam-hit", "stroke-width": shape.hit });
+      const label2 = s("text", { class: "beam-label" }, beamLabel(beam, false));
       const labelHit = s("rect", { class: "beam-label-hit" });
-      const tag = s("g", { class: "beam-tag", "data-beam": String(beam.index) }, labelHit, label);
+      const tag = s("g", { class: "beam-tag", "data-beam": String(beam.index) }, labelHit, label2);
       const classes = `beam${beam.peerLink ? " peer-link" : ""}${beam.degraded ? " degraded" : ""}${beam.mlags.length ? " mlag" : ""}`;
       const group = s(
         "g",
@@ -1095,7 +1157,7 @@
         band,
         hit
       );
-      const els = { group, band, hit, label, labelHit, tag, widths };
+      const els = { group, band, hit, label: label2, labelHit, tag, shape };
       state.beamEls.set(beam.id, els);
       labelLayer.appendChild(tag);
       placeBeam(beam, els);
@@ -1111,9 +1173,9 @@
     }
     function drawCluster(cluster) {
       const rect = s("rect", { class: "cluster-hull", rx: 12 });
-      const label = s("text", { class: "cluster-label" }, clusterLabel(cluster));
-      const group = s("g", { class: "cluster", "data-cluster": String(cluster.index), tabindex: 0, role: "button", "aria-label": clusterLabel(cluster) }, rect, label);
-      const els = { group, rect, label };
+      const label2 = s("text", { class: "cluster-label" }, clusterLabel(cluster));
+      const group = s("g", { class: "cluster", "data-cluster": String(cluster.index), tabindex: 0, role: "button", "aria-label": clusterLabel(cluster) }, rect, label2);
+      const els = { group, rect, label: label2 };
       state.clusterEls.set(cluster.id, els);
       placeCluster(cluster, els);
       bindFocus(group, { kind: "cluster", id: cluster.id }, () => toScreen({ x: Number(rect.getAttribute("x")) + 20, y: Number(rect.getAttribute("y")) + 20 }));
@@ -1379,12 +1441,34 @@
       model2.clusters.forEach((c) => c.hosts.slice(1).forEach((host) => edges.push([c.hosts[0], host, 2.5])));
       return edges;
     }
-    function render(keepView) {
+    let unplaced = /* @__PURE__ */ new Set();
+    function place(nodes) {
+      const edges = layoutEdges();
+      const infra = nodes.filter((n) => n.kind !== "stub").map((n) => n.hostname);
+      const stubs = nodes.filter((n) => n.kind === "stub").map((n) => n.hostname);
+      const of = (ids, source) => ids.filter((id) => source.has(id)).map((id) => [id, source.get(id)]);
+      const remembered = of(infra, state.placed);
+      const base = run(infra, edges, new Map([...remembered, ...of(infra, state.pinned)]), { extend: remembered.length > 0 });
+      const fresh = /* @__PURE__ */ new Map();
+      const held = wired(infra, edges);
+      unplaced = new Set(infra.filter((id) => !held.has(id)));
+      infra.forEach((id) => {
+        const node = model2.nodeByHost.get(id);
+        if (state.placed.has(id) || state.pinned.has(id) || !held.has(id) || !node || node.ghost) return;
+        const point = { ...base.get(id) };
+        state.placed.set(id, point);
+        fresh.set(id, point);
+      });
+      if (!stubs.length) return { positions: base, fresh };
+      const fixed = new Map([...base, ...of(stubs, state.placed), ...of(stubs, state.pinned)]);
+      return { positions: run(nodes.map((n) => n.hostname), edges, fixed, { extend: true }), fresh };
+    }
+    function render2(keepView, replace = false) {
       const nodes = visibleNodes();
       const shown = new Set(nodes.map((n) => n.hostname));
       const links = visibleLinks(shown);
-      const pinned = new Map(Array.from(state.pinned).filter(([id]) => shown.has(id)));
-      state.positions = run(shown, layoutEdges(), pinned);
+      const { positions, fresh } = place(nodes);
+      state.positions = positions;
       tip2.hide();
       [state.nodeEls, state.linkEls, state.beamEls, state.clusterEls].forEach((map) => map.clear());
       [clusterLayer, beamLayer, linkLayer, labelLayer, nodeLayer].forEach(clear);
@@ -1394,6 +1478,7 @@
       nodes.forEach((node) => nodeLayer.appendChild(drawNode(node)));
       if (!keepView) fit();
       paintSelection();
+      if ((fresh.size || replace) && options.onPlaced) options.onPlaced(fresh, replace);
       return { nodes: nodes.length, links: links.length };
     }
     function centerOn(selection) {
@@ -1430,7 +1515,7 @@
           redraw = true;
         }
       });
-      if (redraw) render(true);
+      if (redraw) render2(true);
       select(selection);
       centerOn(selection);
       return redraw;
@@ -1447,25 +1532,41 @@
       });
       state.nodeEls.forEach((el, host) => el.classList.toggle("pinned", state.pinned.has(host)));
     }
+    function syncPlaces() {
+      state.placed = savedPlaces();
+      const stale = Array.from(state.nodeEls.keys()).some((host) => {
+        const node = model2.nodeByHost.get(host), place2 = state.placed.get(host), current = state.positions.get(host);
+        if (!node || !current || state.pinned.has(host)) return false;
+        if (place2) return place2.x !== current.x || place2.y !== current.y;
+        return node.kind !== "stub" && !node.ghost && !unplaced.has(host);
+      });
+      if (stale) render2(true);
+    }
     const drawn = () => ({ nodes: state.nodeEls.size, links: state.linkEls.size });
     bindCanvas();
     return {
       state,
-      render,
+      render: (keepView) => render2(keepView),
       fit,
       select,
       reveal,
       repaint: paintSelection,
       resetPins: () => {
         state.pinned = savedPins();
-        return render(false);
+        return render2(true);
+      },
+      replaceAll: () => {
+        state.pinned = savedPins();
+        state.placed = /* @__PURE__ */ new Map();
+        return render2(false, true);
       },
       syncPins,
+      syncPlaces,
       // Une épingle retirée replace le graphe seulement si son équipement est dessiné (une orpheline ne bouge rien).
       unpin: (hostnames) => {
         const shown = hostnames.some((host) => state.nodeEls.has(host));
         hostnames.forEach((host) => state.pinned.delete(host));
-        return shown ? render(true) : drawn();
+        return shown ? render2(true) : drawn();
       }
     };
   }
@@ -1475,17 +1576,17 @@
   var apps = {};
 
   // src/shell/widgets.ts
-  var pill = (kind, value, label) => h("span", { class: "pill " + kind + "-" + value }, label === void 0 ? value : label);
+  var pill = (kind, value, label2) => h("span", { class: "pill " + kind + "-" + value }, label2 === void 0 ? value : label2);
   var sourcePill = (source) => pill("source", source, SOURCE_LABEL[source] || source);
   var statusPill = (status) => pill("status", status, STATUS_LABEL[status] || status);
   var severityPill = (severity) => pill("severity", severity);
   var diffPill = (kind) => pill("diff", kind, DIFF_LABEL[kind] || kind);
   function definition(rows) {
     const kept = rows.filter((row) => !!row && row[1] !== null && row[1] !== void 0 && row[1] !== "");
-    return h("dl", { class: "kv" }, kept.map(([label, value]) => [h("dt", {}, label), h("dd", {}, typeof value === "object" ? value : String(value))]));
+    return h("dl", { class: "kv" }, kept.map(([label2, value]) => [h("dt", {}, label2), h("dd", {}, typeof value === "object" ? value : String(value))]));
   }
   function table(headers, rows, options) {
-    const head = h("tr", {}, headers.map((label) => h("th", {}, label)));
+    const head = h("tr", {}, headers.map((label2) => h("th", {}, label2)));
     const body = rows.map((row) => {
       const line2 = h(
         "tr",
@@ -1501,7 +1602,23 @@
     const empty = rows.length ? null : h("tr", {}, h("td", { colspan: headers.length, class: "empty" }, options && options.empty || "rien à signaler"));
     return h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, head), h("tbody", {}, body, empty)));
   }
-  var widgets = { pill, sourcePill, statusPill, severityPill, diffPill, definition, table };
+  function confirmable(label2, run2, options = {}) {
+    const suffix = options.count === void 0 ? "" : " (" + options.count + ")";
+    const holder = h("span", { class: "confirm-row" });
+    const ask = () => {
+      clear(holder).appendChild(h("button", { type: "button", onclick: () => {
+        clear(holder).appendChild(first());
+        run2();
+      } }, "confirmer : " + label2 + suffix));
+      holder.appendChild(h("button", { type: "button", class: "linklike", onclick: () => {
+        clear(holder).appendChild(first());
+      } }, "annuler"));
+    };
+    const first = () => h("button", { type: "button", title: options.title || null, onclick: ask }, label2 + suffix);
+    holder.appendChild(first());
+    return holder;
+  }
+  var widgets = { pill, sourcePill, statusPill, severityPill, diffPill, definition, table, confirmable };
 
   // src/shell/tables.ts
   var CHECK_HEADERS = ["sévérité", "code", "vise", "détails", "règle"];
@@ -1525,8 +1642,8 @@
       if (ref.kind === "link") return { label: endLabel(ref.a) + " ↔ " + endLabel(ref.b), selection: { kind: "link", id: linkId(ref) } };
       if (ref.kind === "cluster") return { label: "cluster " + ref.members.join(" + "), selection: { kind: "cluster", id: clusterId(ref.members) } };
       if (ref.kind === "aggregate") return { label: ref.hostname + " · " + ref.name, selection: { kind: "aggregate", id: aggregateKey(ref.hostname, ref.name) } };
-      const label = ref.kind === "interface" ? ref.hostname + " · " + ref.name : ref.hostname;
-      return { label, selection: { kind: "node", id: ref.hostname } };
+      const label2 = ref.kind === "interface" ? ref.hostname + " · " + ref.name : ref.hostname;
+      return { label: label2, selection: { kind: "node", id: ref.hostname } };
     }).filter((target) => entityOf(model2, target.selection) !== null);
   }
   var refHost = (ref) => "hostname" in ref ? ref.hostname : "";
@@ -1555,10 +1672,10 @@
       clear(body).appendChild(h("p", { class: "muted" }, rows.length + " contrôle" + (rows.length > 1 ? "s" : "") + " sur " + model2.checks.length));
       body.appendChild(table(CHECK_HEADERS, checkRows(model2, rows, onSelect), { empty: "aucun contrôle ne correspond" }));
     };
-    const select = (id, label, values, key) => h(
+    const select = (id, label2, values, key) => h(
       "label",
       { class: "field" },
-      label,
+      label2,
       h("select", { id, onchange: (e) => {
         state[key] = e.target.value;
         draw();
@@ -1813,7 +1930,7 @@
   function diffView(container, model2, onSelect) {
     const d = model2.diff, s2 = d.summary;
     const openNode = (hostname) => () => onSelect({ kind: "node", id: hostname });
-    const summaryRows = Object.entries(SECTION_LABEL).map(([name, label]) => ({ cells: [label, String(s2[name].added), String(s2[name].removed), String(s2[name].changed)] }));
+    const summaryRows = Object.entries(SECTION_LABEL).map(([name, label2]) => ({ cells: [label2, String(s2[name].added), String(s2[name].removed), String(s2[name].changed)] }));
     const interfaceRows = d.interfaces.changed.flatMap((c) => c.ref.kind === "interface" ? [{ onclick: openNode(c.ref.hostname), cells: [diffPill("changed"), c.ref.hostname + " · " + c.ref.name, fieldsCell(c)] }] : []);
     const coverageRows = d.coverage.changed.flatMap((c) => c.ref.kind === "node" ? [{ onclick: openNode(c.ref.hostname), cells: [c.ref.hostname, fieldsCell(c)] }] : []);
     const eventRows = d.events.flatMap((e) => {
@@ -2286,7 +2403,7 @@
   var KIND_WORD = { link: "câble", node: "équipement", aggregate: "agrégat", beam: "faisceau", cluster: "cluster HA" };
   function describe(model2, selection) {
     if (!selection || !entityOf(model2, selection)) return "";
-    const label = (() => {
+    const label2 = (() => {
       switch (selection.kind) {
         case "link": {
           const link = model2.linkById.get(selection.id);
@@ -2308,7 +2425,7 @@
         }
       }
     })();
-    return KIND_WORD[selection.kind] + " " + label + " sélectionné";
+    return KIND_WORD[selection.kind] + " " + label2 + " sélectionné";
   }
   function show(container, model2, selection, onSelect, nodeExtra) {
     clear(container);
@@ -2418,22 +2535,9 @@
       const remove = canWrite() ? h("button", { type: "button", onclick: (e) => removeOne(pin.hostname, e.target) }, "retirer") : "";
       return { cells: [target, String(pin.x), String(pin.y), pin.author, dateText(pin.at), state, remove] };
     }
-    function confirmable(label, count, run2) {
-      if (!count) return null;
-      const holder = h("span", { class: "confirm-row" });
-      const ask = () => {
-        clear(holder).appendChild(h("button", { type: "button", onclick: () => {
-          clear(holder);
-          run2();
-        } }, "confirmer : " + label + " (" + count + ")"));
-        holder.appendChild(h("button", { type: "button", class: "linklike", onclick: () => {
-          clear(holder).appendChild(first());
-        } }, "annuler"));
-      };
-      const first = () => h("button", { type: "button", onclick: ask }, label + " (" + count + ")");
-      holder.appendChild(first());
-      return holder;
-    }
+    const removeMany = (label2, hosts) => hosts.length ? confirmable(label2, () => {
+      void send(unpinOps(hosts), hosts, hosts.length + " épingle" + (hosts.length > 1 ? "s retirées" : " retirée"));
+    }, { count: hosts.length }) : null;
     function view() {
       const container = hooks.container();
       const graph2 = hooks.graph();
@@ -2448,7 +2552,7 @@
         "div",
         { class: "page" },
         h("h2", {}, "Intentions"),
-        h("p", { class: "lead" }, "La couche d'intention est ce que vous voulez en plus de ce que la collecte montre. Première intention : l'épingle, la place voulue d'un équipement, keyée par son nom, qui survit aux runs. Glisser un équipement sur le graphe l'épingle ; « replacer » recalcule le placement autour des épingles. Le diff ne lit jamais l'intention."),
+        h("p", { class: "lead" }, "La couche d'intention est ce que vous voulez en plus de ce que la collecte montre. Première intention : l'épingle, la place voulue d'un équipement, keyée par son nom, qui survit aux runs. Glisser un équipement sur le graphe l'épingle ; « replacer » recalcule le placement autour des épingles. Le diff ne lit jamais l'intention. Les équipements non épinglés gardent aussi leur place d'une run à l'autre : c'est le placement mémorisé, une donnée calculée que « replacer » renouvelle."),
         writerNote(),
         model2.intent ? definition([
           ["infrastructure", model2.intent.infrastructure],
@@ -2458,20 +2562,11 @@
         h("h3", {}, "Épingles enregistrées : " + pins.length + (orphans.size ? " · " + orphans.size + " orpheline" + (orphans.size > 1 ? "s" : "") : "")),
         orphans.size ? h("p", { class: "muted" }, "Une épingle orpheline vise un équipement qui n'est pas dans cette run (retiré, renommé, ou pas encore collecté). Elle n'est pas dessinée, elle n'est pas effacée : si l'équipement revient, elle s'applique à nouveau.") : null,
         table(headers, rows, { empty: model2.intent ? "aucune épingle : glisser un équipement sur le graphe" : "pas de couche d'intention dans cette page" }),
-        canWrite() ? h(
-          "div",
-          { class: "toolbar-row" },
-          confirmable("retirer les épingles orphelines", orphans.size, () => {
-            void send(unpinOps(orphanHosts), orphanHosts, orphanHosts.length + " épingle" + (orphanHosts.length > 1 ? "s retirées" : " retirée"));
-          }),
-          confirmable("retirer toutes les épingles", pins.length, () => {
-            void send(unpinOps(allHosts), allHosts, allHosts.length + " épingle" + (allHosts.length > 1 ? "s retirées" : " retirée"));
-          })
-        ) : null,
+        canWrite() ? h("div", { class: "toolbar-row" }, removeMany("retirer les épingles orphelines", orphanHosts), removeMany("retirer toutes les épingles", allHosts)) : null,
         h("h3", {}, "Déplacements locaux non enregistrés : " + local.length),
         local.length ? [
           h("p", { class: "muted" }, local.join(", ")),
-          h("button", { type: "button", onclick: () => {
+          h("button", { type: "button", title: "chaque équipement retrouve sa place mémorisée ou son épingle", onclick: () => {
             graph2.resetPins();
             refresh();
           } }, "oublier les déplacements locaux")
@@ -2492,11 +2587,79 @@
   }
   var intent = { createIntentHost, OPS_PER_REQUEST, AUTHOR_MAX_LENGTH };
 
+  // src/shell/placement.ts
+  var MAX_RETRIES = 3;
+  var plural2 = (count, word) => count + " " + word + (count > 1 ? "s" : "");
+  var placed = (count) => plural2(count, "équipement") + " placé" + (count > 1 ? "s" : "");
+  var byHostname = (a, b) => a.hostname < b.hostname ? -1 : 1;
+  function createPlacementHost(model2, placer, hooks) {
+    const pending = /* @__PURE__ */ new Map();
+    let queue = Promise.resolve();
+    let replacing = false;
+    let retries = 0;
+    const accept = (placement2, realign) => {
+      if (model2.placement && placement2.revision < model2.placement.revision) return;
+      applyPlacement(model2, placement2);
+      if (realign) hooks.graph().syncPlaces();
+    };
+    async function send(replace, what) {
+      if (!placer) return;
+      const places = Array.from(pending.values()).sort(byHostname);
+      if (!replace && !places.length) return;
+      hooks.note(what + ", mémorisation…");
+      const outcome = await placer.save({ base_revision: model2.placement ? model2.placement.revision : 0, replace, places });
+      if (replace) replacing = false;
+      if (outcome.ok) {
+        pending.clear();
+        const kept = new Set(outcome.placement.places.map((place) => place.hostname));
+        const missing = places.filter((place) => !kept.has(place.hostname)).length;
+        retries = missing ? retries + 1 : 0;
+        const stopped = retries > MAX_RETRIES;
+        if (stopped) retries = 0;
+        accept(outcome.placement, replace || !replacing && !stopped);
+        hooks.note(replace ? "placement recalculé et mémorisé pour tout le monde" : stopped ? what + ", non mémorisé" + (places.length > 1 ? "s" : "") + " : l'API ne retient pas " + plural2(missing, "équipement") : what + " et mémorisé" + (places.length > 1 ? "s" : ""));
+      } else if (outcome.stale) {
+        pending.clear();
+        retries = replace ? 0 : retries + 1;
+        const stopped = retries > MAX_RETRIES;
+        if (stopped) retries = 0;
+        hooks.note(replace ? "placement recalculé, non mémorisé : le placement mémorisé a changé entre-temps ; replacer à nouveau si besoin" : stopped ? what + ", non mémorisé" + (places.length > 1 ? "s" : "") + " : le placement mémorisé a changé " + MAX_RETRIES + " fois de suite" : what + " sur un placement qui a changé entre-temps : replacé autour du nouveau…");
+        accept(outcome.placement, replace || !stopped && !replacing);
+      } else {
+        hooks.note(what + ", non mémorisé" + (places.length > 1 && !replace ? "s" : "") + " : " + outcome.message + " (renvoyé au prochain dessin)");
+      }
+    }
+    function onPlaced(fresh, replace) {
+      if (replace) {
+        pending.clear();
+        replacing = true;
+      }
+      fresh.forEach((point, hostname) => pending.set(hostname, { hostname, x: point.x, y: point.y }));
+      const what = replace ? "placement recalculé" : placed(fresh.size);
+      if (!placer) {
+        if (model2.placement) hooks.note(what + " ici, non mémorisé" + (fresh.size > 1 && !replace ? "s" : "") + " (page sans serveur)");
+        return;
+      }
+      queue = queue.then(() => send(replace, what)).catch(() => void 0);
+    }
+    const replaceTitle = () => "recalcule tout le placement autour des épingles enregistrées ; les déplacements non enregistrés sont oubliés" + (placer ? ", et le nouveau placement remplace celui mémorisé, pour tout le monde" : "");
+    return { onPlaced, replaceTitle, needsConfirmation: () => !!placer };
+  }
+  var placement = { createPlacementHost, MAX_RETRIES };
+
   // src/shell/main.ts
   var BASE_TABS = [["graph", "Graphe"], ["structures", "Structures"], ["intent", "Intentions"], ["checks", "Contrôles"], ["quality", "Qualité des données"], ["sources", "Sources"]];
   var STATUSES = ["confirmed", "observed_only", "documented_only"];
   var tabsFor = (model2) => model2.diff ? [BASE_TABS[0], ["diff", "Diff"], ...BASE_TABS.slice(1)] : BASE_TABS;
   var byId = (id) => document.getElementById(id);
+  function renewCanvas() {
+    const svg = byId("canvas");
+    const parent = svg.parentNode;
+    if (!parent) return;
+    const fresh = s("svg", {});
+    svg.getAttributeNames().forEach((name) => fresh.setAttribute(name, svg.getAttribute(name)));
+    parent.replaceChild(fresh, svg);
+  }
   function toggleStatus(graph2, status, st) {
     const hidden = graph2.state.hiddenStatuses;
     if (hidden.has(st)) hidden.delete(st);
@@ -2560,17 +2723,17 @@
       intentChip()
     ));
   }
-  function toolbar(model2, graph2, status) {
+  function toolbar(model2, graph2, status, placements) {
     const stubs = model2.kindCounts.get("stub") || 0;
     const redraw = { showStubs: () => graph2.render(false), showPorts: () => (graph2.repaint(), null), showDiff: () => graph2.render(true) };
-    const toggle = (id, label, key) => h(
+    const toggle = (id, label2, key) => h(
       "label",
       { class: "check-field" },
       h("input", { id, type: "checkbox", checked: graph2.state[key] || null, onchange: (e) => {
         graph2.state[key] = e.target.checked;
         status(redraw[key]());
       } }),
-      label
+      label2
     );
     clear(byId("graph-toolbar")).appendChild(h(
       "div",
@@ -2594,7 +2757,8 @@
         legend2.hidden = !legend2.hidden;
         e.target.setAttribute("aria-pressed", legend2.hidden ? "false" : "true");
       } }, "légende"),
-      h("button", { type: "button", title: "recalcule le placement ; les épingles enregistrées restent, les déplacements non enregistrés sont oubliés", onclick: () => status(graph2.resetPins()) }, "replacer"),
+      // « Replacer » renouvelle le placement mémorisé : dans une page servie, c'est pour tout le monde, donc confirmé.
+      placements.needsConfirmation() ? confirmable("replacer", () => status(graph2.replaceAll()), { title: placements.replaceTitle() }) : h("button", { type: "button", title: placements.replaceTitle(), onclick: () => status(graph2.replaceAll()) }, "replacer"),
       h("span", { class: "muted", id: "graph-status" })
     ));
   }
@@ -2645,14 +2809,14 @@
   function mountTabs(list, activate, model2) {
     const counts = { diff: model2.diffCount, structures: model2.aggregates.length, intent: model2.pinByHost.size, checks: model2.checks.length, sources: model2.links.length };
     const bar = clear(byId("tabs"));
-    list.forEach(([id, label]) => bar.appendChild(h("button", {
+    list.forEach(([id, label2]) => bar.appendChild(h("button", {
       type: "button",
       role: "tab",
       id: "tab-" + id,
       "aria-selected": "false",
       "aria-controls": "view-" + id,
       onclick: () => activate(id)
-    }, label, id in counts ? h("span", { class: "tab-count", id: "count-" + id }, " · " + counts[id]) : null)));
+    }, label2, id in counts ? h("span", { class: "tab-count", id: "count-" + id }, " · " + counts[id]) : null)));
   }
   function readHash() {
     const wanted = /* @__PURE__ */ new Map();
@@ -2689,10 +2853,12 @@
     const tabs = tabsFor(model2);
     const inspector = byId("inspector");
     const writer = options.writer || null;
+    const placer = options.placer || null;
     let graph2 = null;
     let view = "graph";
     let note = "";
     let checks = null;
+    let disposed = false;
     const built = /* @__PURE__ */ new Set();
     const g = () => graph2;
     const openChecks = (severity) => {
@@ -2728,6 +2894,7 @@
       if (graph2) writeHash(view, g(), model2);
     };
     const refreshPage = () => {
+      if (disposed) return;
       const count = document.getElementById("count-intent");
       if (count) count.textContent = " · " + model2.pinByHost.size;
       const chip = document.getElementById("c-intent");
@@ -2765,6 +2932,7 @@
       return "retirés depuis la run d'avant : " + parts.join(" et ") + " en fantômes" + (masked ? ", dont " + masked + " masqué" + (masked > 1 ? "s" : "") + " par le filtre des voisins inconnus" : "");
     };
     const status = () => {
+      if (disposed) return;
       const shown = drawn();
       const total2 = { nodes: model2.nodes.length, links: model2.links.length };
       const hidden = [];
@@ -2786,10 +2954,14 @@
       if (ports) ports.checked = g().state.showPorts;
       writeHash(view, g(), model2);
     };
-    graph2 = create2(byId("canvas"), model2, onSelect, { onPin: intents.onPin });
+    const placements = createPlacementHost(model2, placer, { graph: g, note: (text) => {
+      note = text;
+      status();
+    } });
+    graph2 = create2(byId("canvas"), model2, onSelect, { onPin: intents.onPin, onPlaced: placements.onPlaced });
     header(model2, graph2, status, openChecks, activate);
     mountTabs(tabs, activate, model2);
-    toolbar(model2, graph2, status);
+    toolbar(model2, graph2, status, placements);
     legend(model2, graph2, status);
     if (typeof matchMedia === "function" && matchMedia("(max-width: 1199px)").matches) {
       byId("graph-legend").hidden = true;
@@ -2813,8 +2985,16 @@
       status();
     };
     applyHash(true);
-    if (typeof window !== "undefined") window.addEventListener("hashchange", () => applyHash(false));
-    return { model: model2, graph: graph2, activate, applyHash, writer };
+    const onHashChange = () => {
+      if (!disposed) applyHash(false);
+    };
+    if (typeof window !== "undefined") window.addEventListener("hashchange", onHashChange);
+    const dispose = () => {
+      disposed = true;
+      if (typeof window !== "undefined") window.removeEventListener("hashchange", onHashChange);
+      renewCanvas();
+    };
+    return { model: model2, graph: graph2, activate, applyHash, writer, placer, dispose };
   }
   function startPage(data2) {
     if (typeof document === "undefined") return;
@@ -2826,10 +3006,94 @@
     }
   }
 
+  // src/shell/timeline.ts
+  var indexOf = (runs, runId) => runs.findIndex((run2) => run2.run_id === runId);
+  var previousOf = (runs, runId) => {
+    const at = indexOf(runs, runId);
+    return at > 0 ? runs[at - 1] : null;
+  };
+  var nextOf = (runs, runId) => {
+    const at = indexOf(runs, runId);
+    return at >= 0 && at + 1 < runs.length ? runs[at + 1] : null;
+  };
+  var previousId = (runs, runId) => {
+    const run2 = previousOf(runs, runId);
+    return run2 ? run2.run_id : "";
+  };
+  var label = (run2) => run2.run_start.replace("T", " ").slice(0, 16);
+  var pendingFocus = false;
+  function render(container, host) {
+    const { runs, current, from, busy } = host;
+    const at = indexOf(runs, current);
+    const prev = previousOf(runs, current), next = nextOf(runs, current);
+    const go = (run2, fromId) => {
+      if (run2 && !busy) host.open(run2.run_id, fromId);
+    };
+    const stepButton = (text, run2, fromId, title) => h("button", { type: "button", class: "timeline-step", title, "aria-label": title, disabled: !run2 || busy || null, onclick: () => go(run2, fromId) }, text);
+    const runButton = (run2) => h("button", {
+      type: "button",
+      class: "timeline-run run-" + run2.run_status + (run2.run_id === from ? " compared" : ""),
+      "data-run": run2.run_id,
+      "aria-current": run2.run_id === current ? "true" : null,
+      disabled: busy || null,
+      title: "run " + run2.run_id + " · " + run2.run_status + " · ingérée le " + run2.stored_at + (run2.run_id === from ? " · run comparée" : ""),
+      onclick: () => {
+        if (run2.run_id !== current) go(run2, previousId(runs, run2.run_id));
+      }
+    }, label(run2));
+    const buttons = runs.map(runButton);
+    const option = (run2) => h(
+      "option",
+      { value: run2.run_id, selected: run2.run_id === from || null },
+      label(run2) + (run2.run_id === previousId(runs, current) ? " (précédente)" : "")
+    );
+    const compare = h(
+      "select",
+      {
+        id: "timeline-compare",
+        "aria-label": "comparer à une run antérieure",
+        disabled: busy || at <= 0 || null,
+        onchange: (event) => host.open(current, event.target.value)
+      },
+      h("option", { value: "", selected: from === "" || null }, "aucune"),
+      runs.slice(0, Math.max(at, 0)).map(option)
+    );
+    const keys = (event) => {
+      const key = event.key;
+      if (key === "ArrowLeft") {
+        event.preventDefault();
+        go(prev, prev ? previousId(runs, prev.run_id) : "");
+      } else if (key === "ArrowRight") {
+        event.preventDefault();
+        go(next, current);
+      }
+    };
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    if (active && typeof container.contains === "function" && container.contains(active)) pendingFocus = true;
+    clear(container).appendChild(h(
+      "div",
+      { class: "timeline-row", onkeydown: keys },
+      stepButton("←", prev, prev ? previousId(runs, prev.run_id) : "", "run précédente"),
+      h("ol", { class: "timeline-runs" }, buttons.map((button) => h("li", {}, button))),
+      stepButton("→", next, current, "run suivante"),
+      h("label", { class: "timeline-compare" }, "comparer à ", compare),
+      h("span", { class: "muted timeline-count" }, busy ? "chargement…" : (at >= 0 ? at + 1 + " sur " : "") + runs.length + (runs.length > 1 ? " runs" : " run"))
+    ));
+    container.hidden = false;
+    const shown = at >= 0 ? buttons[at] : null;
+    if (!shown) return;
+    if (typeof shown.scrollIntoView === "function") shown.scrollIntoView({ inline: "center", block: "nearest" });
+    if (pendingFocus && !busy && typeof shown.focus === "function") {
+      pendingFocus = false;
+      shown.focus();
+    }
+  }
+  var timeline = { render, indexOf, previousOf, nextOf, label };
+
   // src/shell/shell.ts
   var TOKEN_KEY = "ld-api-token";
   var AUTHOR_KEY = "ld-author";
-  var ROUTES = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches" };
+  var ROUTES = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches", placement: "/api/placement" };
   function storage() {
     try {
       return globalThis.sessionStorage || null;
@@ -2896,10 +3160,10 @@
   function create3(root, data2) {
     const state = { token: readToken(), author: readAuthor(), infrastructure: query("infrastructure"), runId: query("run_id"), from: query("from"), runs: null, message: null, busy: false, pending: null };
     const fields = {};
-    const input = (id, label, type, value, placeholder, maxlength) => h(
+    const input = (id, label2, type, value, placeholder, maxlength) => h(
       "label",
       { class: "field" },
-      label,
+      label2,
       fields[id] = h("input", { id, type, value, placeholder: placeholder || null, autocomplete: type === "password" ? "off" : null, spellcheck: "false", maxlength: maxlength || null })
     );
     function runsTable() {
@@ -2935,9 +3199,30 @@
         if (node !== root && id && id.startsWith("view-")) el.hidden = hidden;
       });
     }
-    function render() {
+    function timeline2() {
+      const container = document.getElementById("timeline");
+      if (!container) return;
+      if (!state.runs || !apps.app) {
+        container.hidden = true;
+        return;
+      }
+      render(container, {
+        runs: state.runs,
+        current: state.runId,
+        from: state.from,
+        busy: state.busy,
+        open: (runId, from) => {
+          state.runId = runId;
+          state.from = from;
+          state.pending = open();
+        }
+      });
+    }
+    function render2() {
       root.hidden = false;
       siblings(true);
+      const strip = document.getElementById("timeline");
+      if (strip) strip.hidden = true;
       clear(root).appendChild(h(
         "div",
         { class: "page" },
@@ -2962,7 +3247,7 @@
               state.token = "";
               writeToken("");
               state.message = "jeton oublié";
-              render();
+              render2();
             } }, "oublier le jeton")
           )
         ),
@@ -2983,7 +3268,7 @@
       readForm();
       if (!state.token || !state.infrastructure) {
         state.message = "le jeton et l'infrastructure sont nécessaires";
-        render();
+        render2();
         return;
       }
       state.pending = state.runId ? open() : list();
@@ -2992,12 +3277,12 @@
       state.busy = true;
       state.message = null;
       state.runs = null;
-      render();
+      render2();
       const found = await call(ROUTES.runs, { infrastructure: state.infrastructure }, state.token);
       state.busy = false;
       if (found.status === 200 && isRecord(found.body) && Array.isArray(found.body.runs)) state.runs = found.body.runs;
       else failed(found);
-      render();
+      render2();
     }
     function failed(response) {
       state.message = explain(response.status, response.body);
@@ -3033,23 +3318,39 @@
       };
       return me;
     }
+    function placer() {
+      const send = async (write) => {
+        try {
+          const done = await call(ROUTES.placement, { infrastructure: state.infrastructure }, state.token, write);
+          if (done.status === 200 && isRecord(done.body)) return { ok: true, placement: done.body };
+          if (done.status === 409 && isRecord(done.body)) return { ok: false, stale: true, placement: done.body };
+          return { ok: false, message: explain(done.status, done.body) };
+        } catch (error) {
+          return { ok: false, message: "l'API ne répond pas" };
+        }
+      };
+      return { save: send };
+    }
     async function open() {
       state.busy = true;
       state.message = null;
-      render();
+      if (apps.app) timeline2();
+      else render2();
       const params = { infrastructure: state.infrastructure, run_id: state.runId };
       const infra = { infrastructure: state.infrastructure };
       const diffParams = { infrastructure: state.infrastructure, from: state.from, to: state.runId };
-      const [snapshot, report, diff, intent2] = await Promise.all([
+      const [snapshot, report, diff, intent2, placement2, runs] = await Promise.all([
         call(ROUTES.snapshot, params, state.token),
         call(ROUTES.report, params, state.token),
         state.from ? call(ROUTES.diff, diffParams, state.token) : Promise.resolve(null),
-        call(ROUTES.intent, infra, state.token)
+        call(ROUTES.intent, infra, state.token),
+        call(ROUTES.placement, infra, state.token),
+        call(ROUTES.runs, infra, state.token)
       ]);
       state.busy = false;
       if (snapshot.status !== 200 || !isRecord(snapshot.body)) {
         failed(snapshot);
-        render();
+        render2();
         return;
       }
       data2.snapshot = snapshot.body;
@@ -3064,16 +3365,29 @@
       delete data2.intent;
       if (intent2.status === 200 && isRecord(intent2.body)) data2.intent = intent2.body;
       else data2.origin += " · intention indisponible : " + explain(intent2.status, intent2.body);
+      delete data2.placement;
+      let remembered = false;
+      if (placement2.status === 200 && isRecord(placement2.body)) {
+        data2.placement = placement2.body;
+        remembered = true;
+      } else data2.origin += " · placement mémorisé indisponible : " + explain(placement2.status, placement2.body);
+      if (runs.status === 200 && isRecord(runs.body) && Array.isArray(runs.body.runs)) state.runs = runs.body.runs;
+      else {
+        state.runs = null;
+        data2.origin += " · liste des runs indisponible : " + explain(runs.status, runs.body);
+      }
       root.hidden = true;
       clear(root);
       siblings(false);
       const address = state.from ? { ...params, from: state.from } : params;
       if (typeof history !== "undefined") history.replaceState(null, "", "?" + new URLSearchParams(address).toString() + (location.hash || ""));
-      apps.app = boot(data2, { writer: writer() });
+      if (apps.app) apps.app.dispose();
+      apps.app = boot(data2, { writer: writer(), placer: remembered ? placer() : null });
+      timeline2();
     }
     if (state.token && state.infrastructure && state.runId) state.pending = open();
-    else render();
-    return { state, render, submit, open, list };
+    else render2();
+    return { state, render: render2, submit, open, list };
   }
   function startShell(data2) {
     const root = typeof document === "undefined" ? null : document.getElementById("view-shell");
@@ -3088,7 +3402,7 @@
   var shell = { create: create3, explain, TOKEN_KEY, AUTHOR_KEY };
 
   // src/index.ts
-  var LD = Object.assign(apps, { model, layout, geometry, dom: { ...dom, ...format, ...widgets }, icons, tip, graph, inspect, intent, structures, tables, boot, shell });
+  var LD = Object.assign(apps, { model, layout, geometry, dom: { ...dom, ...format, ...widgets }, icons, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
   globalThis.LD = LD;
   function embedded() {
     if (typeof document === "undefined") return null;

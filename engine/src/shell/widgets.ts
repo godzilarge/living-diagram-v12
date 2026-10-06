@@ -1,6 +1,6 @@
 // Les widgets HTML de la page autour de la toile : pastilles, liste de définitions, tableau. Construits avec la
 // fabrique de canvas/dom.ts, donc jamais de HTML écrit depuis une donnée.
-import { h } from "../canvas/dom";
+import { clear, h } from "../canvas/dom";
 import type { Child } from "../canvas/dom";
 import { DIFF_LABEL, SOURCE_LABEL, STATUS_LABEL } from "../canvas/format";
 
@@ -31,4 +31,18 @@ export function table(headers: string[], rows: TableRow[], options?: { empty?: s
   return h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, head), h("tbody", {}, body, empty)));
 }
 
-export const widgets = { pill, sourcePill, statusPill, severityPill, diffPill, definition, table };
+// Une action qui demande confirmation, dans la page (elle n'a pas de boîte de dialogue) : le bouton devient
+// « confirmer : … » et « annuler ». `count` s'écrit entre parenthèses ; `title` est l'infobulle du premier bouton.
+export function confirmable(label: string, run: () => void, options: { count?: number; title?: string } = {}): HTMLElement {
+  const suffix = options.count === undefined ? "" : " (" + options.count + ")";
+  const holder = h("span", { class: "confirm-row" });
+  const ask = (): void => {
+    clear(holder).appendChild(h("button", { type: "button", onclick: () => { clear(holder).appendChild(first()); run(); } }, "confirmer : " + label + suffix));
+    holder.appendChild(h("button", { type: "button", class: "linklike", onclick: () => { clear(holder).appendChild(first()); } }, "annuler"));
+  };
+  const first = (): HTMLElement => h("button", { type: "button", title: options.title || null, onclick: ask }, label + suffix);
+  holder.appendChild(first());
+  return holder;
+}
+
+export const widgets = { pill, sourcePill, statusPill, severityPill, diffPill, definition, table, confirmable };

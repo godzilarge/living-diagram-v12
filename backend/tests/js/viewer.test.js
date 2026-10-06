@@ -250,7 +250,7 @@ test("le modèle indexe les structures : agrégats, faisceaux, domaines MLAG, cl
   assert.equal(model.aggregates.length, 5);
   assert.deepEqual(clone(model.beams.map((b) => [b.a.aggregate, b.b.aggregate, b.links.length, b.peerLink, b.mlags.map((d) => d.raw.mlag_id)])), [
     ["agg-core", "port-channel20", 1, false, [20]], ["agg-core", "port-channel20", 1, false, [20]], ["port-channel10", "port-channel10", 2, true, []]]);
-  assert.deepEqual(clone(load(page).LD.geometry.beamWidths(model.beams[2])), { band: 32, hit: 48 }, "la bande couvre l'éventail de ses deux câbles");
+  assert.deepEqual(clone(load(page).LD.geometry.beamBand(model.beams[2])), { band: 32, hit: 48, offset: 0 }, "la bande couvre l'éventail de ses deux câbles, centrée sur la paire");
   const po10 = model.aggregateByKey.get(PO10_CORE_2);
   assert.equal(po10.cables.length, 2);
   assert.deepEqual(clone(po10.checks.map((c) => c.code)), ["aggregate_member_not_bundled"]);
@@ -399,12 +399,39 @@ test("un drapeau peer-link non lu se lit « non lu », jamais comme un peer-link
   assert.match(container.textContent, /peer-link non lu/, "le tableau Structures le dit aussi");
 });
 
+const twobeams = process.env.LD_PAGE_TWOBEAMS ? readPage(process.env.LD_PAGE_TWOBEAMS) : null;
+
+test("deux faisceaux entre les mêmes équipements ont chacun leur bande et leur étiquette (bug du 2026-10-06)", { skip: !twobeams }, () => {
+  const { LD, document } = load(twobeams, twobeams.data);
+  const model = LD.app.model;
+  const between = (x) => x.a.hostname === "sw-core-01" && x.b.hostname === "sw-core-02";
+  const pair = model.links.filter(between);
+  assert.equal(pair.length, 4, "quatre câbles entre les cœurs");
+  const beams = model.beams.filter(between);
+  assert.deepEqual(clone(beams.map((b) => [b.a.aggregate, b.b.aggregate, b.links.length])), [["port-channel10", "port-channel10", 2], ["port-channel11", "port-channel11", 2]],
+    "le modèle a toujours eu les deux faisceaux : c'est le tracé qui n'en montrait qu'un");
+  const fan = pair.slice().sort((x, y) => x.indexInPair - y.indexInPair).map((l) => l.a.interface);
+  assert.deepEqual(clone(fan), ["Ethernet1/1", "Ethernet1/6", "Ethernet1/2", "Ethernet1/7"], "les câbles d'un faisceau sont contigus dans l'éventail, jamais entrelacés");
+  assert.deepEqual(clone(beams.map((b) => LD.geometry.beamBand(b))), [{ band: 32, hit: 48, offset: -14 }, { band: 32, hit: 48, offset: 14 }],
+    "chaque bande couvre ses deux câbles, de part et d'autre de l'axe de la paire");
+  const canvas = document.getElementById("canvas");
+  const bands = canvas.withClass("beam-band").map((el) => el.getAttribute("d"));
+  assert.equal(bands.length, 4, "quatre faisceaux dessinés : les deux des cœurs, les deux du vPC 20");
+  assert.equal(new Set(bands).size, bands.length, "aucune bande n'en recouvre une autre");
+  const tags = canvas.withClass("beam-tag").map((el) => el.getAttribute("transform"));
+  assert.equal(new Set(tags).size, tags.length, "aucune étiquette n'est posée sur une autre");
+  for (const path of bands) assert.doesNotMatch(path, /NaN|undefined/);
+  assert.equal(canvas.withClass("beam-label").map((el) => el.textContent).filter((t) => t === "").length, 1,
+    "le faisceau des Po11, ni peer-link ni MLAG, n'a pas d'étiquette courte : son nom vit dans la bulle et l'inspecteur");
+});
+
 // ---------------------------------------------------------------- la coquille servie par le backend (2026-09-26)
 
 const shell = process.env.LD_SHELL ? readPage(process.env.LD_SHELL) : null;
 const RUN_ID = "66db3f0e9a1c2b0012f4a7d1";
 
 const EMPTY_INTENT = { intent_version: "1.0.0", infrastructure: "infra-lab", revision: 0, updated_at: null, pins: [] };
+const EMPTY_PLACEMENT = { infrastructure: "infra-lab", revision: 0, updated_at: null, places: [] };
 const mapStorage = (map) => ({ getItem: (k) => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, v), removeItem: (k) => map.delete(k) });
 
 function fakeApi(page, answers) {
@@ -414,6 +441,7 @@ function fakeApi(page, answers) {
     "/api/snapshot": { status: 200, body: page.data.snapshot },
     "/api/ingest/report": { status: 200, body: { summary: page.data.ingest.summary, findings: [] } },
     "/api/intent": { status: 200, body: EMPTY_INTENT },
+    "/api/placement": { status: 200, body: EMPTY_PLACEMENT },
     ...(answers || {}),
   };
   const store = new Map(), local = new Map();
@@ -422,7 +450,16 @@ function fakeApi(page, answers) {
     fetch: (url, init) => {
       calls.push([url, init.headers.Authorization]);
       requests.push([url, init]);
-      const answer = bodies[url.split("?")[0]] || { status: 500, body: null };
+      let answer = bodies[url.split("?")[0]] || { status: 500, body: null };
+      // POST /api/placement : la règle de l'API, sur le document que le GET sert (première place reste, révision + 1).
+      if (url.startsWith("/api/placement") && init.method === "POST" && answer.status === 200) {
+        const write = JSON.parse(init.body), doc = answer.body;
+        const places = new Map((write.replace ? [] : doc.places).map((p) => [p.hostname, p]));
+        write.places.forEach((p) => { if (!places.has(p.hostname)) places.set(p.hostname, p); });
+        answer = write.base_revision === doc.revision
+          ? { status: 200, body: { ...doc, revision: doc.revision + 1, places: Array.from(places.values()).sort((a, b) => (a.hostname < b.hostname ? -1 : 1)) } }
+          : { status: 409, body: doc };
+      }
       return Promise.resolve({ status: answer.status, json: () => Promise.resolve(answer.body) });
     },
     sessionStorage: mapStorage(store),
@@ -446,7 +483,7 @@ test("la coquille demande le jeton, liste les runs, puis charge la run par l'API
   assert.match(view.textContent, /Runs archivées de infra-lab : 1.*66db3f0e9a1c2b0012f4a7d1.*completed/s);
   view.withClass("clickable")[0].fire("click", {});
   await LD.shellApp.state.pending;
-  assert.equal(api.calls.length, 4, "runs, puis snapshot, rapport et intention");
+  assert.equal(api.requests.filter(([, init]) => init.method !== "POST").length, 6, "runs, puis snapshot, rapport, intention, placement et la liste des runs (bande)");
   assert.equal(view.hidden, true);
   assert.ok(LD.app, "le visualiseur a démarré sur les données lues");
   assert.match(document.getElementById("run-meta").textContent, /infra-lab · run 66db3f0e9a1c2b0012f4a7d1.*api · infra-lab · 66db/s);
@@ -1227,4 +1264,370 @@ test("un fantôme du diff épinglé est orphelin : il n'est pas placé par l'ép
   assert.notDeepEqual(clone(LD.app.graph.state.positions.get("srv-hyp-07")), { x: 400, y: 400 });
   assert.equal(nodeOf(canvas, "sw-core-01").classList.contains("pinned"), true, "l'épingle d'un nœud vivant s'applique");
   assert.match(document.getElementById("run-counts").textContent, /2 épingles · 1 orpheline/);
+});
+
+// ---------------------------------------------------------------- le placement mémorisé (2026-10-06, docs/09)
+
+const placementPage = process.env.LD_PAGE_PLACEMENT ? readPage(process.env.LD_PAGE_PLACEMENT) : null;
+const INFRA_KINDS = new Set(["device", "external"]);
+const infraPositions = (app) => clone(Object.fromEntries(Array.from(app.graph.state.positions).filter(([host]) => INFRA_KINDS.has(app.model.nodeByHost.get(host).kind))));
+
+// Un serveur de placement en mémoire, avec la règle de l'API : la première place reste, un envoi fait sur un document
+// qui a changé depuis est refusé (409) avec le document courant, « replacer » remplace tout.
+function fakePlacer(page, options) {
+  const saved = [];
+  let doc = clone(page.data.placement);
+  const server = {
+    doc: () => doc,
+    write(write) {
+      const places = new Map((write.replace ? [] : doc.places).map((p) => [p.hostname, p]));
+      const fresh = write.places.filter((p) => !places.has(p.hostname));
+      if (!write.replace && !fresh.length) return { ok: true, placement: clone(doc) };
+      if (write.base_revision !== doc.revision) return { ok: false, stale: true, placement: clone(doc) };
+      fresh.forEach((p) => places.set(p.hostname, p));
+      doc = { ...doc, revision: doc.revision + 1, places: Array.from(places.values()).sort((a, b) => (a.hostname < b.hostname ? -1 : 1)) };
+      return { ok: true, placement: clone(doc) };
+    },
+  };
+  const placer = { saved, server, down: false, save: async (write) => {
+    saved.push(clone(write));
+    if (placer.down) return { ok: false, message: "l'API ne répond pas" };
+    return (options && options.answer) ? options.answer(write, server) : server.write(write);
+  } };
+  return placer;
+}
+
+test("le placement complète un dessin existant : rien ne bouge, le nouveau se pose près de ses voisins, en entiers", () => {
+  const { LD } = load(page);
+  const ids = ["a", "b", "c", "d", "e", "seul"];
+  const edges = [["a", "b"], ["b", "c"], ["c", "a"], ["c", "d"], ["d", "e"]];
+  const first = LD.layout.run(ids, edges);
+  for (const point of first.values()) assert.equal(Number.isInteger(point.x) && Number.isInteger(point.y), true, "ce qui est mémorisé est ce qui est dessiné");
+  const fixed = new Map(Array.from(first).filter(([id]) => id !== "e" && id !== "seul"));
+  const next = LD.layout.run(ids.concat(["f", "g"]), edges.concat([["d", "f"], ["f", "g"]]), fixed, { extend: true });
+  fixed.forEach((point, id) => assert.deepEqual(clone(next.get(id)), clone(point), id + " garde sa place"));
+  const d = next.get("d"), f = next.get("f"), g = next.get("g");
+  assert.equal(Math.hypot(f.x - d.x, f.y - d.y) < LD.layout.IDEAL * 2.5, true, "f se pose près de d");
+  assert.equal(Math.hypot(g.x - f.x, g.y - f.y) < LD.layout.IDEAL * 2.5, true, "g, de proche en proche, près de f");
+  const points = Array.from(next.values()).map((p) => p.x + ":" + p.y);
+  assert.equal(new Set(points).size, points.length, "aucune superposition");
+  assert.deepEqual(clone(Array.from(LD.layout.wired(ids, edges)).sort()), ["a", "b", "c", "d", "e"], "« seul » n'a pas de câble : rangé, jamais mémorisé");
+  const again = LD.layout.run(ids.concat(["g", "f"]).reverse(), edges.concat([["f", "g"], ["d", "f"]]), fixed, { extend: true });
+  assert.deepEqual(clone(Array.from(next).sort()), clone(Array.from(again).sort()), "déterministe quel que soit l'ordre");
+});
+
+test("une page part des places mémorisées, place le reste, et afficher les voisins inconnus ne déplace aucun équipement", { skip: !placementPage }, () => {
+  const { LD, document } = load(placementPage, placementPage.data);
+  const app = LD.app, state = app.graph.state;
+  assert.equal(app.model.placement.revision, 3);
+  assert.deepEqual(clone(state.positions.get("sw-core-01")), { x: 100, y: 100 }, "une place mémorisée est une contrainte dure");
+  assert.deepEqual(clone(state.positions.get("sw-core-02")), { x: 400, y: 100 });
+  assert.equal(state.placed.has("gone-host"), true, "une place orpheline reste en mémoire, elle ne dessine rien");
+  const edge = state.positions.get("fw-edge-01");
+  assert.equal(Number.isInteger(edge.x) && Number.isInteger(edge.y), true);
+  assert.equal(Math.hypot(edge.x - 100, edge.y - 100) < LD.layout.IDEAL * 3, true, "placé près des cœurs, auxquels il est câblé");
+  assert.deepEqual(clone(state.placed.get("fw-edge-01")), clone(edge), "ce que la page a placé entre dans sa mémoire");
+  assert.match(document.getElementById("graph-status").textContent, /\d équipements placés ici, non mémorisés \(page sans serveur\)/);
+  const before = infraPositions(app);
+  const stubs = document.getElementById("t-stubs");
+  stubs.checked = true;
+  stubs.fire("change", { target: stubs });
+  assert.equal(document.getElementById("canvas").withClass("node").length, 6);
+  assert.deepEqual(infraPositions(app), before, "les voisins inconnus se placent autour, l'infrastructure ne bouge pas");
+  const stub = app.model.nodes.find((n) => n.kind === "stub").hostname;
+  assert.equal(state.placed.has(stub), false, "un voisin inconnu n'est jamais mémorisé");
+  app.graph.state.showDiff = false;
+  app.graph.render(true);
+  assert.deepEqual(infraPositions(app), before, "un nouveau dessin dans la même page ne bouge rien non plus");
+  dragNode(nodeOf(document.getElementById("canvas"), "fw-edge-01"));
+  assert.notDeepEqual(clone(state.positions.get("fw-edge-01")), clone(edge));
+  app.graph.resetPins();
+  assert.deepEqual(clone(state.positions.get("fw-edge-01")), clone(edge), "oublier un déplacement local rend sa place mémorisée");
+  app.graph.replaceAll();
+  assert.equal(state.placed.has("gone-host"), false, "replacer oublie toute la mémoire");
+  assert.equal(state.placed.size >= 4 && state.placed.has("sw-core-01"), true, "et la remplit avec le nouveau dessin");
+  assert.match(document.getElementById("graph-status").textContent, /placement recalculé ici, non mémorisé \(page sans serveur\)/);
+  const fresh = LD.boot(clone(placementPage.data));
+  assert.deepEqual(infraPositions(fresh), before, "même page, même dessin");
+});
+
+test("avec un écrivain de placement, ce qui vient d'être placé est mémorisé ; la place déjà enregistrée ailleurs gagne ; « replacer » confirme puis remplace", { skip: !placementPage }, async () => {
+  const { LD, document } = load(placementPage);
+  const placer = fakePlacer(placementPage);
+  // Une autre page a dessiné fw-edge-01 la première, après la lecture du document par celle-ci (révision 3 → 4).
+  placer.server.write({ base_revision: 3, replace: false, places: [{ hostname: "fw-edge-01", x: 777, y: 555 }] });
+  const app = LD.boot(clone(placementPage.data), { placer });
+  await tick();
+  assert.equal(placer.saved[0].replace, false);
+  assert.equal(placer.saved[0].base_revision, 3, "la révision lue avant de dessiner");
+  const sent = placer.saved[0].places.map((p) => p.hostname);
+  assert.ok(sent.includes("fw-edge-01") && !sent.includes("sw-core-01") && !sent.includes("gone-host"), "seuls les équipements placés sans mémoire partent");
+  assert.ok(placer.saved[0].places.every((p) => Number.isInteger(p.x) && Number.isInteger(p.y)));
+  assert.equal(placer.saved.length, 2, "refusé (le document avait changé), la page a adopté le document courant, replacé ses nouveaux venus et renvoyé");
+  assert.equal(placer.saved[1].base_revision, 4);
+  assert.ok(!placer.saved[1].places.some((p) => p.hostname === "fw-edge-01"), "fw-edge-01 a maintenant une place : elle n'est pas renvoyée");
+  assert.deepEqual(clone(app.graph.state.positions.get("fw-edge-01")), { x: 777, y: 555 }, "la place de l'autre page gagne, le nœud la rejoint");
+  assert.equal(app.model.placement.revision, 5);
+  const stored = app.model.placeByHost.get("fw-edge-02");
+  assert.deepEqual(clone(app.graph.state.placed.get("fw-edge-02")), { x: stored.x, y: stored.y }, "la mémoire de la page est le document");
+  assert.match(document.getElementById("graph-status").textContent, /équipements placés et mémorisés/);
+  const toolbar = document.getElementById("graph-toolbar");
+  const first = toolbar.all((n) => n.tagName === "button" && n.textContent === "replacer");
+  assert.equal(first.length, 1);
+  assert.match(first[0].getAttribute("title"), /pour tout le monde/);
+  first[0].fire("click", {});
+  assert.equal(placer.saved.length, 2, "rien ne part avant la confirmation");
+  const confirm = toolbar.all((n) => n.tagName === "button" && n.textContent === "confirmer : replacer");
+  assert.equal(confirm.length, 1);
+  confirm[0].fire("click", {});
+  await tick();
+  assert.equal(placer.saved.length, 3);
+  assert.equal(placer.saved[2].replace, true);
+  assert.equal(placer.saved[2].base_revision, 5);
+  const all = placer.saved[2].places.map((p) => p.hostname);
+  assert.ok(all.includes("sw-core-01") && all.includes("sw-core-02") && all.includes("fw-edge-01") && !all.includes("gone-host"), "tout le dessin, rien d'orphelin");
+  assert.equal(app.model.placement.revision, 6);
+  assert.match(document.getElementById("graph-status").textContent, /placement recalculé et mémorisé pour tout le monde/);
+  assert.equal(toolbar.all((n) => n.tagName === "button" && n.textContent === "replacer").length, 1, "le bouton est revenu");
+});
+
+test("un envoi échoué est renvoyé au prochain dessin ; une réponse plus ancienne que le document lu est ignorée (revue M1, B4)", { skip: !placementPage }, async () => {
+  const { LD, document } = load(placementPage);
+  const placer = fakePlacer(placementPage);
+  placer.down = true;
+  const app = LD.boot(clone(placementPage.data), { placer });
+  await tick();
+  assert.equal(placer.saved.length, 1);
+  assert.match(document.getElementById("graph-status").textContent, /non mémorisés : l'API ne répond pas \(renvoyé au prochain dessin\)/);
+  assert.equal(app.graph.state.placed.has("fw-edge-01"), true, "la mémoire de la page reste : rien ne bouge");
+  assert.equal(app.model.placement.revision, 3, "le document connu n'a pas changé");
+  placer.down = false;
+  app.graph.state.placed.delete("fw-edge-02"); // un prochain dessin qui place quelque chose
+  app.graph.render(true);
+  await tick();
+  assert.equal(placer.saved.length, 2);
+  const first = placer.saved[0].places.map((p) => p.hostname), second = placer.saved[1].places.map((p) => p.hostname);
+  assert.ok(first.every((host) => second.includes(host)), "tout ce qui n'avait pas été accepté repart avec");
+  assert.equal(app.model.placement.revision, 4);
+  const old = { ...placer.server.doc(), revision: 1, places: [] };
+  const stale = LD.boot(clone(placementPage.data), { placer: { save: async () => ({ ok: true, placement: old }) } });
+  await tick();
+  assert.equal(stale.model.placement.revision, 3, "une réponse plus ancienne que le document déjà lu est ignorée");
+  assert.deepEqual(clone(stale.graph.state.positions.get("sw-core-01")), { x: 100, y: 100 });
+});
+
+test("deux premières pages sur deux runs : la seconde complète le dessin de la première au lieu de le mêler au sien (revue, H1)", { skip: !diffPage }, async () => {
+  const empty = { infrastructure: "infra-lab", revision: 0, updated_at: null, places: [] };
+  const first = load(page);
+  const placer = fakePlacer({ data: { placement: empty } });
+  const a = first.LD.boot({ ...clone(page.data), placement: clone(empty) }, { placer });
+  const second = load(diffPage);
+  const b = second.LD.boot({ ...clone(diffPage.data), placement: clone(empty) }, { placer });
+  await tick();
+  assert.equal(placer.saved[0].base_revision, 0);
+  assert.equal(placer.saved[1].base_revision, 0, "B a lu le même document vide que A");
+  const a1 = infraPositions(a), b1 = infraPositions(b);
+  for (const [host, point] of Object.entries(a1)) assert.deepEqual(b1[host], point, host + " : B a adopté le dessin de A");
+  const doc = placer.server.doc();
+  assert.equal(doc.places.length, Object.keys(a1).length, "le document est le dessin de A, rien d'autre");
+  assert.equal(doc.revision, 1, "l'envoi de B, refusé, n'a rien écrit ; B n'avait rien de nouveau à renvoyer");
+  assert.equal(b.model.placement.revision, 1, "B a adopté le document de A");
+});
+
+test("un voisin inconnu qui a une place se dessine là où il était, sans jamais être mémorisé, et le réalignement ne redessine rien (revue, M2)", { skip: !placementPage }, async () => {
+  const { LD, document } = load(placementPage);
+  const stub = placementPage.data.snapshot.nodes.find((n) => n.kind === "stub").hostname;
+  const placement = clone(placementPage.data.placement);
+  placement.places = placement.places.concat([{ hostname: stub, x: -250, y: 300 }]).sort((a, b) => (a.hostname < b.hostname ? -1 : 1));
+  const placer = fakePlacer({ data: { placement } });
+  const app = LD.boot({ ...clone(placementPage.data), placement }, { placer });
+  await tick();
+  app.graph.state.showStubs = true;
+  app.graph.render(true);
+  assert.deepEqual(clone(app.graph.state.positions.get(stub)), { x: -250, y: 300 });
+  const before = document.getElementById("canvas").withClass("node");
+  app.graph.syncPlaces();
+  const after = document.getElementById("canvas").withClass("node");
+  assert.equal(before[0] === after[0] && before.length === after.length, true, "rien n'est redessiné");
+  assert.ok(!placer.saved.some((w) => w.places.some((p) => p.hostname === stub)), "jamais mémorisé par la page");
+});
+
+test("un équipement épinglé n'est pas mémorisé à son épingle ; retirer l'épingle le place près de ses voisins et le mémorise alors (revue, B1)", { skip: !placementPage }, async () => {
+  const { LD } = load(placementPage);
+  const intent = { ...EMPTY_INTENT, revision: 1, updated_at: "2026-10-06T09:00:00Z", pins: [{ hostname: "fw-edge-01", x: -900, y: -900, author: "orhan", at: "2026-10-06T09:00:00Z" }] };
+  const placer = fakePlacer(placementPage);
+  const app = LD.boot({ ...clone(placementPage.data), intent }, { placer });
+  await tick();
+  assert.deepEqual(clone(app.graph.state.positions.get("fw-edge-01")), { x: -900, y: -900 }, "l'épingle gagne");
+  assert.equal(app.graph.state.placed.has("fw-edge-01"), false, "la mémoire n'est pas une copie de l'intention");
+  assert.ok(!placer.saved[0].places.some((p) => p.hostname === "fw-edge-01"));
+  app.graph.unpin(["fw-edge-01"]);
+  await tick();
+  const point = app.graph.state.positions.get("fw-edge-01");
+  assert.notDeepEqual(clone(point), { x: -900, y: -900 }, "placé par les forces, près de ses voisins (son pair HA a été attiré vers l'épingle : il y reste)");
+  assert.deepEqual(clone(app.graph.state.placed.get("fw-edge-01")), clone(point), "et mémorisé à ce moment");
+  assert.ok(placer.saved.at(-1).places.some((p) => p.hostname === "fw-edge-01"));
+});
+
+test("un équipement sans câble garde sa place mémorisée au lieu de l'étagère ; un fantôme d'équipement n'est jamais mémorisé (revue, B4)", { skip: !diffPage }, () => {
+  const { LD } = load(page);
+  const shelved = LD.layout.run(["a", "b", "c"], [["a", "b"]]);
+  const kept = LD.layout.run(["a", "b", "c"], [["a", "b"]], new Map([["c", { x: 5, y: 7 }]]), { extend: true });
+  assert.notDeepEqual(clone(shelved.get("c")), { x: 5, y: 7 }, "sans mémoire : rangé sous le graphe");
+  assert.deepEqual(clone(kept.get("c")), { x: 5, y: 7 }, "avec : là où il était");
+  const data = clone(diffPage.data);
+  const template = data.snapshot.nodes.find((n) => n.kind === "device");
+  const link = data.snapshot.links.find((l) => l.a.hostname === template.hostname || l.b.hostname === template.hostname);
+  data.diff.nodes.removed.push({ ...template, hostname: "ghost-dev" });
+  data.diff.links.removed.push({ ...link, a: { ...link.a, hostname: "ghost-dev" }, evidence: [] });
+  const app = load(diffPage).LD.boot(data);
+  assert.ok(app.model.ghostNodes.some((n) => n.hostname === "ghost-dev" && n.kind === "device"));
+  assert.ok(app.graph.state.positions.has("ghost-dev"), "dessiné");
+  assert.equal(app.graph.state.placed.has("ghost-dev"), false, "jamais mémorisé");
+});
+
+test("la coquille lit /api/placement, envoie ce qu'elle place, et sans document lu n'écrit rien", { skip: !shell || !placementPage }, async () => {
+  const api = fakeApi(placementPage, { "/api/placement": { status: 200, body: placementPage.data.placement } });
+  api.store.set("ld-api-token", "known");
+  const search = "?infrastructure=infra-lab&run_id=" + RUN_ID;
+  const { LD } = load(shell, shell.data, "", { fetch: api.fetch, sessionStorage: api.sessionStorage, search });
+  await LD.shellApp.state.pending;
+  assert.ok(api.calls.some(([url, token]) => url === "/api/placement?infrastructure=infra-lab" && token === "Bearer known"));
+  assert.ok(LD.app.placer, "la page servie a un écrivain de placement");
+  assert.deepEqual(clone(LD.app.graph.state.positions.get("sw-core-01")), { x: 100, y: 100 });
+  await tick();
+  const post = api.requests.find(([url, init]) => url === "/api/placement?infrastructure=infra-lab" && init.method === "POST");
+  assert.ok(post, "ce que la page a placé part vers l'API");
+  const body = JSON.parse(post[1].body);
+  assert.equal(body.replace, false);
+  assert.equal(body.base_revision, 3, "la révision du document lu");
+  assert.ok(body.places.some((p) => p.hostname === "fw-edge-01") && !body.places.some((p) => p.hostname === "sw-core-01"));
+  assert.equal(post[1].headers.Authorization, "Bearer known");
+  const broken = fakeApi(placementPage, { "/api/placement": { status: 500, body: { detail: "document de placement corrompu : `ld placement --forget` le retire, le placement se recalcule" } } });
+  broken.store.set("ld-api-token", "known");
+  const second = load(shell, shell.data, "", { fetch: broken.fetch, sessionStorage: broken.sessionStorage, search });
+  await second.LD.shellApp.state.pending;
+  await tick();
+  assert.ok(second.LD.app, "la run s'ouvre quand même");
+  assert.equal(second.LD.app.placer, null);
+  assert.match(second.document.getElementById("run-meta").textContent, /placement mémorisé indisponible : l'API répond 500 : document de placement corrompu/);
+  assert.equal(broken.requests.some(([url, init]) => url.startsWith("/api/placement") && init.method === "POST"), false, "sans document lu, rien ne s'écrit");
+});
+
+test("d'une run à l'autre, un équipement non touché reste où il était", { skip: !diffPage }, () => {
+  const earlier = load(page, page.data).LD.app;
+  const places = Array.from(earlier.graph.state.placed, ([hostname, p]) => ({ hostname, x: p.x, y: p.y })).sort((a, b) => (a.hostname < b.hostname ? -1 : 1));
+  const placement = { infrastructure: "infra-lab", revision: 1, updated_at: "2026-10-06T09:00:00Z", places };
+  const later = load(diffPage, { ...diffPage.data, placement }).LD.app;
+  const before = infraPositions(earlier), after = infraPositions(later);
+  for (const [host, point] of Object.entries(before)) assert.deepEqual(after[host], point, host + " n'a pas bougé entre les deux runs");
+  assert.equal(later.graph.state.placed.size, places.length, "rien de nouveau à mémoriser : la run d'après n'a pas de nouvel équipement");
+});
+
+test("une API qui dit oui sans retenir ce qu'on lui envoie ne fait pas tourner la page en rond", { skip: !placementPage }, async () => {
+  const { LD, document } = load(placementPage);
+  const placer = fakePlacer(placementPage, { answer: (write, server) => ({ ok: true, placement: server.doc() }) });
+  const app = LD.boot(clone(placementPage.data), { placer });
+  for (let i = 0; i < 8; i += 1) await tick();
+  assert.equal(placer.saved.length, LD.placement.MAX_RETRIES + 1, "trois réalignements, puis la page s'arrête");
+  assert.match(document.getElementById("graph-status").textContent, /non mémorisés : l'API ne retient pas 3 équipements/);
+  assert.equal(app.graph.state.placed.has("fw-edge-01"), true, "la mémoire de la page reste la sienne");
+});
+
+// ---------------------------------------------------------------- la bande des runs (2026-10-06)
+
+const RUN_2 = "66e49a2d9a1c2b0012f4a8e2", RUN_3 = "66ee0b1c9a1c2b0012f4a9f3";
+const THREE_RUNS = [[RUN_ID, "2026-09-10T02:00:00Z"], [RUN_2, "2026-09-17T02:00:00Z"], [RUN_3, "2026-09-24T02:00:00Z"]].map(([run_id, run_start], i) => ({
+  run_id, run_start, run_end: null, run_status: i === 1 ? "failed" : "completed", produced_at: "x", stored_at: run_start.replace("02:00", "03:00"), sha256: String(i) }));
+const timelineApi = (answers) => fakeApi(page, { "/api/ingest/bundles": { status: 200, body: { infrastructure: "infra-lab", runs: THREE_RUNS } },
+  "/api/diff": { status: 200, body: diffPage ? diffPage.data.diff : null }, ...(answers || {}) });
+const strip = (document) => document.getElementById("timeline");
+const runButtons = (document) => strip(document).withClass("timeline-run");
+const currentRun = (document) => runButtons(document).find((b) => b.getAttribute("aria-current") === "true").getAttribute("data-run");
+const diffCalls = (api) => api.calls.map(([url]) => url).filter((url) => url.startsWith("/api/diff"));
+
+test("la bande des runs : les runs dans l'ordre, la courante marquée, rien avant la première", { skip: !shell || !diffPage }, async () => {
+  const api = timelineApi();
+  api.store.set("ld-api-token", "known");
+  const { LD, document } = load(shell, shell.data, "#view=graph&node=sw-core-02", { fetch: api.fetch, sessionStorage: api.sessionStorage, search: "?infrastructure=infra-lab&run_id=" + RUN_ID });
+  await LD.shellApp.state.pending;
+  assert.equal(strip(document).hidden, false, "une run ouverte par l'API montre la bande");
+  assert.deepEqual(runButtons(document).map((b) => b.textContent), ["2026-09-10 02:00", "2026-09-17 02:00", "2026-09-24 02:00"], "début de collecte, court");
+  assert.equal(currentRun(document), RUN_ID);
+  assert.equal(runButtons(document)[1].classList.contains("run-failed"), true, "le statut de la run colore son bouton");
+  const [back, forward] = strip(document).withClass("timeline-step");
+  assert.equal(back.getAttribute("disabled"), "", "pas de run avant la première");
+  assert.equal(forward.getAttribute("disabled"), null);
+  assert.equal(document.getElementById("timeline-compare").getAttribute("disabled"), "", "rien à quoi comparer la première");
+  assert.match(strip(document).textContent, /1 sur 3 runs/);
+  assert.deepEqual(diffCalls(api), [], "une adresse sans from ouvre la run sans diff");
+  assert.deepEqual(clone(LD.timeline.previousOf(THREE_RUNS, RUN_2)).run_id, RUN_ID);
+  assert.equal(LD.timeline.nextOf(THREE_RUNS, RUN_3), null);
+  assert.equal(LD.timeline.previousOf(THREE_RUNS, "nope"), null);
+});
+
+test("→ ouvre la run suivante comparée à celle qu'on quitte, en gardant l'état de vue ; la page ne repasse pas par le formulaire", { skip: !shell || !diffPage }, async () => {
+  const api = timelineApi();
+  api.store.set("ld-api-token", "known");
+  const { LD, document, location, window } = load(shell, shell.data, "#view=graph&node=sw-core-02", { fetch: api.fetch, sessionStorage: api.sessionStorage, search: "?infrastructure=infra-lab&run_id=" + RUN_ID });
+  await LD.shellApp.state.pending;
+  const first = LD.app;
+  assert.equal(first.graph.state.selection.id, "sw-core-02");
+  strip(document).withClass("timeline-step")[1].fire("click", {});
+  assert.equal(document.getElementById("view-shell").hidden, true, "la page reste visible pendant le chargement");
+  assert.match(strip(document).textContent, /chargement…/);
+  assert.equal(runButtons(document)[0].getAttribute("disabled"), "", "la bande ne prend pas deux commandes à la fois");
+  await LD.shellApp.state.pending;
+  assert.deepEqual([LD.shellApp.state.runId, LD.shellApp.state.from], [RUN_2, RUN_ID]);
+  assert.equal(location.search, "?infrastructure=infra-lab&run_id=" + RUN_2 + "&from=" + RUN_ID, "l'adresse porte la run et la run comparée, jamais le jeton");
+  assert.deepEqual(diffCalls(api), ["/api/diff?infrastructure=infra-lab&from=" + RUN_ID + "&to=" + RUN_2]);
+  assert.notEqual(LD.app, first, "un nouveau visualiseur a pris la page");
+  assert.ok(LD.app.model.diff, "le diff est peint");
+  assert.equal(LD.app.graph.state.selection.id, "sw-core-02", "la sélection par identité traverse les runs");
+  assert.match(location.hash, /node=sw-core-02/);
+  assert.equal(currentRun(document), RUN_2);
+  assert.equal(runButtons(document)[0].classList.contains("compared"), true, "la run comparée est marquée");
+  assert.match(strip(document).textContent, /2 sur 3 runs/);
+  assert.equal(document.getElementById("canvas").withClass("viewport").length, 1, "une seule toile : l'ancienne est partie avec son visualiseur");
+  assert.equal((window.listeners.get("hashchange") || []).length, 1, "un seul visualiseur écoute l'adresse");
+  assert.equal(document.getElementById("timeline-compare").getAttribute("disabled"), null);
+  // ← : la run d'avant, comparée à sa propre précédente (ici, la première : aucune).
+  strip(document).withClass("timeline-row")[0].fire("keydown", { key: "ArrowLeft" });
+  await LD.shellApp.state.pending;
+  assert.deepEqual([LD.shellApp.state.runId, LD.shellApp.state.from], [RUN_ID, ""]);
+  assert.equal(location.search, "?infrastructure=infra-lab&run_id=" + RUN_ID);
+  assert.equal(LD.app.model.diff, null, "la première run n'a pas de diff");
+  // → deux fois au clavier : la troisième, comparée à la deuxième.
+  strip(document).withClass("timeline-row")[0].fire("keydown", { key: "ArrowRight" });
+  await LD.shellApp.state.pending;
+  strip(document).withClass("timeline-row")[0].fire("keydown", { key: "ArrowRight" });
+  await LD.shellApp.state.pending;
+  assert.deepEqual([LD.shellApp.state.runId, LD.shellApp.state.from], [RUN_3, RUN_2]);
+  assert.equal(strip(document).withClass("timeline-step")[1].getAttribute("disabled"), "", "pas de run après la dernière");
+  // « comparer à » : n'importe quelle run antérieure.
+  const select = document.getElementById("timeline-compare");
+  assert.deepEqual(select.all((n) => n.tagName === "option").map((o) => o.textContent), ["aucune", "2026-09-10 02:00", "2026-09-17 02:00 (précédente)"]);
+  select.value = RUN_ID;
+  select.fire("change", {});
+  await LD.shellApp.state.pending;
+  assert.deepEqual([LD.shellApp.state.runId, LD.shellApp.state.from], [RUN_3, RUN_ID]);
+  assert.equal(diffCalls(api).pop(), "/api/diff?infrastructure=infra-lab&from=" + RUN_ID + "&to=" + RUN_3);
+  // Un clic sur une run : comparée à sa précédente.
+  runButtons(document)[1].fire("click", {});
+  await LD.shellApp.state.pending;
+  assert.deepEqual([LD.shellApp.state.runId, LD.shellApp.state.from], [RUN_2, RUN_ID]);
+  assert.equal(document.getElementById("canvas").withClass("viewport").length, 1);
+  assert.equal((window.listeners.get("hashchange") || []).length, 1);
+});
+
+test("sans liste des runs, la run s'ouvre sans bande et l'en-tête le dit ; le formulaire la cache", { skip: !shell }, async () => {
+  const api = fakeApi(page, { "/api/ingest/bundles": { status: 500, body: null } });
+  api.store.set("ld-api-token", "known");
+  const { LD, document } = load(shell, shell.data, "", { fetch: api.fetch, sessionStorage: api.sessionStorage, search: "?infrastructure=infra-lab&run_id=" + RUN_ID });
+  await LD.shellApp.state.pending;
+  assert.ok(LD.app);
+  assert.equal(strip(document).hidden, true);
+  assert.match(document.getElementById("run-meta").textContent, /liste des runs indisponible : l'API répond 500/);
+  LD.shellApp.render();
+  assert.equal(strip(document).hidden, true);
 });

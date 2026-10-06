@@ -125,7 +125,7 @@ def test_openapi_types_the_responses(client: TestClient):
     assert {"IngestReport", "IngestError", "IngestFinding", "IngestSummary", "IngestConflict", "RunList"} <= set(
         schemas
     )
-    intent = {"/api/intent", "/api/intent/patches"}
+    intent = {"/api/intent", "/api/intent/patches", "/api/placement"}
     assert (
         set(doc["paths"])
         == {"/api/health", URL, BUNDLE_URL, REPORT_URL, "/api/snapshot", "/api/diff", "/view"} | intent

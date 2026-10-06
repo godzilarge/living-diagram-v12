@@ -17,31 +17,22 @@ import json
 import logging
 import os
 import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from uuid import uuid4
 
 from ld_contracts.intent import INTENT_VERSION, MAX_PINS, Intent, Pin, empty_intent
 from ld_contracts.intent.serialize import canonical_json
 from pydantic import ValidationError
 
 from ld_backend.archive import _segment
+from ld_backend.files import locked, write_atomically
 from ld_backend.schemas import IntentOps, utc_z
-
-try:
-    import fcntl
-except ImportError:  # pragma: no cover - hors Linux / macOS : verrou de processus seulement
-    fcntl = None  # type: ignore[assignment]
 
 log = logging.getLogger(__name__)
 
 INTENT_DIR = "_intent"
 INTENT_FILE = "intent.json"
 JOURNAL_FILE = "journal.jsonl"
-LOCK_FILE = "lock"
-TMP_PREFIX = ".tmp-"
 
 
 class IntentCorruptError(Exception):
@@ -85,7 +76,7 @@ class IntentStore:
         plein, coupure) : le document serait appliqué sans sa ligne ; la révision manquante dans le journal le dirait.
         """
         folder = self._folder(infrastructure)
-        with self._locked(folder):
+        with locked(folder, self._local):
             current = self.load(infrastructure)
             updated = _applied(current, request, now)
             line = {
@@ -95,19 +86,11 @@ class IntentStore:
                 "ops": [op.model_dump(mode="json") for op in request.ops],
             }
             with (folder / JOURNAL_FILE).open("a", encoding="utf-8") as journal:
-                _write_atomically(folder / INTENT_FILE, canonical_json(updated))
+                write_atomically(folder / INTENT_FILE, canonical_json(updated))
                 journal.write(json.dumps(line, ensure_ascii=False, sort_keys=True) + "\n")
                 journal.flush()
                 os.fsync(journal.fileno())
         return updated
-
-    @contextmanager
-    def _locked(self, folder: Path) -> Iterator[None]:
-        folder.mkdir(parents=True, exist_ok=True)
-        with self._local, (folder / LOCK_FILE).open("a+b") as handle:
-            if fcntl is not None:
-                fcntl.flock(handle, fcntl.LOCK_EX)  # libéré à la fermeture du fichier
-            yield
 
 
 def _applied(current: Intent, request: IntentOps, now: datetime) -> Intent:
@@ -126,16 +109,3 @@ def _applied(current: Intent, request: IntentOps, now: datetime) -> Intent:
         updated_at=now,
         pins=tuple(pins[name] for name in sorted(pins)),
     )
-
-
-def _write_atomically(path: Path, payload: str) -> None:
-    tmp = path.parent / f"{TMP_PREFIX}{path.name}-{uuid4().hex}"
-    try:
-        with tmp.open("w", encoding="utf-8") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        tmp.replace(path)
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise

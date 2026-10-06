@@ -35,7 +35,8 @@ Références : les quatre couches de `docs/00` §3 (C0 snapshot, C1 dérivé, C2
 7. **Le diff ne lit jamais l'intention** ; le snapshot non plus. Rien de C2 n'entre dans C0 ni dans B3.
 8. **Le placement reste celui de la toile** (force-dirigé déterministe) ; les épingles sont des **contraintes dures**
    (`layout.run(ids, edges, pinned)`, déjà en place). Le placement seedé par la run N-1 reste en phase 3 :
-   **limite connue**, seuls les équipements épinglés sont stables entre deux runs.
+   **limite connue**, seuls les équipements épinglés sont stables entre deux runs. *Levée le 2026-10-06 par le placement
+   mémorisé (`docs/09`) : figé plutôt que seedé, les équipements non épinglés gardent aussi leur place.*
 
 ---
 

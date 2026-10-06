@@ -8,7 +8,7 @@ export type Child = globalThis.Node | string | number | boolean | null | undefin
 export type Attrs = Record<string, unknown> | null | undefined;
 type Handler = (event: Event) => void;
 // Une Map, pas un objet : `"constructor" in {}` regarderait le prototype (revue de la toile, B1).
-const HANDLERS = new Map<string, string>([["onclick", "click"], ["oninput", "input"], ["onchange", "change"], ["onsubmit", "submit"]]);
+const HANDLERS = new Map<string, string>([["onclick", "click"], ["oninput", "input"], ["onchange", "change"], ["onsubmit", "submit"], ["onkeydown", "keydown"]]);
 
 function flatten(children: Child[], into: Child[] = []): Child[] {
   for (const child of children) {

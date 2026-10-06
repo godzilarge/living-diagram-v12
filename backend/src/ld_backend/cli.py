@@ -1,4 +1,5 @@
-"""CLI : `ld ingest`, `ld runs`, `ld correlate`, `ld diff`, `ld render`, `ld serve` — même code que l'API."""
+"""CLI : `ld ingest`, `ld runs`, `ld correlate`, `ld diff`, `ld render`, `ld intent`, `ld placement`, `ld serve` — même
+code que l'API."""
 
 import argparse
 import json
@@ -17,6 +18,7 @@ from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, archived_pair, snapshot_from_data, summary_lines
 from ld_backend.ingest import error_payload, ingest_bundle, result_payload
 from ld_backend.intent import IntentCorruptError, IntentStore
+from ld_backend.placement import PlacementCorruptError, PlacementStore
 from ld_backend.render import PageOutcome, page_from_archive, page_from_bundle
 from ld_backend.schemas import CorrelationSummary, utc_z
 from ld_backend.snapshots import correlate_data, recorrelate, summarize
@@ -79,6 +81,35 @@ def _cmd_intent(args: argparse.Namespace) -> int:
         print(f"{pin.hostname}\t{pin.x}\t{pin.y}\t{pin.author}\t{utc_z(pin.at)}")
     if not intent.pins:
         print("aucune épingle pour cette infrastructure")
+    return EXIT_OK
+
+
+def _cmd_placement(args: argparse.Namespace) -> int:
+    """Lit le placement mémorisé d'une infrastructure (docs/09), ou l'oublie (`--forget`) : il se recalcule alors au
+    prochain dessin ; c'est aussi la sortie quand le document est corrompu."""
+    store = PlacementStore(Path(args.archive))
+    if args.forget:
+        print(
+            "placement oublié : il se recalcule au prochain dessin"
+            if store.forget(args.infrastructure)
+            else "rien à oublier"
+        )
+        return EXIT_OK
+    try:
+        doc = store.load(args.infrastructure)
+    except PlacementCorruptError, OSError:
+        print(
+            "document de placement corrompu ou illisible : `ld placement --forget` le retire, le placement se recalcule"
+        )
+        return EXIT_INVALID
+    print(
+        f"révision {doc.revision} · {len(doc.places)} équipement(s) placé(s)"
+        + (f" · {doc.updated_at}" if doc.updated_at else "")
+    )
+    for place in doc.places:
+        print(f"{place.hostname}\t{place.x}\t{place.y}")
+    if not doc.places:
+        print("aucun équipement placé pour cette infrastructure")
     return EXIT_OK
 
 
@@ -250,7 +281,10 @@ def _render_outcome(args: argparse.Namespace) -> PageOutcome | None:
     if args.infrastructure and args.run_id:
         archive = BundleArchive(Path(args.archive))
         intents = IntentStore(Path(args.archive))
-        return page_from_archive(archive, args.infrastructure, args.run_id, from_run=args.from_ref, intents=intents)
+        placements = PlacementStore(Path(args.archive))
+        return page_from_archive(
+            archive, args.infrastructure, args.run_id, from_run=args.from_ref, intents=intents, placements=placements
+        )
     return None
 
 
@@ -329,6 +363,13 @@ def _add_ingest_and_runs(sub, archive_default: str) -> None:
     p_intent.add_argument("--infrastructure", required=True)
     p_intent.add_argument("--archive", default=archive_default)
     p_intent.set_defaults(func=_cmd_intent)
+    p_placement = sub.add_parser(
+        "placement", help="lit le placement mémorisé d'une infrastructure (docs/09), ou l'oublie"
+    )
+    p_placement.add_argument("--infrastructure", required=True)
+    p_placement.add_argument("--forget", action="store_true", help="retire le document : le placement se recalcule")
+    p_placement.add_argument("--archive", default=archive_default)
+    p_placement.set_defaults(func=_cmd_placement)
 
 
 def _add_correlate(sub, archive_default: str) -> None:

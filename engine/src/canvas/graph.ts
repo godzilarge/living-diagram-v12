@@ -4,9 +4,10 @@
 // dans le snapshot.
 import { clear, s } from "./dom";
 import { DIFF_LABEL, KIND_LABEL, STATUS_LABEL } from "./format";
-import { beamLabel, beamWidths, clusterLabel, curve, hull, CHAR_W } from "./geometry";
+import { beamBand, beamLabel, chord, clusterLabel, curve, hull, CHAR_W } from "./geometry";
+import type { BeamBand } from "./geometry";
 import { path as iconPath, LABEL as ICON_LABEL, SIZE as ICON_SIZE } from "./icons";
-import { bounds, run as placeAll } from "./layout";
+import { bounds, run as placeAll, wired } from "./layout";
 import type { Edge, Point } from "./layout";
 import { aggregateOf, beamOf, clusterOf, endLabel, entityOf, haRoleGroup, hostsOf, linkOf, nodeOf, worst } from "./model";
 import { beamLines, clusterLines, create as createTip, linkLines, nodeLines } from "./tip";
@@ -19,16 +20,17 @@ const ZOOM_FAR = 0.7, ZOOM_NEAR = 1.2;
 
 export interface View { k: number; tx: number; ty: number }
 export interface LinkEls { group: SVGGElement; line: SVGPathElement; hit: SVGPathElement; halo: SVGPathElement | null; diff: SVGPathElement | null; mark: SVGCircleElement | null; ports: SVGTextElement[] }
-export interface BeamEls { group: SVGGElement; band: SVGPathElement; hit: SVGPathElement; label: SVGTextElement; labelHit: SVGRectElement; tag: SVGGElement; widths: { band: number; hit: number } }
+export interface BeamEls { group: SVGGElement; band: SVGPathElement; hit: SVGPathElement; label: SVGTextElement; labelHit: SVGRectElement; tag: SVGGElement; shape: BeamBand }
 export interface ClusterEls { group: SVGGElement; rect: SVGRectElement; label: SVGTextElement }
 export interface GraphState {
   showStubs: boolean; showPorts: boolean; showDiff: boolean; hiddenStatuses: Set<string>; query: string;
-  pinned: Map<string, Point>; positions: Map<string, Point>; view: View; selection: Selection | null;
+  pinned: Map<string, Point>; placed: Map<string, Point>; positions: Map<string, Point>; view: View; selection: Selection | null;
   nodeEls: Map<string, SVGGElement>; linkEls: Map<string, LinkEls>; beamEls: Map<string, BeamEls>; clusterEls: Map<string, ClusterEls>;
 }
 export interface Drawn { nodes: number; links: number }
-/** `onPin` : un équipement vient d'être relâché après un glissé, à cette position (unités du dessin). */
-export interface GraphOptions { onPin?: (hostname: string, point: Point) => void }
+/** `onPin` : un équipement vient d'être relâché après un glissé, à cette position (unités du dessin). `onPlaced` : le
+ * graphe vient de placer des équipements qui n'avaient pas de place mémorisée (`replace` : tout a été replacé). */
+export interface GraphOptions { onPin?: (hostname: string, point: Point) => void; onPlaced?: (fresh: Map<string, Point>, replace: boolean) => void }
 export interface Graph {
   state: GraphState;
   render: (keepView: boolean) => Drawn;
@@ -36,10 +38,14 @@ export interface Graph {
   select: (selection: Selection | null) => void;
   reveal: (selection: Selection | null) => boolean;
   repaint: () => void;
-  /** Oublie les déplacements locaux non enregistrés : les épingles enregistrées restent, le placement est recalculé. */
+  /** Oublie les déplacements locaux non enregistrés : chaque équipement retrouve sa place mémorisée ou son épingle. */
   resetPins: () => Drawn;
+  /** « Replacer » : oublie la mémoire et les déplacements locaux, recalcule tout autour des épingles enregistrées. */
+  replaceAll: () => Drawn;
   /** Réaligne les épingles locales sur le document enregistré (après une écriture acceptée) ; sans replacer. */
   syncPins: () => void;
+  /** Réaligne la mémoire locale sur le document mémorisé (après une écriture acceptée) : la place enregistrée gagne. */
+  syncPlaces: () => void;
   /** Retire des épingles (locales et enregistrées) et replace, en gardant la vue. */
   unpin: (hostnames: string[]) => Drawn;
 }
@@ -61,7 +67,10 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   const savedPins = (): Map<string, Point> => new Map(Array.from(model.pinByHost)
     .filter(([host]) => { const node = model.nodeByHost.get(host); return !!node && !node.ghost; })
     .map(([host, pin]) => [host, { x: pin.x, y: pin.y }] as const));
-  const state: GraphState = { showStubs: false, showPorts: false, showDiff: true, hiddenStatuses: new Set(), query: "", pinned: savedPins(),
+  // Le placement mémorisé (docs/09) : la place de chaque équipement déjà dessiné, lue dans le document embarqué ou servi,
+  // puis complétée par ce que cette page place. Un fantôme mémorisé se dessine là où il était.
+  const savedPlaces = (): Map<string, Point> => new Map(Array.from(model.placeByHost, ([host, place]) => [host, { x: place.x, y: place.y }]));
+  const state: GraphState = { showStubs: false, showPorts: false, showDiff: true, hiddenStatuses: new Set(), query: "", pinned: savedPins(), placed: savedPlaces(),
     positions: new Map(), view: { k: 1, tx: 0, ty: 0 }, selection: null, nodeEls: new Map(), linkEls: new Map(), beamEls: new Map(), clusterEls: new Map() };
   const viewport = s("g", { class: "viewport" });
   const clusterLayer = s("g", { class: "clusters" });
@@ -144,20 +153,25 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     return group;
   }
 
-  // L'étiquette suit l'axe du faisceau, au-delà de l'éventail des câbles, du côté du haut de l'écran ; elle porte sa
-  // propre zone de clic, au-dessus des câbles : cliquer le nom d'un faisceau l'ouvre toujours.
+  // La bande suit l'axe de ses propres câbles (décalé de l'axe de la paire quand un autre faisceau la partage).
+  // L'étiquette s'écarte de la bande au-delà de l'éventail, du côté du haut de l'écran, ou du côté extérieur quand la
+  // bande n'est pas au centre de la paire : deux faisceaux côte à côte ont leurs noms de part et d'autre, jamais l'un
+  // sur l'autre ni sur la bande voisine. Elle porte sa propre zone de clic, au-dessus des câbles : cliquer le nom
+  // d'un faisceau l'ouvre toujours.
   function placeBeam(beam: Beam, els: BeamEls): void {
     const p = at(beam.a.hostname), q = at(beam.b.hostname);
-    const path = `M${p.x},${p.y} L${q.x},${q.y}`;
-    els.band.setAttribute("d", path);
-    els.hit.setAttribute("d", path);
+    const axis = chord(p, q, els.shape.offset);
+    els.band.setAttribute("d", axis.path);
+    els.hit.setAttribute("d", axis.path);
     const dx = q.x - p.x, dy = q.y - p.y, length = Math.max(Math.hypot(dx, dy), 0.01);
     let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
     if (angle > 90) angle -= 180;
     if (angle <= -90) angle += 180;
-    const side = -dy / length < 0 ? -1 : 1; // la normale qui pointe vers le haut de l'écran
-    const away = els.widths.band / 2 + 8;
-    const x = (p.x + q.x) / 2 + (-dy / length) * side * away, y = (p.y + q.y) / 2 + (dx / length) * side * away;
+    const nx = -dy / length, ny = dx / length; // la normale à l'axe, celle des écarts de l'éventail
+    const up = ny <= 0 ? 1 : -1; // son sens qui pointe vers le haut de l'écran
+    const side = els.shape.offset === 0 ? up : Math.sign(els.shape.offset);
+    const away = els.shape.band / 2 + 8;
+    const x = axis.mid.x + nx * side * away, y = axis.mid.y + ny * side * away;
     const text = els.label.textContent || "";
     const width = CHAR_W * 0.95 * text.length + 10;
     els.label.setAttribute("x", String(x));
@@ -171,9 +185,9 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   }
 
   function drawBeam(beam: Beam): SVGGElement {
-    const widths = beamWidths(beam);
-    const band = s("path", { class: "beam-band", "stroke-width": widths.band });
-    const hit = s("path", { class: "beam-hit", "stroke-width": widths.hit });
+    const shape = beamBand(beam);
+    const band = s("path", { class: "beam-band", "stroke-width": shape.band });
+    const hit = s("path", { class: "beam-hit", "stroke-width": shape.hit });
     const label = s("text", { class: "beam-label" }, beamLabel(beam, false));
     const labelHit = s("rect", { class: "beam-label-hit" });
     const tag = s("g", { class: "beam-tag", "data-beam": String(beam.index) }, labelHit, label);
@@ -181,7 +195,7 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     const group = s("g", { class: classes, "data-beam": String(beam.index), tabindex: 0, role: "button",
       "aria-label": `faisceau ${endLabel({ hostname: beam.a.hostname, interface: beam.a.aggregate })} ⇄ ${endLabel({ hostname: beam.b.hostname, interface: beam.b.aggregate })} · ${beam.links.length} câble(s)` },
       band, hit);
-    const els: BeamEls = { group, band, hit, label, labelHit, tag, widths };
+    const els: BeamEls = { group, band, hit, label, labelHit, tag, shape };
     state.beamEls.set(beam.id, els);
     labelLayer.appendChild(tag);
     placeBeam(beam, els);
@@ -450,13 +464,42 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     return edges;
   }
 
-  // Replace tout : nœuds visibles, placement (les nœuds épinglés gardent leur place), tracés.
-  function render(keepView: boolean): Drawn {
+  // Le placement, en deux temps. 1) L'infrastructure (équipements, externes, fantômes) : fixée par ses places
+  // mémorisées puis par ses épingles (l'intention gagne), les autres placés autour ; ce qui vient d'être placé par les
+  // forces entre dans la mémoire de la page (ni un fantôme, ni un nœud rangé sous le graphe, ni un nœud tenu par une
+  // épingle : la mémoire n'est pas une copie de l'intention, revue B1). 2) Les voisins inconnus, autour de
+  // l'infrastructure toute fixée : les afficher ne déplace jamais un équipement ; un voisin inconnu qui a une place
+  // (un équipement retiré de la collecte survit en stub) se dessine là où il était, mais aucun n'est jamais mémorisé.
+  let unplaced = new Set<string>(); // les équipements dessinés sans place à retenir (rangés sous le graphe)
+  function place(nodes: ModelNode[]): { positions: Map<string, Point>; fresh: Map<string, Point> } {
+    const edges = layoutEdges();
+    const infra = nodes.filter((n) => n.kind !== "stub").map((n) => n.hostname);
+    const stubs = nodes.filter((n) => n.kind === "stub").map((n) => n.hostname);
+    const of = (ids: string[], source: Map<string, Point>): [string, Point][] => ids.filter((id) => source.has(id)).map((id) => [id, source.get(id) as Point]);
+    const remembered = of(infra, state.placed);
+    const base = placeAll(infra, edges, new Map([...remembered, ...of(infra, state.pinned)]), { extend: remembered.length > 0 });
+    const fresh = new Map<string, Point>();
+    const held = wired(infra, edges);
+    unplaced = new Set(infra.filter((id) => !held.has(id)));
+    infra.forEach((id) => {
+      const node = model.nodeByHost.get(id);
+      if (state.placed.has(id) || state.pinned.has(id) || !held.has(id) || !node || node.ghost) return;
+      const point = { ...(base.get(id) as Point) };
+      state.placed.set(id, point);
+      fresh.set(id, point);
+    });
+    if (!stubs.length) return { positions: base, fresh };
+    const fixed = new Map([...base, ...of(stubs, state.placed), ...of(stubs, state.pinned)]);
+    return { positions: placeAll(nodes.map((n) => n.hostname), edges, fixed, { extend: true }), fresh };
+  }
+
+  // Replace tout : nœuds visibles, placement (les nœuds épinglés et mémorisés gardent leur place), tracés.
+  function render(keepView: boolean, replace = false): Drawn {
     const nodes = visibleNodes();
     const shown = new Set(nodes.map((n) => n.hostname));
     const links = visibleLinks(shown);
-    const pinned = new Map(Array.from(state.pinned).filter(([id]) => shown.has(id)));
-    state.positions = placeAll(shown, layoutEdges(), pinned);
+    const { positions, fresh } = place(nodes);
+    state.positions = positions;
     tip.hide(); // l'élément survolé va être redessiné
     [state.nodeEls, state.linkEls, state.beamEls, state.clusterEls].forEach((map) => map.clear());
     [clusterLayer, beamLayer, linkLayer, labelLayer, nodeLayer].forEach(clear);
@@ -466,6 +509,7 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     nodes.forEach((node) => nodeLayer.appendChild(drawNode(node)));
     if (!keepView) fit();
     paintSelection();
+    if ((fresh.size || replace) && options.onPlaced) options.onPlaced(fresh, replace);
     return { nodes: nodes.length, links: links.length };
   }
 
@@ -518,12 +562,27 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     state.nodeEls.forEach((el, host) => el.classList.toggle("pinned", state.pinned.has(host)));
   }
 
+  // Après une réponse de l'API : le document enregistré est la mémoire (une autre page a pu dessiner le même
+  // équipement la première, ou tout replacer) ; un équipement dessiné ailleurs que sa place, ou sans place alors
+  // qu'il en mérite une, et non épinglé, est replacé, et la page renvoie ce qu'elle place (revue, H1, M1).
+  function syncPlaces(): void {
+    state.placed = savedPlaces();
+    const stale = Array.from(state.nodeEls.keys()).some((host) => {
+      const node = model.nodeByHost.get(host), place = state.placed.get(host), current = state.positions.get(host);
+      if (!node || !current || state.pinned.has(host)) return false;
+      if (place) return place.x !== current.x || place.y !== current.y;
+      return node.kind !== "stub" && !node.ghost && !unplaced.has(host);
+    });
+    if (stale) render(true);
+  }
+
   const drawn = (): Drawn => ({ nodes: state.nodeEls.size, links: state.linkEls.size });
 
   bindCanvas();
-  return { state, render, fit, select, reveal, repaint: paintSelection,
-    resetPins: () => { state.pinned = savedPins(); return render(false); },
-    syncPins,
+  return { state, render: (keepView) => render(keepView), fit, select, reveal, repaint: paintSelection,
+    resetPins: () => { state.pinned = savedPins(); return render(true); },
+    replaceAll: () => { state.pinned = savedPins(); state.placed = new Map(); return render(false, true); },
+    syncPins, syncPlaces,
     // Une épingle retirée replace le graphe seulement si son équipement est dessiné (une orpheline ne bouge rien).
     unpin: (hostnames) => {
       const shown = hostnames.some((host) => state.nodeEls.has(host));

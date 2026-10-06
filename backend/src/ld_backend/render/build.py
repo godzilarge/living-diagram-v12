@@ -19,6 +19,7 @@ from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, load_archived_snapshot, snapshot_from_data, snapshot_model
 from ld_backend.ingest import delivery_payload, error_payload
 from ld_backend.intent import IntentCorruptError, IntentStore
+from ld_backend.placement import PlacementCorruptError, PlacementStore
 from ld_backend.render.page import build_page_data, render_page
 
 
@@ -68,10 +69,13 @@ def page_from_archive(
     run_id: str,
     from_run: str | None = None,
     intents: IntentStore | None = None,
+    placements: PlacementStore | None = None,
 ) -> PageOutcome:
     """Le snapshot et le rapport tels qu'archivés : la page montre ce que l'API sert. `from_run` : la run d'avant
     dont la page embarque le diff, comme `GET /api/diff`. `intents` : le store de la couche d'intention, dont la page
-    embarque le document de l'infrastructure (lecture seule : sans serveur, un déplacement reste local)."""
+    embarque le document de l'infrastructure (lecture seule : sans serveur, un déplacement reste local). `placements` :
+    le store du placement mémorisé, embarqué de même (lecture seule : un équipement nouveau est placé dans la page,
+    jamais mémorisé)."""
     try:
         if archive.find_run(infrastructure, run_id) is None:
             return PageOutcome(page=None, problem="run inconnue pour cette infrastructure")
@@ -98,5 +102,13 @@ def page_from_archive(
             intent_json = intents.load(infrastructure).model_dump(mode="json")
         except IntentCorruptError, OSError:
             origin += " · intention indisponible : document corrompu ou illisible, intervention nécessaire"
-    page = render_page(build_page_data(snapshot, ingest, origin=origin, diff=diff_json, intent=intent_json))
-    return PageOutcome(page=page, counts=_counts(snapshot))
+    placement_json = None
+    if placements is not None:
+        try:
+            placement_json = placements.load(infrastructure).model_dump(mode="json")
+        except PlacementCorruptError, OSError:
+            origin += " · placement mémorisé indisponible : document corrompu ou illisible, `ld placement --forget`"
+    data = build_page_data(
+        snapshot, ingest, origin=origin, diff=diff_json, intent=intent_json, placement=placement_json
+    )
+    return PageOutcome(page=render_page(data), counts=_counts(snapshot))

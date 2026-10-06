@@ -28,6 +28,15 @@ from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, load_archived_snapshot
 from ld_backend.ingest import ingest_bundle, result_payload
 from ld_backend.intent import IntentCorruptError, IntentLimitError, IntentStore
+from ld_backend.placement import (
+    Placement,
+    PlacementCorruptError,
+    PlacementLimitError,
+    PlacementStaleError,
+    PlacementStore,
+    PlacementWrite,
+    placement_json,
+)
 from ld_backend.render import render_shell
 from ld_backend.schemas import IngestReport, IntentOps, RunEntry, RunList
 
@@ -40,16 +49,21 @@ SNAPSHOT = "/api/snapshot"
 DIFF = "/api/diff"
 INTENT = "/api/intent"
 INTENT_PATCHES = "/api/intent/patches"
+PLACEMENT = "/api/placement"
 VIEW = "/view"
 JSON_MEDIA_TYPE = re.compile(r"application/(?:[\w.-]+\+)?json", re.IGNORECASE)
 SCHEMA_REF_TEMPLATE = "#/components/schemas/{model}"
-CONTRACT_MODELS = (RunBundle, Snapshot, Diff, Intent, IntentOps)
+CONTRACT_MODELS = (RunBundle, Snapshot, Diff, Intent, IntentOps, Placement, PlacementWrite)
 # Les corps lus à la main (en flux, avec une limite) sont déclarés dans OpenAPI ici, pas par FastAPI.
 BODY_MODELS = {
     BUNDLES: (RunBundle, "RunBundle v1 : la référence est `contracts/CONTRAT.md`."),
     INTENT_PATCHES: (
         IntentOps,
         "Une requête d'écriture de la couche d'intention : auteur et opérations, dans l'ordre.",
+    ),
+    PLACEMENT: (
+        PlacementWrite,
+        "Les places des équipements qu'une page vient de placer sans mémoire ; `replace` pour « replacer ».",
     ),
 }
 
@@ -132,6 +146,39 @@ PATCHES_RESPONSES: dict[int | str, dict[str, Any]] = {
         "inconnue), ou document qui dépasserait 10 000 épingles ; `errors` liste chemin et règle, jamais une valeur"
     },
     500: {"description": "document d'intention illisible ou incohérent sur disque : intervention nécessaire"},
+}
+
+PLACEMENT_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "Le placement mémorisé de l'infrastructure : une place par équipement déjà dessiné ; le "
+        "document vide (`revision` 0) si rien n'a jamais été dessiné. Donnée dérivée et jetable (`docs/09`).",
+        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Placement.__name__)}}},
+    },
+    500: {"description": "document de placement illisible ou incohérent sur disque : `ld placement --forget`"},
+}
+
+PLACEMENT_WRITE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "le document résultant : sans `replace`, seuls les équipements sans place mémorisée entrent "
+        "(la première place reste) et rien n'est écrit si la requête n'apporte rien ; avec `replace`, le document "
+        "devient exactement `places`",
+        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Placement.__name__)}}},
+    },
+    404: {"description": "infrastructure sans aucune run archivée : rien à placer"},
+    409: {
+        "description": "la page a dessiné sur un document qui a changé depuis (`base_revision` ≠ `revision`) et la "
+        "requête apporterait quelque chose : rien n'est écrit, le corps est le document courant, à partir duquel "
+        "redessiner",
+        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Placement.__name__)}}},
+    },
+    413: {"description": "corps au-delà de `LD_MAX_INTENT_BYTES` (même borne que l'intention)"},
+    415: {"description": "`Content-Type` qui n'est pas `application/json`"},
+    422: {
+        "description": "corps hors forme (coordonnée non entière ou hors borne, équipement nommé deux fois, "
+        "`replace` absent), ou document qui dépasserait 10 000 équipements ; `errors` liste chemin et règle, "
+        "jamais une valeur"
+    },
+    500: {"description": "document de placement illisible ou incohérent sur disque : `ld placement --forget`"},
 }
 
 Label = Annotated[str, Query(min_length=1)]
@@ -282,9 +329,20 @@ def _intent_or_500(load: Callable[[], Intent]) -> Intent:
         raise HTTPException(status_code=500, detail="document d'intention illisible, intervention nécessaire") from exc
 
 
+def _placement_or_500(load: Callable[[], Placement]) -> Placement:
+    try:
+        return load()
+    except PlacementCorruptError as exc:
+        detail = "document de placement corrompu : `ld placement --forget` le retire, le placement se recalcule"
+        raise HTTPException(status_code=500, detail=detail) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="document de placement illisible, intervention nécessaire") from exc
+
+
 def create_app(settings: Settings, archive: BundleArchive | None = None) -> FastAPI:
     store = archive or BundleArchive(settings.archive_dir)
     intents = IntentStore(settings.archive_dir)
+    placements = PlacementStore(settings.archive_dir)
     app = IngestApp(
         title="Living Diagram — ingestion",
         version="0.1.0",
@@ -400,6 +458,45 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
         except IntentLimitError as exc:
             return _problem("corps de requête invalide", [{"loc": ("ops",), "type": "too_long", "msg": str(exc)}])
         return Response(content=intent_json(intent), media_type="application/json")
+
+    @app.get(
+        PLACEMENT,
+        dependencies=[guard],
+        response_class=Response,
+        responses=PLACEMENT_RESPONSES,
+        summary="Lire le placement mémorisé d'une infrastructure (la place de chaque équipement déjà dessiné)",
+    )
+    def get_placement(infrastructure: Label) -> Response:
+        doc = _placement_or_500(lambda: placements.load(infrastructure))
+        return Response(content=placement_json(doc), media_type="application/json")
+
+    @app.post(
+        PLACEMENT,
+        dependencies=[guard],
+        response_class=Response,
+        responses=PLACEMENT_WRITE_RESPONSES,
+        summary="Mémoriser les places que la page vient de calculer (première place gagnante), ou tout replacer",
+        description="La page `/view` envoie, après chaque dessin, les équipements qu'elle a placés sans mémoire : "
+        "la première place d'un équipement est celle qui reste, une seconde page ne déplace rien. `replace` "
+        "remplace tout le document (« replacer » dans la page). Aucun nom requis : c'est une donnée dérivée, les "
+        "épingles de l'intention gagnent toujours sur elle. Une infrastructure sans run archivée est refusée (404).",
+    )
+    async def post_placement(infrastructure: Label, request: Request) -> Response:
+        if not await run_in_threadpool(store.list_runs, infrastructure):
+            raise HTTPException(status_code=404, detail="aucune run archivée pour cette infrastructure : rien à placer")
+        data = await _read_json_body(request, settings.max_intent_bytes)
+        try:
+            write = PlacementWrite.model_validate(data)
+        except ValidationError as exc:
+            return _problem("corps de requête invalide", list(exc.errors()))
+        now = datetime.now(UTC).replace(microsecond=0)
+        try:  # le verrou de fichier et le fsync hors de la boucle d'événements (revue, B3)
+            doc = await run_in_threadpool(_placement_or_500, lambda: placements.record(infrastructure, write, now))
+        except PlacementLimitError as exc:
+            return _problem("corps de requête invalide", [{"loc": ("places",), "type": "too_long", "msg": str(exc)}])
+        except PlacementStaleError as exc:
+            return Response(status_code=409, content=placement_json(exc.current), media_type="application/json")
+        return Response(content=placement_json(doc), media_type="application/json")
 
     return app
 

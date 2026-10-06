@@ -47,10 +47,15 @@ export type Entity = ModelNode | ModelLink | Aggregate | Beam | Cluster;
 export interface IngestFinding { code: string; message: string; hostname: string | null; ref: string | null; details: Record<string, string | number> }
 export interface IngestData { summary: Record<string, unknown> | null; findings: IngestFinding[] }
 export interface CatalogueEntry { meaning: string; rule: string }
+/** Le placement mémorisé (docs/09), forme de `Placement` du backend : la place de chaque équipement déjà dessiné,
+ * par infrastructure. Donnée dérivée et jetable, hors contrat : type écrit à la main, comme le rapport d'ingestion. */
+export interface Place { hostname: string; x: number; y: number }
+export interface Placement { infrastructure: string; revision: number; updated_at: string | null; places: Place[] }
 /** Ce que la page embarque (`build_page_data`) ; la coquille servie le remplit par l'API. `intent` : la couche
- * d'intention de l'infrastructure (page archivée, ou lue par l'API) ; absente en mode fichier. */
+ * d'intention de l'infrastructure, `placement` : son placement mémorisé (page archivée, ou lus par l'API) ; absents
+ * en mode fichier. */
 export interface PageData {
-  snapshot: Snapshot; ingest: IngestData | null; origin: string; catalogue: Record<string, CatalogueEntry>; diff?: Diff; intent?: Intent;
+  snapshot: Snapshot; ingest: IngestData | null; origin: string; catalogue: Record<string, CatalogueEntry>; diff?: Diff; intent?: Intent; placement?: Placement;
 }
 export type { Intent, Pin };
 
@@ -70,4 +75,6 @@ export interface Model {
   /** La couche d'intention (B4) : le document tel que lu, ses épingles par hostname, et celles dont l'équipement n'est
    * pas un nœud de cette run (orphelines : listées, jamais effacées en silence). */
   intent: Intent | null; pinByHost: Map<string, Pin>; orphanPins: Pin[];
+  /** Le placement mémorisé (docs/09) : le document tel que lu, et la place de chaque équipement par hostname. */
+  placement: Placement | null; placeByHost: Map<string, Place>;
 }

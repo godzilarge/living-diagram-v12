@@ -45,6 +45,15 @@ class FakeNode {
   removeAttribute(name) { this.attributes.delete(name); }
   appendChild(child) { child.parentNode = this; this.childNodes.push(child); return child; }
   removeChild(child) { this.childNodes = this.childNodes.filter((c) => c !== child); child.parentNode = null; return child; }
+  replaceChild(fresh, old) {
+    if (!this.childNodes.includes(old)) throw new Error("replaceChild : pas un enfant");
+    this.childNodes = this.childNodes.map((c) => (c === old ? fresh : c));
+    fresh.parentNode = this;
+    old.parentNode = null;
+    return old;
+  }
+  getAttributeNames() { return Array.from(this.attributes.keys()); }
+  removeEventListener(type, listener) { this.listeners.set(type, (this.listeners.get(type) || []).filter((l) => l !== listener)); }
   addEventListener(type, listener) {
     if (!this.listeners.has(type)) this.listeners.set(type, []);
     this.listeners.get(type).push(listener);
@@ -102,7 +111,7 @@ function load(page, data, hash, extras) {
     fetch: extras && extras.fetch, sessionStorage: extras && extras.sessionStorage, localStorage: extras && extras.localStorage });
   vm.runInContext(page.script, context, { filename: "viewer.js" });
   const go = (next) => { location.hash = next; window.fire("hashchange", {}); };
-  return { LD: context.LD, document, location, go };
+  return { LD: context.LD, document, location, go, window };
 }
 
 module.exports = { readPage, load };

@@ -39,9 +39,11 @@ engine/
     ├── canvas/                       la toile proprement dite, sans rien de la page
     │   ├── types.ts                  le modèle de lecture (entités indexées au-dessus des contrats) et la forme des données de la page
     │   ├── model.ts                  B5 analyse : index du snapshot, du diff et de l'intention, structures, répartition des contrôles
-    │   ├── layout.ts                 B7 placement : force-dirigé déterministe, nœuds épinglés = contraintes dures
+    │   ├── layout.ts                 B7 placement : force-dirigé déterministe, positions entières ; nœuds fixés (épingles, places mémorisées) = contraintes
+    │   │                             dures ; `extend` complète un dessin existant (docs/09)
     │   ├── geometry.ts               B8 routage : tracés, éventails, cadres, étiquettes
-    │   ├── graph.ts                  B9 renderer SVG : couches, dessin, glissé (→ épingle), zoom, sélection, clavier, paliers de zoom
+    │   ├── graph.ts                  B9 renderer SVG : couches, placement en deux temps (infrastructure, puis voisins inconnus), mémoire de la page,
+    │   │                             dessin, glissé (→ épingle), zoom, sélection, clavier, paliers de zoom
     │   ├── tip.ts                    la bulle au survol
     │   ├── icons.ts                  icônes de type, dessinées
     │   ├── dom.ts                    fabrique d'éléments HTML et SVG (jamais de HTML écrit depuis une donnée)
@@ -53,7 +55,9 @@ engine/
         ├── inspect.ts, structures.ts l'inspecteur : câble, équipement, agrégat, faisceau, cluster
         ├── tables.ts                 les vues : contrôles, qualité des données, sources, structures, diff
         ├── intent.ts                 B4 : l'onglet Intentions, la fiche d'une épingle, l'hôte qui relie glissé, écrivain et page
-        ├── shell.ts                  la coquille servie : jeton, nom, runs, lecture par l'API, écrivain (envois sérialisés)
+        ├── placement.ts              docs/09 : l'hôte du placement mémorisé (envoi de ce qui vient d'être placé, réalignement, « replacer » confirmé)
+        ├── shell.ts                  la coquille servie : jeton, nom, runs, lecture par l'API, écrivain d'intention et de placement (envois sérialisés)
+        ├── timeline.ts               la bande des runs de la coquille servie : passer de run en run, le diff suit, l'état de vue reste (2026-10-06)
         └── apps.ts                   les applications démarrées (`LD.app`, `LD.shellApp`) et les types de l'écrivain
 ```
 
@@ -79,5 +83,5 @@ Un `viewer.js` oublié après une modification des sources, ou une erreur de typ
 - **Rien d'inventé** : le modèle indexe, il ne déduit pas ; ce qui est dessiné est dans le snapshot.
 - **Jamais de HTML écrit depuis une donnée** (`innerHTML`, `insertAdjacentHTML`… interdits, testé sur les sources et
   sur le fichier construit) ; jamais de style en ligne (la CSP par empreinte n'en admet aucun).
-- **Déterministe** : même snapshot ⇒ même placement ; même source ⇒ même `viewer.js` à l'octet.
+- **Déterministe** : même snapshot ⇒ même placement ; même snapshot et même placement mémorisé ⇒ même dessin ; même source ⇒ même `viewer.js` à l'octet.
 - **Types stricts** sur le modèle ; les types des contrats ne s'éditent pas, ils se régénèrent.
