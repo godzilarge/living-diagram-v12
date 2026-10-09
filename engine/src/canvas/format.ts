@@ -13,6 +13,20 @@ export const RESOLUTION_LABEL: Record<string, string> = {
 export const DIFF_LABEL: Record<string, string> = { added: "ajouté", removed: "retiré", changed: "changé" };
 export const EVENT_LABEL: Record<string, string> = { rebooted: "redémarré", flapped: "flap" }; // un seul mot partout ; `flapped` reste à confirmer (docs/07 Q4)
 
+// La forme courte d'un nom de port, pour les listes (« Te1/0/1 » plutôt que « TenGigabitEthernet1/0/1 ») : l'usage des
+// CLI réseau, seulement quand le préfixe est suivi d'un chiffre ; tout autre nom reste tel quel. Affichage seul : le
+// nom complet reste l'identité (infobulle, en-tête, recherche).
+const PORT_SHORT: readonly [string, string][] = [
+  ["HundredGigE", "Hu"], ["FortyGigabitEthernet", "Fo"], ["TwentyFiveGigE", "Twe"], ["TenGigabitEthernet", "Te"], ["FiveGigabitEthernet", "Fi"],
+  ["TwoGigabitEthernet", "Tw"], ["AppGigabitEthernet", "Ap"], ["GigabitEthernet", "Gi"], ["FastEthernet", "Fa"], ["Ethernet", "Eth"],
+  ["port-channel", "Po"], ["Port-channel", "Po"], ["Bundle-Ether", "BE"],
+];
+export function shortPort(name: string | null | undefined): string {
+  if (!name) return "";
+  for (const [long, short] of PORT_SHORT) if (name.startsWith(long) && /^\d/.test(name.slice(long.length))) return short + name.slice(long.length);
+  return name;
+}
+
 const isEnd = (value: object): value is Record<string, unknown> & { hostname: string; interface: string | null } =>
   "hostname" in value && "interface" in value;
 
@@ -61,4 +75,24 @@ export function speedText(mbps: number | null | undefined): string | null {
   return mbps >= 1000 ? String(mbps / 1000).replace(".", ",") + " Gb/s" : mbps + " Mb/s";
 }
 
-export const format = { plain, brief, speedText, elapsedText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL };
+/** Ce que les sources d'un câble ont à dire de lui, en une phrase : qui l'a observé (LLDP, CDP), qui l'a documenté. */
+export interface SourcedLink { sources: string[]; checks: { code: string }[]; raw: { evidence: { source: string; witness: { hostname: string; interface: string | null } }[] } }
+const OBSERVED_SOURCE: Record<string, boolean> = { lldp: true, cdp: true };
+
+// La phrase ne dit que ce que les évidences disent : qui a observé, qui a documenté. « Confirmé » veut dire
+// « observé et documenté », pas « toutes les descriptions concordent » : un désaccord lié au câble est signalé.
+// `ports` à faux : les témoins par leur seul nom (la fiche de l'application montre déjà les deux bouts juste au-dessus).
+export function whyText(link: SourcedLink, ports = true): string {
+  const witnesses = (keep: (source: string) => boolean): string => Array.from(new Set(link.raw.evidence.filter((e) => keep(e.source)).map((e) => (ports ? endLabel(e.witness) : e.witness.hostname)))).join(", ");
+  const seen = witnesses((src) => OBSERVED_SOURCE[src]);
+  const written = witnesses((src) => !OBSERVED_SOURCE[src]);
+  const protocols = link.sources.filter((src) => OBSERVED_SOURCE[src]).map((src) => src.toUpperCase()).join(" et ");
+  const parts: string[] = [];
+  if (seen) parts.push("Observé en " + protocols + " depuis " + seen + ".");
+  else parts.push("Aucune observation LLDP ni CDP : ce câble n'existe que par les descriptions d'interface.");
+  parts.push(written ? "Documenté par la description de " + written + "." : "Aucune description ne le documente.");
+  if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push("Attention : une description ne concorde pas avec l'observé, voir le contrôle ci-dessous.");
+  return parts.join(" ");
+}
+
+export const format = { plain, brief, shortPort, speedText, elapsedText, whyText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL };

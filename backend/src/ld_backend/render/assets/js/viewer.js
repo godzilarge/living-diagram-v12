@@ -1,6 +1,624 @@
 // Généré par engine/build.mjs depuis engine/src (TypeScript) : ne pas éditer ici, lancer `npm run build` dans engine/.
 "use strict";
 (() => {
+  // src/canvas/align.ts
+  var ALIGN_MODES = ["horizontal", "vertical", "distribute-horizontal", "distribute-vertical"];
+  var ALIGN_LABEL = {
+    horizontal: "aligner horizontalement",
+    vertical: "aligner verticalement",
+    "distribute-horizontal": "répartir horizontalement",
+    "distribute-vertical": "répartir verticalement"
+  };
+  var mean = (values) => values.reduce((sum, v) => sum + v, 0) / values.length;
+  function align(positions, hosts, mode) {
+    const moved = /* @__PURE__ */ new Map();
+    const known2 = hosts.filter((host) => positions.has(host));
+    const at = (host) => positions.get(host);
+    if (mode === "horizontal" || mode === "vertical") {
+      if (known2.length < 2) return moved;
+      const axis2 = mode === "horizontal" ? "y" : "x";
+      const level = Math.round(mean(known2.map((host) => at(host)[axis2])));
+      known2.forEach((host) => {
+        const point = at(host);
+        if (point[axis2] !== level) moved.set(host, axis2 === "y" ? { x: Math.round(point.x), y: level } : { x: level, y: Math.round(point.y) });
+      });
+      return moved;
+    }
+    if (known2.length < 3) return moved;
+    const axis = mode === "distribute-horizontal" ? "x" : "y";
+    const ordered = known2.slice().sort((p, q) => at(p)[axis] - at(q)[axis] || (p < q ? -1 : p > q ? 1 : 0));
+    const first = at(ordered[0])[axis], last = at(ordered[ordered.length - 1])[axis];
+    const step2 = (last - first) / (ordered.length - 1);
+    ordered.forEach((host, index) => {
+      const point = at(host);
+      const value = Math.round(first + step2 * index);
+      if (point[axis] !== value) moved.set(host, axis === "x" ? { x: value, y: Math.round(point.y) } : { x: Math.round(point.x), y: value });
+    });
+    return moved;
+  }
+  var alignment = { align, ALIGN_MODES, ALIGN_LABEL };
+
+  // src/canvas/icons.ts
+  var SIZE = 32;
+  var FOOT = 4;
+  var n = (v) => String(Math.round(v * 100) / 100);
+  function rrect(x, y, w, h2, r) {
+    return `M${n(x + r)} ${n(y)}H${n(x + w - r)}A${r} ${r} 0 0 1 ${n(x + w)} ${n(y + r)}V${n(y + h2 - r)}A${r} ${r} 0 0 1 ${n(x + w - r)} ${n(y + h2)}H${n(x + r)}A${r} ${r} 0 0 1 ${n(x)} ${n(y + h2 - r)}V${n(y + r)}A${r} ${r} 0 0 1 ${n(x + r)} ${n(y)}Z`;
+  }
+  function rrectFoot(x, y, w, h2, r, foot) {
+    const top = y + h2 - foot, bottom = y + h2;
+    if (foot >= r) return `M${n(x)} ${n(top)}H${n(x + w)}V${n(bottom - r)}A${r} ${r} 0 0 1 ${n(x + w - r)} ${n(bottom)}H${n(x + r)}A${r} ${r} 0 0 1 ${n(x)} ${n(bottom - r)}Z`;
+    const inset = r - Math.sqrt(r * r - (r - foot) * (r - foot));
+    return `M${n(x + inset)} ${n(top)}H${n(x + w - inset)}A${r} ${r} 0 0 1 ${n(x + w - r)} ${n(bottom)}H${n(x + r)}A${r} ${r} 0 0 1 ${n(x + inset)} ${n(top)}Z`;
+  }
+  var circle = (cx, cy, r) => `M${n(cx - r)} ${n(cy)}A${r} ${r} 0 1 0 ${n(cx + r)} ${n(cy)}A${r} ${r} 0 1 0 ${n(cx - r)} ${n(cy)}Z`;
+  function circleFoot(cx, cy, r, foot) {
+    const dy = r - foot, half = Math.sqrt(r * r - dy * dy);
+    return `M${n(cx - half)} ${n(cy + dy)}A${r} ${r} 0 0 0 ${n(cx + half)} ${n(cy + dy)}Z`;
+  }
+  var bar = (x, y, w, h2) => `M${n(x)} ${n(y)}h${n(w)}v${n(h2)}h${n(-w)}Z`;
+  var dot = (cx, cy, r) => circle(cx, cy, r);
+  var poly = (pts) => "M" + pts.map(([x, y]) => `${n(x)} ${n(y)}`).join("L") + "Z";
+  function arrow(x1, y1, x2, y2, s2 = 1.3, hl = 5, hw = 3.4) {
+    const len = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / len, uy = (y2 - y1) / len, px = -uy, py = ux;
+    const bx = x2 - ux * hl, by = y2 - uy * hl;
+    return poly([[x1 + px * s2, y1 + py * s2], [bx + px * s2, by + py * s2], [bx + px * hw, by + py * hw], [x2, y2], [bx - px * hw, by - py * hw], [bx - px * s2, by - py * s2], [x1 - px * s2, y1 - py * s2]]);
+  }
+  function twoWay(x1, y1, x2, y2, s2 = 1.3, hl = 5, hw = 3.4) {
+    const len = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / len, uy = (y2 - y1) / len, px = -uy, py = ux;
+    const ax = x1 + ux * hl, ay = y1 + uy * hl, bx = x2 - ux * hl, by = y2 - uy * hl;
+    return poly([
+      [x1, y1],
+      [ax + px * hw, ay + py * hw],
+      [ax + px * s2, ay + py * s2],
+      [bx + px * s2, by + py * s2],
+      [bx + px * hw, by + py * hw],
+      [x2, y2],
+      [bx - px * hw, by - py * hw],
+      [bx - px * s2, by - py * s2],
+      [ax - px * s2, ay - py * s2],
+      [ax - px * hw, ay - py * hw]
+    ]);
+  }
+  function arc(cx, cy, ro, ri, a0, a1) {
+    const p = (r, a) => `${n(cx + r * Math.cos(a * Math.PI / 180))} ${n(cy + r * Math.sin(a * Math.PI / 180))}`;
+    const large = a1 - a0 > 180 ? 1 : 0;
+    return `M${p(ro, a0)}A${ro} ${ro} 0 ${large} 1 ${p(ro, a1)}L${p(ri, a1)}A${ri} ${ri} 0 ${large} 0 ${p(ri, a0)}Z`;
+  }
+  function bricks(x, y, w, h2, rows, mortar) {
+    const rowH = (h2 - mortar * (rows - 1)) / rows;
+    let d = "";
+    for (let r = 1; r < rows; r++) d += bar(x, y + r * rowH + (r - 1) * mortar, w, mortar);
+    for (let r = 0; r < rows; r++) {
+      const top = y + r * (rowH + mortar), count = r % 2 === 0 ? 2 : 3;
+      for (let k = 1; k <= count; k++) d += bar(x + w * k / (count + 1) - mortar / 2, top, mortar, rowH);
+    }
+    return d;
+  }
+  function units(x, y, w, h2, count, sep) {
+    const unitH = (h2 - sep * (count - 1)) / count;
+    let d = "";
+    for (let u = 0; u < count; u++) {
+      const mid = y + u * (unitH + sep) + unitH / 2;
+      if (u > 0) d += bar(x, y + u * unitH + (u - 1) * sep, w, sep);
+      d += dot(x + 4.5, mid, 1.7) + bar(x + 8, mid - 0.8, w - 12, 1.6);
+    }
+    return d;
+  }
+  var box = (x, y, w, h2, r) => ({ body: rrect(x, y, w, h2, r), shade: rrectFoot(x, y, w, h2, r, FOOT) });
+  var GLYPHS = {
+    switch: { ...box(2, 6, 28, 20, 4), mark: twoWay(6, 10.5, 26, 21.5, 1.2, 4.6, 3.1) + twoWay(6, 21.5, 26, 10.5, 1.2, 4.6, 3.1) },
+    // le routeur : deux flèches sortantes à l'horizontale, deux entrantes à la verticale
+    router: {
+      body: circle(16, 16, 14),
+      shade: circleFoot(16, 16, 14, FOOT),
+      mark: twoWay(4.5, 16, 27.5, 16, 1.3, 4.5, 3.2) + arrow(16, 4.5, 16, 11.5, 1.3, 4.5, 3.2) + arrow(16, 27.5, 16, 20.5, 1.3, 4.5, 3.2)
+    },
+    firewall: { ...box(2, 5, 28, 22, 3), mark: bricks(2, 5, 28, 22, 3, 1.8) },
+    load_balancer: {
+      ...box(2, 4, 28, 24, 5),
+      mark: bar(5, 14.8, 6, 2.4) + dot(12, 16, 2.8) + arrow(12, 16, 25.5, 8.5, 1.2, 4.5, 3) + arrow(12, 16, 26.5, 16, 1.2, 4.5, 3) + arrow(12, 16, 25.5, 23.5, 1.2, 4.5, 3)
+    },
+    wireless_controller: { ...box(2, 4, 28, 24, 5), mark: arc(16, 17, 12, 9.6, -140, -40) + arc(16, 17, 7.6, 5.2, -140, -40) + dot(16, 17, 2.5) + bar(14.9, 18, 2.2, 7) },
+    server: { ...box(5, 2, 22, 28, 4), mark: units(5, 2, 22, 28, 3, 1.6) },
+    other: { ...box(3, 3, 26, 26, 6), mark: dot(9.5, 16, 2.3) + dot(16, 16, 2.3) + dot(22.5, 16, 2.3) }
+  };
+  var LABEL = {
+    switch: "switch",
+    router: "routeur",
+    firewall: "firewall",
+    load_balancer: "répartiteur",
+    wireless_controller: "contrôleur Wi-Fi",
+    server: "serveur",
+    other: "autre"
+  };
+  var TYPES = Object.keys(GLYPHS);
+  var glyph = (type) => type !== null && type !== void 0 && GLYPHS[type] || GLYPHS.other;
+  var known = (type) => Object.prototype.hasOwnProperty.call(GLYPHS, type);
+  var icons = { glyph, known, LABEL, SIZE, TYPES };
+
+  // src/canvas/card.ts
+  var STUB_R = 8;
+  var LABEL_MAX = 22;
+  var CARD_H = 80;
+  var WIDTH_STEP = 40;
+  var LABEL_PX = 15;
+  var ROLE_PX = 10;
+  var STACK_PX = 11;
+  var RX = 12;
+  var RAIL = 6;
+  var PAD = 12;
+  var GAP = 12;
+  var PAD_RIGHT = 16;
+  var SUB_GAP = 8;
+  var MIN_W = 168;
+  var MAX_W = 360;
+  var ICON_SCALE = 1.25;
+  var ICON_PX = SIZE * ICON_SCALE;
+  var MONO_EM = 0.62;
+  var WIDE = /[MWmw@%]/;
+  var UPPER = /[A-Z]/;
+  var NARROW = /[ilIjt.,:;'|!]/;
+  var DASH = /[-_ ]/;
+  function em(ch) {
+    if (WIDE.test(ch)) return 0.88;
+    if (UPPER.test(ch)) return 0.7;
+    if (NARROW.test(ch)) return 0.3;
+    if (DASH.test(ch)) return 0.42;
+    if (ch === "…") return 0.95;
+    return 0.6;
+  }
+  function textWidth(text, px = LABEL_PX) {
+    let total2 = 0;
+    for (const ch of text) total2 += em(ch);
+    return Math.ceil(total2 * px + 2);
+  }
+  var monoWidth = (text, px = LABEL_PX) => Math.ceil(Array.from(text).length * MONO_EM * px + 2);
+  var shortName = (name) => name.length <= LABEL_MAX ? name : name.slice(0, 11) + "…" + name.slice(-10);
+  var displayName = (hostname) => shortName(hostname).toUpperCase();
+  var clamp = (value) => Math.min(MAX_W, Math.max(MIN_W, Math.round(value)));
+  var stackText = (count) => "×" + count;
+  var r2 = (value) => String(Math.round(value * 100) / 100);
+  function railPath(w, h2, rx, rail) {
+    const x0 = -w / 2, y0 = -h2 / 2;
+    const dy = rx - Math.sqrt(rx * rx - (rx - rail) * (rx - rail));
+    const top = y0 + dy, bottom = y0 + h2 - dy;
+    return `M${r2(x0 + rail)} ${r2(top)}V${r2(bottom)}A${rx} ${rx} 0 0 1 ${r2(x0)} ${r2(y0 + h2 - rx)}V${r2(y0 + rx)}A${rx} ${rx} 0 0 1 ${r2(x0 + rail)} ${r2(top)}Z`;
+  }
+  function wide(labelW, roleW, stackW, imposed) {
+    const w = Math.max(imposed, naturalWidth(labelW, roleW, stackW));
+    const iconX = -w / 2 + RAIL + PAD, textX = iconX + ICON_PX + GAP;
+    const sub = roleW > 0 || stackW > 0;
+    const subBaseline = 16;
+    return {
+      w,
+      h: CARD_H,
+      rx: RX,
+      rail: railPath(w, CARD_H, RX, RAIL),
+      icon: { x: iconX, y: -ICON_PX / 2, scale: ICON_SCALE },
+      label: { x: textX, y: sub ? -4 : 5.5, anchor: "start" },
+      role: roleW ? { x: textX, y: subBaseline, anchor: "start" } : null,
+      stack: stackW ? { x: textX + (roleW ? roleW + SUB_GAP : 0), y: subBaseline, anchor: "start" } : null
+    };
+  }
+  function naturalWidth(labelW, roleW, stackW) {
+    const subW = roleW + (roleW && stackW ? SUB_GAP : 0) + stackW;
+    return clamp(RAIL + PAD + ICON_PX + GAP + Math.max(labelW, subW) + PAD_RIGHT);
+  }
+  var measures = (label2, extras) => [
+    monoWidth(label2),
+    extras.role ? textWidth(extras.role.toUpperCase(), ROLE_PX) : 0,
+    extras.stack ? monoWidth(stackText(extras.stack), STACK_PX) : 0
+  ];
+  function width(label2, extras) {
+    return naturalWidth(...measures(label2, extras));
+  }
+  function uniformWidth(widths) {
+    return Math.ceil(Math.max(MIN_W, ...widths) / WIDTH_STEP) * WIDTH_STEP;
+  }
+  function plan(label2, extras, imposed = 0) {
+    return wide(...measures(label2, extras), imposed);
+  }
+  function reach(box2, dx, dy) {
+    const length = Math.hypot(dx, dy) || 1;
+    const ux = Math.abs(dx) / length, uy = Math.abs(dy) / length;
+    return Math.min(ux > 1e-6 ? box2.w / 2 / ux : Infinity, uy > 1e-6 ? box2.h / 2 / uy : Infinity);
+  }
+  var card = { plan, width, uniformWidth, textWidth, monoWidth, shortName, displayName, reach, STUB_R, LABEL_MAX, CARD_H, WIDTH_STEP };
+
+  // src/canvas/groups.ts
+  var SHAPES = ["rectangle", "ellipse"];
+  var STROKES = ["solid", "dashed", "dotted", "none"];
+  var POSITIONS = ["top_left", "top", "top_right", "left", "center", "right", "bottom_left", "bottom", "bottom_right"];
+  var PLACEMENTS = ["inside", "outside"];
+  var WEIGHTS = ["regular", "semibold", "bold"];
+  var FONTS = ["sans", "mono"];
+  var LABEL_COLORS = ["hue", "ink"];
+  var BOUNDS = { radius: [0, 80], fill_opacity: [0, 100], stroke_width: [0, 8], padding: [0, 300], label_size: [8, 64] };
+  var DEFAULT_STYLE = {
+    shape: "rectangle",
+    radius: 16,
+    hue: "slate",
+    fill_opacity: 8,
+    stroke_width: 2,
+    stroke_style: "dashed",
+    padding: 24,
+    label_position: "top_left",
+    label_placement: "inside",
+    label_size: 12,
+    label_weight: "semibold",
+    label_font: "sans",
+    label_color: "hue"
+  };
+  var STYLE_LABEL = {
+    rectangle: "rectangle",
+    ellipse: "ellipse",
+    solid: "plein",
+    dashed: "tirets",
+    dotted: "pointillés",
+    none: "sans bordure",
+    top_left: "haut gauche",
+    top: "haut",
+    top_right: "haut droite",
+    left: "gauche",
+    center: "centre",
+    right: "droite",
+    bottom_left: "bas gauche",
+    bottom: "bas",
+    bottom_right: "bas droite",
+    inside: "dedans",
+    outside: "dehors",
+    regular: "normal",
+    semibold: "demi-gras",
+    bold: "gras",
+    sans: "sans",
+    mono: "mono",
+    hue: "teinte",
+    ink: "encre"
+  };
+  var WEIGHT_VALUE = { regular: 450, semibold: 600, bold: 750 };
+  var presentMembers = (model2, group) => group.members.filter((host) => {
+    const node = model2.nodeByHost.get(host);
+    return !!node && !node.ghost;
+  });
+  var orphanMembers = (model2, group) => group.members.filter((host) => {
+    const node = model2.nodeByHost.get(host);
+    return !node || !!node.ghost;
+  });
+  function frameOf(centers, boxes, style) {
+    if (!centers.length) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    centers.forEach((center, i) => {
+      const box2 = boxes[i] || { w: 0, h: 0 };
+      x0 = Math.min(x0, center.x - box2.w / 2);
+      x1 = Math.max(x1, center.x + box2.w / 2);
+      y0 = Math.min(y0, center.y - box2.h / 2);
+      y1 = Math.max(y1, center.y + box2.h / 2);
+    });
+    let x = x0 - style.padding, y = y0 - style.padding, w = x1 - x0 + 2 * style.padding, h2 = y1 - y0 + 2 * style.padding;
+    if (style.shape === "ellipse") {
+      const cx = x + w / 2, cy = y + h2 / 2;
+      w *= Math.SQRT2;
+      h2 *= Math.SQRT2;
+      x = cx - w / 2;
+      y = cy - h2 / 2;
+    }
+    return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h2) };
+  }
+  function labelSlot(frame, style) {
+    const m = Math.max(8, Math.round(style.label_size * 0.6));
+    const inside = style.label_placement === "inside";
+    const pos = style.label_position;
+    const col = pos === "left" || pos.endsWith("_left") ? "left" : pos === "right" || pos.endsWith("_right") ? "right" : "center";
+    const row = pos.startsWith("top") ? "top" : pos.startsWith("bottom") ? "bottom" : "middle";
+    const corner = style.shape === "ellipse" && inside && col !== "center" && row !== "middle";
+    const ix = m + (corner ? frame.w * 0.146 : 0), iy = m + (corner ? frame.h * 0.146 : 0);
+    let x = col === "left" ? inside ? ix : -m : col === "right" ? inside ? frame.w - ix : frame.w + m : frame.w / 2;
+    let anchor = col === "left" ? "start" : col === "right" ? "end" : "middle";
+    if (!inside && row !== "middle" && col !== "center") {
+      x = col === "left" ? 0 : frame.w;
+    }
+    if (!inside && row === "middle" && col !== "center") anchor = col === "left" ? "end" : "start";
+    const y = row === "top" ? inside ? iy : -m : row === "bottom" ? inside ? frame.h - iy : frame.h + m : frame.h / 2;
+    const baseline = row === "middle" ? "middle" : row === "top" ? inside ? "hanging" : "alphabetic" : inside ? "alphabetic" : "hanging";
+    return { x: Math.round(x), y: Math.round(y), anchor, baseline };
+  }
+  var dashArray = (style) => {
+    const k = Math.max(1, style.stroke_width);
+    if (style.stroke_style === "dashed") return `${4 * k} ${2.5 * k}`;
+    if (style.stroke_style === "dotted") return `${0.1 * k} ${2.2 * k}`;
+    return null;
+  };
+  var groups = { SHAPES, STROKES, POSITIONS, PLACEMENTS, WEIGHTS, FONTS, LABEL_COLORS, BOUNDS, DEFAULT_STYLE, STYLE_LABEL, WEIGHT_VALUE, presentMembers, orphanMembers, frameOf, labelSlot, dashArray };
+
+  // src/canvas/annotations.ts
+  var KINDS = ["note", "shape", "table", "image"];
+  var SHAPES2 = ["rectangle", "ellipse"];
+  var ANCHORS = ["free", "device", "group"];
+  var PLANES = ["back", "front"];
+  var ALIGNS = ["left", "center", "right"];
+  var VALIGNS = ["top", "middle", "bottom"];
+  var BOUNDS2 = { size: [20, 4e3], fill_opacity: [0, 100], stroke_width: [0, 8], radius: [0, 80], opacity: [10, 100], text_size: [8, 64] };
+  var KIND_LABEL = { note: "note", shape: "forme", table: "tableau", image: "image" };
+  var LABEL2 = {
+    rectangle: "rectangle",
+    ellipse: "ellipse",
+    free: "libre",
+    device: "équipement",
+    group: "groupe",
+    back: "dessous",
+    front: "dessus",
+    left: "gauche",
+    center: "centre",
+    right: "droite",
+    top: "haut",
+    middle: "milieu",
+    bottom: "bas"
+  };
+  var DEFAULT_STYLE2 = {
+    note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
+    shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle" },
+    table: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 6, opacity: 100, text_size: 12, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
+    image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" }
+  };
+  var DEFAULT_SIZE = { note: { w: 220, h: 80 }, shape: { w: 200, h: 120 }, table: { w: 160, h: 52 }, image: { w: 320, h: 240 } };
+  var TABLE_CELL_W = 80;
+  var TABLE_ROW_H = 26;
+  var PAD2 = 8;
+  var kindOf = (a) => a.content.kind;
+  var anchorHost = (a) => a.anchor.kind === "device" ? a.anchor.ref : null;
+  var anchorGroup = (a) => a.anchor.kind === "group" ? a.anchor.ref : null;
+  function isOrphan(model2, a) {
+    if (a.anchor.kind === "device") {
+      const node = model2.nodeByHost.get(a.anchor.ref || "");
+      return !node || !!node.ghost;
+    }
+    if (a.anchor.kind === "group") {
+      const group = model2.groupById.get(a.anchor.ref || "");
+      return !group || !group.members.some((host) => {
+        const node = model2.nodeByHost.get(host);
+        return !!node && !node.ghost;
+      });
+    }
+    return false;
+  }
+  function frameOf2(a, anchor) {
+    if (a.anchor.kind === "free") return { x: a.x, y: a.y, w: a.w, h: a.h };
+    if (!anchor) return null;
+    if (anchor.kind === "device") return { x: Math.round(anchor.center.x + a.x), y: Math.round(anchor.center.y + a.y), w: a.w, h: a.h };
+    return { x: anchor.frame.x + a.x, y: anchor.frame.y + a.y, w: a.w, h: a.h };
+  }
+  function offsetOf(a, at, anchor) {
+    if (a.anchor.kind === "free" || !anchor) return { x: Math.round(at.x), y: Math.round(at.y) };
+    if (anchor.kind === "device") return { x: Math.round(at.x - anchor.center.x), y: Math.round(at.y - anchor.center.y) };
+    return { x: Math.round(at.x - anchor.frame.x), y: Math.round(at.y - anchor.frame.y) };
+  }
+  var anchorRect = (anchor) => anchor.kind === "group" ? anchor.frame : { x: anchor.center.x - anchor.box.w / 2, y: anchor.center.y - anchor.box.h / 2, w: anchor.box.w, h: anchor.box.h };
+  var widthOf = (text, style) => style.text_font === "mono" ? monoWidth(text, style.text_size) : textWidth(text, style.text_size);
+  var lineHeight = (size) => Math.round(size * 1.35);
+  function wrapText(text, width2, style) {
+    const out = [];
+    const fits = (s2) => widthOf(s2, style) <= width2;
+    text.split("\n").forEach((paragraph) => {
+      let line2 = "";
+      paragraph.split(" ").forEach((word) => {
+        const candidate = line2 ? line2 + " " + word : word;
+        if (fits(candidate)) {
+          line2 = candidate;
+          return;
+        }
+        if (line2) out.push(line2);
+        line2 = "";
+        let rest = word;
+        while (rest && !fits(rest)) {
+          let cut = 1;
+          while (cut < rest.length && fits(rest.slice(0, cut + 1))) cut += 1;
+          out.push(rest.slice(0, cut));
+          rest = rest.slice(cut);
+        }
+        line2 = rest;
+      });
+      out.push(line2);
+    });
+    return out;
+  }
+  function layoutText(text, frame, style, pad = PAD2) {
+    const inner = Math.max(10, frame.w - 2 * pad);
+    const all = wrapText(text, inner, style);
+    const lh = lineHeight(style.text_size);
+    const max = Math.max(1, Math.floor((frame.h - 2 * pad) / lh));
+    const kept = all.slice(0, max);
+    const block = kept.length * lh;
+    const top = style.text_valign === "top" ? pad : style.text_valign === "bottom" ? frame.h - pad - block : (frame.h - block) / 2;
+    const x = style.text_align === "left" ? pad : style.text_align === "right" ? frame.w - pad : frame.w / 2;
+    const anchor = style.text_align === "left" ? "start" : style.text_align === "right" ? "end" : "middle";
+    return { lines: kept.map((line2, i) => ({ text: line2, x: Math.round(x), y: Math.round(top + i * lh + style.text_size) })), anchor, clipped: all.length > kept.length };
+  }
+  function fitCell(text, width2, style) {
+    if (widthOf(text, style) <= width2) return text;
+    let cut = text.length;
+    while (cut > 0 && widthOf(text.slice(0, cut) + "…", style) > width2) cut -= 1;
+    return cut ? text.slice(0, cut) + "…" : "";
+  }
+  function borderPoint(rect, toward) {
+    const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2, dx = toward.x - cx, dy = toward.y - cy;
+    if (!dx && !dy) return { x: cx, y: cy };
+    const t = Math.min(dx ? rect.w / 2 / Math.abs(dx) : Infinity, dy ? rect.h / 2 / Math.abs(dy) : Infinity);
+    return { x: Math.round(cx + dx * t), y: Math.round(cy + dy * t) };
+  }
+  function leaderOf(frame, anchor) {
+    const from = borderPoint(frame, { x: anchor.x + anchor.w / 2, y: anchor.y + anchor.h / 2 });
+    const to = borderPoint(anchor, { x: frame.x + frame.w / 2, y: frame.y + frame.h / 2 });
+    const overlap = frame.x < anchor.x + anchor.w && anchor.x < frame.x + frame.w && frame.y < anchor.y + anchor.h && anchor.y < frame.y + frame.h;
+    if (overlap || Math.hypot(to.x - from.x, to.y - from.y) < 6) return null;
+    return { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+  }
+  var dashArray2 = (style) => dashArray(style);
+  function shownWith(a, shownHosts, drawnGroups) {
+    if (a.anchor.kind === "device") return shownHosts.has(a.anchor.ref || "");
+    if (a.anchor.kind === "group") return drawnGroups.has(a.anchor.ref || "");
+    return true;
+  }
+  function summary(a) {
+    const c = a.content;
+    if (c.kind === "note") return c.text.split("\n")[0].slice(0, 60);
+    if (c.kind === "shape") return (LABEL2[c.shape] || c.shape) + (c.label ? " · " + c.label : "");
+    if (c.kind === "table") return c.rows.length + " × " + (c.rows[0] ? c.rows[0].length : 0) + (c.header && c.rows[0] ? " · " + c.rows[0].join(" | ").slice(0, 40) : "");
+    return c.alt || "image";
+  }
+  var signature = (a) => JSON.stringify([a.anchor, a.x, a.y, a.w, a.h, a.z, a.locked, a.leader, a.content, a.style]);
+  var annotations = { KINDS, SHAPES: SHAPES2, ANCHORS, PLANES, ALIGNS, VALIGNS, BOUNDS: BOUNDS2, KIND_LABEL, LABEL: LABEL2, DEFAULT_STYLE: DEFAULT_STYLE2, DEFAULT_SIZE, TABLE_CELL_W, TABLE_ROW_H, kindOf, anchorHost, anchorGroup, isOrphan, frameOf: frameOf2, offsetOf, anchorRect, borderPoint, wrapText, layoutText, lineHeight, fitCell, leaderOf, dashArray: dashArray2, shownWith, summary, signature };
+
+  // src/canvas/connectors.ts
+  var ROUTES = ["straight", "elbow", "curve"];
+  var HEADS = ["none", "arrow"];
+  var END_KINDS = ["free", "device", "group", "annotation"];
+  var BOUNDS3 = { stroke_width: [1, 8], opacity: [10, 100], text_size: [8, 64], bend: [-2e3, 2e3] };
+  var LABEL3 = { straight: "droit", elbow: "coudé", curve: "courbe", none: "aucune", arrow: "flèche", free: "libre", device: "équipement", group: "groupe", annotation: "annotation" };
+  var DEFAULT_STYLE3 = { hue: "slate", stroke_width: 2, stroke_style: "solid", opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue" };
+  var DEFAULT_HEADS = { start: "none", end: "arrow" };
+  var DEFAULT_LENGTH = 160;
+  var SIDES = ["auto", "n", "e", "s", "w"];
+  var FIXED_SIDES = ["n", "e", "s", "w"];
+  var SIDE_LABEL = { auto: "automatique", n: "haut", e: "droite", s: "bas", w: "gauche" };
+  var STUB = 24;
+  var RECT = { kind: "rect", rx: 0 };
+  var attachedEnds = (c) => [c.start, c.end].flatMap((e) => e.kind === "free" ? [] : [{ kind: e.kind, ref: e.ref }]);
+  var key = (kind, ref) => kind + "\0" + ref;
+  var hostsOf = (c) => attachedEnds(c).filter((e) => e.kind === "device").map((e) => e.ref);
+  function isOrphan2(model2, c) {
+    return attachedEnds(c).some((e) => {
+      if (e.kind === "device") {
+        const node = model2.nodeByHost.get(e.ref);
+        return !node || !!node.ghost;
+      }
+      if (e.kind === "group") {
+        const group = model2.groupById.get(e.ref);
+        return !group || !group.members.some((host) => {
+          const node = model2.nodeByHost.get(host);
+          return !!node && !node.ghost;
+        });
+      }
+      const a = model2.annotationById.get(e.ref);
+      return !a || model2.orphanAnnotations.includes(a);
+    });
+  }
+  function shownWith2(c, shownHosts, drawnGroups, drawnAnnotations) {
+    return attachedEnds(c).every((e) => e.kind === "device" ? shownHosts.has(e.ref) : e.kind === "group" ? drawnGroups.has(e.ref) : drawnAnnotations.has(e.ref));
+  }
+  var centerOf = (place) => place.kind === "point" ? place.at : { x: place.frame.x + place.frame.w / 2, y: place.frame.y + place.frame.h / 2 };
+  var unit = (from, to) => {
+    const dx = to.x - from.x, dy = to.y - from.y, len = Math.hypot(dx, dy) || 1;
+    return { x: dx / len, y: dy / len };
+  };
+  var r1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+  var add = (p, d, k) => ({ x: p.x + d.x * k, y: p.y + d.y * k });
+  var SIDE_NORMAL = { n: { x: 0, y: -1 }, e: { x: 1, y: 0 }, s: { x: 0, y: 1 }, w: { x: -1, y: 0 } };
+  function anchorPoint(frame, side) {
+    const n2 = SIDE_NORMAL[side];
+    return { x: frame.x + frame.w / 2 + n2.x * frame.w / 2, y: frame.y + frame.h / 2 + n2.y * frame.h / 2 };
+  }
+  var anchorsOf = (frame) => FIXED_SIDES.map((side) => ({ side, at: anchorPoint(frame, side) }));
+  function nearestAnchor(frame, at, tolerance) {
+    let best = null, bestD = tolerance;
+    anchorsOf(frame).forEach((a) => {
+      const d = Math.hypot(a.at.x - at.x, a.at.y - at.y);
+      if (d <= bestD) {
+        best = a;
+        bestD = d;
+      }
+    });
+    return best;
+  }
+  function outlinePoint(frame, shape, toward) {
+    const cx = frame.x + frame.w / 2, cy = frame.y + frame.h / 2, dx = toward.x - cx, dy = toward.y - cy;
+    if (!dx && !dy) return { x: cx, y: cy };
+    if (shape.kind === "ellipse") {
+      const t2 = 1 / Math.sqrt((dx / (frame.w / 2)) ** 2 + (dy / (frame.h / 2)) ** 2);
+      return { x: Math.round(cx + dx * t2), y: Math.round(cy + dy * t2) };
+    }
+    const rx = Math.max(0, Math.min(shape.rx, frame.w / 2, frame.h / 2));
+    const flat = borderPoint(frame, toward);
+    if (!rx || Math.abs(flat.x - cx) < frame.w / 2 - rx || Math.abs(flat.y - cy) < frame.h / 2 - rx) return flat;
+    const k = { x: cx + Math.sign(dx) * (frame.w / 2 - rx), y: cy + Math.sign(dy) * (frame.h / 2 - rx) };
+    const d = unit({ x: cx, y: cy }, toward), o = { x: cx - k.x, y: cy - k.y };
+    const od = o.x * d.x + o.y * d.y, disc = od * od - (o.x * o.x + o.y * o.y - rx * rx);
+    const t = -od + Math.sqrt(Math.max(0, disc));
+    return { x: Math.round(cx + d.x * t), y: Math.round(cy + d.y * t) };
+  }
+  var sideOf = (place) => place.kind === "box" && place.side && place.side !== "auto" ? place.side : null;
+  var normalOf = (place) => {
+    const side = sideOf(place);
+    return side ? SIDE_NORMAL[side] : null;
+  };
+  function waypoints(a, b, route, bend, da, db) {
+    const straight = { via: [], median: null, chord: [a, b] };
+    if (route === "curve" && bend) {
+      const n2 = normal(a, b);
+      return { via: [{ x: (a.x + b.x) / 2 + n2.x * 2 * bend, y: (a.y + b.y) / 2 + n2.y * 2 * bend }], median: null, chord: [a, b] };
+    }
+    if (route !== "elbow") return straight;
+    const a1 = da ? add(a, da, STUB) : a, b1 = db ? add(b, db, STUB) : b;
+    const horizontal = (d) => d ? d.x !== 0 : null;
+    const ha = horizontal(da), hb = horizontal(db);
+    const stubs = (corners2) => [...da ? [a1] : [], ...corners2, ...db ? [b1] : []];
+    if (ha !== null && hb !== null && ha !== hb) {
+      const corner = ha ? { x: b1.x, y: a1.y } : { x: a1.x, y: b1.y };
+      return { via: stubs([corner]), median: null, chord: [a1, b1] };
+    }
+    const alongX = ha !== null ? ha : hb !== null ? hb : Math.abs(b1.x - a1.x) >= Math.abs(b1.y - a1.y);
+    const corners = alongX ? [{ x: (a1.x + b1.x) / 2 + bend, y: a1.y }, { x: (a1.x + b1.x) / 2 + bend, y: b1.y }] : [{ x: a1.x, y: (a1.y + b1.y) / 2 + bend }, { x: b1.x, y: (a1.y + b1.y) / 2 + bend }];
+    return { via: stubs(corners), median: corners, chord: [a1, b1] };
+  }
+  var normal = (a, b) => {
+    const u = unit(a, b);
+    return { x: -u.y, y: u.x };
+  };
+  function pathOf(start, end, route, bend) {
+    const da = normalOf(start), db = normalOf(end);
+    const fixedA = start.kind === "box" && da ? anchorPoint(start.frame, sideOf(start)) : null;
+    const fixedB = end.kind === "box" && db ? anchorPoint(end.frame, sideOf(end)) : null;
+    const ca = fixedA || centerOf(start), cb = fixedB || centerOf(end);
+    const rough = waypoints(ca, cb, route, bend, da, db);
+    const towardA = rough.via[0] || cb, towardB = rough.via[rough.via.length - 1] || ca;
+    const a = fixedA || (start.kind === "box" ? outlinePoint(start.frame, start.shape || RECT, towardA) : ca);
+    const b = fixedB || (end.kind === "box" ? outlinePoint(end.frame, end.shape || RECT, towardB) : cb);
+    const real = waypoints(a, b, route, bend, da, db);
+    const points = [a, ...real.via, b];
+    let d, mid;
+    if (route === "curve" && real.via.length) {
+      const c = real.via[0];
+      d = `M${r1(a.x)},${r1(a.y)} Q${r1(c.x)},${r1(c.y)} ${r1(b.x)},${r1(b.y)}`;
+      mid = { x: (a.x + 2 * c.x + b.x) / 4, y: (a.y + 2 * c.y + b.y) / 4 };
+    } else {
+      d = points.map((p, i) => (i ? "L" : "M") + r1(p.x) + "," + r1(p.y)).join(" ");
+      const m = real.median;
+      mid = m ? { x: (m[0].x + m[1].x) / 2, y: (m[0].y + m[1].y) / 2 } : real.via.length ? real.via[Math.floor((real.via.length - 1) / 2)] : { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+    return { d, a, b, mid, dirA: unit(points[1], a), dirB: unit(points[points.length - 2], b), chord: { a: real.chord[0], b: real.chord[1] }, bendable: route !== "elbow" || !!real.median };
+  }
+  function bendFrom(a, b, route, at) {
+    if (route === "elbow") return Math.round(Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? at.x - (a.x + b.x) / 2 : at.y - (a.y + b.y) / 2);
+    const n2 = normal(a, b);
+    return Math.round((at.x - (a.x + b.x) / 2) * n2.x + (at.y - (a.y + b.y) / 2) * n2.y);
+  }
+  function arrowHead(tip2, dir, size) {
+    const back = { x: tip2.x - dir.x * size, y: tip2.y - dir.y * size }, n2 = { x: -dir.y, y: dir.x }, half = size * 0.45;
+    return `${r1(tip2.x)},${r1(tip2.y)} ${r1(back.x + n2.x * half)},${r1(back.y + n2.y * half)} ${r1(back.x - n2.x * half)},${r1(back.y - n2.y * half)}`;
+  }
+  var headSize = (style) => 7 + 2.5 * style.stroke_width;
+  function bbox(points, pad = 0) {
+    const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+    const x = Math.min(...xs) - pad, y = Math.min(...ys) - pad;
+    return { x, y, w: Math.max(...xs) + pad - x, h: Math.max(...ys) + pad - y };
+  }
+  var endText = (e) => e.kind === "free" ? e.x + ", " + e.y : (LABEL3[e.kind] || e.kind) + " " + e.ref + (e.side && e.side !== "auto" ? " (" + SIDE_LABEL[e.side] + ")" : "");
+  var summary2 = (c) => (c.heads.start === "arrow" || c.heads.end === "arrow" ? "flèche" : "ligne") + " · " + endText(c.start) + " → " + endText(c.end) + (c.label ? " · " + c.label : "");
+  var freeEnd = (at) => ({ kind: "free", x: Math.round(at.x), y: Math.round(at.y) });
+  var attachedEnd = (kind, ref, side = "auto") => ({ kind, ref, side });
+  var reversed = (c) => ({ start: c.end, end: c.start, heads: { start: c.heads.end, end: c.heads.start } });
+  var connectors = { ROUTES, HEADS, END_KINDS, SIDES, FIXED_SIDES, SIDE_LABEL, STUB, BOUNDS: BOUNDS3, LABEL: LABEL3, DEFAULT_STYLE: DEFAULT_STYLE3, DEFAULT_HEADS, DEFAULT_LENGTH, attachedEnds, key, hostsOf, isOrphan: isOrphan2, shownWith: shownWith2, normal, anchorPoint, anchorsOf, nearestAnchor, outlinePoint, normalOf, pathOf, bendFrom, arrowHead, headSize, bbox, summary: summary2, freeEnd, attachedEnd, reversed };
+
   // src/canvas/dom.ts
   var SVG_NS = "http://www.w3.org/2000/svg";
   var HANDLERS = /* @__PURE__ */ new Map([["onclick", "click"], ["oninput", "input"], ["onchange", "change"], ["onsubmit", "submit"], ["onkeydown", "keydown"]]);
@@ -44,6 +662,13 @@
     if (role === "standby" || mode === "active_passive" && role === "secondary") return "follow";
     return "plain";
   }
+  function haBadge(mode, role) {
+    if (role === "member") return null;
+    if (role === "standby") return "P";
+    if (role === "active" || mode === "active_active") return "A";
+    const group = haRoleGroup(mode, role);
+    return group === "lead" ? "A" : group === "follow" ? "P" : null;
+  }
   var ifaceKey = (hostname, name) => hostname + SEP + name;
   var linkId = (link) => [link.a.hostname, link.a.interface, link.b.hostname, link.b.interface].join(SEP);
   var pairKey = (link) => link.a.hostname + SEP + link.b.hostname;
@@ -57,10 +682,10 @@
     }
     return best;
   }
-  function pushTo(map, key, value) {
-    const found = map.get(key);
+  function pushTo(map, key2, value) {
+    const found = map.get(key2);
     if (found) found.push(value);
-    else map.set(key, [value]);
+    else map.set(key2, [value]);
   }
   function attachChecks(model2, checks) {
     checks.forEach((check, index) => {
@@ -87,8 +712,8 @@
     });
   }
   function buildLinks(model2, links, ghosts) {
-    const groups = /* @__PURE__ */ new Map();
-    const add = (raw, ghost) => {
+    const groups2 = /* @__PURE__ */ new Map();
+    const add2 = (raw, ghost) => {
       const sources = Array.from(new Set(raw.evidence.map((e) => e.source))).sort();
       const link = {
         index: model2.links.length + model2.ghostLinks.length,
@@ -111,17 +736,17 @@
       };
       (ghost ? model2.ghostLinks : model2.links).push(link);
       model2.linkById.set(link.id, link);
-      pushTo(groups, link.pair, link);
+      pushTo(groups2, link.pair, link);
       pushTo(model2.linksByIface, ifaceKey(raw.a.hostname, raw.a.interface), link);
       pushTo(model2.linksByIface, ifaceKey(raw.b.hostname, raw.b.interface), link);
       pushTo(model2.linksByNode, raw.a.hostname, link);
       if (raw.b.hostname !== raw.a.hostname) pushTo(model2.linksByNode, raw.b.hostname, link);
     };
-    links.forEach((raw) => add(raw, false));
+    links.forEach((raw) => add2(raw, false));
     ghosts.forEach((raw) => {
-      if (!model2.linkById.has(linkId(raw))) add(raw, true);
+      if (!model2.linkById.has(linkId(raw))) add2(raw, true);
     });
-    groups.forEach((members) => {
+    groups2.forEach((members) => {
       const ranked = members.map((link, rank) => ({ link, rank, beam: beamIdOf(link.raw) || "" }));
       ranked.sort((x, y) => x.beam < y.beam ? -1 : x.beam > y.beam ? 1 : x.rank - y.rank);
       ranked.forEach(({ link }, index) => {
@@ -138,30 +763,30 @@
       model2.nodeByHost.set(node.hostname, ghost);
     });
     diff.interfaces.removed.forEach((itf) => {
-      const key = ifaceKey(itf.hostname, itf.name);
-      if (model2.ifaceByKey.has(key)) return;
+      const key2 = ifaceKey(itf.hostname, itf.name);
+      if (model2.ifaceByKey.has(key2)) return;
       const ghost = { ...itf, ghost: true };
-      model2.ghostIfaceByKey.set(key, ghost);
+      model2.ghostIfaceByKey.set(key2, ghost);
       pushTo(model2.ghostIfacesByNode, itf.hostname, ghost);
     });
   }
   function interfaceAt(model2, hostname, name, removed) {
-    const key = ifaceKey(hostname, name);
-    const live = model2.ifaceByKey.get(key);
+    const key2 = ifaceKey(hostname, name);
+    const live = model2.ifaceByKey.get(key2);
     if (live) return { itf: live, ghost: false };
-    const gone = removed ? model2.ghostIfaceByKey.get(key) : null;
+    const gone = removed ? model2.ghostIfaceByKey.get(key2) : null;
     return gone ? { itf: gone, ghost: true } : null;
   }
   var emptyDiffIndex = () => ({ node: /* @__PURE__ */ new Map(), interface: /* @__PURE__ */ new Map(), link: /* @__PURE__ */ new Map(), aggregate: /* @__PURE__ */ new Map(), cluster: /* @__PURE__ */ new Map(), mlag_domain: /* @__PURE__ */ new Map() });
   function indexDiff(diff) {
     const of = emptyDiffIndex();
     if (!diff) return of;
-    const mark = (map, key, kind, fields) => {
-      map.set(key, { kind, fields: fields || [] });
+    const mark = (map, key2, kind, fields) => {
+      map.set(key2, { kind, fields: fields || [] });
     };
     const mlagKey = (id, members) => id + SEP + members.map((m) => aggregateKey(m.hostname, m.aggregate)).join(SEP);
-    diff.nodes.added.forEach((n) => mark(of.node, n.hostname, "added"));
-    diff.nodes.removed.forEach((n) => mark(of.node, n.hostname, "removed"));
+    diff.nodes.added.forEach((n2) => mark(of.node, n2.hostname, "added"));
+    diff.nodes.removed.forEach((n2) => mark(of.node, n2.hostname, "removed"));
     diff.nodes.changed.forEach((c) => {
       if (c.ref.kind === "node") mark(of.node, c.ref.hostname, "changed", c.fields);
     });
@@ -200,11 +825,11 @@
   }
   function buildAggregates(model2, snapshot) {
     snapshot.aggregates.forEach((raw, index) => {
-      const key = aggregateKey(raw.hostname, raw.name);
-      const entry = { index, key, raw, hostname: raw.hostname, name: raw.name, cables: [], mlag: null, beams: [], checks: [], worst: null };
+      const key2 = aggregateKey(raw.hostname, raw.name);
+      const entry = { index, key: key2, raw, hostname: raw.hostname, name: raw.name, cables: [], mlag: null, beams: [], checks: [], worst: null };
       entry.cables = raw.cables.map((cable) => model2.linkById.get(linkId(cable))).filter((link) => !!link);
       model2.aggregates.push(entry);
-      model2.aggregateByKey.set(key, entry);
+      model2.aggregateByKey.set(key2, entry);
       pushTo(model2.aggregatesByNode, raw.hostname, entry);
     });
     snapshot.mlag_domains.forEach((raw, index) => {
@@ -293,8 +918,8 @@
     else if (value && typeof value === "object") {
       const record = value;
       if ("hostname" in record && "interface" in record) found.ends.add(ifaceKey(String(record.hostname), record.interface));
-      else Object.entries(record).forEach(([key, item]) => {
-        if (!LOCAL_PORT_KEYS.has(key)) mentioned(item, found);
+      else Object.entries(record).forEach(([key2, item]) => {
+        if (!LOCAL_PORT_KEYS.has(key2)) mentioned(item, found);
       });
     } else if (typeof value === "string") found.names.add(value);
     return found;
@@ -346,11 +971,11 @@
   function sourceCombos(links) {
     const rows = /* @__PURE__ */ new Map();
     for (const link of links) {
-      const key = link.combo + SEP + link.status;
-      let row = rows.get(key);
+      const key2 = link.combo + SEP + link.status;
+      let row = rows.get(key2);
       if (!row) {
         row = { combo: link.combo, status: link.status, observed: link.sources.some((s2) => OBSERVED[s2]), count: 0 };
-        rows.set(key, row);
+        rows.set(key2, row);
       }
       row.count += 1;
     }
@@ -363,11 +988,45 @@
   }
   function applyIntent(model2, intent2) {
     model2.intent = intent2;
-    model2.pinByHost = new Map((intent2 ? intent2.pins : []).map((pin) => [pin.hostname, pin]));
-    model2.orphanPins = (intent2 ? intent2.pins : []).filter((pin) => {
-      const node = model2.nodeByHost.get(pin.hostname);
+    const absent = (hostname) => {
+      const node = model2.nodeByHost.get(hostname);
       return !node || !!node.ghost;
+    };
+    model2.pinByHost = new Map((intent2 ? intent2.pins : []).map((pin) => [pin.hostname, pin]));
+    model2.orphanPins = (intent2 ? intent2.pins : []).filter((pin) => absent(pin.hostname));
+    model2.colorByType = new Map((intent2 && intent2.type_colors ? intent2.type_colors : []).map((color) => [color.type, color]));
+    model2.colorByHost = new Map((intent2 && intent2.device_colors ? intent2.device_colors : []).map((color) => [color.hostname, color]));
+    model2.orphanColors = (intent2 && intent2.device_colors ? intent2.device_colors : []).filter((color) => absent(color.hostname));
+    const groups2 = intent2 && intent2.groups ? intent2.groups : [];
+    model2.groupById = new Map(groups2.map((group) => [group.id, group]));
+    model2.groupsByHost = /* @__PURE__ */ new Map();
+    groups2.forEach((group) => group.members.forEach((host) => {
+      const list = model2.groupsByHost.get(host) || [];
+      list.push(group);
+      model2.groupsByHost.set(host, list);
+    }));
+    model2.orphanGroups = groups2.filter((group) => group.members.every(absent));
+    const notes = intent2 && intent2.annotations ? intent2.annotations : [];
+    model2.annotationById = new Map(notes.map((a) => [a.id, a]));
+    model2.annotationsByHost = /* @__PURE__ */ new Map();
+    model2.annotationsByGroup = /* @__PURE__ */ new Map();
+    notes.forEach((a) => {
+      const index = a.anchor.kind === "device" ? model2.annotationsByHost : a.anchor.kind === "group" ? model2.annotationsByGroup : null;
+      if (!index || !a.anchor.ref) return;
+      const list = index.get(a.anchor.ref) || [];
+      list.push(a);
+      index.set(a.anchor.ref, list);
     });
+    model2.orphanAnnotations = notes.filter((a) => isOrphan(model2, a));
+    const lines = intent2 && intent2.connectors ? intent2.connectors : [];
+    model2.connectorById = new Map(lines.map((c) => [c.id, c]));
+    model2.connectorsByRef = /* @__PURE__ */ new Map();
+    lines.forEach((c) => attachedEnds(c).forEach((e) => {
+      const k = key(e.kind, e.ref), list = model2.connectorsByRef.get(k) || [];
+      list.push(c);
+      model2.connectorsByRef.set(k, list);
+    }));
+    model2.orphanConnectors = lines.filter((c) => isOrphan2(model2, c));
   }
   function applyPlacement(model2, placement2) {
     model2.placement = placement2;
@@ -423,8 +1082,22 @@
       intent: null,
       pinByHost: /* @__PURE__ */ new Map(),
       orphanPins: [],
+      colorByType: /* @__PURE__ */ new Map(),
+      colorByHost: /* @__PURE__ */ new Map(),
+      orphanColors: [],
+      groupById: /* @__PURE__ */ new Map(),
+      groupsByHost: /* @__PURE__ */ new Map(),
+      orphanGroups: [],
+      annotationById: /* @__PURE__ */ new Map(),
+      annotationsByHost: /* @__PURE__ */ new Map(),
+      annotationsByGroup: /* @__PURE__ */ new Map(),
+      orphanAnnotations: [],
+      connectorById: /* @__PURE__ */ new Map(),
+      connectorsByRef: /* @__PURE__ */ new Map(),
+      orphanConnectors: [],
       placement: null,
-      placeByHost: /* @__PURE__ */ new Map()
+      placeByHost: /* @__PURE__ */ new Map(),
+      cardWidth: 0
     };
     snapshot.nodes.forEach((node) => model2.nodeByHost.set(node.hostname, node));
     snapshot.interfaces.forEach((itf) => {
@@ -441,10 +1114,11 @@
     model2.combos = sourceCombos(model2.links);
     model2.severityCounts = countBy(model2.checks, (c) => c.severity);
     model2.statusCounts = countBy(model2.links, (l) => l.status);
-    model2.kindCounts = countBy(model2.nodes, (n) => n.kind);
+    model2.kindCounts = countBy(model2.nodes, (n2) => n2.kind);
     model2.diffOf = indexDiff(diff);
     model2.changeOf = (kind, id) => model2.diffOf[kind].get(id) || null;
     model2.diffCount = diffCount(diff);
+    model2.cardWidth = commonCardWidth(model2);
     applyIntent(model2, data2.intent || null);
     applyPlacement(model2, data2.placement || null);
     return model2;
@@ -464,7 +1138,7 @@
   }
   function entityOf(model2, selection) {
     if (!selection) return null;
-    const maps = { node: model2.nodeByHost, link: model2.linkById, aggregate: model2.aggregateByKey, beam: model2.beamById, cluster: model2.clusterById };
+    const maps = { node: model2.nodeByHost, link: model2.linkById, aggregate: model2.aggregateByKey, beam: model2.beamById, cluster: model2.clusterById, group: model2.groupById, annotation: model2.annotationById, connector: model2.connectorById };
     return maps[selection.kind] ? maps[selection.kind].get(selection.id) || null : null;
   }
   var nodeOf = (model2, selection) => selection && selection.kind === "node" ? entityOf(model2, selection) : null;
@@ -472,7 +1146,12 @@
   var aggregateOf = (model2, selection) => selection && selection.kind === "aggregate" ? entityOf(model2, selection) : null;
   var beamOf = (model2, selection) => selection && selection.kind === "beam" ? entityOf(model2, selection) : null;
   var clusterOf = (model2, selection) => selection && selection.kind === "cluster" ? entityOf(model2, selection) : null;
-  function hostsOf(model2, selection) {
+  var groupOf = (model2, selection) => selection && selection.kind === "group" ? entityOf(model2, selection) : null;
+  var presentOf = (model2, group) => group.members.filter((host) => {
+    const node = model2.nodeByHost.get(host);
+    return !!node && !node.ghost;
+  });
+  function hostsOf2(model2, selection) {
     if (!selection || !entityOf(model2, selection)) return [];
     switch (selection.kind) {
       case "node":
@@ -487,6 +1166,14 @@
         const beam = beamOf(model2, selection);
         return [beam.a.hostname, beam.b.hostname];
       }
+      case "group":
+        return presentOf(model2, groupOf(model2, selection));
+      case "annotation": {
+        const a = model2.annotationById.get(selection.id);
+        return a.anchor.kind === "device" && a.anchor.ref && model2.nodeByHost.has(a.anchor.ref) ? [a.anchor.ref] : a.anchor.kind === "group" ? presentOf(model2, model2.groupById.get(a.anchor.ref || "") || { members: [] }) : [];
+      }
+      case "connector":
+        return hostsOf(model2.connectorById.get(selection.id)).filter((host) => model2.nodeByHost.has(host));
       default:
         return clusterOf(model2, selection).hosts;
     }
@@ -506,27 +1193,46 @@
         const beam = beamOf(model2, selection);
         return ["beam", JSON.stringify([beam.a.hostname, beam.a.aggregate, beam.b.hostname, beam.b.aggregate])];
       }
+      case "group":
+        return ["group", groupOf(model2, selection).id];
+      case "annotation":
+        return ["annotation", selection.id];
+      case "connector":
+        return ["connector", selection.id];
       default:
         return ["cluster", JSON.stringify(clusterOf(model2, selection).hosts)];
     }
   }
   function selectionFromToken(model2, kind, token) {
     if (kind === "node") return model2.nodeByHost.has(token) ? { kind, id: token } : null;
+    if (kind === "group") return model2.groupById.has(token) ? { kind, id: token } : null;
+    if (kind === "annotation") return model2.annotationById.has(token) ? { kind, id: token } : null;
+    if (kind === "connector") return model2.connectorById.has(token) ? { kind, id: token } : null;
     const lengths = { link: 4, aggregate: 2, beam: 4, cluster: null };
     if (!(kind in lengths)) return null;
     const parts = parseToken(token, lengths[kind]);
     if (!parts) return null;
     const swapped = kind === "link" || kind === "beam" ? [parts[2], parts[3], parts[0], parts[1]] : null;
-    const candidates = kind === "cluster" ? [parts.slice().sort()] : swapped ? [parts, swapped] : [parts];
-    for (const order of candidates) {
+    const candidates2 = kind === "cluster" ? [parts.slice().sort()] : swapped ? [parts, swapped] : [parts];
+    for (const order of candidates2) {
       const id = kind === "beam" ? aggregateKey(order[0], order[1]) + SEP + aggregateKey(order[2], order[3]) : order.join(SEP);
       const selection = { kind, id };
       if (entityOf(model2, selection)) return selection;
     }
     return null;
   }
+  function cardExtrasOf(model2, node) {
+    const ha = (model2.haMembershipsByHost.get(node.hostname) || [])[0];
+    return { role: ha ? ha.member.role : null, stack: node.stack ? node.stack.member_count : null };
+  }
+  function commonCardWidth(model2) {
+    const cards = model2.nodes.concat(model2.ghostNodes).filter((node) => node.kind !== "stub");
+    return uniformWidth(cards.map((node) => width(displayName(node.hostname), cardExtrasOf(model2, node))));
+  }
   var model = {
     build,
+    cardExtrasOf,
+    haBadge,
     applyIntent,
     applyPlacement,
     ifaceKey,
@@ -539,9 +1245,11 @@
     aggregateKey,
     clusterId,
     entityOf,
-    hostsOf,
+    hostsOf: hostsOf2,
     tokenOf,
     selectionFromToken,
+    groupOf,
+    presentOf,
     SEVERITY_RANK,
     OBSERVED,
     haRoleGroup,
@@ -552,7 +1260,7 @@
   // src/canvas/format.ts
   var SOURCE_LABEL = { lldp: "LLDP", cdp: "CDP", description: "Description" };
   var STATUS_LABEL = { confirmed: "confirmé", observed_only: "observé seul", documented_only: "documenté seul" };
-  var KIND_LABEL = { device: "équipement collecté", external: "équipement d'une autre infra", stub: "voisin inconnu" };
+  var KIND_LABEL2 = { device: "équipement collecté", external: "équipement d'une autre infra", stub: "voisin inconnu" };
   var RESOLUTION_LABEL = {
     hostname: "nom exact",
     hostname_casefold: "nom, à la casse près",
@@ -562,6 +1270,26 @@
   };
   var DIFF_LABEL = { added: "ajouté", removed: "retiré", changed: "changé" };
   var EVENT_LABEL = { rebooted: "redémarré", flapped: "flap" };
+  var PORT_SHORT = [
+    ["HundredGigE", "Hu"],
+    ["FortyGigabitEthernet", "Fo"],
+    ["TwentyFiveGigE", "Twe"],
+    ["TenGigabitEthernet", "Te"],
+    ["FiveGigabitEthernet", "Fi"],
+    ["TwoGigabitEthernet", "Tw"],
+    ["AppGigabitEthernet", "Ap"],
+    ["GigabitEthernet", "Gi"],
+    ["FastEthernet", "Fa"],
+    ["Ethernet", "Eth"],
+    ["port-channel", "Po"],
+    ["Port-channel", "Po"],
+    ["Bundle-Ether", "BE"]
+  ];
+  function shortPort(name) {
+    if (!name) return "";
+    for (const [long, short] of PORT_SHORT) if (name.startsWith(long) && /^\d/.test(name.slice(long.length))) return short + name.slice(long.length);
+    return name;
+  }
   var isEnd = (value) => "hostname" in value && "interface" in value;
   function plain(value) {
     if (value === null || value === void 0) return "—";
@@ -573,7 +1301,7 @@
     return String(value);
   }
   var FACT_ORDER = ["oper_status", "oper_reason", "speed_mbps", "switchport_mode", "vlan"];
-  var factRank = (key) => FACT_ORDER.includes(key) ? FACT_ORDER.indexOf(key) : FACT_ORDER.length;
+  var factRank = (key2) => FACT_ORDER.includes(key2) ? FACT_ORDER.indexOf(key2) : FACT_ORDER.length;
   function endWithFacts(value) {
     const facts = Object.entries(value).filter(([k, v]) => k !== "hostname" && k !== "interface" && v !== null && v !== void 0).sort((x, y) => factRank(x[0]) - factRank(y[0]) || (x[0] < y[0] ? -1 : 1));
     const label2 = endLabel(value);
@@ -593,14 +1321,30 @@
     if (mbps === null || mbps === void 0) return null;
     return mbps >= 1e3 ? String(mbps / 1e3).replace(".", ",") + " Gb/s" : mbps + " Mb/s";
   }
-  var format = { plain, brief, speedText, elapsedText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL };
+  var OBSERVED_SOURCE = { lldp: true, cdp: true };
+  function whyText(link, ports = true) {
+    const witnesses = (keep) => Array.from(new Set(link.raw.evidence.filter((e) => keep(e.source)).map((e) => ports ? endLabel(e.witness) : e.witness.hostname))).join(", ");
+    const seen = witnesses((src) => OBSERVED_SOURCE[src]);
+    const written = witnesses((src) => !OBSERVED_SOURCE[src]);
+    const protocols = link.sources.filter((src) => OBSERVED_SOURCE[src]).map((src) => src.toUpperCase()).join(" et ");
+    const parts = [];
+    if (seen) parts.push("Observé en " + protocols + " depuis " + seen + ".");
+    else parts.push("Aucune observation LLDP ni CDP : ce câble n'existe que par les descriptions d'interface.");
+    parts.push(written ? "Documenté par la description de " + written + "." : "Aucune description ne le documente.");
+    if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push("Attention : une description ne concorde pas avec l'observé, voir le contrôle ci-dessous.");
+    return parts.join(" ");
+  }
+  var format = { plain, brief, shortPort, speedText, elapsedText, whyText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL: KIND_LABEL2, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL };
 
   // src/canvas/layout.ts
   var GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-  var IDEAL = 170;
+  var IDEAL = 220;
   var MIN_DISTANCE = 1e-4;
   var REACH = IDEAL * 3;
-  var SHELF_GAP = 110;
+  var DEFAULT_CARD = { w: 200, h: 80 };
+  var GAP_X = 60;
+  var GAP_Y = 40;
+  var SHELF_GAP = 50;
   var HEAT = 1.5;
   var EXTEND_HEAT = 0.5;
   var NEAR_STEP = 0.3;
@@ -616,15 +1360,15 @@
     return new Map(ids.map((id, index) => [id, spiral(index)]));
   }
   function uniqueEdges(edges, known2) {
-    const weights = /* @__PURE__ */ new Map();
+    const weights2 = /* @__PURE__ */ new Map();
     for (const [from, to, boost] of edges) {
       if (from === to || !known2.has(from) || !known2.has(to)) continue;
-      const key = from < to ? from + "\0" + to : to + "\0" + from;
-      const found = weights.get(key) || { count: 0, boost: 1 };
-      weights.set(key, { count: found.count + 1, boost: Math.max(found.boost, boost || 1) });
+      const key2 = from < to ? from + "\0" + to : to + "\0" + from;
+      const found = weights2.get(key2) || { count: 0, boost: 1 };
+      weights2.set(key2, { count: found.count + 1, boost: Math.max(found.boost, boost || 1) });
     }
-    return Array.from(weights).sort(([x], [y]) => x < y ? -1 : 1).map(([key, { count, boost }]) => {
-      const [from, to] = key.split("\0");
+    return Array.from(weights2).sort(([x], [y]) => x < y ? -1 : 1).map(([key2, { count, boost }]) => {
+      const [from, to] = key2.split("\0");
       return { from, to, weight: (1 + 0.35 * Math.log(count)) * boost };
     });
   }
@@ -694,8 +1438,32 @@
       x[i] += mx[i] / length * capped;
       y[i] += my[i] / length * capped;
     }
+    separate(sim);
   }
-  function simulation(sorted, points, links, fixed) {
+  function separate(sim) {
+    const { count, x, y, free, spanX, spanY } = sim;
+    for (let i = 0; i < count; i += 1) {
+      for (let j = i + 1; j < count; j += 1) {
+        if (!free[i] && !free[j]) continue;
+        const dx = x[i] - x[j], dy = y[i] - y[j];
+        const overX = spanX - Math.abs(dx), overY = spanY - Math.abs(dy);
+        if (overX <= 0 || overY <= 0) continue;
+        const share = free[i] && free[j] ? 2 : 1;
+        const alongX = overX / spanX < overY / spanY;
+        const sign = (alongX ? dx : dy) > 0 ? 1 : -1;
+        const pushX = alongX ? sign * overX / share : 0, pushY = alongX ? 0 : sign * overY / share;
+        if (free[i]) {
+          x[i] += pushX;
+          y[i] += pushY;
+        }
+        if (free[j]) {
+          x[j] -= pushX;
+          y[j] -= pushY;
+        }
+      }
+    }
+  }
+  function simulation(sorted, points, links, fixed, card2) {
     const rank = new Map(sorted.map((id, index) => [id, index]));
     const at = (id) => points.get(id);
     return {
@@ -707,14 +1475,17 @@
       from: Int32Array.from(links, (edge) => rank.get(edge.from)),
       to: Int32Array.from(links, (edge) => rank.get(edge.to)),
       weight: Float64Array.from(links, (edge) => edge.weight),
-      free: sorted.map((id) => !fixed.has(id))
+      free: sorted.map((id) => !fixed.has(id)),
+      spanX: card2.w + GAP_X,
+      spanY: card2.h + GAP_Y
     };
   }
-  function shelve(points, lonely, fixed) {
-    const box = bounds(points);
-    const perRow = Math.max(1, Math.floor(Math.max(box.width, SHELF_GAP * 4) / SHELF_GAP));
+  function shelve(points, lonely, fixed, card2) {
+    const box2 = bounds(points);
+    const pitch = card2.w + SHELF_GAP;
+    const perRow = Math.max(1, Math.floor(Math.max(box2.width, pitch * 4) / pitch));
     lonely.forEach((id, index) => {
-      const spot = { x: box.x + index % perRow * SHELF_GAP, y: box.y + box.height + 140 + Math.floor(index / perRow) * 80 };
+      const spot = { x: box2.x + index % perRow * pitch, y: box2.y + box2.height + 140 + Math.floor(index / perRow) * (card2.h + GAP_Y) };
       const pin = fixed.get(id);
       points.set(id, pin ? { x: pin.x, y: pin.y } : spot);
     });
@@ -730,12 +1501,13 @@
       if (points.has(id)) points.set(id, { x: point.x, y: point.y });
     });
     if (options.extend) seedNear(sorted, links, held, points);
-    const sim = simulation(sorted, points, links, held);
+    const card2 = options.card || DEFAULT_CARD;
+    const sim = simulation(sorted, points, links, held, card2);
     const iterations = iterationsFor(sorted.length);
     const heat = IDEAL * (options.extend ? EXTEND_HEAT : HEAT);
     for (let i = 0; i < iterations; i += 1) step(sim, heat * (1 - i / iterations) + 1);
     sorted.forEach((id, index) => points.set(id, held.has(id) ? points.get(id) : { x: Math.round(sim.x[index]), y: Math.round(sim.y[index]) }));
-    shelve(points, all.filter((id) => !connected.has(id)), held);
+    shelve(points, all.filter((id) => !connected.has(id)), held, card2);
     return points;
   }
   function bounds(points) {
@@ -754,40 +1526,42 @@
   // src/canvas/geometry.ts
   var FAN = 14;
   var FAN_MAX = 110;
-  var HULL_PAD = 40;
+  var HULL_PAD = 24;
   var BAND = 18;
   var HIT_MARGIN = 8;
+  var PORT_GAP = 16;
+  var PORT_CLEAR = 62;
   var CHAR_W = 6.6;
   function fanOffset(link) {
     const spacing = Math.min(FAN, FAN_MAX / link.pairCount);
     return (link.indexInPair - (link.pairCount - 1) / 2) * spacing;
   }
-  function curve(p, q, link) {
+  function curve(p, q, link, clear2) {
     if (link.a.hostname === link.b.hostname) {
-      const reach = 46 + link.indexInPair * 12;
+      const reach2 = 46 + link.indexInPair * 12;
       return {
-        path: `M${p.x - 8},${p.y - 12} C${p.x - reach},${p.y - reach - 30} ${p.x + reach},${p.y - reach - 30} ${p.x + 8},${p.y - 12}`,
-        mid: { x: p.x, y: p.y - reach * 0.75 - 22 },
+        path: `M${p.x - 8},${p.y - 12} C${p.x - reach2},${p.y - reach2 - 30} ${p.x + reach2},${p.y - reach2 - 30} ${p.x + 8},${p.y - 12}`,
+        mid: { x: p.x, y: p.y - reach2 * 0.75 - 22 },
         ends: [{ x: p.x - 26, y: p.y - 30 }, { x: p.x + 26, y: p.y - 30 }]
       };
     }
-    return chord(p, q, fanOffset(link));
+    return chord(p, q, fanOffset(link), clear2);
   }
-  function chord(p, q, offset) {
+  function chord(p, q, offset, clear2) {
     const dx = q.x - p.x, dy = q.y - p.y;
     const length = Math.max(Math.hypot(dx, dy), 0.01);
     const nx = -dy / length, ny = dx / length;
     const c = { x: (p.x + q.x) / 2 + nx * offset * 2, y: (p.y + q.y) / 2 + ny * offset * 2 };
     const at = (t) => ({ x: (1 - t) * (1 - t) * p.x + 2 * (1 - t) * t * c.x + t * t * q.x, y: (1 - t) * (1 - t) * p.y + 2 * (1 - t) * t * c.y + t * t * q.y });
-    const inset = Math.min(0.4, 78 / length);
+    const inset = (edge) => Math.min(0.45, ((edge === void 0 ? PORT_CLEAR : edge) + PORT_GAP) / length);
     const side = nx * offset;
     const anchor = side > 0.5 ? "start" : side < -0.5 ? "end" : "middle";
-    return { path: `M${p.x},${p.y} Q${c.x},${c.y} ${q.x},${q.y}`, mid: at(0.5), ends: [at(inset), at(1 - inset)], anchor };
+    return { path: `M${p.x},${p.y} Q${c.x},${c.y} ${q.x},${q.y}`, mid: at(0.5), ends: [at(inset(clear2 && clear2[0])), at(1 - inset(clear2 && clear2[1]))], anchor };
   }
-  function hull(points, longest) {
-    const box = bounds(new Map(points.map((p, i) => [i, p])));
-    const padX = Math.max(HULL_PAD, CHAR_W * (longest || 0) / 2 + 12);
-    return { x: box.x - padX, y: box.y - HULL_PAD - 6, width: box.width + 2 * padX, height: box.height + 2 * HULL_PAD + 6 };
+  function hull(points, widest, tallest = 0) {
+    const box2 = bounds(new Map(points.map((p, i) => [i, p])));
+    const padX = widest / 2 + HULL_PAD, padY = tallest / 2 + HULL_PAD;
+    return { x: box2.x - padX, y: box2.y - padY - 6, width: box2.width + 2 * padX, height: box2.height + 2 * padY + 6 };
   }
   function beamBand(beam) {
     const offsets = beam.links.length ? beam.links.map(fanOffset) : [0];
@@ -806,43 +1580,235 @@
   }
   var geometry = { curve, chord, fanOffset, hull, beamBand, beamLabel, clusterLabel, CHAR_W };
 
-  // src/canvas/icons.ts
-  var PATHS = {
-    switch: "M1.5 4.5h13a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z M4 7h7 M9 5.5L11 7l-2 1.5 M12 9H5 M7 7.5L5 9l2 1.5",
-    router: "M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14z M4 6h5 M7.5 4.5L9 6l-1.5 1.5 M12 10H7 M8.5 8.5L7 10l1.5 1.5",
-    firewall: "M1 3.5h14v9H1z M1 6.5h14 M1 9.5h14 M5 3.5v3 M10 3.5v3 M3 6.5v3 M8 6.5v3 M13 6.5v3 M5 9.5v3 M10 9.5v3",
-    load_balancer: "M8 1.5v4 M8 5.5L3 10.5 M8 5.5v5 M8 5.5l5 5 M1.5 10.5h3v3h-3z M6.5 10.5h3v3h-3z M11.5 10.5h3v3h-3z",
-    wireless_controller: "M1.5 9.5h13v4h-13z M8 9.5V6 M5 5a4.2 4.2 0 0 1 6 0 M3 3a7 7 0 0 1 10 0",
-    server: "M3.5 1.5h9a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z M2.5 5.5h11 M2.5 9.5h11 M5.5 3.5h.01 M5.5 7.5h.01 M5.5 11.5h.01",
-    other: "M2.5 2.5h11v11h-11z M6 6.2a2 2 0 1 1 2.8 1.8c-.6.3-.8.7-.8 1.2 M8 11h.01"
+  // src/canvas/hues.ts
+  var HUES = ["blue", "sky", "indigo", "violet", "pink", "red", "orange", "amber", "lime", "green", "teal", "slate"];
+  var HUE_LABEL = {
+    blue: "bleu",
+    sky: "ciel",
+    indigo: "indigo",
+    violet: "violet",
+    pink: "rose",
+    red: "rouge",
+    orange: "orange",
+    amber: "ambre",
+    lime: "citron",
+    green: "vert",
+    teal: "turquoise",
+    slate: "ardoise"
   };
-  var LABEL = {
-    switch: "switch",
-    router: "routeur",
-    firewall: "firewall",
-    load_balancer: "répartiteur",
-    wireless_controller: "contrôleur Wi-Fi",
-    server: "serveur",
-    other: "autre"
+  var FALLBACK_HUE = "slate";
+  var DEFAULT_HUE = {
+    switch: "blue",
+    router: "orange",
+    firewall: "violet",
+    load_balancer: "teal",
+    wireless_controller: "green",
+    server: "slate",
+    other: "slate"
   };
-  var SIZE = 16;
-  var TYPES = Object.keys(PATHS);
-  var path = (type) => type !== null && type !== void 0 && PATHS[type] || PATHS.other;
-  var known = (type) => Object.prototype.hasOwnProperty.call(PATHS, type);
-  var icons = { path, known, LABEL, SIZE, TYPES };
+  var isHue = (value) => typeof value === "string" && HUES.includes(value);
+  var hueLabel = (hue) => isHue(hue) ? HUE_LABEL[hue] : hue;
+  var defaultHue = (type) => type && DEFAULT_HUE[type] || FALLBACK_HUE;
+  function hueOfType(model2, type) {
+    const set = type ? model2.colorByType.get(type) : void 0;
+    return set && isHue(set.hue) ? set.hue : defaultHue(type);
+  }
+  function hueOfNode(model2, node) {
+    const own = model2.colorByHost.get(node.hostname);
+    return own && isHue(own.hue) ? own.hue : hueOfType(model2, node.type);
+  }
+  var hues = { HUES, HUE_LABEL, DEFAULT_HUE, FALLBACK_HUE, isHue, hueLabel, defaultHue, hueOfType, hueOfNode };
+
+  // src/canvas/pointer.ts
+  var CLICK_SLOP = 4;
+  var additive = (pointer) => pointer.shiftKey || pointer.ctrlKey || pointer.metaKey;
+  function bind(svg, host) {
+    let dragging = false;
+    let pan = null;
+    const marquee = s("rect", { class: "marquee", visibility: "hidden" });
+    svg.appendChild(marquee);
+    const relative = (pointer) => {
+      const rect = svg.getBoundingClientRect();
+      return { x: pointer.clientX - rect.left, y: pointer.clientY - rect.top };
+    };
+    const marqueeRect = (pointer) => {
+      const origin = relative({ clientX: pan.x, clientY: pan.y });
+      const now = relative(pointer);
+      return { left: Math.min(origin.x, now.x), top: Math.min(origin.y, now.y), right: Math.max(origin.x, now.x), bottom: Math.max(origin.y, now.y) };
+    };
+    const paintMarquee = (rect) => {
+      if (!rect) {
+        marquee.setAttribute("visibility", "hidden");
+        return;
+      }
+      marquee.setAttribute("x", String(rect.left));
+      marquee.setAttribute("y", String(rect.top));
+      marquee.setAttribute("width", String(rect.right - rect.left));
+      marquee.setAttribute("height", String(rect.bottom - rect.top));
+      marquee.setAttribute("visibility", "visible");
+    };
+    function bindNode(group, hostname) {
+      let start = null;
+      const end = () => {
+        start = null;
+        dragging = false;
+      };
+      group.addEventListener("pointerdown", (event) => {
+        const pointer = event;
+        if (pointer.button > 0) return;
+        event.stopPropagation();
+        dragging = true;
+        host.tipHide();
+        const origins = new Map(host.companions(hostname).map((member) => [member, { ...host.at(member) }]));
+        start = { x: pointer.clientX, y: pointer.clientY, origins, moved: false, additive: additive(pointer) };
+        group.setPointerCapture(pointer.pointerId);
+      });
+      group.addEventListener("pointermove", (event) => {
+        if (!start) return;
+        const pointer = event;
+        const dx = pointer.clientX - start.x, dy = pointer.clientY - start.y;
+        if (!start.moved && Math.hypot(dx, dy) < CLICK_SLOP) return;
+        start.moved = true;
+        const k = host.view().k;
+        start.origins.forEach((origin, member) => host.moveTo(member, { x: origin.x + dx / k, y: origin.y + dy / k }));
+      });
+      group.addEventListener("pointerup", () => {
+        if (start && !start.moved) {
+          if (start.additive) host.toggleHost(hostname);
+          else host.select({ kind: "node", id: hostname });
+        } else if (start && start.moved) host.dropped(Array.from(start.origins.keys()));
+        end();
+      });
+      group.addEventListener("pointercancel", end);
+      group.addEventListener("lostpointercapture", end);
+    }
+    svg.addEventListener("pointerdown", (event) => {
+      const pointer = event;
+      if (pointer.button > 0) return;
+      host.tipHide();
+      const view = host.view();
+      pan = { x: pointer.clientX, y: pointer.clientY, tx: view.tx, ty: view.ty, moved: false, target: event.target, marquee: additive(pointer) };
+      svg.setPointerCapture(pointer.pointerId);
+    });
+    svg.addEventListener("pointermove", (event) => {
+      if (!pan) return;
+      const pointer = event;
+      const dx = pointer.clientX - pan.x, dy = pointer.clientY - pan.y;
+      if (!pan.moved && Math.hypot(dx, dy) < CLICK_SLOP) return;
+      pan.moved = true;
+      if (pan.marquee) {
+        paintMarquee(marqueeRect(pointer));
+        return;
+      }
+      host.setView({ k: host.view().k, tx: pan.tx + dx, ty: pan.ty + dy });
+    });
+    svg.addEventListener("pointerup", (event) => {
+      if (pan && !pan.moved) host.select(host.entityAt(pan.target));
+      else if (pan && pan.marquee) {
+        host.selectIn(marqueeRect(event));
+        paintMarquee(null);
+      }
+      pan = null;
+    });
+    const cancel = () => {
+      pan = null;
+      paintMarquee(null);
+    };
+    svg.addEventListener("pointercancel", cancel);
+    svg.addEventListener("lostpointercapture", cancel);
+    svg.addEventListener("pointermove", (event) => {
+      if (pan || dragging) {
+        host.tipHide();
+        return;
+      }
+      const entity = host.entityAt(event.target);
+      if (!entity) {
+        host.tipHide();
+        return;
+      }
+      const point = relative(event);
+      host.tipShowAt(entity, point.x, point.y);
+    });
+    svg.addEventListener("pointerleave", () => host.tipHide());
+    svg.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const wheel = event;
+      const point = relative(wheel);
+      const view = host.view();
+      const k = Math.min(Math.max(view.k * Math.exp(-wheel.deltaY * 15e-4), 0.05), 6);
+      host.setView({ k, tx: point.x - (point.x - view.tx) / view.k * k, ty: point.y - (point.y - view.ty) / view.k * k });
+    }, { passive: false });
+    return { bindNode, busy: () => dragging || !!pan };
+  }
+
+  // src/canvas/query.ts
+  var FIELDS = ["hostname", "type", "site", "vendor", "model", "os", "serial", "kind", "collection"];
+  var isField = (name) => FIELDS.includes(name);
+  function valueOf(node, field) {
+    switch (field) {
+      case "hostname":
+        return node.hostname;
+      case "type":
+        return node.type || "";
+      case "site":
+        return node.site || "";
+      case "vendor":
+        return node.vendor || "";
+      case "model":
+        return node.model || "";
+      case "os":
+        return [node.os_name, node.os_version].filter(Boolean).join(" ");
+      case "serial":
+        return node.serial_number || "";
+      case "kind":
+        return node.kind;
+      default:
+        return node.collection || "";
+    }
+  }
+  function term(word) {
+    const cut = word.indexOf(":");
+    const prefix = cut > 0 ? word.slice(0, cut) : "";
+    const field = isField(prefix) ? prefix : "hostname";
+    const pattern = isField(prefix) ? word.slice(cut + 1) : word;
+    return { field, pattern, regex: new RegExp(pattern, "i") };
+  }
+  function parseRule(text) {
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    try {
+      return { text, terms: words.map(term), error: null };
+    } catch (error) {
+      return { text, terms: [], error: error.message };
+    }
+  }
+  var matches = (rule, node) => rule.terms.length > 0 && rule.terms.every((t) => t.regex.test(valueOf(node, t.field)));
+  var escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  var exactRule = (hostnames) => "^(" + hostnames.slice().sort().map(escape).join("|") + ")$";
+  function keepByRules(nodes, links, hide, only) {
+    const kept = nodes.filter((node) => !hide.some((rule) => matches(rule, node)));
+    if (!only) return kept;
+    const core = new Set(kept.filter((node) => matches(only, node)).map((node) => node.hostname));
+    const near = new Set(core);
+    links.forEach((link) => {
+      if (core.has(link.a.hostname)) near.add(link.b.hostname);
+      if (core.has(link.b.hostname)) near.add(link.a.hostname);
+    });
+    return kept.filter((node) => near.has(node.hostname));
+  }
+  var query = { FIELDS, parseRule, matches, exactRule, keepByRules, valueOf };
 
   // src/canvas/tip.ts
   var CHAR_W2 = 7.4;
   var LINE_H = 16;
   var PAD_X = 10;
   var PAD_Y = 7;
-  var GAP = 2 * CHAR_W2;
+  var GAP2 = 2 * CHAR_W2;
   var OFFSET = 14;
-  var DASH = "—";
+  var DASH2 = "—";
   var SOURCE_ORDER = ["lldp", "cdp", "description"];
   var MAX_CHECK_LINES = 6;
   var cell = (text, cls) => ({ text: String(text), cls: cls || null });
-  var line = (...cells) => cells;
+  var line = (...cells2) => cells2;
   var plural = (count, word) => count + " " + word + (count > 1 ? "s" : "");
   function endFacts(model2, end, removed) {
     const found = interfaceAt(model2, end.hostname, end.interface, removed);
@@ -860,13 +1826,13 @@
   function checkLines(checks) {
     const counts = /* @__PURE__ */ new Map();
     checks.forEach((c) => {
-      const key = c.severity + " · " + c.code;
-      counts.set(key, (counts.get(key) || 0) + 1);
+      const key2 = c.severity + " · " + c.code;
+      counts.set(key2, (counts.get(key2) || 0) + 1);
     });
-    const rank = (key) => SEVERITY_RANK[key.split(" · ")[0]];
+    const rank = (key2) => SEVERITY_RANK[key2.split(" · ")[0]];
     const rows = Array.from(counts.keys()).sort((x, y) => rank(x) - rank(y) || (x < y ? -1 : x > y ? 1 : 0));
-    const lines = rows.slice(0, MAX_CHECK_LINES).map((key) => line(cell(key + (counts.get(key) > 1 ? " ×" + counts.get(key) : ""), "severity-" + key.split(" · ")[0])));
-    const rest = rows.slice(MAX_CHECK_LINES).reduce((sum, key) => sum + counts.get(key), 0);
+    const lines = rows.slice(0, MAX_CHECK_LINES).map((key2) => line(cell(key2 + (counts.get(key2) > 1 ? " ×" + counts.get(key2) : ""), "severity-" + key2.split(" · ")[0])));
+    const rest = rows.slice(MAX_CHECK_LINES).reduce((sum, key2) => sum + counts.get(key2), 0);
     if (rest) lines.push(line(cell("… et " + rest + " autre" + (rest > 1 ? "s" : "") + " contrôle" + (rest > 1 ? "s" : ""), "tip-muted")));
     return lines;
   }
@@ -885,7 +1851,7 @@
   function linkLines(model2, link) {
     const ends = [link.a, link.b];
     const facts = ends.map((end) => endFacts(model2, end, link.ghost));
-    const row = (label2, key) => facts.some((f) => f[key] !== null) ? line(cell(label2, "tip-muted"), ...facts.map((f) => cell(f[key] === null ? DASH : f[key]))) : null;
+    const row = (label2, key2) => facts.some((f) => f[key2] !== null) ? line(cell(label2, "tip-muted"), ...facts.map((f) => cell(f[key2] === null ? DASH2 : f[key2]))) : null;
     const traits = [row("vitesse", "speed"), row("duplex", "duplex"), row("média", "media")].filter(present);
     return [
       line(cell(endLabel(link.a) + " ↔ " + endLabel(link.b), "tip-title")),
@@ -913,7 +1879,7 @@
       node.evidence && node.evidence.capabilities.length ? "capacités : " + node.evidence.capabilities.join(", ") : null
     ].filter(Boolean);
     return [
-      line(cell(node.hostname + " · " + KIND_LABEL[node.kind] + (node.type ? " · " + node.type : ""), "tip-title")),
+      line(cell(node.hostname + " · " + KIND_LABEL2[node.kind] + (node.type ? " · " + node.type : ""), "tip-title")),
       diffLine(node.ghost ? { kind: "removed" } : model2.changeOf("node", node.hostname)),
       hardware || system ? line(cell([hardware, system].filter(Boolean).join(" · "), "tip-muted")) : null,
       line(cell(facts.join(" · "), "tip-muted")),
@@ -931,6 +1897,22 @@
       ...checkLines(beam.checks)
     ];
   }
+  function groupLines(group, present2) {
+    const first = group.description.split("\n").find((text) => text.trim()) || "";
+    return [
+      line(cell(group.label, "tip-title")),
+      line(cell(present2 + " / " + group.members.length + " membre" + (group.members.length > 1 ? "s" : "") + " · " + group.author, "tip-muted")),
+      ...first ? [line(cell(first.slice(0, 80)))] : []
+    ];
+  }
+  function annotationLines(a) {
+    const where = a.anchor.kind === "free" ? "libre" : "attachée à " + a.anchor.ref;
+    return [
+      line(cell((KIND_LABEL[a.content.kind] || a.content.kind) + " · " + where, "tip-title")),
+      line(cell(summary(a))),
+      line(cell("annotation de " + a.author + ", le " + a.at.slice(0, 10), "tip-muted"))
+    ];
+  }
   function clusterLines(cluster) {
     return [
       line(cell(clusterLabel(cluster), "tip-title")),
@@ -939,26 +1921,26 @@
     ];
   }
   function create(svg) {
-    const box = s("rect", { class: "tip-box", rx: 5 });
-    const group = s("g", { class: "tip", visibility: "hidden", role: "tooltip", id: "ld-tip" }, box);
+    const box2 = s("rect", { class: "tip-box", rx: 5 });
+    const group = s("g", { class: "tip", visibility: "hidden", role: "tooltip", id: "ld-tip" }, box2);
     svg.appendChild(group);
     let shownFor = null, size = { width: 0, height: 0 };
     function fill2(lines) {
-      clear(group).appendChild(box);
+      clear(group).appendChild(box2);
       const widths = [0];
-      lines.filter((cells) => cells.length > 1).forEach((cells) => cells.forEach((c, col) => {
+      lines.filter((cells2) => cells2.length > 1).forEach((cells2) => cells2.forEach((c, col) => {
         widths[col] = Math.max(widths[col] || 0, c.text.length);
       }));
-      const offsets = widths.map((_, col) => widths.slice(0, col).reduce((sum, w) => sum + w * CHAR_W2 + GAP, 0));
-      lines.forEach((cells, row) => cells.forEach((c, col) => {
+      const offsets = widths.map((_, col) => widths.slice(0, col).reduce((sum, w) => sum + w * CHAR_W2 + GAP2, 0));
+      lines.forEach((cells2, row) => cells2.forEach((c, col) => {
         if (c.text === "") return;
         group.appendChild(s("text", { class: "tip-line" + (c.cls ? " " + c.cls : ""), x: PAD_X + offsets[col], y: PAD_Y + LINE_H * (row + 1) - 4 }, c.text));
       }));
       const last = widths.length - 1;
-      const spanning = Math.max(0, ...lines.filter((cells) => cells.length === 1).map((cells) => cells[0].text.length));
+      const spanning = Math.max(0, ...lines.filter((cells2) => cells2.length === 1).map((cells2) => cells2[0].text.length));
       size = { width: 2 * PAD_X + Math.max(offsets[last] + widths[last] * CHAR_W2, spanning * CHAR_W2), height: 2 * PAD_Y + LINE_H * lines.length };
-      box.setAttribute("width", String(size.width));
-      box.setAttribute("height", String(size.height));
+      box2.setAttribute("width", String(size.width));
+      box2.setAttribute("height", String(size.height));
     }
     function place(x, y, rect) {
       const wanted = {
@@ -969,9 +1951,9 @@
       const top = Math.max(0, Math.min(wanted.y, rect.height - size.height));
       group.setAttribute("transform", `translate(${Math.round(left)},${Math.round(top)})`);
     }
-    function show2(key, linesOf, x, y, rect) {
-      if (key !== shownFor) {
-        shownFor = key;
+    function show2(key2, linesOf, x, y, rect) {
+      if (key2 !== shownFor) {
+        shownFor = key2;
         fill2(linesOf());
       }
       place(x, y, rect);
@@ -983,24 +1965,23 @@
     }
     return { group, id: "ld-tip", show: show2, hide };
   }
-  var tip = { create, linkLines, nodeLines, beamLines, clusterLines };
+  function connectorLines(c) {
+    return [
+      line(cell(summary2(c), "tip-title")),
+      line(cell((c.route === "elbow" ? "coudé" : c.route === "curve" ? "courbe" : "droit") + " · " + (c.locked ? "verrouillé" : "glissable"))),
+      line(cell("connecteur de " + c.author + ", le " + c.at.slice(0, 10), "tip-muted"))
+    ];
+  }
+  var tip = { groupLines, annotationLines, connectorLines, create, linkLines, nodeLines, beamLines, clusterLines };
 
   // src/canvas/graph.ts
-  var NODE_W = 48;
-  var NODE_H = 40;
-  var STUB_R = 8;
-  var CLICK_SLOP = 4;
-  var ICON_SCALE = 1.3;
-  var LABEL_MAX = 22;
-  var ICON_PX = SIZE * ICON_SCALE;
+  var typeGlyph = (type, transform) => {
+    const g = glyph(type);
+    return s("g", { class: "node-icon", transform }, s("path", { class: "icon-body", d: g.body }), s("path", { class: "icon-shade", d: g.shade }), s("path", { class: "icon-mark", d: g.mark }));
+  };
   var ZOOM_FAR = 0.7;
   var ZOOM_NEAR = 1.2;
   var PIN_PATH = "M8 1.5a4 4 0 0 1 4 4c0 2.8-4 7.5-4 7.5S4 8.3 4 5.5a4 4 0 0 1 4-4z M8 4a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z";
-  var shortName = (name) => name.length <= LABEL_MAX ? name : name.slice(0, 11) + "…" + name.slice(-10);
-  function nodeShape(node) {
-    if (node.kind === "stub") return s("circle", { class: "node-shape", r: STUB_R });
-    return s("rect", { class: "node-shape", x: -NODE_W / 2, y: -NODE_H / 2, width: NODE_W, height: NODE_H, rx: 9 });
-  }
   function create2(svg, model2, onSelect, options = {}) {
     const savedPins = () => new Map(Array.from(model2.pinByHost).filter(([host]) => {
       const node = model2.nodeByHost.get(host);
@@ -1013,11 +1994,15 @@
       showDiff: true,
       hiddenStatuses: /* @__PURE__ */ new Set(),
       query: "",
+      hide: [],
+      only: null,
+      insets: { top: 0, right: 0, bottom: 0, left: 0 },
       pinned: savedPins(),
       placed: savedPlaces(),
       positions: /* @__PURE__ */ new Map(),
       view: { k: 1, tx: 0, ty: 0 },
       selection: null,
+      selected: /* @__PURE__ */ new Set(),
       nodeEls: /* @__PURE__ */ new Map(),
       linkEls: /* @__PURE__ */ new Map(),
       beamEls: /* @__PURE__ */ new Map(),
@@ -1033,41 +2018,78 @@
     clear(svg).appendChild(viewport);
     const tip2 = create(svg);
     const at = (hostname) => state.positions.get(hostname);
+    const cards = /* @__PURE__ */ new Map();
+    const boxOf = (hostname) => cards.get(hostname) || { w: STUB_R * 2, h: STUB_R * 2 };
     const allNodes = () => model2.nodes.concat(state.showDiff ? model2.ghostNodes : []);
     const allLinks = () => model2.links.concat(state.showDiff ? model2.ghostLinks : []);
     const linkAt = (index) => index < model2.links.length ? model2.links[index] : model2.ghostLinks[index - model2.links.length];
-    const changeOf2 = (kind, entity, id) => !state.showDiff ? null : entity.ghost ? "removed" : (model2.changeOf(kind, id) || { kind: null }).kind;
-    const visibleNodes = () => allNodes().filter((n) => state.showStubs || n.kind !== "stub");
+    const changeOf3 = (kind, entity, id) => !state.showDiff ? null : entity.ghost ? "removed" : (model2.changeOf(kind, id) || { kind: null }).kind;
+    const visibleNodes = () => keepByRules(allNodes().filter((n2) => state.showStubs || n2.kind !== "stub"), allLinks(), state.hide, state.only);
+    const multi = () => state.selected.size >= 2;
     function svgClasses() {
       const k = state.view.k;
-      svg.setAttribute("class", [state.selection ? "has-selection" : "", state.showPorts ? "show-ports" : "", k < ZOOM_FAR ? "zoom-far" : k >= ZOOM_NEAR ? "zoom-near" : ""].filter(Boolean).join(" "));
+      svg.setAttribute("class", [state.selection || multi() ? "has-selection" : "", state.showPorts ? "show-ports" : "", k < ZOOM_FAR ? "zoom-far" : k >= ZOOM_NEAR ? "zoom-near" : ""].filter(Boolean).join(" "));
     }
     const applyView = () => {
       viewport.setAttribute("transform", `translate(${state.view.tx},${state.view.ty}) scale(${state.view.k})`);
       svgClasses();
     };
-    let dragging = false;
-    let pan = null;
+    function moveTo(hostname, point) {
+      state.positions.set(hostname, point);
+      state.pinned.set(hostname, point);
+      const el = state.nodeEls.get(hostname);
+      if (el) el.classList.toggle("pinned", true);
+      moveNode(hostname);
+      follow(hostname);
+    }
+    const pointer = bind(svg, {
+      view: () => state.view,
+      setView: (view) => {
+        state.view = view;
+        applyView();
+      },
+      at,
+      moveTo,
+      select,
+      toggleHost,
+      selectIn,
+      entityAt,
+      // Un équipement de la sélection multiple entraîne toute la sélection (ses équipements dessinés) ; relâchée d'un bloc,
+      // elle fait un seul paquet d'épingles ; un seul équipement, ou une page sans `onPins` : une épingle par équipement.
+      companions: (hostname) => multi() && state.selected.has(hostname) ? Array.from(state.selected).filter((host) => state.nodeEls.has(host)) : [hostname],
+      dropped: (hosts) => {
+        const moves = new Map(hosts.map((host) => [host, { ...at(host) }]));
+        if (moves.size > 1 && options.onPins) options.onPins(moves, "dragged");
+        else if (options.onPin) moves.forEach((point, host) => options.onPin?.(host, point));
+      },
+      tipHide: () => tip2.hide(),
+      tipShowAt: (entity, x, y) => tip2.show(entity.kind + ":" + entity.id, () => tipLines(entity), x, y, svg.getBoundingClientRect())
+    });
     function visibleLinks(shown) {
       return allLinks().filter((l) => shown.has(l.a.hostname) && shown.has(l.b.hostname) && !state.hiddenStatuses.has(l.status));
     }
     function visibleBeams(shown, links) {
-      const visible = new Set(links.map((l) => l.id));
-      return model2.beams.filter((b) => b.a.hostname !== b.b.hostname && shown.has(b.a.hostname) && shown.has(b.b.hostname) && b.links.some((l) => visible.has(l.id)));
+      const visible2 = new Set(links.map((l) => l.id));
+      return model2.beams.filter((b) => b.a.hostname !== b.b.hostname && shown.has(b.a.hostname) && shown.has(b.b.hostname) && b.links.some((l) => visible2.has(l.id)));
     }
     const visibleClusters = (shown) => model2.clusters.filter((c) => c.hosts.filter((h2) => shown.has(h2)).length >= 2);
+    const visibleRect = () => {
+      const rect = svg.getBoundingClientRect(), i = state.insets;
+      return { x: i.left, y: i.top, width: Math.max((rect.width || 900) - i.left - i.right, 100), height: Math.max((rect.height || 600) - i.top - i.bottom, 100) };
+    };
     function fit() {
-      const box = bounds(state.positions);
-      const rect = svg.getBoundingClientRect();
-      const width = rect.width || 900, height = rect.height || 600, margin = 70;
-      const k = Math.min((width - 2 * margin) / box.width, (height - 2 * margin) / box.height, 1.6);
+      const box2 = bounds(state.positions);
+      const area = visibleRect(), margin = 70;
+      const k = Math.min((area.width - 2 * margin) / box2.width, (area.height - 2 * margin) / box2.height, 1.6);
       state.view = { k: Math.max(k, 0.05), tx: 0, ty: 0 };
-      state.view.tx = width / 2 - (box.x + box.width / 2) * state.view.k;
-      state.view.ty = height / 2 - (box.y + box.height / 2) * state.view.k;
+      state.view.tx = area.x + area.width / 2 - (box2.x + box2.width / 2) * state.view.k;
+      state.view.ty = area.y + area.height / 2 - (box2.y + box2.height / 2) * state.view.k;
       applyView();
     }
     function placeLink(link, els) {
-      const shape = curve(at(link.a.hostname), at(link.b.hostname), link);
+      const p = at(link.a.hostname), q = at(link.b.hostname);
+      const clear2 = [reach(boxOf(link.a.hostname), q.x - p.x, q.y - p.y), reach(boxOf(link.b.hostname), q.x - p.x, q.y - p.y)];
+      const shape = curve(p, q, link, clear2);
       [els.line, els.hit, els.halo, els.diff].forEach((el) => {
         if (el) el.setAttribute("d", shape.path);
       });
@@ -1082,7 +2104,7 @@
       });
     }
     function drawLink(link) {
-      const change = changeOf2("link", link, link.id);
+      const change = changeOf3("link", link, link.id);
       const diffHalo = change ? s("path", { class: "diff-halo" }) : null;
       const halo = link.heartbeat ? s("path", { class: "link-halo" }) : null;
       const line2 = s("path", { class: "link-line" });
@@ -1127,12 +2149,12 @@
       const away = els.shape.band / 2 + 8;
       const x = axis.mid.x + nx * side * away, y = axis.mid.y + ny * side * away;
       const text = els.label.textContent || "";
-      const width = CHAR_W * 0.95 * text.length + 10;
+      const width2 = CHAR_W * 0.95 * text.length + 10;
       els.label.setAttribute("x", String(x));
       els.label.setAttribute("y", String(y));
-      els.labelHit.setAttribute("x", String(x - width / 2));
+      els.labelHit.setAttribute("x", String(x - width2 / 2));
       els.labelHit.setAttribute("y", String(y - 10));
-      els.labelHit.setAttribute("width", String(width));
+      els.labelHit.setAttribute("width", String(width2));
       els.labelHit.setAttribute("height", "14");
       els.tag.setAttribute("transform", `rotate(${angle.toFixed(2)} ${x} ${y})`);
       els.tag.setAttribute("visibility", text ? "visible" : "hidden");
@@ -1166,10 +2188,11 @@
     }
     function placeCluster(cluster, els) {
       const points = cluster.hosts.map((h2) => state.positions.get(h2)).filter((p) => !!p);
-      const box = hull(points, Math.max(...cluster.hosts.map((h2) => h2.length)));
-      ["x", "y", "width", "height"].forEach((name) => els.rect.setAttribute(name, String(box[name])));
-      els.label.setAttribute("x", String(box.x + 10));
-      els.label.setAttribute("y", String(box.y + 15));
+      const boxes = cluster.hosts.map(boxOf);
+      const box2 = hull(points, Math.max(...boxes.map((b) => b.w)), Math.max(...boxes.map((b) => b.h)));
+      ["x", "y", "width", "height"].forEach((name) => els.rect.setAttribute(name, String(box2[name])));
+      els.label.setAttribute("x", String(box2.x + 10));
+      els.label.setAttribute("y", String(box2.y + 15));
     }
     function drawCluster(cluster) {
       const rect = s("rect", { class: "cluster-hull", rx: 12 });
@@ -1189,34 +2212,36 @@
       const haState = memberships.some((m) => m.member.state === "down") ? "down" : ha ? ha.member.state : null;
       const haClasses = ha ? ` ha-member ha-${haRoleGroup(ha.cluster.raw.mode, ha.member.role)} ha-state-${haState}` : "";
       const typeLabel = node.type ? LABEL[node.type] || node.type : null;
-      const change = changeOf2("node", node, node.hostname);
-      const ring = change && change !== "removed" ? node.kind === "stub" ? s("circle", { class: "node-ring", r: STUB_R + 4 }) : s("rect", { class: "node-ring", x: -NODE_W / 2 - 4, y: -NODE_H / 2 - 4, width: NODE_W + 8, height: NODE_H + 8, rx: 12 }) : null;
+      const change = changeOf3("node", node, node.hostname);
+      const name = node.kind === "stub" ? shortName(node.hostname) : displayName(node.hostname);
+      const card2 = node.kind === "stub" ? null : plan(name, { role: ha ? ha.member.role : null, stack: node.stack ? node.stack.member_count : null }, model2.cardWidth);
+      const box2 = card2 || { w: STUB_R * 2, h: STUB_R * 2 };
+      cards.set(node.hostname, box2);
+      const ring = change && change !== "removed" ? card2 ? s("rect", { class: "node-ring", x: -card2.w / 2 - 4, y: -card2.h / 2 - 4, width: card2.w + 8, height: card2.h + 8, rx: card2.rx + 4 }) : s("circle", { class: "node-ring", r: STUB_R + 4 }) : null;
       const pinned = state.pinned.has(node.hostname) ? " pinned" : "";
       const group = s(
         "g",
         {
-          class: `node kind-${node.kind} collection-${node.collection || "none"}${haClasses}${change ? " diff-" + change : ""}${pinned}`,
+          class: `node kind-${node.kind} type-${node.type || "unknown"} hue-${hueOfNode(model2, node)} collection-${node.collection || "none"}${haClasses}${change ? " diff-" + change : ""}${pinned}`,
           tabindex: 0,
           role: "button",
           "data-node": node.hostname,
-          "aria-label": `${node.hostname} · ${KIND_LABEL[node.kind]}${typeLabel ? " · " + typeLabel : ""}${node.collection ? " · collecte : " + node.collection : ""}${ha ? " · HA " + ha.member.role : ""}${change ? " · " + DIFF_LABEL[change] : ""}`
+          "aria-label": `${node.hostname} · ${KIND_LABEL2[node.kind]}${typeLabel ? " · " + typeLabel : ""}${node.collection ? " · collecte : " + node.collection : ""}${ha ? " · HA " + ha.member.role : ""}${change ? " · " + DIFF_LABEL[change] : ""}`
         },
         ring,
-        nodeShape(node),
-        node.kind === "stub" ? null : s("path", {
-          class: "node-icon",
-          d: path(node.type),
-          transform: `translate(${-ICON_PX / 2},${ha ? -NODE_H / 2 + 3 : -ICON_PX / 2}) scale(${ICON_SCALE})`
-        }),
-        ha ? s("text", { class: "node-role", y: NODE_H / 2 - 5 }, ha.member.role) : null,
-        s("text", { class: "node-label", y: node.kind === "stub" ? 22 : NODE_H / 2 + 14 }, shortName(node.hostname)),
-        node.stack ? s("text", { class: "node-stack", x: NODE_W / 2 + 4, y: 4 }, "×" + node.stack.member_count) : null,
-        severity === "error" || severity === "warning" ? s("circle", { class: "node-badge severity-" + severity, cx: NODE_W / 2 - 1, cy: -NODE_H / 2 + 1, r: 6 }) : null,
-        s("path", { class: "node-pin", d: PIN_PATH, transform: node.kind === "stub" ? `translate(${-STUB_R - 14},${-STUB_R - 14})` : `translate(${-NODE_W / 2 - 9},${-NODE_H / 2 - 9})` })
+        card2 ? s("rect", { class: "node-shape", x: -card2.w / 2, y: -card2.h / 2, width: card2.w, height: card2.h, rx: card2.rx }) : s("circle", { class: "node-shape", r: STUB_R }),
+        card2 ? s("path", { class: "node-rail", d: card2.rail }) : null,
+        card2 ? typeGlyph(node.type, `translate(${card2.icon.x},${card2.icon.y}) scale(${card2.icon.scale})`) : null,
+        card2 && card2.role && ha ? s("text", { class: "node-role", x: card2.role.x, y: card2.role.y, "text-anchor": card2.role.anchor }, ha.member.role) : null,
+        s("text", { class: "node-label", x: card2 ? card2.label.x : 0, y: card2 ? card2.label.y : STUB_R + 14, "text-anchor": card2 ? card2.label.anchor : "middle" }, name),
+        card2 && card2.stack && node.stack ? s("text", { class: "node-stack", x: card2.stack.x, y: card2.stack.y, "text-anchor": card2.stack.anchor }, "×" + node.stack.member_count) : null,
+        severity === "error" || severity === "warning" ? s("circle", { class: "node-badge severity-" + severity, cx: box2.w / 2 - 2, cy: -box2.h / 2 + 2, r: 6 }) : null,
+        s("path", { class: "node-pin", d: PIN_PATH, transform: `translate(${-box2.w / 2 - 9},${-box2.h / 2 - 9})` })
       );
       state.nodeEls.set(node.hostname, group);
       moveNode(node.hostname);
-      bindNode(group, node.hostname);
+      pointer.bindNode(group, node.hostname);
+      bindFocus(group, { kind: "node", id: node.hostname }, () => screenPoint(node.hostname));
       return group;
     }
     function moveNode(hostname) {
@@ -1252,7 +2277,7 @@
         if (event.key === "Enter") select(selection);
       });
       group.addEventListener("focus", () => {
-        if (dragging || pan) return;
+        if (pointer.busy()) return;
         const rect = svg.getBoundingClientRect();
         if (!onScreen(pointOf(), rect)) centerOn(selection);
         const point = pointOf();
@@ -1263,43 +2288,6 @@
         tip2.hide();
         group.removeAttribute("aria-describedby");
       });
-    }
-    function bindNode(group, hostname) {
-      let start = null;
-      const end = () => {
-        start = null;
-        dragging = false;
-      };
-      group.addEventListener("pointerdown", (event) => {
-        const pointer = event;
-        if (pointer.button > 0) return;
-        event.stopPropagation();
-        dragging = true;
-        tip2.hide();
-        start = { x: pointer.clientX, y: pointer.clientY, origin: { ...at(hostname) }, moved: false };
-        group.setPointerCapture(pointer.pointerId);
-      });
-      group.addEventListener("pointermove", (event) => {
-        if (!start) return;
-        const pointer = event;
-        const dx = pointer.clientX - start.x, dy = pointer.clientY - start.y;
-        if (!start.moved && Math.hypot(dx, dy) < CLICK_SLOP) return;
-        start.moved = true;
-        const point = { x: start.origin.x + dx / state.view.k, y: start.origin.y + dy / state.view.k };
-        state.positions.set(hostname, point);
-        state.pinned.set(hostname, point);
-        group.classList.toggle("pinned", true);
-        moveNode(hostname);
-        follow(hostname);
-      });
-      group.addEventListener("pointerup", () => {
-        if (start && !start.moved) select({ kind: "node", id: hostname });
-        else if (start && start.moved && options.onPin) options.onPin(hostname, { ...at(hostname) });
-        end();
-      });
-      group.addEventListener("pointercancel", end);
-      group.addEventListener("lostpointercapture", end);
-      bindFocus(group, { kind: "node", id: hostname }, () => screenPoint(hostname));
     }
     function entityAt(target) {
       for (let el = target; el && el !== svg && el.getAttribute; el = el.parentNode) {
@@ -1317,62 +2305,20 @@
       if (selection.kind === "beam") return beamLines(beamOf(model2, selection));
       return clusterLines(clusterOf(model2, selection));
     }
-    function bindCanvas() {
-      svg.addEventListener("pointerdown", (event) => {
-        const pointer = event;
-        if (pointer.button > 0) return;
-        tip2.hide();
-        pan = { x: pointer.clientX, y: pointer.clientY, tx: state.view.tx, ty: state.view.ty, moved: false, target: event.target };
-        svg.setPointerCapture(pointer.pointerId);
+    function relatedToHosts2(hosts) {
+      const related = { hosts: new Set(hosts), links: /* @__PURE__ */ new Set(), beams: /* @__PURE__ */ new Set(), clusters: /* @__PURE__ */ new Set() };
+      hosts.forEach((host) => (model2.linksByNode.get(host) || []).forEach((link) => {
+        if (hosts.has(link.a.hostname) && hosts.has(link.b.hostname)) related.links.add(link.id);
+      }));
+      model2.beams.forEach((beam) => {
+        if (hosts.has(beam.a.hostname) && hosts.has(beam.b.hostname)) related.beams.add(beam.id);
       });
-      svg.addEventListener("pointermove", (event) => {
-        if (!pan) return;
-        const pointer = event;
-        const dx = pointer.clientX - pan.x, dy = pointer.clientY - pan.y;
-        if (!pan.moved && Math.hypot(dx, dy) < CLICK_SLOP) return;
-        pan.moved = true;
-        state.view.tx = pan.tx + dx;
-        state.view.ty = pan.ty + dy;
-        applyView();
+      model2.clusters.forEach((cluster) => {
+        if (cluster.hosts.every((host) => hosts.has(host))) related.clusters.add(cluster.id);
       });
-      svg.addEventListener("pointerup", () => {
-        if (pan && !pan.moved) select(entityAt(pan.target));
-        pan = null;
-      });
-      svg.addEventListener("pointercancel", () => {
-        pan = null;
-      });
-      svg.addEventListener("lostpointercapture", () => {
-        pan = null;
-      });
-      svg.addEventListener("pointermove", (event) => {
-        if (pan || dragging) {
-          tip2.hide();
-          return;
-        }
-        const entity = entityAt(event.target);
-        if (!entity) {
-          tip2.hide();
-          return;
-        }
-        const pointer = event;
-        const rect = svg.getBoundingClientRect();
-        tip2.show(entity.kind + ":" + entity.id, () => tipLines(entity), pointer.clientX - rect.left, pointer.clientY - rect.top, rect);
-      });
-      svg.addEventListener("pointerleave", () => tip2.hide());
-      svg.addEventListener("wheel", (event) => {
-        event.preventDefault();
-        const wheel = event;
-        const rect = svg.getBoundingClientRect();
-        const x = wheel.clientX - rect.left, y = wheel.clientY - rect.top;
-        const k = Math.min(Math.max(state.view.k * Math.exp(-wheel.deltaY * 15e-4), 0.05), 6);
-        state.view.tx = x - (x - state.view.tx) / state.view.k * k;
-        state.view.ty = y - (y - state.view.ty) / state.view.k * k;
-        state.view.k = k;
-        applyView();
-      }, { passive: false });
+      return related;
     }
-    function relatedTo(selection) {
+    function relatedTo2(selection) {
       const related = { hosts: /* @__PURE__ */ new Set(), links: /* @__PURE__ */ new Set(), beams: /* @__PURE__ */ new Set(), clusters: /* @__PURE__ */ new Set() };
       if (!selection || !entityOf(model2, selection)) return related;
       const addLink = (link) => {
@@ -1380,7 +2326,7 @@
         related.hosts.add(link.a.hostname);
         related.hosts.add(link.b.hostname);
       };
-      hostsOf(model2, selection).forEach((host) => related.hosts.add(host));
+      hostsOf2(model2, selection).forEach((host) => related.hosts.add(host));
       if (selection.kind === "node") {
         const node = nodeOf(model2, selection);
         (model2.linksByNode.get(node.hostname) || []).forEach(addLink);
@@ -1406,15 +2352,16 @@
     }
     function paintSelection() {
       const selection = state.selection;
-      const related = relatedTo(selection);
+      const related = multi() ? relatedToHosts2(state.selected) : relatedTo2(selection);
       const is = (kind, id) => !!selection && selection.kind === kind && selection.id === id;
       svgClasses();
-      const query2 = state.query.trim().toLowerCase();
+      const query3 = parseRule(state.query);
       const selectedAggregate = selection && selection.kind === "aggregate" ? aggregateOf(model2, selection) : null;
       state.nodeEls.forEach((el, id) => {
-        el.classList.toggle("selected", is("node", id) || !!selectedAggregate && selectedAggregate.hostname === id);
+        const node = model2.nodeByHost.get(id);
+        el.classList.toggle("selected", is("node", id) || state.selected.has(id) || !!selectedAggregate && selectedAggregate.hostname === id);
         el.classList.toggle("related", related.hosts.has(id));
-        el.classList.toggle("match", query2 !== "" && id.toLowerCase().includes(query2));
+        el.classList.toggle("match", !!node && matches(query3, node));
       });
       state.linkEls.forEach((els, id) => {
         els.group.classList.toggle("selected", is("link", id));
@@ -1431,25 +2378,58 @@
         els.group.classList.toggle("related", related.clusters.has(id));
       });
     }
+    const notifyHosts = () => {
+      if (options.onHosts) options.onHosts(Array.from(state.selected));
+    };
     function select(selection) {
       state.selection = selection;
+      state.selected = new Set(selection && selection.kind === "node" ? [selection.id] : []);
       paintSelection();
       onSelect(selection);
+      notifyHosts();
     }
-    function layoutEdges() {
+    function selectHosts(hosts) {
+      const kept = new Set(hosts.filter((host) => model2.nodeByHost.has(host)));
+      state.selected = kept;
+      state.selection = kept.size === 1 ? { kind: "node", id: Array.from(kept)[0] } : null;
+      paintSelection();
+      onSelect(state.selection);
+      notifyHosts();
+    }
+    function toggleHost(hostname) {
+      const next = new Set(state.selected);
+      if (next.has(hostname)) next.delete(hostname);
+      else next.add(hostname);
+      selectHosts(Array.from(next));
+    }
+    function selectIn(rect) {
+      const inside = Array.from(state.nodeEls.keys()).filter((host) => {
+        const p = screenPoint(host);
+        return p.x >= rect.left && p.x <= rect.right && p.y >= rect.top && p.y <= rect.bottom;
+      });
+      selectHosts(inside);
+    }
+    function alignSelected(mode) {
+      const moved = align(state.positions, Array.from(state.selected).filter((host) => state.nodeEls.has(host)), mode);
+      moved.forEach((point, host) => moveTo(host, point));
+      if (moved.size && options.onPins) options.onPins(moved, "aligned");
+      return moved;
+    }
+    function layoutEdges2() {
       const edges = allLinks().map((l) => [l.a.hostname, l.b.hostname]);
       model2.clusters.forEach((c) => c.hosts.slice(1).forEach((host) => edges.push([c.hosts[0], host, 2.5])));
       return edges;
     }
     let unplaced = /* @__PURE__ */ new Set();
     function place(nodes) {
-      const edges = layoutEdges();
-      const infra = nodes.filter((n) => n.kind !== "stub").map((n) => n.hostname);
-      const stubs = nodes.filter((n) => n.kind === "stub").map((n) => n.hostname);
+      const edges = layoutEdges2();
+      const card2 = { w: model2.cardWidth, h: CARD_H };
+      const infra = nodes.filter((n2) => n2.kind !== "stub").map((n2) => n2.hostname);
+      const stubs = nodes.filter((n2) => n2.kind === "stub").map((n2) => n2.hostname);
       const of = (ids, source) => ids.filter((id) => source.has(id)).map((id) => [id, source.get(id)]);
       const remembered = of(infra, state.placed);
-      const base = run(infra, edges, new Map([...remembered, ...of(infra, state.pinned)]), { extend: remembered.length > 0 });
-      const fresh = /* @__PURE__ */ new Map();
+      const base = run(infra, edges, new Map([...remembered, ...of(infra, state.pinned)]), { extend: remembered.length > 0, card: card2 });
+      const fresh2 = /* @__PURE__ */ new Map();
       const held = wired(infra, edges);
       unplaced = new Set(infra.filter((id) => !held.has(id)));
       infra.forEach((id) => {
@@ -1457,20 +2437,20 @@
         if (state.placed.has(id) || state.pinned.has(id) || !held.has(id) || !node || node.ghost) return;
         const point = { ...base.get(id) };
         state.placed.set(id, point);
-        fresh.set(id, point);
+        fresh2.set(id, point);
       });
-      if (!stubs.length) return { positions: base, fresh };
+      if (!stubs.length) return { positions: base, fresh: fresh2 };
       const fixed = new Map([...base, ...of(stubs, state.placed), ...of(stubs, state.pinned)]);
-      return { positions: run(nodes.map((n) => n.hostname), edges, fixed, { extend: true }), fresh };
+      return { positions: run(nodes.map((n2) => n2.hostname), edges, fixed, { extend: true, card: card2 }), fresh: fresh2 };
     }
     function render2(keepView, replace = false) {
       const nodes = visibleNodes();
-      const shown = new Set(nodes.map((n) => n.hostname));
+      const shown = new Set(nodes.map((n2) => n2.hostname));
       const links = visibleLinks(shown);
-      const { positions, fresh } = place(nodes);
+      const { positions, fresh: fresh2 } = place(nodes);
       state.positions = positions;
       tip2.hide();
-      [state.nodeEls, state.linkEls, state.beamEls, state.clusterEls].forEach((map) => map.clear());
+      [state.nodeEls, state.linkEls, state.beamEls, state.clusterEls, cards].forEach((map) => map.clear());
       [clusterLayer, beamLayer, linkLayer, labelLayer, nodeLayer].forEach(clear);
       visibleClusters(shown).forEach((cluster) => clusterLayer.appendChild(drawCluster(cluster)));
       visibleBeams(shown, links).forEach((beam) => beamLayer.appendChild(drawBeam(beam)));
@@ -1478,27 +2458,27 @@
       nodes.forEach((node) => nodeLayer.appendChild(drawNode(node)));
       if (!keepView) fit();
       paintSelection();
-      if ((fresh.size || replace) && options.onPlaced) options.onPlaced(fresh, replace);
+      if ((fresh2.size || replace) && options.onPlaced) options.onPlaced(fresh2, replace);
       return { nodes: nodes.length, links: links.length };
     }
     function centerOn(selection) {
-      const ends = hostsOf(model2, selection).map((host) => state.positions.get(host)).filter((p) => !!p);
+      const ends = hostsOf2(model2, selection).map((host) => state.positions.get(host)).filter((p) => !!p);
       if (!ends.length) return;
-      const rect = svg.getBoundingClientRect();
+      const area = visibleRect();
       const x = ends.reduce((sum, p) => sum + p.x, 0) / ends.length, y = ends.reduce((sum, p) => sum + p.y, 0) / ends.length;
       state.view.k = Math.max(state.view.k, 0.8);
-      state.view.tx = (rect.width || 900) / 2 - x * state.view.k;
-      state.view.ty = (rect.height || 600) / 2 - y * state.view.k;
+      state.view.tx = area.x + area.width / 2 - x * state.view.k;
+      state.view.ty = area.y + area.height / 2 - y * state.view.k;
       applyView();
     }
-    function reveal(selection) {
+    function reveal2(selection) {
       if (!selection) {
         select(null);
         return false;
       }
       const entity = entityOf(model2, selection);
       const links = selection.kind === "link" ? [linkOf(model2, selection)].filter((l) => !!l) : selection.kind === "beam" ? (beamOf(model2, selection) || { links: [] }).links : selection.kind === "aggregate" ? (aggregateOf(model2, selection) || { cables: [] }).cables : [];
-      const hosts = hostsOf(model2, selection).concat(links.flatMap((link) => [link.a.hostname, link.b.hostname]));
+      const hosts = hostsOf2(model2, selection).concat(links.flatMap((link) => [link.a.hostname, link.b.hostname]));
       const needsStubs = hosts.some((host) => (model2.nodeByHost.get(host) || { kind: null }).kind === "stub");
       let redraw = false;
       if (entity && entity.ghost && !state.showDiff) {
@@ -1543,13 +2523,14 @@
       if (stale) render2(true);
     }
     const drawn = () => ({ nodes: state.nodeEls.size, links: state.linkEls.size });
-    bindCanvas();
     return {
       state,
       render: (keepView) => render2(keepView),
       fit,
       select,
-      reveal,
+      selectHosts,
+      alignSelected,
+      reveal: reveal2,
       repaint: paintSelection,
       resetPins: () => {
         state.pinned = savedPins();
@@ -1562,6 +2543,7 @@
       },
       syncPins,
       syncPlaces,
+      recolor: () => render2(true),
       // Une épingle retirée replace le graphe seulement si son équipement est dessiné (une orpheline ne bouge rien).
       unpin: (hostnames) => {
         const shown = hostnames.some((host) => state.nodeEls.has(host));
@@ -1572,20 +2554,522 @@
   }
   var graph = { create: create2 };
 
+  // src/canvas/pill.ts
+  var PILL_H = 20;
+  var PILL_PAD = 7;
+  var PILL_ADV = 6.82;
+  var PILL_ICON = 12;
+  var PILL_DOT = 6;
+  var PILL_LEAD_GAP = 4;
+  var PILL_MAX = 14;
+  function pillWidth(text, lead = null) {
+    const leadW = lead === "icon" ? PILL_ICON + PILL_LEAD_GAP : lead === "dot" ? PILL_DOT + PILL_LEAD_GAP : 0;
+    return Math.ceil(2 * PILL_PAD + leadW + Array.from(text).length * PILL_ADV);
+  }
+  function speedToken(mbps) {
+    if (mbps < 1e3) return mbps + "M";
+    const g = Math.round(mbps / 100) / 10;
+    return (Number.isInteger(g) ? String(g) : g.toFixed(1)) + "G";
+  }
+  var SHORT = [[/^port-?channel\s*(\d.*)$/i, "PO"], [/^bundle-?ether\s*(\d.*)$/i, "BE"], [/^po(\d.*)$/i, "PO"]];
+  function aggregateShort(name) {
+    for (const [pattern, prefix] of SHORT) {
+      const found = pattern.exec(name);
+      if (found) return prefix + found[1];
+    }
+    return name.toUpperCase();
+  }
+  function beamPillText(beam) {
+    if (beam.peerLink) return "peer-link";
+    if (beam.mlags.length) return "MLAG " + beam.mlags.map((d) => d.raw.mlag_id).join("+");
+    const a = aggregateShort(beam.a.aggregate), b = aggregateShort(beam.b.aggregate);
+    return a === b ? a : a + "/" + b;
+  }
+  var pill = { beamPillText, pillWidth, speedToken, aggregateShort, PILL_H, PILL_MAX };
+
+  // src/canvas/reveal.ts
+  var nothingRevealed = () => ({ primary: /* @__PURE__ */ new Set(), sibling: /* @__PURE__ */ new Set(), peer: /* @__PURE__ */ new Set() });
+  function primaryOf(model2, selection) {
+    if (selection.kind === "beam") {
+      const beam = beamOf(model2, selection);
+      return beam ? [beam] : [];
+    }
+    if (selection.kind === "link") {
+      const link = linkOf(model2, selection);
+      return link && link.beam ? [link.beam] : [];
+    }
+    if (selection.kind === "aggregate") {
+      const aggregate = aggregateOf(model2, selection);
+      return aggregate ? aggregate.beams.slice() : [];
+    }
+    return [];
+  }
+  function reveal(model2, selection) {
+    const out = nothingRevealed();
+    if (!selection) return out;
+    const primary = primaryOf(model2, selection);
+    primary.forEach((beam) => out.primary.add(beam.id));
+    const domains = /* @__PURE__ */ new Set();
+    primary.forEach((beam) => {
+      if (!beam.peerLink) beam.mlags.forEach((domain) => domains.add(domain));
+    });
+    domains.forEach((domain) => {
+      domain.members.forEach((aggregate) => aggregate.beams.forEach((beam) => {
+        if (!out.primary.has(beam.id)) out.sibling.add(beam.id);
+      }));
+      if (domain.peerLink) domain.peerLink.beams.forEach((beam) => {
+        if (!out.primary.has(beam.id)) out.peer.add(beam.id);
+      });
+    });
+    return out;
+  }
+
+  // src/canvas/scene.ts
+  function visible(model2, f) {
+    const allNodes = model2.nodes.concat(f.showDiff ? model2.ghostNodes : []);
+    const allLinks = model2.links.concat(f.showDiff ? model2.ghostLinks : []);
+    const nodes = keepByRules(allNodes.filter((n2) => f.showStubs || n2.kind !== "stub"), allLinks, f.hide, f.only);
+    const shown = new Set(nodes.map((n2) => n2.hostname));
+    const links = allLinks.filter((l) => shown.has(l.a.hostname) && shown.has(l.b.hostname) && !f.hiddenStatuses.has(l.status));
+    const drawn = new Set(links.map((l) => l.id));
+    const beams = model2.beams.filter((b) => b.a.hostname !== b.b.hostname && shown.has(b.a.hostname) && shown.has(b.b.hostname) && b.links.some((l) => drawn.has(l.id)));
+    const clusters = model2.clusters.filter((c) => c.hosts.filter((h2) => shown.has(h2)).length >= 2);
+    const groups2 = Array.from(model2.groupById.values()).filter((g) => g.members.some((h2) => shown.has(h2)));
+    const drawnGroups = new Set(groups2.map((g) => g.id));
+    const annotations2 = f.showNotes === false ? [] : Array.from(model2.annotationById.values()).filter((a) => !model2.orphanAnnotations.includes(a) && shownWith(a, shown, drawnGroups));
+    const drawnNotes = new Set(annotations2.map((a) => a.id));
+    const connectors2 = f.showNotes === false ? [] : Array.from(model2.connectorById.values()).filter((c) => !model2.orphanConnectors.includes(c) && shownWith2(c, shown, drawnGroups, drawnNotes));
+    return { nodes, links, beams, clusters, groups: groups2, annotations: annotations2, connectors: connectors2, shown };
+  }
+  function changeOf(model2, showDiff, kind, entity, id) {
+    if (!showDiff) return null;
+    if (entity.ghost) return "removed";
+    return (model2.changeOf(kind, id) || { kind: null }).kind;
+  }
+  function layoutEdges(model2) {
+    const edges = model2.links.concat(model2.ghostLinks).map((l) => [l.a.hostname, l.b.hostname]);
+    model2.clusters.forEach((c) => c.hosts.slice(1).forEach((host) => edges.push([c.hosts[0], host, 2.5])));
+    return edges;
+  }
+  function placeScene(model2, nodes, pinned, placed2) {
+    const edges = layoutEdges(model2);
+    const card2 = { w: model2.cardWidth, h: CARD_H };
+    const infra = nodes.filter((n2) => n2.kind !== "stub").map((n2) => n2.hostname);
+    const stubs = nodes.filter((n2) => n2.kind === "stub").map((n2) => n2.hostname);
+    const of = (ids, source) => ids.filter((id) => source.has(id)).map((id) => [id, source.get(id)]);
+    const remembered = of(infra, placed2);
+    const base = run(infra, edges, new Map([...remembered, ...of(infra, pinned)]), { extend: remembered.length > 0, card: card2 });
+    const fresh2 = /* @__PURE__ */ new Map();
+    const held = wired(infra, edges);
+    const unplaced = new Set(infra.filter((id) => !held.has(id)));
+    infra.forEach((id) => {
+      const node = model2.nodeByHost.get(id);
+      if (placed2.has(id) || pinned.has(id) || !held.has(id) || !node || node.ghost) return;
+      const point = { ...base.get(id) };
+      placed2.set(id, point);
+      fresh2.set(id, point);
+    });
+    if (!stubs.length) return { positions: base, fresh: fresh2, unplaced };
+    const fixed = new Map([...base, ...of(stubs, placed2), ...of(stubs, pinned)]);
+    return { positions: run(nodes.map((n2) => n2.hostname), edges, fixed, { extend: true, card: card2 }), fresh: fresh2, unplaced };
+  }
+  var none = () => ({ hosts: /* @__PURE__ */ new Set(), links: /* @__PURE__ */ new Set(), beams: /* @__PURE__ */ new Set(), clusters: /* @__PURE__ */ new Set(), groups: /* @__PURE__ */ new Set(), annotations: /* @__PURE__ */ new Set(), connectors: /* @__PURE__ */ new Set() });
+  var touching = (model2, related, kind, ref) => (model2.connectorsByRef.get(key(kind, ref)) || []).forEach((c) => related.connectors.add(c.id));
+  function relatedToHosts(model2, hosts) {
+    const related = none();
+    hosts.forEach((host) => related.hosts.add(host));
+    hosts.forEach((host) => (model2.linksByNode.get(host) || []).forEach((link) => {
+      if (hosts.has(link.a.hostname) && hosts.has(link.b.hostname)) related.links.add(link.id);
+    }));
+    model2.beams.forEach((beam) => {
+      if (hosts.has(beam.a.hostname) && hosts.has(beam.b.hostname)) related.beams.add(beam.id);
+    });
+    model2.clusters.forEach((cluster) => {
+      if (cluster.hosts.every((host) => hosts.has(host))) related.clusters.add(cluster.id);
+    });
+    model2.groupById.forEach((group) => {
+      const present2 = presentOf(model2, group);
+      if (present2.length && present2.every((host) => hosts.has(host))) related.groups.add(group.id);
+    });
+    return related;
+  }
+  function relatedTo(model2, selection) {
+    const related = none();
+    if (!selection || !entityOf(model2, selection)) return related;
+    const addLink = (link) => {
+      related.links.add(link.id);
+      related.hosts.add(link.a.hostname);
+      related.hosts.add(link.b.hostname);
+    };
+    hostsOf2(model2, selection).forEach((host) => related.hosts.add(host));
+    if (selection.kind === "node") {
+      const node = nodeOf(model2, selection);
+      (model2.linksByNode.get(node.hostname) || []).forEach(addLink);
+      (model2.beamsByNode.get(node.hostname) || []).forEach((beam) => related.beams.add(beam.id));
+      (model2.clustersByHost.get(node.hostname) || []).forEach((cluster) => related.clusters.add(cluster.id));
+      (model2.groupsByHost.get(node.hostname) || []).forEach((group) => related.groups.add(group.id));
+      (model2.annotationsByHost.get(node.hostname) || []).forEach((a) => related.annotations.add(a.id));
+      touching(model2, related, "device", node.hostname);
+    } else if (selection.kind === "annotation") {
+      related.annotations.add(selection.id);
+      const a = model2.annotationById.get(selection.id);
+      if (a && a.anchor.kind === "group" && a.anchor.ref) related.groups.add(a.anchor.ref);
+      touching(model2, related, "annotation", selection.id);
+    } else if (selection.kind === "connector") {
+      related.connectors.add(selection.id);
+      const c = model2.connectorById.get(selection.id);
+      if (c) attachedEnds(c).forEach((e) => {
+        if (e.kind === "group") related.groups.add(e.ref);
+        else if (e.kind === "annotation") related.annotations.add(e.ref);
+      });
+    } else if (selection.kind === "group") {
+      const members = new Set(related.hosts);
+      members.forEach((host) => (model2.linksByNode.get(host) || []).forEach((link) => {
+        if (members.has(link.a.hostname) && members.has(link.b.hostname)) related.links.add(link.id);
+      }));
+      related.groups.add(selection.id);
+      (model2.annotationsByGroup.get(selection.id) || []).forEach((a) => related.annotations.add(a.id));
+      touching(model2, related, "group", selection.id);
+    } else if (selection.kind === "link") {
+      const link = linkOf(model2, selection);
+      if (link.beam) related.beams.add(link.beam.id);
+    } else if (selection.kind === "aggregate") {
+      const aggregate = aggregateOf(model2, selection);
+      if (aggregate) {
+        aggregate.cables.forEach(addLink);
+        aggregate.beams.forEach((beam) => related.beams.add(beam.id));
+      }
+    } else if (selection.kind === "beam") {
+      beamOf(model2, selection).links.forEach(addLink);
+    } else if (selection.kind === "cluster") {
+      clusterOf(model2, selection).heartbeats.forEach((hb) => {
+        if (hb.link) addLink(hb.link);
+      });
+    }
+    const shown = reveal(model2, selection);
+    [shown.sibling, shown.peer].forEach((ids) => ids.forEach((id) => {
+      const beam = model2.beamById.get(id);
+      if (!beam) return;
+      related.beams.add(id);
+      beam.links.forEach(addLink);
+    }));
+    return related;
+  }
+  var scene = { visible, changeOf, layoutEdges, placeScene, relatedTo, relatedToHosts };
+
+  // src/canvas/speed.ts
+  var PHYSICAL = /* @__PURE__ */ new Set(["physical", "management"]);
+  var SLOTS = [0.5, 0.65, 0.35, 0.8, 0.2];
+  function endSpeed(model2, end) {
+    const found = interfaceAt(model2, end.hostname, end.interface, false);
+    if (!found || !PHYSICAL.has(found.itf.type)) return null;
+    const mbps = found.itf.speed_mbps;
+    return typeof mbps === "number" ? mbps : null;
+  }
+  function cableSpeed(model2, link) {
+    const a = endSpeed(model2, link.a), b = endSpeed(model2, link.b);
+    if (a !== null && b !== null) {
+      return a === b ? { token: speedToken(a), rank: a, mismatch: false, partial: false } : { token: speedToken(a) + "/" + speedToken(b), rank: Math.max(a, b), mismatch: true, partial: false };
+    }
+    const one = a !== null ? a : b;
+    return one === null ? { token: null, rank: 0, mismatch: false, partial: false } : { token: speedToken(one), rank: one, mismatch: false, partial: true };
+  }
+  function groupText(speeds) {
+    const counts = /* @__PURE__ */ new Map();
+    speeds.forEach((s2) => {
+      if (!s2.token) return;
+      const got = counts.get(s2.token);
+      counts.set(s2.token, { count: (got ? got.count : 0) + 1, rank: s2.rank });
+    });
+    return Array.from(counts).sort((x, y) => y[1].rank - x[1].rank || (x[0] < y[0] ? -1 : 1)).map(([token, { count }]) => count > 1 ? count + "×" + token : token).join("+");
+  }
+  function speedGroups(model2, links) {
+    const byKey = /* @__PURE__ */ new Map();
+    links.forEach((link) => {
+      if (link.ghost || link.a.hostname === link.b.hostname) return;
+      const key2 = link.beam ? "beam:" + link.beam.id : "pair:" + link.pair;
+      const got = byKey.get(key2);
+      if (got) got.push(link);
+      else byKey.set(key2, [link]);
+    });
+    const groups2 = [];
+    byKey.forEach((members, key2) => {
+      const speeds = members.map((link) => cableSpeed(model2, link));
+      if (!speeds.some((s2) => s2.token)) return;
+      const beam = members[0].beam;
+      const tone = speeds.some((s2) => s2.mismatch) ? "warning" : members.every((l) => l.raw.oper === "down") ? "muted" : "neutral";
+      const offset = beam ? beamBand(beam).offset : members.reduce((sum, link) => sum + fanOffset(link), 0) / members.length;
+      groups2.push({
+        key: key2,
+        pair: members[0].pair,
+        beam,
+        links: members,
+        text: groupText(speeds),
+        tone,
+        dashed: speeds.some((s2) => s2.partial || !s2.token),
+        worst: worst(members.flatMap((link) => link.worst ? [{ severity: link.worst }] : [])),
+        offset,
+        t: SLOTS[0]
+      });
+    });
+    const byPair = /* @__PURE__ */ new Map();
+    groups2.forEach((g) => {
+      const got = byPair.get(g.pair);
+      if (got) got.push(g);
+      else byPair.set(g.pair, [g]);
+    });
+    byPair.forEach((list) => list.sort((x, y) => x.offset - y.offset || (x.key < y.key ? -1 : 1)).forEach((g, i) => {
+      g.t = SLOTS[Math.min(i, SLOTS.length - 1)];
+    }));
+    return groups2;
+  }
+  function pointOn(p, q, offset, t) {
+    const dx = q.x - p.x, dy = q.y - p.y, length = Math.max(Math.hypot(dx, dy), 0.01);
+    const c = { x: (p.x + q.x) / 2 - dy / length * offset * 2, y: (p.y + q.y) / 2 + dx / length * offset * 2 };
+    return { x: (1 - t) * (1 - t) * p.x + 2 * (1 - t) * t * c.x + t * t * q.x, y: (1 - t) * (1 - t) * p.y + 2 * (1 - t) * t * c.y + t * t * q.y };
+  }
+  var speed = { speedGroups, pointOn, SLOTS };
+
+  // src/canvas/table.ts
+  var MAX_ROWS = 30;
+  var MAX_COLUMNS = 8;
+  var MAX_CELL = 120;
+  var MIN_TRACK = 20;
+  var columnsOf = (content) => content.rows[0] ? content.rows[0].length : 0;
+  var asRows = (rows) => rows;
+  var weights = (given, count) => given && given.length === count ? given.slice() : new Array(count).fill(1);
+  function tracks(given, count, length) {
+    const w = weights(given, count), total2 = w.reduce((sum, v) => sum + v, 0) || 1;
+    const out = [0];
+    let acc = 0;
+    w.forEach((v, i) => {
+      acc += v;
+      out.push(i === count - 1 ? length : Math.round(length * acc / total2));
+    });
+    return out;
+  }
+  function grid(content, frame) {
+    const columns = Math.max(1, columnsOf(content)), rows = Math.max(1, content.rows.length);
+    return { xs: tracks(content.widths, columns, frame.w), ys: tracks(content.heights, rows, frame.h), columns, rows };
+  }
+  function mergeAt(content, r, c) {
+    return content.merges.find((m) => r >= m.row && r < m.row + m.rows && c >= m.col && c < m.col + m.cols) || null;
+  }
+  function anchorOf(content, r, c) {
+    const m = mergeAt(content, r, c);
+    return m ? [m.row, m.col] : [r, c];
+  }
+  function cells(content, g) {
+    const out = [];
+    content.rows.forEach((row, r) => row.forEach((text, c) => {
+      const m = mergeAt(content, r, c);
+      if (m && (m.row !== r || m.col !== c)) return;
+      const rows = m ? m.rows : 1, cols = m ? m.cols : 1;
+      out.push({ r, c, rows, cols, x: g.xs[c], y: g.ys[r], w: g.xs[c + cols] - g.xs[c], h: g.ys[r + rows] - g.ys[r], text });
+    }));
+    return out;
+  }
+  function cellAt(content, g, x, y) {
+    if (x < 0 || y < 0 || x > g.xs[g.columns] || y > g.ys[g.rows]) return null;
+    let c = 0, r = 0;
+    while (c < g.columns - 1 && x >= g.xs[c + 1]) c += 1;
+    while (r < g.rows - 1 && y >= g.ys[r + 1]) r += 1;
+    return anchorOf(content, r, c);
+  }
+  function rangeOf(content, a, b) {
+    let range = { r0: Math.min(a[0], b[0]), c0: Math.min(a[1], b[1]), r1: Math.max(a[0], b[0]), c1: Math.max(a[1], b[1]) };
+    for (let guard = 0; guard < 64; guard += 1) {
+      const grown = { ...range };
+      content.merges.forEach((m) => {
+        const touches = m.row <= range.r1 && m.row + m.rows - 1 >= range.r0 && m.col <= range.c1 && m.col + m.cols - 1 >= range.c0;
+        if (!touches) return;
+        grown.r0 = Math.min(grown.r0, m.row);
+        grown.c0 = Math.min(grown.c0, m.col);
+        grown.r1 = Math.max(grown.r1, m.row + m.rows - 1);
+        grown.c1 = Math.max(grown.c1, m.col + m.cols - 1);
+      });
+      if (grown.r0 === range.r0 && grown.c0 === range.c0 && grown.r1 === range.r1 && grown.c1 === range.c1) break;
+      range = grown;
+    }
+    return range;
+  }
+  var isSingle = (range) => range.r0 === range.r1 && range.c0 === range.c1;
+  function normalized(content, merges) {
+    const kept = merges.filter((m) => m.rows * m.cols >= 2 && m.rows >= 1 && m.cols >= 1).sort((a, b) => a.row - b.row || a.col - b.col);
+    return { ...content, merges: kept };
+  }
+  function setCell(content, r, c, text) {
+    return { ...content, rows: asRows(content.rows.map((row, i) => i === r ? row.map((cell2, j) => j === c ? text.slice(0, MAX_CELL) : cell2) : row)) };
+  }
+  var average = (values) => Math.max(1, Math.round(values.reduce((s2, v) => s2 + v, 0) / values.length));
+  function insertRow(content, at) {
+    if (content.rows.length >= MAX_ROWS) return content;
+    const columns = columnsOf(content);
+    const rows = content.rows.slice();
+    rows.splice(at, 0, new Array(columns).fill(""));
+    const heights = content.heights ? content.heights.slice() : null;
+    if (heights) heights.splice(at, 0, average(content.heights));
+    const merges = content.merges.map((m) => m.row >= at ? { ...m, row: m.row + 1 } : m.row + m.rows > at ? { ...m, rows: m.rows + 1 } : m);
+    return normalized({ ...content, rows: asRows(rows), heights }, merges);
+  }
+  function deleteRow(content, at) {
+    if (content.rows.length <= 1 || at < 0 || at >= content.rows.length) return content;
+    const rows = content.rows.filter((_, i) => i !== at);
+    const heights = content.heights ? content.heights.filter((_, i) => i !== at) : null;
+    const merges = content.merges.map((m) => m.row > at ? { ...m, row: m.row - 1 } : m.row + m.rows > at ? { ...m, rows: m.rows - 1 } : m);
+    return normalized({ ...content, rows: asRows(rows), heights }, merges);
+  }
+  function insertColumn(content, at) {
+    if (columnsOf(content) >= MAX_COLUMNS) return content;
+    const rows = content.rows.map((row) => {
+      const next = row.slice();
+      next.splice(at, 0, "");
+      return next;
+    });
+    const widths = content.widths ? content.widths.slice() : null;
+    if (widths) widths.splice(at, 0, average(content.widths));
+    const merges = content.merges.map((m) => m.col >= at ? { ...m, col: m.col + 1 } : m.col + m.cols > at ? { ...m, cols: m.cols + 1 } : m);
+    return normalized({ ...content, rows: asRows(rows), widths }, merges);
+  }
+  function deleteColumn(content, at) {
+    const columns = columnsOf(content);
+    if (columns <= 1 || at < 0 || at >= columns) return content;
+    const rows = content.rows.map((row) => row.filter((_, j) => j !== at));
+    const widths = content.widths ? content.widths.filter((_, j) => j !== at) : null;
+    const merges = content.merges.map((m) => m.col > at ? { ...m, col: m.col - 1 } : m.col + m.cols > at ? { ...m, cols: m.cols - 1 } : m);
+    return normalized({ ...content, rows: asRows(rows), widths }, merges);
+  }
+  function merge(content, range) {
+    const full = rangeOf(content, [range.r0, range.c0], [range.r1, range.c1]);
+    if (isSingle(full)) return content;
+    const outside = content.merges.filter((m) => !(m.row >= full.r0 && m.row + m.rows - 1 <= full.r1 && m.col >= full.c0 && m.col + m.cols - 1 <= full.c1));
+    return normalized(content, outside.concat({ row: full.r0, col: full.c0, rows: full.r1 - full.r0 + 1, cols: full.c1 - full.c0 + 1 }));
+  }
+  function split(content, r, c) {
+    const m = mergeAt(content, r, c);
+    return m ? normalized(content, content.merges.filter((x) => x !== m)) : content;
+  }
+  function resized(bounds2, index, delta) {
+    if (index < 1 || index >= bounds2.length - 1) return null;
+    const lo = bounds2[index - 1] + MIN_TRACK, hi = bounds2[index + 1] - MIN_TRACK;
+    const at = Math.round(Math.min(hi, Math.max(lo, bounds2[index] + delta)));
+    if (at === bounds2[index] || hi < lo) return null;
+    const next = bounds2.slice();
+    next[index] = at;
+    return next.slice(1).map((b, i) => Math.max(1, b - next[i]));
+  }
+  function resizeColumn(content, g, index, delta) {
+    const widths = resized(g.xs, index, delta);
+    return widths ? { ...content, widths } : content;
+  }
+  function resizeRow(content, g, index, delta) {
+    const heights = resized(g.ys, index, delta);
+    return heights ? { ...content, heights } : content;
+  }
+  function grownBox(before, after, frame) {
+    const g = grid(before, frame);
+    const dc = columnsOf(after) - columnsOf(before), dr = after.rows.length - before.rows.length;
+    const colW = Math.round(frame.w / Math.max(1, g.columns)), rowH = Math.round(frame.h / Math.max(1, g.rows));
+    const clamp2 = (v) => Math.min(4e3, Math.max(20, Math.round(v)));
+    return { w: clamp2(frame.w + dc * colW), h: clamp2(frame.h + dr * rowH) };
+  }
+  var fresh = (rows, header2 = true) => ({ kind: "table", header: header2, rows: asRows(rows), widths: null, heights: null, merges: [] });
+  var table = { MAX_ROWS, MAX_COLUMNS, MAX_CELL, MIN_TRACK, columnsOf, grid, mergeAt, anchorOf, cells, cellAt, rangeOf, isSingle, setCell, insertRow, deleteRow, insertColumn, deleteColumn, merge, split, resizeColumn, resizeRow, grownBox, fresh };
+
+  // src/canvas/tags.ts
+  var MIDDLE = [0.5, 0.4, 0.6, 0.32, 0.68, 0.25, 0.75];
+  var NEAR_Q = [0.7, 0.62, 0.78, 0.55, 0.5, 0.45, 0.4];
+  var NEAR_P = NEAR_Q.map((t) => Math.round((1 - t) * 100) / 100);
+  var GAP3 = 3;
+  var TAG_WEIGHT = 4;
+  var CELL = 64;
+  function normal2(p, q) {
+    const dx = q.x - p.x, dy = q.y - p.y, length = Math.max(Math.hypot(dx, dy), 0.01);
+    return { x: -dy / length, y: dx / length };
+  }
+  function tagCenter(p, q, offset, w, slot) {
+    const at = pointOn(p, q, offset, slot.t);
+    if (!slot.side) return at;
+    const n2 = normal2(p, q);
+    const away = Math.abs(n2.x) * (w / 2) + Math.abs(n2.y) * (PILL_H / 2) + GAP3;
+    return { x: at.x + n2.x * slot.side * away, y: at.y + n2.y * slot.side * away };
+  }
+  var Grid = class {
+    constructor() {
+      this.cells = /* @__PURE__ */ new Map();
+    }
+    keys(r) {
+      const out = [];
+      for (let i = Math.floor(r.x / CELL); i <= Math.floor((r.x + r.w) / CELL); i++) {
+        for (let j = Math.floor(r.y / CELL); j <= Math.floor((r.y + r.h) / CELL); j++) out.push(i + "," + j);
+      }
+      return out;
+    }
+    add(r) {
+      this.keys(r).forEach((k) => {
+        const got = this.cells.get(k);
+        if (got) got.push(r);
+        else this.cells.set(k, [r]);
+      });
+    }
+    overlap(r) {
+      const seen = /* @__PURE__ */ new Set();
+      let area = 0;
+      this.keys(r).forEach((k) => (this.cells.get(k) || []).forEach((o) => {
+        if (seen.has(o)) return;
+        seen.add(o);
+        const w = Math.min(r.x + r.w, o.x + o.w) - Math.max(r.x, o.x), h2 = Math.min(r.y + r.h, o.y + o.h) - Math.max(r.y, o.y);
+        if (w > 0 && h2 > 0) area += w * h2 * o.weight;
+      }));
+      return area;
+    }
+  };
+  function rectAt(center, w, pad) {
+    return { x: center.x - w / 2 - pad, y: center.y - PILL_H / 2 - pad, w: w + 2 * pad, h: PILL_H + 2 * pad };
+  }
+  function candidates(req) {
+    const n2 = normal2(req.p, req.q);
+    const up = n2.y <= 0 ? 1 : -1;
+    const outer = req.offset > 0 ? 1 : req.offset < 0 ? -1 : up;
+    const other = outer === 1 ? -1 : 1;
+    return [0, outer, other, 2 * outer, 2 * other].flatMap((side) => req.prefer.map((t) => ({ t, side })));
+  }
+  function placeTags(requests, obstacles) {
+    const grid2 = new Grid();
+    obstacles.forEach((r) => grid2.add({ ...r, weight: 1 }));
+    const out = /* @__PURE__ */ new Map();
+    requests.forEach((req) => {
+      let best = null, cost = Infinity;
+      for (const slot of candidates(req)) {
+        const got = grid2.overlap(rectAt(tagCenter(req.p, req.q, req.offset, req.w, slot), req.w, GAP3));
+        if (got < cost) {
+          best = slot;
+          cost = got;
+        }
+        if (got === 0) break;
+      }
+      const chosen = best || { t: 0.5, side: 0 };
+      grid2.add({ ...rectAt(tagCenter(req.p, req.q, req.offset, req.w, chosen), req.w, 0), weight: TAG_WEIGHT });
+      out.set(req.id, chosen);
+    });
+    return out;
+  }
+  var tags = { placeTags, tagCenter, MIDDLE, NEAR_P, NEAR_Q };
+
   // src/shell/apps.ts
   var apps = {};
 
   // src/shell/widgets.ts
-  var pill = (kind, value, label2) => h("span", { class: "pill " + kind + "-" + value }, label2 === void 0 ? value : label2);
-  var sourcePill = (source) => pill("source", source, SOURCE_LABEL[source] || source);
-  var statusPill = (status) => pill("status", status, STATUS_LABEL[status] || status);
-  var severityPill = (severity) => pill("severity", severity);
-  var diffPill = (kind) => pill("diff", kind, DIFF_LABEL[kind] || kind);
+  var pill2 = (kind, value, label2) => h("span", { class: "pill " + kind + "-" + value }, label2 === void 0 ? value : label2);
+  var sourcePill = (source) => pill2("source", source, SOURCE_LABEL[source] || source);
+  var statusPill = (status) => pill2("status", status, STATUS_LABEL[status] || status);
+  var severityPill = (severity) => pill2("severity", severity);
+  var diffPill = (kind) => pill2("diff", kind, DIFF_LABEL[kind] || kind);
   function definition(rows) {
     const kept = rows.filter((row) => !!row && row[1] !== null && row[1] !== void 0 && row[1] !== "");
     return h("dl", { class: "kv" }, kept.map(([label2, value]) => [h("dt", {}, label2), h("dd", {}, typeof value === "object" ? value : String(value))]));
   }
-  function table(headers, rows, options) {
+  function table2(headers, rows, options) {
     const head = h("tr", {}, headers.map((label2) => h("th", {}, label2)));
     const body = rows.map((row) => {
       const line2 = h(
@@ -1618,7 +3102,7 @@
     holder.appendChild(first());
     return holder;
   }
-  var widgets = { pill, sourcePill, statusPill, severityPill, diffPill, definition, table, confirmable };
+  var widgets = { pill: pill2, sourcePill, statusPill, severityPill, diffPill, definition, table: table2, confirmable };
 
   // src/shell/tables.ts
   var CHECK_HEADERS = ["sévérité", "code", "vise", "détails", "règle"];
@@ -1670,14 +3154,14 @@
       const text = state.text.trim().toLowerCase();
       const rows = model2.checks.filter((c) => (!state.severity || c.severity === state.severity) && (!state.code || c.code === state.code) && (!text || JSON.stringify([c.refs, c.details]).toLowerCase().includes(text))).sort(byRank);
       clear(body).appendChild(h("p", { class: "muted" }, rows.length + " contrôle" + (rows.length > 1 ? "s" : "") + " sur " + model2.checks.length));
-      body.appendChild(table(CHECK_HEADERS, checkRows(model2, rows, onSelect), { empty: "aucun contrôle ne correspond" }));
+      body.appendChild(table2(CHECK_HEADERS, checkRows(model2, rows, onSelect), { empty: "aucun contrôle ne correspond" }));
     };
-    const select = (id, label2, values, key) => h(
+    const select = (id, label2, values, key2) => h(
       "label",
       { class: "field" },
       label2,
       h("select", { id, onchange: (e) => {
-        state[key] = e.target.value;
+        state[key2] = e.target.value;
         draw();
       } }, h("option", { value: "" }, "tous"), values.map((v) => h("option", { value: v }, v)))
     );
@@ -1718,14 +3202,14 @@
   }
   function coverageTable(model2) {
     const topics = model2.coverage.length ? Object.keys(model2.coverage[0].topics) : [];
-    return table(["équipement", "collecte", ...topics], model2.coverage.map((c) => {
+    return table2(["équipement", "collecte", ...topics], model2.coverage.map((c) => {
       const statuses = c.topics;
-      return { cells: [c.hostname, pill("collection", c.status, c.status), ...topics.map((t) => pill("topic", statuses[t], statuses[t]))] };
+      return { cells: [c.hostname, pill2("collection", c.status, c.status), ...topics.map((t) => pill2("topic", statuses[t], statuses[t]))] };
     }), { empty: "aucun équipement dans le périmètre" });
   }
   function findingsTable(model2) {
     if (!model2.ingest) return h("p", { class: "muted" }, "Rapport d'ingestion non disponible pour cette page.");
-    return table(["code", "équipement", "objet", "détails", "message"], model2.ingest.findings.map((f) => ({
+    return table2(["code", "équipement", "objet", "détails", "message"], model2.ingest.findings.map((f) => ({
       cells: [h("code", {}, f.code), f.hostname || "", f.ref || "", plain(f.details), f.message]
     })), { empty: "aucun constat : la livraison respecte le contrat sans réserve" });
   }
@@ -1735,7 +3219,7 @@
     return definition(entries.map(([k, v]) => [k, String(v)]));
   }
   function qualityView(container, model2, onSelect) {
-    const summary = model2.ingest && model2.ingest.summary;
+    const summary3 = model2.ingest && model2.ingest.summary;
     const dataChecks = model2.checks.filter((c) => QUALITY_CODES.includes(c.code));
     const described = model2.interfaces.filter((i) => i.description !== null && i.description !== "");
     clear(container).appendChild(h(
@@ -1746,7 +3230,7 @@
       h("h3", {}, "Couverture de la collecte, par équipement et par topic"),
       coverageTable(model2),
       h("h3", {}, "La livraison"),
-      summary ? definition(Object.entries(summary).filter(([k]) => k !== "residual_normalizations").map(([k, v]) => [k, String(v)])) : null,
+      summary3 ? definition(Object.entries(summary3).filter(([k]) => k !== "residual_normalizations").map(([k, v]) => [k, String(v)])) : null,
       h("h3", {}, "Constats du contrat d'entrée"),
       h("p", { class: "muted" }, "Clés nullables oubliées (nullable_key_absent), interface locale inconnue, membre d'agrégat inconnu… Tout doit tendre vers zéro."),
       findingsTable(model2),
@@ -1756,7 +3240,7 @@
         ["descriptions non lues par la grammaire", String(model2.report.unparseable_descriptions)],
         ["voisins finis en « inconnu »", model2.report.unresolved_names.length ? model2.report.unresolved_names.join(", ") : "aucun"]
       ]),
-      table(["sévérité", "code", "vise", "détails", "règle"], checkRows(model2, dataChecks, onSelect), { empty: "aucun contrôle de nom ni de description" }),
+      table2(["sévérité", "code", "vise", "détails", "règle"], checkRows(model2, dataChecks, onSelect), { empty: "aucun contrôle de nom ni de description" }),
       h("h3", {}, "Normalisations"),
       h("p", { class: "muted" }, "Résiduelles : ce que l'exportateur a dû normaliser lui-même (doit tendre vers zéro). Appliquées : ce que B1 a normalisé."),
       h(
@@ -1783,7 +3267,7 @@
           draw();
         } }, "tout afficher") : null
       ));
-      body.appendChild(table(["bout a", "bout b", "statut", "sources", "état", "contrôles"], rows.map((link) => ({
+      body.appendChild(table2(["bout a", "bout b", "statut", "sources", "état", "contrôles"], rows.map((link) => ({
         onclick: () => onSelect({ kind: "link", id: link.id }),
         cells: [endLabel(link.a), endLabel(link.b), statusPill(link.status), link.sources.map(sourcePill), link.raw.oper, link.checks.length ? String(link.checks.length) : ""]
       })), { empty: "aucun câble" }));
@@ -1793,7 +3277,7 @@
       { class: "page" },
       h("h2", {}, "Sources des câbles"),
       h("p", { class: "lead" }, "Chaque câble est tracé par une ou plusieurs sources. LLDP et CDP observent, une description documente : l'observé dessine le lien, le documenté le commente."),
-      table(["sources", "statut", "câbles"], model2.combos.map((combo) => ({
+      table2(["sources", "statut", "câbles"], model2.combos.map((combo) => ({
         onclick: () => {
           state.combo = combo;
           draw();
@@ -1830,7 +3314,7 @@
         aggregate.raw.protocol + (aggregate.raw.lacp_mode ? " " + aggregate.raw.lacp_mode : ""),
         memberText2(aggregate),
         String(aggregate.cables.length),
-        pill("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet"),
+        pill2("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet"),
         mlagText3(aggregate)
       ]
     }));
@@ -1847,7 +3331,7 @@
       onclick: () => onSelect({ kind: "cluster", id: cluster.id }),
       cells: [
         plain(cluster.raw.cluster_name),
-        pill("mode", cluster.raw.mode, cluster.raw.mode),
+        pill2("mode", cluster.raw.mode, cluster.raw.mode),
         cluster.raw.members.map((m) => m.hostname + " (" + m.role + ", " + m.state + ")").join(", "),
         cluster.heartbeats.map((hb) => hb.hostname + " · " + hb.interface + (hb.link ? "" : " (sans câble)")).join(", ") || "—"
       ]
@@ -1858,11 +3342,11 @@
       h("h2", {}, "Structures"),
       h("p", { class: "lead" }, "Ce que B1 a reconstruit au-dessus des câbles : agrégats (document aggregates de chaque équipement), domaines MLAG (deux agrégats de même identifiant, appariés par leur peer-link) et clusters HA (documents ha de leurs membres). Cliquer une ligne l'ouvre dans le graphe."),
       h("h3", {}, "Agrégats : " + model2.aggregates.length),
-      table(["équipement", "agrégat", "protocole", "membres", "câbles", "état", "MLAG"], aggregateRows, { empty: "aucun agrégat : aucun document aggregates dans le bundle" }),
+      table2(["équipement", "agrégat", "protocole", "membres", "câbles", "état", "MLAG"], aggregateRows, { empty: "aucun agrégat : aucun document aggregates dans le bundle" }),
       h("h3", {}, "Domaines MLAG : " + model2.mlagDomains.length),
-      table(["identifiant", "agrégats", "peer-link", "équipement aval"], domainRows, { empty: "aucun domaine MLAG" }),
+      table2(["identifiant", "agrégats", "peer-link", "équipement aval"], domainRows, { empty: "aucun domaine MLAG" }),
       h("h3", {}, "Clusters HA : " + model2.clusters.length),
-      table(["cluster", "mode", "membres", "heartbeat"], clusterRows, { empty: "aucun cluster : aucun document ha dans le bundle" })
+      table2(["cluster", "mode", "membres", "heartbeat"], clusterRows, { empty: "aucun cluster : aucun document ha dans le bundle" })
     ));
   }
   var SECTION_LABEL = { nodes: "équipements", interfaces: "interfaces", links: "câbles", aggregates: "agrégats", mlag_domains: "domaines MLAG", ha_clusters: "clusters HA" };
@@ -1871,17 +3355,17 @@
   var byHost = (items) => {
     const counts = /* @__PURE__ */ new Map();
     items.forEach((item) => counts.set(item.hostname, (counts.get(item.hostname) || 0) + 1));
-    return Array.from(counts, ([host, n]) => host + " (" + n + ")").join(", ");
+    return Array.from(counts, ([host, n2]) => host + " (" + n2 + ")").join(", ");
   };
   var mlagText = (domain) => "MLAG " + domain.mlag_id + " · " + domain.members.map((m) => m.hostname + " · " + m.aggregate).join(" + ");
   function diffNodeRows(model2, d, onSelect) {
     const row = (kind, hostname, node, change) => ({
       onclick: () => onSelect({ kind: "node", id: hostname }),
-      cells: [diffPill(kind), hostname, node ? KIND_LABEL[node.kind] : "", node ? plain(node.type) : "", change ? fieldsCell(change) : ""]
+      cells: [diffPill(kind), hostname, node ? KIND_LABEL2[node.kind] : "", node ? plain(node.type) : "", change ? fieldsCell(change) : ""]
     });
     return [
-      ...d.nodes.added.map((n) => row("added", n.hostname, n, null)),
-      ...d.nodes.removed.map((n) => row("removed", n.hostname, n, null)),
+      ...d.nodes.added.map((n2) => row("added", n2.hostname, n2, null)),
+      ...d.nodes.removed.map((n2) => row("removed", n2.hostname, n2, null)),
       ...d.nodes.changed.flatMap((c) => c.ref.kind === "node" ? [row("changed", c.ref.hostname, model2.nodeByHost.get(c.ref.hostname), c)] : [])
     ];
   }
@@ -1938,7 +3422,7 @@
       if (ref.kind !== "node" && ref.kind !== "interface") return [];
       return [{
         onclick: openNode(ref.hostname),
-        cells: [pill("event", e.kind, EVENT_LABEL[e.kind] || e.kind), ref.kind === "node" ? ref.hostname : ref.hostname + " · " + ref.name, plain(e.details)]
+        cells: [pill2("event", e.kind, EVENT_LABEL[e.kind] || e.kind), ref.kind === "node" ? ref.hostname : ref.hostname + " · " + ref.name, plain(e.details)]
       }];
     });
     clear(container).appendChild(h(
@@ -1946,25 +3430,25 @@
       { class: "page" },
       h("h2", {}, "Diff"),
       h("p", { class: "lead" }, "De la run " + d.before.collector_run_id + " (" + d.before.start_datetime + ") à la run " + d.after.collector_run_id + " (" + d.after.start_datetime + "), " + elapsedText(d.elapsed_seconds) + ". Les équipements et câbles ajoutés, retirés ou changés sont peints dans le graphe ; cliquer une ligne l'y ouvre, un élément retiré compris. Les champs volatils (uptime, âge du dernier changement) ne comptent pas : " + s2.volatile_changes + " différence" + (s2.volatile_changes > 1 ? "s" : "") + " ignorée" + (s2.volatile_changes > 1 ? "s" : "") + "."),
-      table(["section", "ajoutés", "retirés", "changés"], summaryRows),
+      table2(["section", "ajoutés", "retirés", "changés"], summaryRows),
       h("h3", {}, "Équipements : " + total(s2.nodes)),
-      table(["changement", "équipement", "sorte", "type", "changements"], diffNodeRows(model2, d, onSelect), { empty: "aucun équipement ajouté, retiré ni changé" }),
+      table2(["changement", "équipement", "sorte", "type", "changements"], diffNodeRows(model2, d, onSelect), { empty: "aucun équipement ajouté, retiré ni changé" }),
       h("h3", {}, "Câbles : " + total(s2.links)),
-      table(["changement", "bout a", "bout b", "statut", "changements"], diffLinkRows(model2, d, onSelect), { empty: "aucun câble ajouté, retiré ni changé" }),
+      table2(["changement", "bout a", "bout b", "statut", "changements"], diffLinkRows(model2, d, onSelect), { empty: "aucun câble ajouté, retiré ni changé" }),
       h("h3", {}, "Interfaces : " + total(s2.interfaces)),
       definition([["ajoutées", d.interfaces.added.length ? byHost(d.interfaces.added) : null], ["retirées", d.interfaces.removed.length ? byHost(d.interfaces.removed) : null]]),
-      table(["changement", "interface", "changements"], interfaceRows, { empty: "aucune interface changée" }),
+      table2(["changement", "interface", "changements"], interfaceRows, { empty: "aucune interface changée" }),
       h("h3", {}, "Structures : " + (total(s2.aggregates) + total(s2.mlag_domains) + total(s2.ha_clusters))),
-      table(["changement", "sorte", "élément", "changements"], diffStructureRows(d, onSelect), { empty: "aucune structure ajoutée, retirée ni changée" }),
+      table2(["changement", "sorte", "élément", "changements"], diffStructureRows(d, onSelect), { empty: "aucune structure ajoutée, retirée ni changée" }),
       h("h3", {}, "Contrôles apparus : " + s2.checks.appeared),
-      table(CHECK_HEADERS, checkRows(model2, d.checks.appeared.map(asEntry), onSelect), { empty: "aucun contrôle apparu" }),
+      table2(CHECK_HEADERS, checkRows(model2, d.checks.appeared.map(asEntry), onSelect), { empty: "aucun contrôle apparu" }),
       h("h3", {}, "Contrôles résolus : " + s2.checks.resolved + " · persistants : " + s2.checks.persisted),
-      table(CHECK_HEADERS, checkRows(model2, d.checks.resolved.map(asEntry), onSelect), { empty: "aucun contrôle résolu" }),
+      table2(CHECK_HEADERS, checkRows(model2, d.checks.resolved.map(asEntry), onSelect), { empty: "aucun contrôle résolu" }),
       h("h3", {}, "Couverture changée : " + s2.coverage.changed),
-      table(["équipement", "changements"], coverageRows, { empty: "aucun changement de couverture" }),
+      table2(["équipement", "changements"], coverageRows, { empty: "aucun changement de couverture" }),
       h("h3", {}, "Événements : " + (s2.events.rebooted + s2.events.flapped)),
       h("p", { class: "muted" }, "Lus dans les champs volatils : un uptime plus court que l'écart entre les runs, c'est un redémarrage ; un âge de dernier changement plus court, à état égal, c'est un flap (le port a bougé puis est revenu au même état), sauf sur un équipement redémarré, dont le redémarrage explique les ports."),
-      table(["sorte", "élément", "détails"], eventRows, { empty: "aucun redémarrage, aucun flap" })
+      table2(["sorte", "élément", "détails"], eventRows, { empty: "aucun redémarrage, aucun flap" })
     ));
   }
   var asEntry = (check, index) => ({ index, ...check });
@@ -1997,7 +3481,7 @@
   function topicPill(model2, hostname, topic) {
     const coverage = model2.coverage.find((c) => c.hostname === hostname);
     const status = coverage ? coverage.topics[topic] : "absent";
-    return pill("topic", status, "topic " + topic + " : " + status);
+    return pill2("topic", status, "topic " + topic + " : " + status);
   }
   function cableRows(links, onSelect) {
     return links.map((link) => ({
@@ -2005,14 +3489,14 @@
       cells: [endLabel(link.a), endLabel(link.b), [statusPill(link.status), link.sources.map(sourcePill)], link.raw.oper]
     }));
   }
-  var cableTable = (links, onSelect, empty) => table(["bout a", "bout b", "statut · sources", "état"], cableRows(links, onSelect), { empty });
+  var cableTable = (links, onSelect, empty) => table2(["bout a", "bout b", "statut · sources", "état"], cableRows(links, onSelect), { empty });
   function memberRows(model2, aggregate, onSelect) {
     return aggregate.raw.members.map((member) => {
       const links = model2.linksByIface.get(ifaceKey(aggregate.hostname, member.name)) || [];
       const facing = links.map((link) => endLabel(link.a.hostname === aggregate.hostname && link.a.interface === member.name ? link.b : link.a));
       return {
         onclick: links.length === 1 ? () => onSelect({ kind: "link", id: links[0].id }) : null,
-        cells: [member.name, pill("member", member.status, member.status), facing.length ? facing.join(", ") : "—"]
+        cells: [member.name, pill2("member", member.status, member.status), facing.length ? facing.join(", ") : "—"]
       };
     });
   }
@@ -2048,9 +3532,9 @@
         "div",
         { class: "panel-head" },
         h("span", { class: "eyebrow" }, "agrégat"),
-        pill("degraded", String(raw.degraded), raw.degraded ? "dégradé" : "complet"),
-        pill("oper", raw.oper_status, raw.oper_status),
-        raw.mlag_peer_link ? pill("role", "peer-link", "peer-link") : null
+        pill2("degraded", String(raw.degraded), raw.degraded ? "dégradé" : "complet"),
+        pill2("oper", raw.oper_status, raw.oper_status),
+        raw.mlag_peer_link ? pill2("role", "peer-link", "peer-link") : null
       ),
       h("h3", { class: "ends" }, nodeButton(raw.hostname, onSelect), " · " + raw.name),
       h("p", { class: "why" }, aggregateWhy(model2, aggregate)),
@@ -2061,7 +3545,7 @@
         ["peer-link", raw.mlag_peer_link === null ? "non lu" : raw.mlag_peer_link ? "oui" : "non"]
       ]),
       h("h4", { class: "section" }, "Membres : " + raw.members.length),
-      table(["port", "statut", "câble vers"], memberRows(model2, aggregate, onSelect), { empty: "aucun membre listé" }),
+      table2(["port", "statut", "câble vers"], memberRows(model2, aggregate, onSelect), { empty: "aucun membre listé" }),
       stopped.length ? [
         h("h4", { class: "section" }, "Câbles arrêtés à l'agrégat lui-même : " + stopped.length),
         h("p", { class: "muted" }, "Le voisin annonce le nom de l'agrégat en port-id (R1-bis) ; le membre n'a pas pu être désigné : contrôle remote_port_is_aggregate sur chaque câble."),
@@ -2100,9 +3584,9 @@
         "div",
         { class: "panel-head" },
         h("span", { class: "eyebrow" }, "faisceau"),
-        beam.peerLink ? pill("role", "peer-link", "peer-link") : null,
-        beam.mlags.map((domain) => pill("role", "mlag", "MLAG " + domain.raw.mlag_id)),
-        beam.degraded ? pill("degraded", "true", "un agrégat dégradé") : null
+        beam.peerLink ? pill2("role", "peer-link", "peer-link") : null,
+        beam.mlags.map((domain) => pill2("role", "mlag", "MLAG " + domain.raw.mlag_id)),
+        beam.degraded ? pill2("degraded", "true", "un agrégat dégradé") : null
       ),
       h("h3", { class: "ends" }, ends[0], h("span", { class: "arrow" }, " ⇄ "), ends[1]),
       h("p", { class: "why" }, beamWhy(beam)),
@@ -2113,12 +3597,12 @@
     ];
   }
   function memberTable(cluster, onSelect) {
-    return table(["membre", "rôle", "état", "priorité", "rapporté par"], cluster.raw.members.map((member) => ({
-      cells: [nodeButton(member.hostname, onSelect), member.role, pill("state", member.state, member.state), plain(member.priority), member.reported_by.join(", ")]
+    return table2(["membre", "rôle", "état", "priorité", "rapporté par"], cluster.raw.members.map((member) => ({
+      cells: [nodeButton(member.hostname, onSelect), member.role, pill2("state", member.state, member.state), plain(member.priority), member.reported_by.join(", ")]
     })), { empty: "aucun membre" });
   }
   function heartbeatTable(cluster, onSelect) {
-    return table(["membre", "interface", "câble"], cluster.heartbeats.map((hb) => {
+    return table2(["membre", "interface", "câble"], cluster.heartbeats.map((hb) => {
       const link = hb.link;
       return { cells: [hb.hostname, hb.interface, link ? h("button", { class: "linklike", type: "button", onclick: () => onSelect({ kind: "link", id: link.id }) }, endLabel(link.a) + " ↔ " + endLabel(link.b)) : h("span", { class: "muted" }, "aucun câble observé ni documenté : rien n'est inventé")] };
     }), { empty: "aucune interface de heartbeat rapportée" });
@@ -2143,7 +3627,7 @@
   function clusterPanel(model2, cluster, onSelect) {
     const raw = cluster.raw;
     return [
-      h("div", { class: "panel-head" }, h("span", { class: "eyebrow" }, "cluster HA"), pill("mode", raw.mode, raw.mode)),
+      h("div", { class: "panel-head" }, h("span", { class: "eyebrow" }, "cluster HA"), pill2("mode", raw.mode, raw.mode)),
       h("h3", {}, raw.cluster_name || cluster.hosts.join(" + ")),
       h("p", { class: "why" }, clusterWhy(cluster)),
       h("h4", { class: "section" }, "Membres : " + cluster.hosts.length),
@@ -2167,14 +3651,14 @@
       ] : null,
       !node || node.kind !== "device" ? null : [
         h("h4", { class: "section" }, "Agrégats : " + aggregates.length),
-        table(["agrégat", "protocole", "membres", "câbles", "état"], aggregates.map((aggregate) => ({
+        table2(["agrégat", "protocole", "membres", "câbles", "état"], aggregates.map((aggregate) => ({
           onclick: () => onSelect({ kind: "aggregate", id: aggregate.key }),
           cells: [
             aggregate.name,
             aggregate.raw.protocol,
             aggregate.raw.members.filter((m) => m.status === "bundled").length + " / " + aggregate.raw.members.length + " bundled",
             String(aggregate.cables.length),
-            pill("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet")
+            pill2("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet")
           ]
         })), { empty: "aucun document aggregates pour cet équipement" })
       ]
@@ -2183,7 +3667,7 @@
   var structures = { aggregatePanel, beamPanel, clusterPanel, nodeStructures, aggregateButton, beamButton, clusterButton, aggregateLabel };
 
   // src/shell/inspect.ts
-  function changeOf(model2, kind, id, ghost) {
+  function changeOf2(model2, kind, id, ghost) {
     if (ghost) return { kind: "removed", fields: [] };
     return model2.changeOf ? model2.changeOf(kind, id) : null;
   }
@@ -2247,18 +3731,6 @@
     }
     return "";
   }
-  function whyText(link) {
-    const witnesses = (keep) => Array.from(new Set(link.raw.evidence.filter((e) => keep(e.source)).map((e) => endLabel(e.witness)))).join(", ");
-    const seen = witnesses((src) => OBSERVED[src]);
-    const written = witnesses((src) => !OBSERVED[src]);
-    const protocols = link.sources.filter((src) => OBSERVED[src]).map((src) => src.toUpperCase()).join(" et ");
-    const parts = [];
-    if (seen) parts.push("Observé en " + protocols + " depuis " + seen + ".");
-    else parts.push("Aucune observation LLDP ni CDP : ce câble n'existe que par les descriptions d'interface.");
-    parts.push(written ? "Documenté par la description de " + written + "." : "Aucune description ne le documente.");
-    if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push("Attention : une description ne concorde pas avec l'observé, voir le contrôle ci-dessous.");
-    return parts.join(" ");
-  }
   function aggregateEnds(model2, link, onSelect) {
     const raw = link.raw;
     const ends = [[raw.a.hostname, raw.aggregate_a], [raw.b.hostname, raw.aggregate_b]].filter((end) => end[1] !== null);
@@ -2271,14 +3743,14 @@
   function linkPanel(model2, link, onSelect) {
     const raw = link.raw;
     const why = whyText(link);
-    const change = changeOf(model2, "link", link.id, link.ghost);
+    const change = changeOf2(model2, "link", link.id, link.ghost);
     return [
       h(
         "div",
         { class: "panel-head" },
         h("span", { class: "eyebrow" }, "câble"),
         statusPill(link.status),
-        raw.oper === "down" ? pill("oper", "down", "down") : null,
+        raw.oper === "down" ? pill2("oper", "down", "down") : null,
         change ? diffPill(change.kind) : null
       ),
       h(
@@ -2315,7 +3787,7 @@
   function coverageRow(model2, hostname) {
     const coverage = model2.coverage.find((c) => c.hostname === hostname);
     if (!coverage) return null;
-    return h("div", { class: "topic-row" }, Object.entries(coverage.topics).map(([topic, status]) => pill("topic", status, topic + " : " + status)));
+    return h("div", { class: "topic-row" }, Object.entries(coverage.topics).map(([topic, status]) => pill2("topic", status, topic + " : " + status)));
   }
   var facingOf = (model2, itf) => (model2.linksByIface.get(ifaceKey(itf.hostname, itf.name)) || []).map((l) => endLabel(l.a.hostname === itf.hostname && l.a.interface === itf.name ? l.b : l.a) + (l.ghost ? " (retiré)" : "")).join(", ");
   function interfaceTable(model2, ifaces) {
@@ -2327,7 +3799,7 @@
         const facing = facingOf(model2, itf);
         return { cells: [itf.name, itf.type, itf.oper_status, facing || "—", itf.description === null ? "" : h("code", { class: "wrap" }, itf.description)] };
       });
-      clear(holder).appendChild(table(["nom", "type", "état", "câble vers", "description"], rows, { empty: only ? "aucun port physique up sans câble" : "aucune interface collectée" }));
+      clear(holder).appendChild(table2(["nom", "type", "état", "câble vers", "description"], rows, { empty: only ? "aucun port physique up sans câble" : "aucune interface collectée" }));
     };
     draw(false);
     return [h(
@@ -2339,7 +3811,7 @@
   }
   function ghostInterfaceTable(model2, gone) {
     const rows = gone.map((itf) => ({ cells: [diffPill("removed"), itf.name, itf.type, itf.oper_status, facingOf(model2, itf) || "—"] }));
-    return table(["changement", "nom", "type", "état (run d'avant)", "câble vers"], rows, { empty: "aucune" });
+    return table2(["changement", "nom", "type", "état (run d'avant)", "câble vers"], rows, { empty: "aucune" });
   }
   function nodePanel(model2, node, onSelect, extra) {
     const links = model2.linksByNode.get(node.hostname) || [];
@@ -2347,13 +3819,13 @@
     const ifaces = model2.ifacesByNode.get(node.hostname) || [];
     const ghostIfaces = model2.ghostIfacesByNode.get(node.hostname) || [];
     const seen = node.evidence ? node.evidence.seen_by : [];
-    const change = changeOf(model2, "node", node.hostname, node.ghost);
+    const change = changeOf2(model2, "node", node.hostname, node.ghost);
     return [
       h(
         "div",
         { class: "panel-head" },
-        h("span", { class: "eyebrow" }, KIND_LABEL[node.kind]),
-        node.collection ? pill("collection", node.collection, "collecte : " + node.collection) : null,
+        h("span", { class: "eyebrow" }, KIND_LABEL2[node.kind]),
+        node.collection ? pill2("collection", node.collection, "collecte : " + node.collection) : null,
         change ? diffPill(change.kind) : null
       ),
       h("h3", {}, node.hostname),
@@ -2372,7 +3844,7 @@
       node.kind === "device" ? [h("h4", { class: "section" }, "Couverture de la collecte"), coverageRow(model2, node.hostname)] : null,
       seen.length ? [h("h4", { class: "section" }, "Vu par"), h("ul", { class: "plain" }, seen.map((w) => h("li", {}, sourcePill(w.source), " ", endLabel(w))))] : null,
       h("h4", { class: "section" }, "Câbles : " + (links.length - gone) + (gone ? " · " + gone + " retiré" + (gone > 1 ? "s" : "") : "")),
-      table(["port local", "en face"], links.map((link) => {
+      table2(["port local", "en face"], links.map((link) => {
         const local = link.a.hostname === node.hostname ? link.a : link.b, remote = local === link.a ? link.b : link.a;
         return { onclick: () => onSelect({ kind: "link", id: link.id }), cells: [local.interface, [h("div", {}, endLabel(remote)), h("div", {}, link.ghost ? diffPill("removed") : null, statusPill(link.status), link.sources.map(sourcePill))]] };
       }), { empty: "aucun câble" }),
@@ -2400,7 +3872,7 @@
       ])
     ];
   }
-  var KIND_WORD = { link: "câble", node: "équipement", aggregate: "agrégat", beam: "faisceau", cluster: "cluster HA" };
+  var KIND_WORD = { link: "câble", node: "équipement", aggregate: "agrégat", beam: "faisceau", cluster: "cluster HA", group: "groupe", annotation: "annotation", connector: "connecteur" };
   function describe(model2, selection) {
     if (!selection || !entityOf(model2, selection)) return "";
     const label2 = (() => {
@@ -2418,6 +3890,18 @@
         case "beam": {
           const beam = beamOf(model2, selection);
           return beam ? beamLabel(beam, true) : "";
+        }
+        case "group": {
+          const group = model2.groupById.get(selection.id);
+          return group ? group.label : "";
+        }
+        case "annotation": {
+          const a = model2.annotationById.get(selection.id);
+          return a ? a.content.kind : "";
+        }
+        case "connector": {
+          const c = model2.connectorById.get(selection.id);
+          return c ? c.label || c.id : "";
         }
         default: {
           const cluster = clusterOf(model2, selection);
@@ -2467,8 +3951,8 @@
       if (hooks.mounted()) view();
       hooks.refreshPage();
     };
-    async function send(ops, removed, done) {
-      if (!writer) return;
+    async function send(ops, removed, done, colour = false, all = false) {
+      if (!writer) return false;
       hooks.note("enregistrement…");
       let failure = null;
       for (const part of chunks(ops, OPS_PER_REQUEST)) {
@@ -2479,10 +3963,13 @@
         }
         accept(outcome.intent);
       }
-      if (removed.length) hooks.graph().unpin(removed.filter((host) => model2.pinByHost.has(host) === false));
-      else hooks.graph().syncPins();
+      const graph2 = hooks.graph();
+      if (colour || all) graph2.recolor();
+      if (removed.length) graph2.unpin(removed.filter((host) => model2.pinByHost.has(host) === false));
+      if (all || !colour && !removed.length) graph2.syncPins();
       hooks.note(failure ? "non enregistré : " + failure : done);
       refresh();
+      return failure === null;
     }
     function onPin(hostname, point) {
       if (!writer) {
@@ -2503,7 +3990,79 @@
         refresh();
       });
     }
+    function onPins(moves, cause = "aligned") {
+      const hosts = Array.from(moves.keys()).sort();
+      const plural3 = hosts.length > 1 ? "s" : "";
+      const what = hosts.length + " équipement" + plural3 + (cause === "dragged" ? " déplacé" : " aligné") + plural3;
+      if (!writer) {
+        hooks.note(what + " ici, non enregistré" + (hosts.length > 1 ? "s" : "") + " (page sans serveur)");
+        return;
+      }
+      if (!writer.author) {
+        hooks.note(what + " ici : donnez votre nom pour enregistrer les épingles");
+        return;
+      }
+      const ops = hosts.map((hostname) => {
+        const point = moves.get(hostname);
+        return { op: "pin", hostname, x: Math.round(point.x), y: Math.round(point.y) };
+      });
+      void send(ops, [], what + ", épingles enregistrées (" + writer.author + ")");
+    }
+    function colourOps(ops, done) {
+      if (!writer) {
+        hooks.note("couleur non enregistrée (page sans serveur)");
+        return;
+      }
+      if (!writer.author) {
+        hooks.note("donnez votre nom pour enregistrer une couleur");
+        return;
+      }
+      void send(ops, [], done + " (" + writer.author + ")", true);
+    }
+    const onColor = (hostname, hue) => colourOps(
+      hue ? [{ op: "color", hostname, hue }] : [{ op: "uncolor", hostname }],
+      hue ? "couleur de " + hostname + " : " + hueLabel(hue) : "couleur de " + hostname + " retirée"
+    );
+    const onColors = (hostnames, hue) => {
+      const hosts = hostnames.slice().sort();
+      if (!hosts.length) return;
+      const what = hosts.length === 1 ? hosts[0] : hosts.length + " équipements";
+      colourOps(
+        hosts.map((hostname) => hue ? { op: "color", hostname, hue } : { op: "uncolor", hostname }),
+        hue ? "couleur de " + what + " : " + hueLabel(hue) : "couleur de " + what + " retirée"
+      );
+    };
+    const onTypeColor = (type, hue) => colourOps(
+      hue ? [{ op: "color_type", type, hue }] : [{ op: "uncolor_type", type }],
+      hue ? "couleur des " + (LABEL[type] || type) + " : " + hueLabel(hue) : "couleur des " + (LABEL[type] || type) + " retirée"
+    );
+    async function onOps(ops, done, what) {
+      if (!writer) {
+        hooks.note(what + " non enregistré (page sans serveur)");
+        return null;
+      }
+      if (!writer.author) {
+        hooks.note("donnez votre nom pour enregistrer " + what);
+        return null;
+      }
+      await send(ops, [], done + " (" + writer.author + ")", true);
+      return model2.intent;
+    }
+    const onGroup = (ops, done) => onOps(ops, done, "un groupe");
+    const onAnnotation = (ops, done) => onOps(ops, done, "une annotation");
+    const onConnector = (ops, done) => onOps(ops, done, "un connecteur");
+    async function apply(ops, done) {
+      if (!writer || !writer.author) {
+        hooks.note("donnez votre nom pour annuler ou rétablir");
+        return null;
+      }
+      const removed = ops.flatMap((op) => op.op === "unpin" ? [op.hostname] : []);
+      return await send(ops, removed, done, false, true) ? model2.intent : null;
+    }
     const unpinOps = (hosts) => hosts.map((hostname) => ({ op: "unpin", hostname }));
+    const unpin = (hosts) => {
+      if (hosts.length) void send(unpinOps(hosts), hosts, hosts.length + " épingle" + (hosts.length > 1 ? "s retirées" : " retirée"));
+    };
     const removeOne = (hostname, button) => {
       button.setAttribute("disabled", "");
       void send(unpinOps([hostname]), [hostname], "épingle de " + hostname + " retirée");
@@ -2531,9 +4090,100 @@
     }
     function pinRow(pin, orphan) {
       const target = orphan ? pin.hostname : h("button", { class: "linklike", type: "button", onclick: () => hooks.openInGraph({ kind: "node", id: pin.hostname }) }, pin.hostname);
-      const state = orphan ? pill("pin", "orphan", "orpheline : équipement absent de cette run") : pill("pin", "present", "présente");
+      const state = orphan ? pill2("pin", "orphan", "orpheline : équipement absent de cette run") : pill2("pin", "present", "présente");
       const remove = canWrite() ? h("button", { type: "button", onclick: (e) => removeOne(pin.hostname, e.target) }, "retirer") : "";
       return { cells: [target, String(pin.x), String(pin.y), pin.author, dateText(pin.at), state, remove] };
+    }
+    function colourRow(target, hue, author, at, orphan, remove) {
+      const state = orphan === null ? "" : orphan ? pill2("pin", "orphan", "orpheline : équipement absent de cette run") : pill2("pin", "present", "présente");
+      const button = canWrite() ? h("button", { type: "button", onclick: (e) => {
+        e.target.setAttribute("disabled", "");
+        void send(remove(), [], "couleur retirée", true);
+      } }, "retirer la couleur") : "";
+      return { cells: [target, h("span", { class: "hue-dot hue-" + hue }, hueLabel(hue)), author, dateText(at), state, button] };
+    }
+    function coloursBlock() {
+      const types = model2.intent && model2.intent.type_colors ? model2.intent.type_colors : [];
+      const devices = model2.intent && model2.intent.device_colors ? model2.intent.device_colors : [];
+      const orphans = new Set(model2.orphanColors.map((c) => c.hostname));
+      const rows = types.map((c) => colourRow("type · " + (LABEL[c.type] || c.type), c.hue, c.author, c.at, null, () => [{ op: "uncolor_type", type: c.type }])).concat(devices.map((c) => colourRow(
+        orphans.has(c.hostname) ? c.hostname : h("button", { class: "linklike", type: "button", onclick: () => hooks.openInGraph({ kind: "node", id: c.hostname }) }, c.hostname),
+        c.hue,
+        c.author,
+        c.at,
+        orphans.has(c.hostname),
+        () => [{ op: "uncolor", hostname: c.hostname }]
+      )));
+      const orphanOps = () => model2.orphanColors.map((c) => ({ op: "uncolor", hostname: c.hostname }));
+      return [
+        h("h3", {}, "Couleurs enregistrées : " + rows.length + (orphans.size ? " · " + orphans.size + " orpheline" + (orphans.size > 1 ? "s" : "") : "")),
+        h("p", { class: "muted" }, "La teinte d'un type vaut pour toute l'infrastructure ; celle d'un équipement l'emporte. Douze teintes nommées, jamais une valeur libre (docs/10)."),
+        table2(["cible", "teinte", "auteur", "date", "état", ""], rows, { empty: "aucune couleur : la palette des types et la fiche d'un équipement, dans l'application" }),
+        canWrite() && orphans.size ? h("div", { class: "toolbar-row" }, confirmable("retirer les couleurs orphelines", () => {
+          void send(orphanOps(), [], "couleurs orphelines retirées", true);
+        }, { count: orphans.size })) : null
+      ];
+    }
+    function groupsBlock() {
+      const list = model2.intent && model2.intent.groups ? model2.intent.groups : [];
+      const rows = list.map((group) => {
+        const orphans = group.members.filter((host) => {
+          const node = model2.nodeByHost.get(host);
+          return !node || !!node.ghost;
+        });
+        const present2 = group.members.length - orphans.length;
+        const state = present2 === 0 ? pill2("pin", "orphan", "orphelin : aucun membre dans cette run") : orphans.length ? pill2("pin", "orphan", orphans.length + " membre(s) absent(s)") : pill2("pin", "present", "présent");
+        const remove = canWrite() ? confirmable("supprimer", () => {
+          void send([{ op: "group_delete", id: group.id }], [], "groupe " + group.label + " supprimé", true);
+        }, { count: group.members.length }) : "";
+        return { cells: [
+          h("span", {}, h("b", {}, group.label), " ", h("code", { class: "muted" }, group.id)),
+          h("span", { class: "hue-dot hue-" + group.style.hue }, STYLE_LABEL[group.style.shape] || group.style.shape),
+          present2 + " / " + group.members.length + (orphans.length ? " · absents : " + orphans.join(", ") : ""),
+          group.author,
+          dateText(group.at),
+          state,
+          remove
+        ] };
+      });
+      return [
+        h("h3", {}, "Groupes enregistrés : " + rows.length + (model2.orphanGroups.length ? " · " + model2.orphanGroups.length + " orphelin" + (model2.orphanGroups.length > 1 ? "s" : "") : "")),
+        h("p", { class: "muted" }, "Un groupe = des membres + un style ; son cadre se calcule depuis ses membres (docs/10 §5). Il se crée, se modifie et se glisse dans l'application ; ici, la comptabilité."),
+        table2(["groupe", "forme", "membres", "auteur", "date", "état", ""], rows, { empty: "aucun groupe : depuis la fiche d'une sélection multiple, dans l'application" })
+      ];
+    }
+    function annotationsBlock() {
+      const list = model2.intent && model2.intent.annotations ? model2.intent.annotations : [];
+      const orphans = new Set(model2.orphanAnnotations.map((a) => a.id));
+      const rows = list.map((a) => {
+        const where = a.anchor.kind === "free" ? "libre" : a.anchor.kind + " · " + a.anchor.ref;
+        const state = orphans.has(a.id) ? pill2("pin", "orphan", "orpheline : ancre absente de cette run") : pill2("pin", "present", "présente");
+        const remove = canWrite() ? confirmable("supprimer", () => {
+          void send([{ op: "annotation_delete", id: a.id }], [], "annotation supprimée", true);
+        }, { count: 1 }) : "";
+        return { cells: [h("span", {}, h("b", {}, KIND_LABEL[a.content.kind] || a.content.kind), " ", h("code", { class: "muted" }, a.id)), summary(a), where, a.x + ", " + a.y + " · " + a.w + " × " + a.h, a.author, dateText(a.at), state, remove] };
+      });
+      return [
+        h("h3", {}, "Annotations enregistrées : " + rows.length + (orphans.size ? " · " + orphans.size + " orpheline" + (orphans.size > 1 ? "s" : "") : "")),
+        h("p", { class: "muted" }, "Une annotation dit ce que la donnée ignore : note, forme, tableau, image, libre ou attachée à un équipement ou à un groupe (docs/10 §6). Elle se crée et se règle dans l'application ; ici, la comptabilité."),
+        table2(["sorte", "contenu", "ancrage", "boîte", "auteur", "date", "état", ""], rows, { empty: "aucune annotation : la barre d'outils de l'application, « insérer »" })
+      ];
+    }
+    function connectorsBlock() {
+      const list = model2.intent && model2.intent.connectors ? model2.intent.connectors : [];
+      const orphans = new Set(model2.orphanConnectors.map((c) => c.id));
+      const rows = list.map((c) => {
+        const state = orphans.has(c.id) ? pill2("pin", "orphan", "orphelin : un bout vise un élément absent de cette run") : pill2("pin", "present", "présent");
+        const remove = canWrite() ? confirmable("supprimer", () => {
+          void send([{ op: "connector_delete", id: c.id }], [], "connecteur supprimé", true);
+        }, { count: 1 }) : "";
+        return { cells: [h("code", { class: "muted" }, c.id), summary2(c), c.route, c.author, dateText(c.at), state, remove] };
+      });
+      return [
+        h("h3", {}, "Connecteurs enregistrés : " + rows.length + (orphans.size ? " · " + orphans.size + " orphelin" + (orphans.size > 1 ? "s" : "") : "")),
+        h("p", { class: "muted" }, "Un connecteur relie deux bouts, libres ou attachés à un équipement, un groupe ou une annotation : une ligne ou une flèche de contexte, jamais un câble (docs/10 §6). Il se trace dans l'application ; ici, la comptabilité."),
+        table2(["id", "connecteur", "tracé", "auteur", "date", "état", ""], rows, { empty: "aucun connecteur : la barre d'outils de l'application, « insérer »" })
+      ];
     }
     const removeMany = (label2, hosts) => hosts.length ? confirmable(label2, () => {
       void send(unpinOps(hosts), hosts, hosts.length + " épingle" + (hosts.length > 1 ? "s retirées" : " retirée"));
@@ -2561,8 +4211,12 @@
         ]) : null,
         h("h3", {}, "Épingles enregistrées : " + pins.length + (orphans.size ? " · " + orphans.size + " orpheline" + (orphans.size > 1 ? "s" : "") : "")),
         orphans.size ? h("p", { class: "muted" }, "Une épingle orpheline vise un équipement qui n'est pas dans cette run (retiré, renommé, ou pas encore collecté). Elle n'est pas dessinée, elle n'est pas effacée : si l'équipement revient, elle s'applique à nouveau.") : null,
-        table(headers, rows, { empty: model2.intent ? "aucune épingle : glisser un équipement sur le graphe" : "pas de couche d'intention dans cette page" }),
+        table2(headers, rows, { empty: model2.intent ? "aucune épingle : glisser un équipement sur le graphe" : "pas de couche d'intention dans cette page" }),
         canWrite() ? h("div", { class: "toolbar-row" }, removeMany("retirer les épingles orphelines", orphanHosts), removeMany("retirer toutes les épingles", allHosts)) : null,
+        coloursBlock(),
+        groupsBlock(),
+        annotationsBlock(),
+        connectorsBlock(),
         h("h3", {}, "Déplacements locaux non enregistrés : " + local.length),
         local.length ? [
           h("p", { class: "muted" }, local.join(", ")),
@@ -2583,7 +4237,7 @@
         pin && canWrite() ? h("button", { type: "button", onclick: (e) => removeOne(hostname, e.target) }, "retirer l'épingle") : null
       ];
     }
-    return { onPin, view, pinBlock };
+    return { onPin, onPins, unpin, onColor, onTypeColor, onColors, onGroup, onAnnotation, onConnector, apply, canWrite, view, pinBlock };
   }
   var intent = { createIntentHost, OPS_PER_REQUEST, AUTHOR_MAX_LENGTH };
 
@@ -2629,15 +4283,15 @@
         hooks.note(what + ", non mémorisé" + (places.length > 1 && !replace ? "s" : "") + " : " + outcome.message + " (renvoyé au prochain dessin)");
       }
     }
-    function onPlaced(fresh, replace) {
+    function onPlaced(fresh2, replace) {
       if (replace) {
         pending.clear();
         replacing = true;
       }
-      fresh.forEach((point, hostname) => pending.set(hostname, { hostname, x: point.x, y: point.y }));
-      const what = replace ? "placement recalculé" : placed(fresh.size);
+      fresh2.forEach((point, hostname) => pending.set(hostname, { hostname, x: point.x, y: point.y }));
+      const what = replace ? "placement recalculé" : placed(fresh2.size);
       if (!placer) {
-        if (model2.placement) hooks.note(what + " ici, non mémorisé" + (fresh.size > 1 && !replace ? "s" : "") + " (page sans serveur)");
+        if (model2.placement) hooks.note(what + " ici, non mémorisé" + (fresh2.size > 1 && !replace ? "s" : "") + " (page sans serveur)");
         return;
       }
       queue = queue.then(() => send(replace, what)).catch(() => void 0);
@@ -2656,9 +4310,9 @@
     const svg = byId("canvas");
     const parent = svg.parentNode;
     if (!parent) return;
-    const fresh = s("svg", {});
-    svg.getAttributeNames().forEach((name) => fresh.setAttribute(name, svg.getAttribute(name)));
-    parent.replaceChild(fresh, svg);
+    const fresh2 = s("svg", {});
+    svg.getAttributeNames().forEach((name) => fresh2.setAttribute(name, svg.getAttribute(name)));
+    parent.replaceChild(fresh2, svg);
   }
   function toggleStatus(graph2, status, st) {
     const hidden = graph2.state.hiddenStatuses;
@@ -2687,7 +4341,7 @@
       const before = model2.diff.before;
       meta.appendChild(h("div", { class: "run-diff" }, "comparée à la run ", h("code", {}, before.collector_run_id), " du " + before.start_datetime + " · " + elapsedText(model2.diff.elapsed_seconds)));
     }
-    const count = (map, key) => map.get(key) || 0;
+    const count = (map, key2) => map.get(key2) || 0;
     const statusChip = (st) => h("button", {
       type: "button",
       id: "c-" + st,
@@ -2726,12 +4380,12 @@
   function toolbar(model2, graph2, status, placements) {
     const stubs = model2.kindCounts.get("stub") || 0;
     const redraw = { showStubs: () => graph2.render(false), showPorts: () => (graph2.repaint(), null), showDiff: () => graph2.render(true) };
-    const toggle = (id, label2, key) => h(
+    const toggle = (id, label2, key2) => h(
       "label",
       { class: "check-field" },
-      h("input", { id, type: "checkbox", checked: graph2.state[key] || null, onchange: (e) => {
-        graph2.state[key] = e.target.checked;
-        status(redraw[key]());
+      h("input", { id, type: "checkbox", checked: graph2.state[key2] || null, onchange: (e) => {
+        graph2.state[key2] = e.target.checked;
+        status(redraw[key2]());
       } }),
       label2
     );
@@ -2774,7 +4428,7 @@
     const span = (cls) => h("span", { class: cls });
     const note = (swatch, text, title) => h("span", { class: "legend-note", title: title || null }, swatch, text);
     const group = (name, ...items) => h("span", { class: "legend-group" }, h("span", { class: "group-name" }, name), items);
-    const icon = (type) => s("svg", { class: "legend-icon", viewBox: "0 0 16 16", "aria-hidden": "true" }, s("path", { d: path(type) }));
+    const icon = (type) => s("svg", { class: "legend-icon hue-" + hueOfType(model2, type), viewBox: "0 0 32 32", "aria-hidden": "true" }, s("path", { class: "icon-body", d: glyph(type).body }), s("path", { class: "icon-shade", d: glyph(type).shade }), s("path", { class: "icon-mark", d: glyph(type).mark }));
     clear(byId("graph-legend")).appendChild(h(
       "div",
       { class: "legend-row" },
@@ -2808,8 +4462,8 @@
   }
   function mountTabs(list, activate, model2) {
     const counts = { diff: model2.diffCount, structures: model2.aggregates.length, intent: model2.pinByHost.size, checks: model2.checks.length, sources: model2.links.length };
-    const bar = clear(byId("tabs"));
-    list.forEach(([id, label2]) => bar.appendChild(h("button", {
+    const bar2 = clear(byId("tabs"));
+    list.forEach(([id, label2]) => bar2.appendChild(h("button", {
       type: "button",
       role: "tab",
       id: "tab-" + id,
@@ -2915,12 +4569,12 @@
       container: () => byId("view-intent")
     });
     const drawn = () => {
-      const nodes = Array.from(g().state.nodeEls.keys(), (host) => model2.nodeByHost.get(host)).filter((n) => !!n);
+      const nodes = Array.from(g().state.nodeEls.keys(), (host) => model2.nodeByHost.get(host)).filter((n2) => !!n2);
       const links = Array.from(g().state.linkEls.keys(), (id) => model2.linkById.get(id)).filter((l) => !!l);
       return {
-        nodes: nodes.filter((n) => !n.ghost).length,
+        nodes: nodes.filter((n2) => !n2.ghost).length,
         links: links.filter((l) => !l.ghost).length,
-        ghosts: nodes.filter((n) => n.ghost).length + links.filter((l) => l.ghost).length
+        ghosts: nodes.filter((n2) => n2.ghost).length + links.filter((l) => l.ghost).length
       };
     };
     const ghostText = (shownGhosts) => {
@@ -2942,8 +4596,8 @@
       if (model2.diff && !g().state.showDiff) hidden.push("changements masqués");
       if (g().state.showDiff && model2.ghostNodes.length + model2.ghostLinks.length) hidden.push(ghostText(shown.ghosts));
       byId("graph-status").textContent = shown.nodes + " nœuds sur " + total2.nodes + " et " + shown.links + " câbles sur " + total2.links + " affichés" + (hidden.length ? " · " + hidden.join(" · ") : "") + (note ? " · " + note : "");
-      const box = document.getElementById("t-stubs");
-      if (box) box.checked = g().state.showStubs;
+      const box2 = document.getElementById("t-stubs");
+      if (box2) box2.checked = g().state.showStubs;
       const diffBox = document.getElementById("t-diff");
       if (diffBox) diffBox.checked = g().state.showDiff;
       STATUSES.forEach((st) => ["l-", "c-"].forEach((prefix) => {
@@ -2958,7 +4612,7 @@
       note = text;
       status();
     } });
-    graph2 = create2(byId("canvas"), model2, onSelect, { onPin: intents.onPin, onPlaced: placements.onPlaced });
+    graph2 = create2(byId("canvas"), model2, onSelect, { onPin: intents.onPin, onPins: intents.onPins, onPlaced: placements.onPlaced });
     header(model2, graph2, status, openChecks, activate);
     mountTabs(tabs, activate, model2);
     toolbar(model2, graph2, status, placements);
@@ -3004,6 +4658,73 @@
       document.body.appendChild(h("p", { class: "fatal" }, "La page n'a pas pu s'afficher : " + error.message));
       throw error;
     }
+  }
+
+  // src/shell/http.ts
+  var TOKEN_KEY = "ld-api-token";
+  var AUTHOR_KEY = "ld-author";
+  var ROUTES2 = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches", placement: "/api/placement", assets: "/api/intent/assets" };
+  function storage() {
+    try {
+      return globalThis.sessionStorage || null;
+    } catch (error) {
+      return null;
+    }
+  }
+  function readToken() {
+    try {
+      const store = storage();
+      return store && store.getItem(TOKEN_KEY) || "";
+    } catch (error) {
+      return "";
+    }
+  }
+  function writeToken(token) {
+    try {
+      const store = storage();
+      if (store) {
+        if (token) store.setItem(TOKEN_KEY, token);
+        else store.removeItem(TOKEN_KEY);
+      }
+    } catch (error) {
+    }
+  }
+  function readAuthor() {
+    try {
+      return globalThis.localStorage && globalThis.localStorage.getItem(AUTHOR_KEY) || "";
+    } catch (error) {
+      return "";
+    }
+  }
+  function writeAuthor(name) {
+    try {
+      const store = globalThis.localStorage;
+      if (store) {
+        if (name) store.setItem(AUTHOR_KEY, name);
+        else store.removeItem(AUTHOR_KEY);
+      }
+    } catch (error) {
+    }
+  }
+  var withParams = (route, params) => route + "?" + new URLSearchParams(params).toString();
+  async function call(route, params, token, payload) {
+    const init = { headers: { Authorization: "Bearer " + token }, credentials: "omit" };
+    if (payload !== void 0) Object.assign(init, { method: "POST", headers: { ...init.headers, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const response = await fetch(withParams(route, params), init);
+    let body = null;
+    try {
+      body = await response.json();
+    } catch (error) {
+      body = null;
+    }
+    return { status: response.status, body };
+  }
+  var isRecord = (value) => !!value && typeof value === "object";
+  function explain(status, body) {
+    if (status === 401) return "jeton refusé par l'API";
+    const detail = isRecord(body) && typeof body.detail === "string" ? body.detail : "";
+    if (status === 404) return detail || "run inconnue pour cette infrastructure";
+    return "l'API répond " + status + (detail ? " : " + detail : "");
   }
 
   // src/shell/timeline.ts
@@ -3059,11 +4780,11 @@
       runs.slice(0, Math.max(at, 0)).map(option)
     );
     const keys = (event) => {
-      const key = event.key;
-      if (key === "ArrowLeft") {
+      const key2 = event.key;
+      if (key2 === "ArrowLeft") {
         event.preventDefault();
         go(prev, prev ? previousId(runs, prev.run_id) : "");
-      } else if (key === "ArrowRight") {
+      } else if (key2 === "ArrowRight") {
         event.preventDefault();
         go(next, current);
       }
@@ -3091,74 +4812,9 @@
   var timeline = { render, indexOf, previousOf, nextOf, label };
 
   // src/shell/shell.ts
-  var TOKEN_KEY = "ld-api-token";
-  var AUTHOR_KEY = "ld-author";
-  var ROUTES = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches", placement: "/api/placement" };
-  function storage() {
-    try {
-      return globalThis.sessionStorage || null;
-    } catch (error) {
-      return null;
-    }
-  }
-  function readToken() {
-    try {
-      const store = storage();
-      return store && store.getItem(TOKEN_KEY) || "";
-    } catch (error) {
-      return "";
-    }
-  }
-  function writeToken(token) {
-    try {
-      const store = storage();
-      if (store) {
-        if (token) store.setItem(TOKEN_KEY, token);
-        else store.removeItem(TOKEN_KEY);
-      }
-    } catch (error) {
-    }
-  }
-  function readAuthor() {
-    try {
-      return globalThis.localStorage && globalThis.localStorage.getItem(AUTHOR_KEY) || "";
-    } catch (error) {
-      return "";
-    }
-  }
-  function writeAuthor(name) {
-    try {
-      const store = globalThis.localStorage;
-      if (store) {
-        if (name) store.setItem(AUTHOR_KEY, name);
-        else store.removeItem(AUTHOR_KEY);
-      }
-    } catch (error) {
-    }
-  }
-  var query = (name) => new URLSearchParams(location.search).get(name) || "";
-  var withParams = (route, params) => route + "?" + new URLSearchParams(params).toString();
-  async function call(route, params, token, payload) {
-    const init = { headers: { Authorization: "Bearer " + token }, credentials: "omit" };
-    if (payload !== void 0) Object.assign(init, { method: "POST", headers: { ...init.headers, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    const response = await fetch(withParams(route, params), init);
-    let body = null;
-    try {
-      body = await response.json();
-    } catch (error) {
-      body = null;
-    }
-    return { status: response.status, body };
-  }
-  var isRecord = (value) => !!value && typeof value === "object";
-  function explain(status, body) {
-    if (status === 401) return "jeton refusé par l'API";
-    const detail = isRecord(body) && typeof body.detail === "string" ? body.detail : "";
-    if (status === 404) return detail || "run inconnue pour cette infrastructure";
-    return "l'API répond " + status + (detail ? " : " + detail : "");
-  }
+  var query2 = (name) => new URLSearchParams(location.search).get(name) || "";
   function create3(root, data2) {
-    const state = { token: readToken(), author: readAuthor(), infrastructure: query("infrastructure"), runId: query("run_id"), from: query("from"), runs: null, message: null, busy: false, pending: null };
+    const state = { token: readToken(), author: readAuthor(), infrastructure: query2("infrastructure"), runId: query2("run_id"), from: query2("from"), runs: null, message: null, busy: false, pending: null };
     const fields = {};
     const input = (id, label2, type, value, placeholder, maxlength) => h(
       "label",
@@ -3177,7 +4833,7 @@
       } }, "avec la précédente");
       return [
         h("h3", {}, "Runs archivées de " + state.infrastructure + " : " + runs.length),
-        table(
+        table2(
           ["run", "début de collecte", "statut", "ingérée le", "comparer"],
           runs.map((run2, index) => ({
             onclick: () => {
@@ -3185,7 +4841,7 @@
               state.from = "";
               state.pending = open();
             },
-            cells: [h("code", {}, run2.run_id), run2.run_start, pill("run", run2.run_status, run2.run_status), run2.stored_at, compare(run2, index)]
+            cells: [h("code", {}, run2.run_id), run2.run_start, pill2("run", run2.run_status, run2.run_status), run2.stored_at, compare(run2, index)]
           })),
           { empty: "aucune run archivée pour cette infrastructure" }
         )
@@ -3278,7 +4934,7 @@
       state.message = null;
       state.runs = null;
       render2();
-      const found = await call(ROUTES.runs, { infrastructure: state.infrastructure }, state.token);
+      const found = await call(ROUTES2.runs, { infrastructure: state.infrastructure }, state.token);
       state.busy = false;
       if (found.status === 200 && isRecord(found.body) && Array.isArray(found.body.runs)) state.runs = found.body.runs;
       else failed(found);
@@ -3296,7 +4952,7 @@
       const send = async (ops) => {
         if (!me.author) return { ok: false, message: "donnez votre nom dans l'onglet Intentions" };
         try {
-          const done = await call(ROUTES.patches, { infrastructure: state.infrastructure }, state.token, { author: me.author, ops });
+          const done = await call(ROUTES2.patches, { infrastructure: state.infrastructure }, state.token, { author: me.author, ops });
           if (done.status === 200 && isRecord(done.body)) return { ok: true, intent: done.body };
           return { ok: false, message: explain(done.status, done.body) };
         } catch (error) {
@@ -3321,7 +4977,7 @@
     function placer() {
       const send = async (write) => {
         try {
-          const done = await call(ROUTES.placement, { infrastructure: state.infrastructure }, state.token, write);
+          const done = await call(ROUTES2.placement, { infrastructure: state.infrastructure }, state.token, write);
           if (done.status === 200 && isRecord(done.body)) return { ok: true, placement: done.body };
           if (done.status === 409 && isRecord(done.body)) return { ok: false, stale: true, placement: done.body };
           return { ok: false, message: explain(done.status, done.body) };
@@ -3340,12 +4996,12 @@
       const infra = { infrastructure: state.infrastructure };
       const diffParams = { infrastructure: state.infrastructure, from: state.from, to: state.runId };
       const [snapshot, report, diff, intent2, placement2, runs] = await Promise.all([
-        call(ROUTES.snapshot, params, state.token),
-        call(ROUTES.report, params, state.token),
-        state.from ? call(ROUTES.diff, diffParams, state.token) : Promise.resolve(null),
-        call(ROUTES.intent, infra, state.token),
-        call(ROUTES.placement, infra, state.token),
-        call(ROUTES.runs, infra, state.token)
+        call(ROUTES2.snapshot, params, state.token),
+        call(ROUTES2.report, params, state.token),
+        state.from ? call(ROUTES2.diff, diffParams, state.token) : Promise.resolve(null),
+        call(ROUTES2.intent, infra, state.token),
+        call(ROUTES2.placement, infra, state.token),
+        call(ROUTES2.runs, infra, state.token)
       ]);
       state.busy = false;
       if (snapshot.status !== 200 || !isRecord(snapshot.body)) {
@@ -3402,7 +5058,7 @@
   var shell = { create: create3, explain, TOKEN_KEY, AUTHOR_KEY };
 
   // src/index.ts
-  var LD = Object.assign(apps, { model, layout, geometry, dom: { ...dom, ...format, ...widgets }, icons, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
+  var LD = Object.assign(apps, { model, layout, annotations, table, connectors, geometry, query, alignment, card, scene, pill, speed, tags, reveal: { reveal }, dom: { ...dom, ...format, ...widgets }, icons, hues, groups, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
   globalThis.LD = LD;
   function embedded() {
     if (typeof document === "undefined") return null;

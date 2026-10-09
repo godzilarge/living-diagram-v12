@@ -1,0 +1,7 @@
+/* L'ordre compte : jetons, polices, socle, toile, interface, inspecteur (les fiches du panneau). */
+@import "./tokens.css";
+@import "./fonts.css";
+@import "./base.css";
+@import "./canvas.css";
+@import "./app.css";
+@import "./inspector.css";

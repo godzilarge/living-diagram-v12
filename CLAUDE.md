@@ -822,6 +822,454 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   câble : bouts, statut, sources en une phrase, contrôles en badges, les deux ports) · bascule des changements · nom de
   l'écrivain. Ordre : toile → build et routes → direction visuelle (captures) → application → Chromium → `demo-dc` →
   docs. **La prochaine session démarre directement sur le code** (plan validé).
+- **L'application React v0 écrite : `engine/src/app/`, servie à `/`** (2026-10-07, « On reprend le plan, go avec l'app
+  React », session autonome sur le plan validé le 2026-10-06 ; ordre tenu : toile → build et routes → direction visuelle →
+  application → Chromium → `demo-dc` → docs). **Toile** (`canvas/`) : `pointer.ts` extrait de `graph.ts` (panoramique,
+  glissé, **Maj + clic** = sélection multiple, **Maj + glissé** = rectangle de sélection), `align.ts` (aligner, répartir ;
+  pur, entier), règles `query.ts` branchées sur le dessin (`hide`, `only`, masquer gagne sur isoler) et sur la recherche
+  (`[champ:]regex` éclaire), `onPins` / `onHosts`, marges d'écran pour `fit` et le centrage ; `/view` inchangée
+  (tests Node et Chromium verts, quatre tests Node ajoutés). `shell/http.ts` extrait de `shell.ts` (routes, appel,
+  jeton, nom), `whyText` déplacé dans `format.ts`, `IntentHost` gagne `onPins`, `unpin`, `canWrite` (réutilisé sans
+  DOM). **Build** : `build.mjs` à deux entrées → `render/assets/app/app.js` (React 19.2.7 en production, minifié,
+  305 Ko), `app.css`, `fonts/` (Inter et JetBrains Mono variables, latin et latin étendu, 190 Ko), déterministes,
+  `--check` sur les deux faces ; `tsconfig` en `react-jsx`. **Backend** : `render/app.py`, `GET /` (page sans donnée,
+  catalogue des codes embarqué, CSP en en-tête `'self'` partout, sans jeton comme `/view`), `GET /assets/app/{name}`
+  (fichiers **lus à la requête**, liste des noms qui fait foi, `ETag` + 304, 404 sans détail). **Application** :
+  couches `api/ → state/ → components/` (réducteur pur, commandes et effets dans `store.tsx`, l'adresse est l'état de
+  vue par `address.ts`, la session dans une référence tenue avant tout `dispatch`) ; seul `Canvas` monte la toile (un
+  `svg` par run, clé = run) ; barre fine (identité, comptes en pastilles colorées, règles posées retirables, recherche,
+  bascules changements / voisins / ports, nom et menu), bande des runs (mêmes règles de diff que `/view`), palette
+  (`/`, Ctrl+K : sélectionner, masquer, isoler, tout afficher), panneau qui glisse (fiches équipement, câble, faisceau,
+  cluster, agrégat, sélection multiple avec les quatre alignements ; trois à cinq faits, « plus » pour le reste), accueil
+  (jeton, infrastructure, nom), ligne d'état qui s'efface. **En arrivant sans `run_id`, la dernière run s'ouvre comparée
+  à la précédente** (choix à confirmer). Direction visuelle : sombre, interface monochrome, un seul accent cyan,
+  teintes de statut inchangées, Lucide, mouvements courts ; jamais de style en ligne ni de HTML depuis une donnée
+  (testés). **Tests** : contracts 629, backend 484 (`tests/test_app.py` : page, CSP, fichiers, 404, sources, Node sans
+  DOM, **bout en bout Chromium** : accueil, dernière run, clic, Maj + clic, alignement épinglé par l'API sous le nom,
+  palette, règle dans l'adresse, adresse modifiée à la main, bande, glissé) ; 85 tests Node (81 toile, 4 application). Captures sur `demo-dc`
+  (accueil, run ouverte, sélection, palette, changement de run) remises à Orhan. **Écart au plan** : la direction
+  visuelle n'a pas été soumise avant de remplir (session autonome) ; les jetons sont dans un seul fichier
+  (`styles/tokens.css`), toute correction de palette est locale. **Parqués** : thème clair (jetons prêts, pas de bascule),
+  `replacer` et « oublier les déplacements locaux » restent dans `/view`, légende absente de l'application, sélection
+  multiple hors de l'adresse (transitoire), critique Impeccable sur captures à faire au retour d'Orhan.
+- **Glisser un équipement de la sélection multiple déplace toute la sélection d'un bloc** (2026-10-07, premier retour
+  d'Orhan sur l'application : « en multi-sélection, pas possible de déplacer toute la sélection »). Dans la toile
+  (`pointer.ts`, `graph.ts`) : un équipement glissé entraîne la sélection multiple quand il en fait partie, chacun part
+  de sa propre place (le bloc garde sa forme), un équipement hors sélection se glisse seul ; à la relâche, un seul
+  paquet d'épingles (`onPins`, cause `dragged` : « 2 équipements déplacés, épingles enregistrées (nom) » ; sans nom,
+  déplacements locaux dits tels) ; `/view` reçoit le même paquet (correctif, un mot). Tests : un test Node sur la toile,
+  une étape du parcours Chromium de l'application. Défaut d'ergonomie, pas de revue. `graph.ts` passe à 606 lignes :
+  une couture existe (la sélection), à découper quand la toile évolue encore.
+- **La toile de l'application passe sur React Flow ; la carte haute ; deux cœurs ne se chevauchent plus** (2026-10-07,
+  « Go » d'Orhan après son retour de fond : « est-ce que c'est pas maintenant qu'on paye le fait de ne pas aller avec
+  React Flow ? […] je tiens à avoir quelque chose de facilement manipulable / transformable » ; avis rendu : oui en
+  partie, bascule recommandée maintenant, avant les intentions étendues). **Décision ③ révisée pour l'application
+  seulement** : `/view` et `ld render` gardent la toile TypeScript (graph.ts, gelée) ; l'application dessine avec
+  **React Flow 12.12.0** (`@xyflow/react`, MIT, embarqué dans `app.js`, +183 Ko minifié, aucun CDN ; attribution
+  masquée, outil interne, à rétablir si Orhan le préfère). Gardé : le moteur pur (modèle, placement, géométrie, règles,
+  alignement), le placement mémorisé, les épingles, le diff, les hôtes d'intention et de placement (leurs hooks prennent
+  une interface étroite, `PinGraph` / `PlaceGraph`), la direction visuelle. **Architecture** : `engine/src/canvas/scene.ts`
+  (pur, extrait de graph.ts : visibles selon les filtres, placement en deux temps, ce qu'une sélection éclaire ; graph.ts
+  garde sa copie, dette notée) ; `engine/src/app/canvas/toile.ts` (l'état de la toile et ses commandes, sans DOM ni
+  React, une version à laquelle React s'abonne) ; `Flow.tsx` (React Flow : nœuds et arêtes reconstruits à chaque
+  version, vue, appuis natifs : Maj + clic, rectangle, glissé de la sélection ; bulle de tip.ts dans une couche SVG) ;
+  `nodes.tsx` (carte, voisin inconnu, cadre de cluster, **en SVG dans le nœud aux dimensions du plan** : la taille
+  mesurée est celle calculée, positions déterministes, mêmes classes et styles que `/view`) ; `edges.tsx` (câble, bande
+  et étiquette de faisceau, deux arêtes pour que l'étiquette passe au-dessus des câbles). **La carte** (`card.ts`, pur) :
+  forme haute choisie par Orhan sur captures (icône de type dans un carreau, rôle HA et compte de stack en haut, nom
+  dedans en 13 px ; largeur estimée par classe de caractère, jamais mesurée) ; les noms de port se posent hors de la
+  carte (`geometry.chord` reçoit la distance au bord), le cadre d'un cluster entoure les cartes. **Placement** : `IDEAL`
+  170 → 220, rangée des sans-câble à 200 (les cartes portent le nom) ; **résolution des recouvrements** après chaque pas
+  (`layout.separate`, 0,55 × IDEAL) : deux cœurs tirés par les mêmes dix accès finissaient l'un sur l'autre,
+  l'attraction en d² battant la répulsion en 1/d. Une infrastructure déjà mémorisée garde ses places : « replacer » dans
+  `/view` pour profiter du nouvel espacement. **Écart connu** : React Flow absorbe le premier pas d'un glissé (seuil de
+  4 px), invisible à la souris, pris en compte dans le test. Tests : backend 484 (parcours Chromium de l'application
+  réécrit sur les nœuds React Flow, Maj par le clavier), 88 tests Node (carte, scène ajoutées). **Règle de méthode
+  actée** : une retouche visuelle se juge sur une capture, en une passe, sans variantes sauf demande explicite ; les
+  tests complets tournent une fois par lot ; pas de revue indépendante pour du visuel. Revue indépendante de cette
+  brique : avec `docs/10`.
+- **La carte large ; les commandes de la toile : grille, aimant, minimap, cadrer, thème clair** (2026-10-07, retours
+  d'Orhan sur l'application : « je grossirais encore un peu les nœuds, le hostname en capitales, la présentation sur
+  deux lignes fait lourd, les icônes sont fades, quasiment illisibles » ; pas de mode clair, pas de minimap, pas de
+  grille ; en référence, les nœuds de l'ancienne version de Living Diagram, **regardés sur une capture de son éditeur
+  (données de démonstration), aucune ligne reprise** ; session autonome, une capture par retouche). **La carte**
+  (`card.ts`, partagée par les deux faces, `/view` suit) : une ligne, 52 de haut ; un rail de la couleur du type collé
+  au bord gauche (tracé aux coins de la carte), l'icône de type agrandie (× 1,5, trait 1,6) dans un carreau teinté de la
+  même couleur, le nom en capitales et en chasse fixe (largeur calculée, 0,62 em par caractère, jamais mesurée), le
+  rôle HA et le compte de stack sur une petite ligne dessous ; plus de teinte de fond pour le rôle HA, le mot suffit.
+  **Couleurs de type** = jetons (`--type-switch` bleu, routeur orange, firewall violet, répartiteur turquoise, contrôleur
+  Wi-Fi vert, serveur et autre gris ; classe `type-*` sur le nœud) ; les changer par équipement ou par groupe sera une
+  intention (`docs/10`). **Placement** : la résolution des recouvrements mesure la distance en écrasant l'horizontale de
+  moitié (`ASPECT` 2) : deux cartes côte à côte s'écartent deux fois plus que l'une sous l'autre ; aucun recouvrement sur
+  `demo-dc`. **Préférences du navigateur** (`app/state/prefs.ts`, `localStorage` `ld-prefs`, lecture tolérante, jamais
+  dans l'adresse ni sur le serveur) : thème sombre (défaut) ou clair (`data-theme` sur la racine, palette claire dans
+  `tokens.css`, statuts assombris pour le contraste), grille (lignes de 20 unités, `Background` de React Flow ;
+  `isolation: isolate` sur la toile, sans quoi son z-index −1 la cachait sous le fond), aimant (`snapToGrid`, le coin
+  haut gauche de la carte sur la grille), minimap (`MiniMap`, variables CSS de React Flow reprises sur nos jetons,
+  cartes colorées par type, cadre déplaçable ; sa taille par la feuille de style, React Flow 12 n'a plus de props de
+  taille). `Controls` en bas à gauche (cinq boutons d'icône, `aria-pressed`) ; la ligne d'état passe au centre,
+  au-dessus de la bande. Tests : 89 sous Node pour la toile, 5 pour l'application (préférences, réducteur), Chromium
+  (grille, thème, `localStorage`, rien dans l'adresse), backend complet vert. **Non codé, avis rendu** : les formes de
+  regroupement éditables (rectangle ou ellipse, nom, taille, couleur, transparence, police) sont des intentions, à
+  concevoir dans `docs/10` ; recommandation : un groupe = des membres + un style (forme, couleur, étiquette, position du
+  texte, marge), l'enveloppe calculée depuis les membres comme un cluster HA, jamais une forme libre à coordonnées ;
+  la couleur du rail par équipement, même famille.
+- **La carte haute et les icônes pleines** (2026-10-07, second retour d'Orhan sur la carte : « encore bien trop petits,
+  surtout verticalement, les icônes écrasées ; des icônes haute définition, colorées, standard du monde télécom, genre
+  stencils Visio Cisco » ; une capture par retouche, skill Impeccable chargé pour l'UI à sa demande). La carte passe à
+  72 de haut (nom 15 px, rôle 10, stack 11, rail 6, coins 12), l'icône de type à 40 px ; le carreau disparaît, l'icône
+  est son propre carreau. **Les icônes sont redessinées (`icons.ts`) : des glyphes pleins sur une grille de 32 × 32, en
+  trois couches** (silhouette à la couleur du type, bandeau d'épaisseur au bas, symbole en réserve à la couleur du fond,
+  jeton `--icon-mark` : le fond sombre sur les teintes claires du thème sombre, blanc sur les teintes profondes du
+  clair), vocabulaire des schémas réseau que tout le monde lit : routeur = disque, deux flèches sortantes à l'horizontale
+  et deux entrantes à la verticale ; switch = boîte aux flèches croisées ; firewall = mur de briques ; répartiteur = une
+  entrée vers trois sorties ; contrôleur Wi-Fi = ondes et antenne ; serveur = tour à trois unités ; autre = trois points.
+  Tout en aplat (flèches et joints sont des polygones, pas des traits) : net à toute échelle, rien ne s'affine au
+  dézoom. La fiche de l'application et la légende de `/view` reprennent le même glyphe (classe `type-*` portée par
+  l'élément, plus seulement par la carte). **Stencils Cisco écartés, avis rendu** : ils restent la propriété de Cisco et
+  ne se modifient pas, donc ni recolorables au thème ni à embarquer dans un bundle, et ils dessineraient un FortiGate
+  avec un symbole Cisco ; le vocabulaire est commun, le dessin est à nous. Si Orhan tient aux originaux, ils entrent
+  comme une ressource à lui, telle quelle, sans thème clair. Rangée des sans-câble à 250. Une infrastructure mémorisée
+  garde ses places (« replacer » dans `/view`). Planche des sept glyphes et captures sombre / clair remises. Détecteur
+  Impeccable passé une fois sur les fichiers touchés : cinq avertissements, tous sur des lignes anciennes de
+  `viewer.css` (gelé), hors du lot.
+- **Les couleurs d'intention : `docs/10` écrit, premier incrément des intentions étendues codé** (2026-10-07, demande
+  d'Orhan : « un réglage pour modifier la couleur des icônes, stocké dans les intentions ; visible par tout le monde,
+  persistant » ; « sinon oui go » sur l'avis rendu ; session autonome, document avant le code). **Décisions** : une
+  intention, jamais une préférence du navigateur (le thème et la grille restent propres au navigateur ; Orhan n'a pas
+  demandé à les partager, la phrase a été clarifiée) ; deux niveaux, une famille : la **palette des types** de
+  l'infrastructure (`type_colors`) et l'**écrasement par équipement** (`device_colors`, l'emporte) ; **une couleur par
+  équipement, pas une par partie** (rail, icône, minimap, icône de la fiche lisent `--type`) ; **douze teintes nommées**
+  (`Hue` : blue, sky, indigo, violet, pink, red, orange, amber, lime, green, teal, slate), chacune avec sa valeur sombre et
+  sa valeur claire dans les jetons (`--hue-*`, les anciens `--type-*` disparaissent), jamais une valeur libre ; les
+  **défauts vivent dans le moteur** (`hues.ts` : switch bleu, routeur orange, firewall violet, répartiteur turquoise,
+  contrôleur Wi-Fi vert, serveur et autre ardoise), le document ne porte que ce qui a été décidé ; mêmes règles que les
+  épingles (dernier écrivain gagne par clé, journal, orphelines listées, rien dans le snapshot ni le diff). **Contrat**
+  `Intent` 1.0.0 → 1.1.0 additif (`TypeColor`, `DeviceColor`, refus `enum`, `patch_after_update` remplace
+  `pin_after_update` ; `upgraded()` relit un 1.0.x avec ses listes vides, appliqué par le store, `validate` strict).
+  **Backend** : quatre opérations (`color`, `uncolor`, `color_type`, `uncolor_type`) sur `POST /api/intent/patches`,
+  `ld intent` liste les couleurs. **Moteur** : `hues.ts` (pur), le modèle indexe `colorByType` / `colorByHost` /
+  `orphanColors`, chaque carte porte `hue-<teinte>` (les deux faces), la légende de `/view` suit la palette, l'onglet
+  Intentions liste les couleurs (« retirer la couleur », orphelines). **Application** : dans la fiche d'un équipement, une
+  rangée de douze pastilles et « défaut » (la teinte héritée cerclée) ; la même rangée dans la fiche de la sélection
+  multiple (retour d'Orhan le jour même : toute la sélection d'un coup, une requête) ; dans le menu, le volet « palette
+  des types » ;
+  sans nom, lecture seule et la fiche le dit ; la minimap suit (`mm-<teinte>`). Tests : contrats (ordre, énumérations,
+  aucun défaut, montée de version), store (opérations, journal, 1.0.0 relu puis réécrit), API (422 sur une teinte ou un
+  type inconnus), CLI, 90 tests Node pour la toile (résolution, classes, légende, onglet), 5 pour l'application,
+  Chromium (une pastille cliquée colore la carte et le document sous le nom). Captures remises (fiche, volet).
+  Détecteur Impeccable : aucun constat sur les fichiers touchés. Pas de revue indépendante seule : avec `docs/10`
+  complet (les incréments suivants).
+- **Les groupes : `docs/10` §5 écrit, puis codé** (2026-10-07, « Go sur le regroupement. Il faut que ce soit riche en
+  fonctions. Ne pas brider l'utilisateur et surtout ergonomique. » ; session autonome, document avant le code).
+  **La seule borne** : un groupe = des membres + un style, jamais une forme libre à coordonnées (elle casse dès qu'un
+  membre bouge ou qu'une run en ajoute un) ; tout le reste est ouvert. **Contrat** `Intent` 1.1.0 → 1.2.0 additif :
+  `groups` (`id` attribué par le serveur `g<revision>-<n>`, libellé, description, membres triés et non vides, style
+  **toutes clés écrites** : forme rectangle ou ellipse, coins, teinte, remplissage, bordure et trait, marge, étiquette en
+  neuf positions dedans ou dehors, taille 8 à 64, graisse, police sans ou mono, couleur teinte ou encre) ; défauts du
+  serveur à la création ; `upgraded()` relit les mineures antérieures. **Cinq opérations** : `group_create` (répond
+  avec l'id), `group_update` (patchs partiels), `group_add` / `group_remove` (sans réécrire la liste : deux ajouts
+  simultanés ne s'écrasent pas), `group_delete` ; refus 422 `unknown_group` (supprimé entre-temps) et
+  `group_without_member`. **Moteur** : `canvas/groups.ts` (pur : énumérations, défauts, enveloppe depuis les cartes des
+  membres présents, ellipse circonscrite, ancre de l'étiquette, motif de bordure) ; le modèle indexe `groupById`,
+  `groupsByHost`, `orphanGroups` ; la scène porte les groupes dès qu'un membre est visible ; sélection de sorte `group`
+  (`#group=<id>`, membres présents éclairés). **Application** : nœud « cadre » React Flow (SVG, attributs de
+  présentation pour les valeurs libres, jamais de style en ligne ; sous les cartes et les clusters, le plus grand
+  dessous), **glissable : ses membres suivent d'un bloc** pendant le glissé et un seul paquet d'épingles part à la
+  relâche ; clic = `GroupCard` (nom et description éditables, membres et absents retirables, centrer, sélectionner les
+  membres, appliquer la teinte aux membres, masquer, isoler, supprimer en deux clics, éditeur de style complet :
+  curseurs qui n'envoient qu'à la relâche, grille 3 × 3 pour la position) ; depuis la sélection multiple : « grouper »
+  et « ajouter à un groupe » ; depuis la fiche d'un équipement : ses groupes, « ajouter à un groupe », retirer ;
+  bulle au survol ; minimap. **`/view`** (gelée) liste les groupes dans l'onglet Intentions, sans les dessiner.
+  Tests : contrats, store, API, CLI, Node (index, enveloppe, ancre, sélection, scène, onglet), Chromium (grouper
+  depuis la sélection, ellipse, sélectionner les membres, supprimer). Captures remises. **Hors périmètre** : réduire
+  un groupe en un nœud, groupe de groupes déclaré, cadre sans membre.
+- **Une largeur de carte unique par run** (2026-10-07, proposition d'Orhan : « le hostname le plus long détermine la
+  taille de tous les nœuds », pour aligner sur la grille ; avis rendu, « go »). `card.ts` : `width` (largeur propre :
+  nom, rôle HA, stack), `uniformWidth` (la plus large, **arrondie au multiple de 40**, deux carreaux de grille : une
+  petite différence de nom ne la change pas d'une run à l'autre), `plan(label, extras, largeur imposée)` ; hauteur
+  72 → **80** (multiple de la grille de 20). Le modèle calcule `model.cardWidth` une fois par run (fantômes compris,
+  stubs exclus : ils restent des disques) ; les deux faces (application et `/view`) la lisent. Déjà borné : un nom
+  au-delà de 22 caractères est raccourci au milieu. **Le placement suit** (`layout.ts`) : l'ellipse approchée
+  (`SEPARATION`, `ASPECT`) devient un rectangle exact, une carte plus un écart (60 à côté, 40 dessous), écartés le long
+  de l'axe où ils se recouvrent le moins ; la rangée des sans-câble suit la largeur. Une infrastructure déjà mémorisée
+  garde ses centres : si des cartes élargies se touchent, « replacer » dans `/view`. Tests : un test Node (largeur
+  commune et palier, largeur imposée, cartes de `/view`, aucun recouvrement de cartes de 320 autour de deux cœurs),
+  suite backend complète ; capture `demo-dc` vérifiée.
+- **Cinq retours d'ergonomie de l'application** (2026-10-07, plan annoncé et « GO » d'Orhan ; avis rendu sur deux
+  points, validés). (1) **Multi-sélection** : défaut corrigé (`Flow.tsx`) ; la toile reconstruite pendant un rectangle
+  faisait mêler les sélections à React Flow (tout sélectionné, ou l'ancienne perdue) ; la synchronisation attend la fin
+  du rectangle, et **Maj + rectangle ajoute** à la sélection, comme Maj + clic. (2) **Flèches du clavier** : la
+  sélection bouge d'un carreau (20), de cinq avec Maj ; une rafale = un paquet d'épingles 400 ms après la dernière
+  (`toile.nudge`, minuterie fournie par la page : aucun `setTimeout` dans un module `.ts` du moteur, règle testée) ;
+  rien dans un champ, la bande des runs ou un dialogue ; écouteur à la capture (React Flow déplacerait aussi le nœud
+  focalisé). (3) **Chip de stack** (`chips.tsx`) : à cheval sur le bord haut droit, fond noir, icône de couches, nombre
+  de membres ; un clic ouvre la liste (slot, rôle, état, modèle, serial, depuis `stack.members`), un clic sur la liste,
+  Échap ou un clic ailleurs la ferme ; ni sélection ni glissé. (4) **Badge HA A / P** à côté : **P en gris, pas en
+  rouge** (le rouge reste une panne : membre `down`, quel que soit son rôle) ; **A / P seulement là où le snapshot le
+  dit** (`model.haBadge` : `active` / `standby`, ou `primary` / `secondary` en `active_passive` ; « A » pour tous en
+  `active_active` ; rien pour `member` ni en mode `other`). La ligne sous le nom disparaît dans l'application ; `/view`,
+  gelée, garde son texte. (5) **Annuler / rétablir** (`docs/10` §7) : boutons dans la barre, Ctrl+Z / Ctrl+Y /
+  Ctrl+Maj+Z ; annuler = opérations inverses écrites sous le nom (journal), jamais un retour en arrière ; **une clé
+  modifiée par quelqu'un d'autre depuis est sautée et dite** ; groupe recréé suivi sous sa nouvelle identité ; pile de
+  100, par onglet, traverse les runs d'une infrastructure ; déplacements locaux (sans nom) annulables aussi.
+  `history.ts` (pur, testé sous Node), `undo.ts`, `IntentHost.apply`, observateur de l'écrivain. Tests : Node
+  (historique, badge HA), parcours Chromium étendu (Ctrl+Z / Ctrl+Y sur l'API, flèches, Maj + rectangle, badges),
+  suite backend complète ; captures `demo-dc` vérifiées.
+- **La barre d'outils de la toile** (2026-10-07, retour d'Orhan : annuler / rétablir n'ont rien à faire dans la barre
+  de navigation, « il manque une petite palette discrète mais assez visible de commandes » ; forme proposée, validée).
+  `components/Toolbar.tsx`, flottante en haut au centre sous la barre : **au repos quatre icônes** (annuler, rétablir,
+  cadrer tout, centrer sur la sélection) ; **avec deux équipements ou plus**, les alignements entrent (répartir à partir
+  de trois), puis le compte et « vider » ; contextuels, jamais grisés. **Une barre pour agir, une colonne pour voir** :
+  `Controls` (bas gauche) ne garde que grille, aimant, minimap, thème ; les alignements quittent la fiche de sélection
+  (pas de doublon). Tests : parcours Chromium (quatre outils au repos, compte, répartir absent à deux, aligner depuis la
+  barre), suite backend complète ; captures vérifiées.
+- **La recherche, toujours visible, étape 1** (2026-10-07, Orhan : « dans Living Diagram, la recherche est un élément
+  central : visible en tout temps, riche, un boost » ; avis rendu, « Go » sur l'étape 1). `components/Search.tsx`,
+  flottante en haut à gauche de la toile, **remplace la palette** (supprimée, bouton « chercher » retiré de la barre ;
+  `/` et Ctrl+K donnent le focus). `state/search.ts` (pur, testé sous Node) : **équipements** (champs de `query.ts`),
+  **ports** (nom et description, champs `port:` / `desc:` ; un mot sans champ vise aussi l'équipement :
+  « sw-core-01 eth1/1 » ; **noms courts reconnus** sans table par constructeur : toutes les coupes du préfixe,
+  Eth1/1, Gi1/0/1, Po10), **groupes et clusters HA** (nom) ; un port par son nom avant un port par sa description ;
+  un port à un seul câble ouvre ce câble. **Chercher n'est pas filtrer** : la toile éclaire et estompe (classe
+  `searching`), rien ne disparaît ; elle éclaire **les équipements trouvés s'il y en a**, sinon les propriétaires des
+  ports et les membres des groupes (« dc02 core » remontait 100 ports dont la description cite les cœurs : vu sur
+  capture, corrigé). Liste par sorte (8 par sorte, compte du reste), ↑↓, Entrée ouvre, **Maj+Entrée sélectionne**,
+  masquer / isoler (règle lisible gardée telle quelle, sinon règle exacte des équipements), Échap vide puis rend la
+  main ; champs proposés en écrivant (« ty » → `type:`). Un équipement retiré par le diff est trouvé, marqué, jamais
+  sélectionné. Sous 1200 px, la barre d'outils se range à droite de la recherche. **Étape 2, après usage** : câbles,
+  contrôles, VLAN, recherches récentes. Tests : Node (recherche, abréviations, priorités), parcours Chromium adapté,
+  suite backend complète ; captures 1600 et 1280 vérifiées.
+- **Critique et audit Impeccable de l'application, lot 1 corrigé** (2026-10-07, demande d'Orhan ; trois évaluations
+  isolées sur `demo-dc` : design 22/40, audit technique 11/20, rapport dans `.impeccable/critique/`). Orhan a choisi :
+  défauts purs + clavier + couleur d'abord, les six majeurs ensuite, et « rapprocher les membres » pour les groupes
+  dont le cadre englobe des non-membres. **Lot 1 fait** : **couleur** (texte discret `--ink-3` ≥ 4,5:1 dans les deux
+  thèmes, gris de décor à part `--ink-4` ; cyan clair, ajouté, retiré, changé assombris ; **« documenté » en sable**,
+  distinct de l'avertissement, qui passe à l'orange en clair ; le rappel « donnez votre nom » devient une ligne grise
+  avec icône, une seule par fiche, `WriteHint`) ; **ce qui n'a pas pu être lu** (diff, intention, placement, liste des
+  runs) est dit dans la barre (`.bar-warn`), et **une intention illisible coupe l'écriture** (écrivain `locked` : on
+  n'écrit pas sur un document qu'on n'a pas vu) ; **clavier** (l'interface avant la toile dans le DOM, câbles non
+  focalisables, `Dialog` dans `ui/` pour le menu, la palette des types et l'accueil : focus pris, rendu, Échap ; la
+  bande des runs garde le focus et la run courante en vue ; la recherche en `combobox`, options groupées, actions hors
+  de la liste, compte annoncé ; chip de stack hors d'un `role=img` ; textes de React Flow en français, `colorMode`) ;
+  **mise en page** (la règle sous 1200 px était morte : la barre d'outils passe sous la recherche ; la bande ne
+  recouvre plus la minimap ; les bascules de droite en icônes sous 1100 px) ; **défauts purs** (badges HA / MLAG /
+  peer-link jamais stylés, thème posé avant le premier rendu, recherche calculée une fois par frappe et noms de ports
+  par run, croix des chips de groupe à 24 px, jeton refusé qui vidait l'infrastructure et le nom, suppression d'un
+  groupe en rouge avec « Ctrl+Z pour annuler », halos décoratifs retirés, mouvement réduit complété). Tests : un
+  parcours Chromium de plus (clavier, combobox, bande, dialogues, jeton refusé, intention illisible), Node (cache de
+  la recherche), suite backend complète ; captures 1600, 1280 clair, 1024 vérifiées. **Restent** : lot 2 (toile
+  lisible à l'ouverture), lot 3 (défauts cliquables), lot 4 (rapprocher les membres d'un groupe) ; parqués : titres
+  lisibles des contrôles au lieu des codes, légende, aide-mémoire des raccourcis.
+- **Lot 2 : la toile s'ouvre lisible** (2026-10-07, « Go » d'Orhan sur le plan annoncé). `app/canvas/opening.ts` (pur,
+  testé sous Node) : **zoom de lecture 0,67** (un nom de 15 unités reste ≥ 10 px) ; si tout tient au-dessus, la vue cadre
+  tout comme avant ; sinon elle s'ouvre à ce zoom **sur ce qui compte** (`toile.notable()` : équipements en erreur ou en
+  avertissement, changés, au bout d'un câble changé), sur la fenêtre qui en montre le plus quand ils sont éparpillés ;
+  rien qui compte : l'équipement le plus proche du barycentre. Une sélection dans l'adresse garde la priorité.
+  **« Cadrer tout » reste sans plancher** (`toile.fit`). Palier « loin » abaissé de 0,7 à 0,6 (étiquettes de faisceau
+  visibles à l'ouverture). La liste d'un stack garde **sa taille d'écran** (`scale: var(--unzoom)`, l'inverse du zoom
+  posé par la page) et s'ouvre sous la carte quand la barre du haut la couperait ; étiquette des clusters HA de 10 à
+  14. **Défaut trouvé sur capture** : sous un zoom fractionnaire, Chromium peignait le chiffre des chips (stack, A / P)
+  hors de leur pastille, la géométrie étant juste ; `text-rendering: geometricPrecision` sur les textes de la toile.
+  Tests : Node (cadrer tout, ce qui compte, fenêtre la plus dense, barycentre), Chromium sur 60 équipements du
+  générateur (ouverture à 0,67, liste du stack ≥ 280 px, « cadrer tout » passe dessous), suite backend complète ;
+  captures `demo-dc` 1600 et 1280.
+- **Lot 3 : les défauts se parcourent** (2026-10-07, « Go » d'Orhan). Les comptes **erreurs**, **avertissements** et
+  **changements** de la barre deviennent des boutons : un clic commence le **parcours** des équipements concernés
+  (`app/state/walk.ts`, pur, testé sous Node : au moins un contrôle de cette sévérité, ou touchés par le diff, nœud,
+  câble, interface, agrégat ou cluster HA ; jamais un voisin inconnu ; le plus touché d'abord, puis par nom). Le
+  premier est montré et sa fiche s'ouvre ; **↑↓** (ou les flèches de la `WalkBar`, sous la barre d'outils) passent au
+  suivant, en boucle, ← → déplacent toujours la sélection ; tous les équipements du compte restent éclairés ; **Échap**,
+  la croix ou le même compte finissent et **rendent la sélection et la vue d'avant**. Le compte reste enfoncé
+  (`aria-pressed`) ; parcourir les changements rallume la bascule « changements ». Changer de run finit le parcours.
+  Un compte sans équipement le dit (« aucun équipement changé »). Tests : Node (liste, ordre, boucle, accords),
+  parcours Chromium (clic, fiche, ↓, Échap rend l'état d'avant) sur le bundle « câble tombé », suite backend complète ;
+  captures `demo-dc` 1600 sombre (erreurs) et 1280 clair (changements).
+- **Une seule pastille, le panneau Affichage, la vitesse des câbles, le MLAG révélé au clic** (2026-10-07, trois retours
+  d'Orhan, spécification par l'agent UI Designer, décisions prises par questions). **La pastille** (`canvas/pill.ts`,
+  `app/canvas/pill.tsx`, `.pill` dans `app.css`) : une forme pour tout fait court, capsule de 20, JetBrains Mono 600 11
+  en capitales, largeur calculée (chasse fixe 6,82), une couleur par ton (`tone-ok`, `muted`, `danger`, `warning`,
+  `structure`…, chacun ≥ 4,5:1 dans les deux thèmes, `--pill-tint`) ; règle de lecture : **capsule = un fait, rectangle
+  aux coins de 6 = une commande** (`.count`, `.rule-chip`, `.field-chip` passent en rectangle). Sur la carte, une rangée à
+  droite du bord haut : `ACTIF` / `PASSIF` / `DOWN` (choix d'Orhan : les mots, plus les lettres), stack (icône + nombre,
+  le fond noir disparaît), point de gravité ; dans les fiches, tous les badges (`Badge` → `pill tone-*`), la run de la
+  barre, le compte de la sélection, les rôles et états de la liste d'un stack (liste aux couleurs du thème). **Le panneau
+  Affichage** (`components/Display.tsx`, demande d'Orhan : « une palette pour afficher ou non des éléments, enrichie
+  par la suite ») : une liste `LAYERS` déclarée en un endroit, deux sections (sur les câbles : port-channels et vPC,
+  vitesses, noms des ports ; équipements : voisins inconnus, **épingles**, demandées en cours de route) ; état de vue
+  dans l'adresse (`speeds=1`, `beams=1`, `pins=0`), le bouton compte les couches hors défaut ; « voisins » et « ports »
+  quittent la barre, « changements » y reste (il va avec les comptes du diff). **La vitesse** (`canvas/speed.ts`) :
+  éteinte par défaut ; une pastille par faisceau ou par paire hors faisceau, jamais par câble (`2×10G`, `10G+1G`) ; lue
+  dans `interfaces[]`, ports physiques seulement ; deux bouts différents `10G/1G` en avertissement, un seul bout lu en
+  pointillé, aucun lu : rien ; le point de gravité des câbles entre dans la pastille ; toujours montrée pour ce qui est
+  sélectionné ou éclairé. **Le MLAG** (`canvas/reveal.ts`) : bande et étiquette cachées au repos (le gris d'avant
+  disparaît) ; la couche les montre toutes (`PO10`, `PO10/PO20` si les numéros diffèrent, `MLAG 104`, `PEER-LINK`, en
+  pastille horizontale) ; un clic sur un câble, un faisceau ou un agrégat révèle sa patte, **les autres pattes du même
+  domaine MLAG** et le peer-link, en violet (le cyan reste la sélection), dans cet ordre (0 / 50 / 100 ms) ; le peer-link
+  cliqué ne révèle que lui. `scene.relatedTo` garde les pattes sœurs éclairées. **Défaut trouvé au passage** (antérieur,
+  rendu fréquent par les bascules) : la toile reconstruite perdait parfois les mesures de ses nœuds, React Flow les
+  cachait avec leurs câbles ; `Flow.tsx` reporte `measured` d'une version à l'autre (12 passages sur 12 du parcours
+  Chromium, contre ~1 échec sur 4 avant). Tests : trois tests Node (pastille, vitesse, révélation), parcours Chromium
+  (ACTIF / DOWN, révélation à trois faisceaux, vitesse du câble sélectionné, panneau et adresse) ; backend 491 tests.
+  `/view` inchangée. Pas de revue indépendante (visuel). Parqué : une bascule pour tout montrer existe (la couche),
+  pas de couleur par palier de vitesse (seul un désaccord se colore).
+- **Faisceaux : l'étiquette seule, posée sur son câble** (2026-10-07, deux retours d'Orhan sur capture : « je n'aime pas
+  du tout l'effet glow violet », puis les étiquettes de vPC mal placées sur `test-single-core`). La bande violette sous
+  les câbles d'un faisceau disparaît partout (couche, clic, survol ; tracée invisible pour le clic et le focus clavier).
+  Les pastilles de câble (étiquettes de faisceau et vitesses) se posent par `canvas/tags.ts` (pur, testé sous Node) :
+  **sur leur courbe**, première place libre d'une liste, ni sur une carte ni sur le titre d'un cluster HA ni sur une
+  autre pastille ; sinon à côté du câble, puis un cran plus loin ; sinon le moindre chevauchement (une pastille pèse
+  quatre fois une carte). Une MLAG se lit **près de l'équipement double-attaché** (ses deux pattes portent leur numéro à
+  côté de lui) ; vitesses d'abord, au milieu. Toutes les pastilles sont placées, montrées ou non : rien ne bouge quand un
+  clic en révèle une. Place relative (`t`, côté) : pendant un glissé, la pastille suit son câble. `/view` inchangée.
+- **Les annotations : `docs/10` §6 écrit, puis codé, images comprises** (2026-10-08, demande d'Orhan : « un panneau avec
+  de la personnalisation comme tous les outils d'édition : zone de texte, formes libres, tableau, images ; donner du
+  contexte au diagramme ; Living Diagram va servir de référentiel solide en interne et pour les auditeurs » ; trois
+  points tranchés par lui : ligne groupe / annotation, images 4 Mo et SVG refusé, annotations avant les étiquettes ;
+  « le plan est solide, à toi de jouer avec le code », documentation en dernier). **Deux familles, deux règles** : un
+  groupe dit qui en fait partie (membres, enveloppe calculée, §5 inchangé) ; une annotation dit ce que la donnée ignore,
+  donc elle porte une boîte (`x, y, w, h`) et un **ancrage** : libre (plan), ou attachée à un équipement (relative au
+  centre de sa carte) ou à un groupe (relative au coin de son cadre), elle suit ce qui bouge ; ligne de rappel
+  optionnelle. Quatre sortes bornées : note (texte brut multi-ligne, 2 000), forme (rectangle, ellipse, ligne, flèche,
+  étiquette), tableau (30 × 8, 120 par cellule, rendu par la toile), image (PNG, JPEG, WebP, 4 Mo, **reconnue à ses
+  octets de tête**, jamais au nom ni au type déclaré ; SVG refusé). **Contrat** `Intent` 1.2.0 → 1.3.0 additif
+  (`contracts/src/ld_contracts/intent/annotations.py`, primitives partagées dans `base.py`) : `annotations[]` keyées
+  `a<revision>-<n>`, contenu discriminé par `kind`, style complet (teinte, remplissage, bordure, coins, opacité,
+  texte : taille, graisse, police, couleur, alignements), refus `anchor_ref_mismatch`, `leader_without_anchor`,
+  `table_ragged` ; défauts par sorte dans le contrat (`DEFAULT_ANNOTATION_STYLE`). **Backend** : trois opérations
+  (`annotation_create` répond avec l'id, `annotation_update` en patchs partiels, contenu remplacé de la même sorte,
+  `annotation_delete` ; 422 `unknown_annotation`, `annotation_kind_change`, `unknown_asset`) ; **magasin d'images**
+  `backend/assets.py` (`<archive>/_intent/<infra>/assets/<sha256>`, dédoublonné par empreinte, dimensions lues dans
+  l'en-tête sans bibliothèque) et routes `POST` / `GET` / `DELETE /api/intent/assets` (`LD_MAX_ASSET_BYTES`, 415 hors
+  image, 422 octets non reconnus, 409 `asset_in_use`, `nosniff`, cache immuable) ; CSP de l'application ouverte à
+  `img-src 'self' blob:` (la page lit l'image avec le jeton, jamais le jeton dans une adresse) ; `ld intent` liste
+  annotations et images (dont celles que rien ne cite). **Moteur** : `canvas/annotations.ts` (pur : boîte depuis
+  l'ancre et écart inverse, retour à la ligne par chasse estimée, grille du tableau, ligne de rappel, orphelines) ; le
+  modèle indexe `annotationById` / `annotationsByHost` / `annotationsByGroup` / `orphanAnnotations` ; la scène porte
+  les annotations visibles (libre : toujours ; attachée : avec son ancre ; orpheline : jamais) ; sélection
+  `#annotation=<id>`. **Application** : nœud React Flow `annotation` (`app/canvas/annotation.tsx`, SVG, enfant de sa
+  carte ou de son cadre quand elle est attachée : elle suit le glissé nativement), glissable, **huit poignées** (Maj
+  garde le rapport), **double-clic sur une note = édition en place**, bulle ; `AnnotationCard` (contenu selon la
+  sorte, éditeur de tableau, ancrage, ligne de rappel, plan dessous / dessus, verrou, détacher, dupliquer, supprimer
+  en deux clics, style complet, remplacer l'image) ; bloc **Insérer** dans la barre d'outils (note, rectangle, ellipse,
+  flèche, tableau, image par fichier), posé au centre de la vue ; couche « annotations » dans Affichage (`notes=0`) ;
+  Ctrl+Z sur les trois opérations (`history.ts`, identités `a…` numérotées à part des `g…`). **Sans nom, lecture
+  seule** (pas de déplacement local d'annotation). `/view` (gelée) liste les annotations dans l'onglet Intentions, sans
+  les dessiner. Une boîte glissée ou redimensionnée reste posée localement jusqu'à la réponse de l'API (pas de saut en
+  arrière). Tests : contrats (ordre, bornes, contenu discriminé, montée de version), store, API (422 nommés, magasin :
+  PNG / JPEG / WebP écrits à la main, SVG refusé, borne, doublon, 409), CLI, Node (module pur, modèle, scène,
+  historique, adresse), **Chromium** (insérer, glisser, redimensionner, éditer en place, attacher et suivre, couche,
+  Ctrl+Z, tableau, image envoyée et montrée par `blob:`, supprimer) ; captures vérifiées. **Parqués** (`docs/10` §6.5) :
+  texte riche, rotation, polygones, connecteur libre, calques par audience, **la sortie figée** (SVG / PDF pour les
+  auditeurs), flèches du clavier et alignement sur les annotations ; une annotation attachée se dessine toujours
+  au-dessus de son ancre (React Flow). **Suite validée** : les épingles d'étiquettes et les styles de câbles
+  (`docs/10` §8), puis masque par règle, câbles déclarés. Pas de revue indépendante seule : avec `docs/10` complet.
+- **Tableaux éditables sur la toile, menu contextuel, connecteurs, collage : `Intent` 1.4.0** (2026-10-09, quatre retours
+  d'Orhan sur les annotations : les tableaux ne s'éditent que dans la fiche, ni colonnes ni lignes redimensionnables,
+  pas de fusion, « la coloration semble pas fonctionner » ; « tout ce qui est action rapide devrait être accessible via
+  un clic droit » ; les flèches « ne servent à rien » sans contrôle de leur position et de leur forme ni connexion entre
+  éléments ; coller une image depuis le presse-papiers ne fonctionne pas ; session autonome, document à la fin).
+  **Contrat 1.4.0, additif, montée de version** (un 1.3.0 n'avait vécu qu'une session, chez Orhan : `upgraded()` convertit
+  ses lignes et flèches en connecteurs et complète ses tableaux, rien n'est effacé) : `TableContent` gagne `widths` /
+  `heights` (poids relatifs, la boîte reste la mesure) et `merges` (fusions triées, dans le tableau, sans chevauchement,
+  deux cellules au moins) ; `ShapeContent` perd `line` / `arrow` et `direction` ; **nouvelle liste `connectors`**
+  (`contracts/.../intent/connectors.py` : deux bouts discriminés `free` | `device` | `group` | `annotation`, jamais le
+  même élément aux deux bouts, pointes, tracé droit / coudé / courbe, courbure ±2 000, étiquette, style ; identité
+  `c<revision>-<n>`) ; `patch_after_update` s'applique désormais aussi aux groupes, annotations et connecteurs.
+  **Backend** : `connector_create` / `connector_update` / `connector_delete`, 422 `unknown_connector` ; `ld intent`
+  imprime les connecteurs. **Moteur** : `canvas/table.ts` (pur : grille au prorata, cellules et fusions, insertion et
+  suppression de lignes et colonnes avec fusions qui s'allongent ou se décalent, frontières glissées jamais sous 20,
+  boîte qui grandit d'une piste moyenne), `canvas/connectors.ts` (pur : bouts au bord des boîtes vers le premier point
+  de passage, tracés, courbure lue d'un glissé, pointes, orphelins, visibilité) ; le modèle indexe `connectorById` /
+  `connectorsByRef` / `orphanConnectors`, la scène dessine un connecteur avec ses deux bouts et l'éteint avec la couche
+  « annotations », une sélection éclaire dans les deux sens, `#connector=<id>`, Ctrl+Z (identités `c…` à part).
+  **Application** : le tableau s'édite sur la toile (`app/canvas/table.tsx` : clic = cellule, Maj + clic = plage,
+  double-clic = champ en place dans un `foreignObject`, Entrée / Tab / Échap, frontières glissables, clic droit avec la
+  cellule visée) ; le **menu contextuel** (`app/state/context.ts` pur + `components/ContextMenu.tsx` : fond, équipement,
+  groupe, annotation et cellule, connecteur ; les mêmes commandes que les fiches, supprimer direct avec Ctrl+Z dit) ; le
+  **connecteur** (`app/canvas/connector.tsx` : nœud qui lit la place vivante de ses bouts, trois poignées, glisser un
+  bout sur une carte, une annotation ou un cadre l'y attache, courbure au milieu, étiquette en place, `ConnectorCard`) ;
+  **Ctrl+V** colle une image (magasin, annotation image) ou un texte (note). **Défaut corrigé** : `.annotation` et
+  `.frame` posaient `--type` après les classes `hue-*` dans la feuille de style, la teinte choisie était ignorée (la
+  « coloration » des tableaux, et des cadres de groupe). Tests : contrats, store (dont la relecture d'un 1.3.0), API,
+  CLI, Node (table, connecteurs, modèle, scène, historique, menu), Chromium (édition en place, menu, fusion, frontière
+  glissée, connecteur attaché par glissé, menu du connecteur, collage d'image et de texte, note attachée depuis le
+  menu). Captures vérifiées. Documentation en une passe à la fin (règle d'Orhan du 2026-10-08). Parqués (`docs/10`
+  §6.5) : style par cellule, connecteur à plusieurs segments libres, Ctrl+C / Ctrl+V d'une annotation.
+- **Les ancres des connecteurs : `Intent` 1.5.0** (2026-10-09, réserve d'Orhan après l'essai : les flèches « pas
+  facilement manipulables », « pas de point d'ancrage sur les éléments, ça ne facilite pas l'alignement », « la flèche
+  s'arrête un peu avant les éléments » ; session autonome, document à la fin). **Cause du troisième point** : le bout
+  visait le coin du rectangle de la carte, hors de l'arrondi (`rx` 12) : le tracé s'arrêtait dans le vide près des coins.
+  **Contrat 1.5.0, additif** : `AttachedEnd.side` ∈ `auto` | `n` | `e` | `s` | `w` (le contour vers l'autre bout, ou le
+  milieu d'un côté) ; `upgraded()` pose `auto` sur un 1.4.x (le document d'Orhan). **Moteur** (`canvas/connectors.ts`) :
+  `outlinePoint` arrive sur le vrai contour (arc du coin, ellipse, disque), une ancre fixe sort perpendiculairement
+  (`STUB` 24) et le coudé se décide entre les sorties, deux ancres en équerre = un seul coin sans courbure ; `pathOf`
+  rend `chord` et `bendable`. **Application** : quatre points d'ancrage sur chaque carte, disque, annotation et cadre
+  (survol ou sélection, écriture possible ; `app/canvas/anchors.tsx`), tirer depuis un point crée un connecteur ancré à
+  ce côté (brouillon dans le plan par `ViewportPortal`), un bout glissé montre les ancres de l'élément survolé et s'y
+  accroche à moins de 14 px d'écran (`app/canvas/snap.ts`, pur, testé sous Node : ancre à portée > élément dessous sur
+  son contour > libre ; carte > annotation > cadre), poignées à taille d'écran constante visibles au survol, fiche avec
+  l'ancre de chaque bout, `ld intent` imprime l'ancre. Tests : contrats, store, API, CLI, Node, Chromium (bout ancré en
+  `n` par glissé, connecteur tiré depuis une ancre, Ctrl+Z) ; captures vérifiées (pointe sur l'arrondi, ancres au survol,
+  brouillon). **Au passage** : `viewer.js` était en retard sur `format.ts` (`shortPort`) malgré un `--check` à jour entre
+  deux modifications ; reconstruit. Parqué (`docs/10` §6.5) : plusieurs ancres par côté, ancre sur un câble.
+- **Défaut corrigé : Maj + clic ou Maj + glissé sur la toile surlignait tout le texte de la page** (2026-10-08, retour
+  d'Orhan). Le fond de React Flow (`.react-flow__pane`) était sélectionnable : avec une ancre de sélection native laissée
+  par un clic précédent (barre, fiche), la sélection multiple l'étendait à tout le texte traversé (pastilles, noms,
+  barre). `user-select: none` sur `.flow-host` (`flow.css`) ; étape ajoutée au parcours Chromium (ancre dans la barre,
+  Maj + clic sur le fond, Maj + rectangle : aucun texte sélectionné). Défaut pur, pas de revue.
+- **Le panneau devient un inspecteur : une grammaire unique pour les huit fiches** (2026-10-08, retour d'Orhan sur la
+  fiche annotation : « pas professionnel, fait très IA slop, des poids différents, des gros sliders hideux, des boutons
+  imposants » ; critique Impeccable à deux agents isolés, **21 / 40**, consignée dans `.impeccable/critique/` ; planche
+  validée sur captures avant la migration, puis aérée et la grille de position remplacée à sa demande).
+  `engine/src/app/ui/inspector.tsx` + `styles/inspector.css` : en-tête figé (icône et sorte, actions en icônes, menu
+  « … » où vit « supprimer », confirmation dans l'en-tête), sections repliables (état gardé par titre le temps de la
+  page), rangées « libellé | valeur » (76 px), **une hauteur de contrôle (30)**, un fond de champ sans bordure au repos,
+  champ numérique **« scrub »** (glisser sur le préfixe, ↑↓ ±1, Maj ±10, envoi à la relâche ou après une rafale) à la
+  place des curseurs natifs, choix segmentés dans une piste (actif relevé, **jamais en cyan**), liste déroulante au
+  chevron dessiné, teinte et position d'étiquette en **champ + volet** (grille 6 × 2, grille 3 × 3), trois tailles
+  (12 / 13 / 15), trois graisses, capitales réservées aux pastilles, mono aux identifiants ; plus de surtitre ni de
+  prose d'aide (la boîte devient X / Y / L / H éditables). Les huit fiches réécrites (`cards/`, `style.tsx` partagé) ;
+  `fields.tsx` (curseurs, choix) supprimé, `Section` / `Facts` retirés de `ui/index.tsx`, ~90 lignes mortes retirées
+  d'`app.css`. Une note s'ouvre à 606 px (1 348 avant), Forme et Texte repliés. Parcours Chromium adaptés (teinte par
+  le volet, suppression par « … »), backend 503 tests, `npm run check` propre. `/view` inchangée. Captures :
+  `.impeccable/planche-inspecteur/`. Pas de revue indépendante (visuel).
+- **Inspecteur : contre-critique 25 / 40, passe de finition visible** (2026-10-09 ; critique à deux agents isolés après la
+  refonte, 21 → 25, consignée dans `.impeccable/critique/` ; Orhan a choisi : finition visible d'abord, même grammaire
+  pour les fiches de lecture, panneau à la hauteur de son contenu). **En-tête opaque et non figé** (il défile avec la
+  fiche, seule la croix reste ; le verre laissait lire le texte dessous), **panneau opaque** et `bottom: auto` +
+  `max-height` (une note courte ne laisse plus de vide), largeur en jeton `--panel-w: 348px` (la règle sous 900 px
+  revit) ; **une rangée par grandeur** (remplissage, marge, bordure, épaisseur, plan, opacité, police, taille), la
+  poignée ⟷ comme préfixe par défaut des champs numériques (lettres pour X / Y / L / H seulement), « dessous / dessus » en
+  mots, alignements en icônes ; champs cernés d'un filet et fond plus marqué (`--ctl-line`, segment actif cerné en
+  clair) ; **chevron des sections à droite** (tous les titres au même bord) ; état replié mémorisé **par sorte de fiche**
+  (`Inspector kind=…`) ; un menu « … » qui ne contiendrait que « supprimer » devient la corbeille directe ; bouts d'un
+  connecteur en « départ / arrivée » (« point libre »), ancre par bout de l'autre session gardée. Tests : parcours
+  Chromium adapté (corbeille directe), backend 503, `npm run check` propre. Captures :
+  `.impeccable/planche-inspecteur/finition/`. **Reste le lot « langage »** de la contre-critique : sévérités et diff en
+  français (ERROR, CHANGED, « COLLECTE UNREACHABLE »), backticks rendus en code, contrôles en double regroupés, ports en
+  forme courte dans les listes, « — » pour un « après » vide.
+- **Inspecteur : passe mise en page, typographie, finition ; le panneau s'élargit** (2026-10-09, `/impeccable layout,
+  polish, typeset` d'Orhan, puis « pouvoir redimensionner la fenêtre pour une meilleure lisibilité » ; lecture
+  indépendante d'un agent UI, détecteur sans constat). **Bord droit droit** : deux valeurs ne partagent une rangée que
+  si elles disent la même chose (`bordure` / `trait` = style + épaisseur, `police` = famille + taille, `StrokeRow` dans
+  `cards/style.tsx`), une valeur seule prend toute la largeur. **Rythme** : le titre d'une section colle à ses rangées
+  (8), les sections se séparent large (14 / 18). **Échelle** : la mono au pas du texte (12, 13, 15 ; plus de 12,5), aides
+  en 12, 11 pour unités et identifiants sous un texte ; les bouts d'un câble au pas du titre (15), le port plus léger.
+  **Lecture** : contrôles regroupés par code (« × 2 »), le sens en clair d'abord avec les backticks rendus en code, le code
+  dessous ; comptes par sévérité en point + nombre comme la barre (plus de ERROR / WARNING) ; erreurs et avertissements
+  avant les câbles dans la fiche équipement ; câbles d'un équipement en colonnes (port local sous les libellés, l'autre
+  bout sous les valeurs) et **noms de port courts** (`shortPort`, `canvas/format.ts` : Eth, Gi, Te, Po…, nom complet en
+  infobulle et en en-tête) ; ports d'un câble l'un sous l'autre, côte à côte dès 560 px (requête de conteneur) ;
+  collecte en mots (« injoignable »), diff en mots partout, « — » pour une valeur vide ; bouts d'un connecteur sur une
+  rangée chacun (ce qu'il vise | son ancre) ; fiche multiple sur la colonne des libellés, « Grouper » primaire seulement
+  une fois le nom écrit ; croix de retrait d'une liste au survol. **Largeur du panneau** : poignée sur le bord gauche
+  (glisser, ← → et Maj, double-clic ou Origine = 348), 300 à 760, la toile garde 360 ; préférence du navigateur
+  (`panelWidth` dans `ld-prefs`), posée avant le premier rendu par une variable CSS de la racine (CSSOM, admis par la
+  CSP) ; masquée sous 900 px. Tests : Node (préférence bornée, `shortPort`), parcours Chromium (glissé de la poignée,
+  préférence rangée, double-clic), une attente au lieu d'un constat dans le test clavier (course sur le compte des
+  câbles), backend complet vert, `npm run check` propre. Captures : `.impeccable/planche-inspecteur/typo/` (dont
+  `dark-node-wide`, `dark-link-wide`). Pas de revue indépendante (visuel).
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -848,7 +1296,8 @@ minimal d'Orhan) → on regarde, on corrige → Phase 1b : B1 R5 et golden (fait
 en TDD sur fixtures au format réel des collections → Phase 2 socle toile (**`engine/` depuis la page, 2026-10-04** ; jauge
 de perf 500 nœuds / 1 500 liens tenue par la page) → Phase 3 placement (**placement mémorisé, figé plutôt que seedé, fait le 2026-10-06**) → Phase 4 timeline + diff peint (le diff
 est peint depuis le 2026-10-04) → Phase 5 intention + réconciliation (**épingles et orphelines faites le 2026-10-04**) →
-Phase 6 LOD complet, vues nommées, overlays L2/L3.
+Phase 6 LOD complet, vues nommées, overlays L2/L3. **Application React v0 servie à `/` le 2026-10-07** (deux faces,
+une toile : `/view` gelée, `/` évolue sur les retours visuels).
 Détail : `docs/00-analyse-fondation.md` §10.
 
 ## Repo
@@ -866,6 +1315,12 @@ Détail : `docs/00-analyse-fondation.md` §10.
   branchement (store, API, CLI, page), quatre questions parquées. Codé le jour même.
 - `docs/09-placement-memorise.md` — **conception du placement mémorisé** (2026-10-06) : pourquoi (mesures), sept décisions,
   règles P0 à P6, placement en deux temps, branchement, cinq questions parquées. Codé le jour même.
+- `docs/10-intentions-etendues.md` — **les intentions étendues : la couleur, les groupes, les annotations** (2026-10-07,
+  §6 le 2026-10-08, §6.6 le 2026-10-09) : contrat `Intent` 1.1.0 (couleurs, règles C0 à C4), 1.2.0 (groupes, §5 : huit
+  décisions, règles G0 à G6), 1.3.0 (annotations, §6 : neuf décisions, règles A0 à A9, magasin d'images), 1.4.0
+  (tableaux éditables, menu contextuel, collage, connecteurs §6.6) et 1.5.0 (ancres des connecteurs, §6.6) ; §8 : ce qui
+  reste (épingles d'étiquettes et styles
+  de câbles, masque, câbles déclarés). Chaque incrément codé le jour de son écriture.
 - `docs/06-evidence-table-mac.md` — **conception de l'évidence table MAC** (2026-10-03) : topic `mac_table` restreint au
   parc, règle R7 (port de bordure), clusters à MAC virtuelle, six questions. **À valider par Orhan.**
 - `docs/guides-collecte/` — guides **producteur** par plateforme (2026-09-24 : `fortios-interfaces.md`, commandes et chronologie
@@ -918,11 +1373,15 @@ Détail : `docs/00-analyse-fondation.md` §10.
   placement, géométrie, renderer SVG, bulle) et `src/shell/` (page, inspecteur, tableaux, intentions, coquille API), types
   des contrats générés (`npm run types`), bundle `npm run build` → `backend/src/ld_backend/render/assets/js/viewer.js`
   (versionné, test de dérive). Guide : `engine/README.md`. Node et `npm ci` seulement pour modifier la toile.
-- À venir (cap du 2026-10-04 ; B3 diff, toile et B4 épingles faits le jour même ; **placement mémorisé fait le 2026-10-06**,
-  phase 3 tenue autrement que par un seed N-1 ; **bande des runs faite le 2026-10-06**) : **l'application React v0**
-  (`engine/src/app/`, servie à `/` ; décisions du 2026-10-06 ci-dessus), puis ses itérations sur les retours visuels
-  d'Orhan, puis les intentions étendues (`docs/10` : masque par règle enregistré, groupes par membres et notes, câbles
-  déclarés) dans l'application. `/view` gelé. Parqués : `docs/06` table MAC (conçu, non validé), B2 Mongo, H2 téléphones.
+- `engine/src/app/` — **l'application React** (2026-10-07), servie à `/`, **toile React Flow** (`app/canvas/`, même jour) :
+  guide dans `engine/README.md` § L'application ; routes et fichiers dans `backend/README.md` § L'application ; tests
+  `backend/tests/test_app.py`, `tests/js/app.test.js`.
+- À venir (cap du 2026-10-04 ; **application React v0 faite le 2026-10-07, toile React Flow le même jour**) : les retours
+  visuels d'Orhan (une capture par retouche), puis les intentions étendues (`docs/10`, cadre écrit le 2026-10-07 ;
+  **couleurs et groupes faits le 2026-10-07, annotations le 2026-10-08, tableaux éditables / menu contextuel /
+  connecteurs / collage puis ancres des connecteurs le 2026-10-09** ; restent, dans l'ordre validé : épingles
+  d'étiquettes et styles de câbles, masque par règle enregistré, câbles déclarés) dans l'application. `/view` gelé. Parqués :
+  `docs/06` table MAC (conçu, non validé), B2 Mongo, H2 téléphones. Thème clair fait le 2026-10-07.
 
 ## Conventions de code (rappel des règles globales)
 

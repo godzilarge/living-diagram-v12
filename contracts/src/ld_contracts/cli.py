@@ -88,7 +88,11 @@ def _print_intent_summary(report: ValidationReport) -> None:
     i = report.intent
     assert i is not None
     print(f"valid: intent {i.intent_version}")
-    print(f"  revision {i.revision} · pins {len(i.pins)}")
+    colors = len(i.type_colors) + len(i.device_colors)
+    print(
+        f"  revision {i.revision} · pins {len(i.pins)} · colors {colors} · groups {len(i.groups)} · "
+        f"annotations {len(i.annotations)} · connectors {len(i.connectors)}"
+    )
 
 
 VALIDATORS = {

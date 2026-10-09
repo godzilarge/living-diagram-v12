@@ -3,6 +3,907 @@
   "$id": "https://living-diagram.internal/contracts/intent-v1.schema.json",
   "title": "Intent",
   "$defs": {
+    "Anchor": {
+      "additionalProperties": false,
+      "description": "À quoi l'annotation est attachée : rien (libre, dans le plan), un équipement (par `hostname`), un groupe (par\n`id`). `ref` est null si et seulement si l'annotation est libre (`anchor_ref_mismatch`).",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/AnchorKind",
+          "description": "`free` : coordonnées du plan ; `device` : relative au centre de la carte ; `group` : relative au coin haut gauche du cadre."
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "maxLength": 253,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Le `hostname` de l'équipement ou l'`id` du groupe ; null si libre.",
+          "title": "Ref"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "title": "Anchor",
+      "type": "object"
+    },
+    "AnchorKind": {
+      "enum": [
+        "free",
+        "device",
+        "group"
+      ],
+      "title": "AnchorKind",
+      "type": "string"
+    },
+    "Annotation": {
+      "additionalProperties": false,
+      "description": "Une annotation (docs/10 §6) : un contenu, une boîte, un ancrage, un style ; signée, datée.",
+      "properties": {
+        "id": {
+          "description": "Identité stable attribuée par le serveur à la création : `a<revision>-<n>`.",
+          "pattern": "^a[0-9]+-[0-9]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "anchor": {
+          "$ref": "#/$defs/Anchor"
+        },
+        "x": {
+          "description": "Abscisse du coin haut gauche : dans le plan si libre, sinon relative à l'ancre.",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "description": "Ordonnée du coin haut gauche, même repère.",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "Y",
+          "type": "integer"
+        },
+        "w": {
+          "description": "Largeur, 20 à 4 000 unités du dessin.",
+          "maximum": 4000,
+          "minimum": 20,
+          "title": "W",
+          "type": "integer"
+        },
+        "h": {
+          "description": "Hauteur, 20 à 4 000 unités du dessin.",
+          "maximum": 4000,
+          "minimum": 20,
+          "title": "H",
+          "type": "integer"
+        },
+        "z": {
+          "$ref": "#/$defs/ZOrder",
+          "description": "`back` : sous les cadres et les cartes ; `front` : au-dessus de tout."
+        },
+        "locked": {
+          "description": "Verrouillée : ni glissé ni redimensionnement sur la toile.",
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "leader": {
+          "description": "Ligne de rappel vers l'ancre ; faux si libre (`leader_without_anchor`).",
+          "title": "Leader",
+          "type": "boolean"
+        },
+        "content": {
+          "discriminator": {
+            "mapping": {
+              "image": "#/$defs/ImageContent",
+              "note": "#/$defs/NoteContent",
+              "shape": "#/$defs/ShapeContent",
+              "table": "#/$defs/TableContent"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NoteContent"
+            },
+            {
+              "$ref": "#/$defs/ShapeContent"
+            },
+            {
+              "$ref": "#/$defs/TableContent"
+            },
+            {
+              "$ref": "#/$defs/ImageContent"
+            }
+          ],
+          "title": "Content"
+        },
+        "style": {
+          "$ref": "#/$defs/AnnotationStyle"
+        },
+        "author": {
+          "description": "Qui a créé ou modifié l'annotation en dernier.",
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Author",
+          "type": "string"
+        },
+        "at": {
+          "description": "Quand : date UTC écrite par le serveur à l'application de l'opération.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "anchor",
+        "x",
+        "y",
+        "w",
+        "h",
+        "z",
+        "locked",
+        "leader",
+        "content",
+        "style",
+        "author",
+        "at"
+      ],
+      "title": "Annotation",
+      "type": "object"
+    },
+    "AnnotationStyle": {
+      "additionalProperties": false,
+      "description": "Le style d'une annotation (docs/10 §6) : toutes clés écrites ; le serveur complète avec les défauts de la sorte\nà la création.",
+      "properties": {
+        "hue": {
+          "$ref": "#/$defs/Hue",
+          "description": "Teinte nommée (remplissage, bordure, texte si `text_color` = hue)."
+        },
+        "fill_opacity": {
+          "description": "Opacité du remplissage, en pourcent.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Fill Opacity",
+          "type": "integer"
+        },
+        "stroke_width": {
+          "description": "Épaisseur de la bordure (ou du trait d'une ligne).",
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Stroke Width",
+          "type": "integer"
+        },
+        "stroke_style": {
+          "$ref": "#/$defs/StrokeStyle",
+          "description": "Trait de la bordure : plein, tirets, pointillés, aucun."
+        },
+        "radius": {
+          "description": "Rayon des coins d'un rectangle, d'une note, d'une image.",
+          "maximum": 80,
+          "minimum": 0,
+          "title": "Radius",
+          "type": "integer"
+        },
+        "opacity": {
+          "description": "Opacité de l'annotation entière, en pourcent.",
+          "maximum": 100,
+          "minimum": 10,
+          "title": "Opacity",
+          "type": "integer"
+        },
+        "text_size": {
+          "description": "Taille du texte, en pixels du dessin.",
+          "maximum": 64,
+          "minimum": 8,
+          "title": "Text Size",
+          "type": "integer"
+        },
+        "text_weight": {
+          "$ref": "#/$defs/LabelWeight",
+          "description": "Graisse du texte."
+        },
+        "text_font": {
+          "$ref": "#/$defs/LabelFont",
+          "description": "Police du texte : sans (Inter) ou mono (JetBrains Mono)."
+        },
+        "text_color": {
+          "$ref": "#/$defs/LabelColor",
+          "description": "Couleur du texte : la teinte, ou l'encre du thème."
+        },
+        "text_align": {
+          "$ref": "#/$defs/TextAlign",
+          "description": "Alignement horizontal du texte dans la boîte."
+        },
+        "text_valign": {
+          "$ref": "#/$defs/TextValign",
+          "description": "Alignement vertical du texte dans la boîte."
+        }
+      },
+      "required": [
+        "hue",
+        "fill_opacity",
+        "stroke_width",
+        "stroke_style",
+        "radius",
+        "opacity",
+        "text_size",
+        "text_weight",
+        "text_font",
+        "text_color",
+        "text_align",
+        "text_valign"
+      ],
+      "title": "AnnotationStyle",
+      "type": "object"
+    },
+    "AttachedEnd": {
+      "additionalProperties": false,
+      "description": "Un bout attaché : le tracé part de l'ancre de l'élément (un côté), ou de son contour vers l'autre bout.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "device",
+            "group",
+            "annotation"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Le `hostname` de l'équipement, l'`id` du groupe (`g<revision>-<n>`) ou de l'annotation (`a<revision>-<n>`).",
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Ref",
+          "type": "string"
+        },
+        "side": {
+          "$ref": "#/$defs/Side",
+          "description": "L'ancre : `auto` = le point du contour qui regarde l'autre bout ; `n`, `e`, `s`, `w` = le milieu de ce côté de la boîte, d'où le tracé coudé part perpendiculairement (1.5.0)."
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "side"
+      ],
+      "title": "AttachedEnd",
+      "type": "object"
+    },
+    "Connector": {
+      "additionalProperties": false,
+      "description": "Un connecteur (docs/10 §6) : deux bouts, des pointes, un tracé, une étiquette, un style ; signé, daté.",
+      "properties": {
+        "id": {
+          "description": "Identité stable attribuée par le serveur à la création : `c<revision>-<n>`.",
+          "pattern": "^c[0-9]+-[0-9]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "start": {
+          "description": "Le bout de départ : libre, ou attaché à un équipement, un groupe, une annotation.",
+          "discriminator": {
+            "mapping": {
+              "annotation": "#/$defs/AttachedEnd",
+              "device": "#/$defs/AttachedEnd",
+              "free": "#/$defs/FreeEnd",
+              "group": "#/$defs/AttachedEnd"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FreeEnd"
+            },
+            {
+              "$ref": "#/$defs/AttachedEnd"
+            }
+          ],
+          "title": "Start"
+        },
+        "end": {
+          "description": "Le bout d'arrivée, de même ; jamais le même élément que le départ (`connector_same_ends`).",
+          "discriminator": {
+            "mapping": {
+              "annotation": "#/$defs/AttachedEnd",
+              "device": "#/$defs/AttachedEnd",
+              "free": "#/$defs/FreeEnd",
+              "group": "#/$defs/AttachedEnd"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FreeEnd"
+            },
+            {
+              "$ref": "#/$defs/AttachedEnd"
+            }
+          ],
+          "title": "End"
+        },
+        "heads": {
+          "$ref": "#/$defs/Heads"
+        },
+        "route": {
+          "$ref": "#/$defs/Route",
+          "description": "Droit ; coudé (deux angles droits) ; courbe (un arc)."
+        },
+        "bend": {
+          "description": "Courbe : écart du milieu de l'arc à la corde, perpendiculaire, signé ; coudé : décalage du segment médian ; droit : ignoré.",
+          "maximum": 2000,
+          "minimum": -2000,
+          "title": "Bend",
+          "type": "integer"
+        },
+        "label": {
+          "description": "Étiquette au milieu du tracé (vide admis), 80 caractères au plus.",
+          "maxLength": 80,
+          "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+          "title": "Label",
+          "type": "string"
+        },
+        "z": {
+          "$ref": "#/$defs/ZOrder",
+          "description": "`back` : sous les cadres et les cartes ; `front` : au-dessus de tout."
+        },
+        "locked": {
+          "description": "Verrouillé : ni bout ni courbure ne se glissent sur la toile.",
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "style": {
+          "$ref": "#/$defs/ConnectorStyle"
+        },
+        "author": {
+          "description": "Qui a créé ou modifié le connecteur en dernier.",
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Author",
+          "type": "string"
+        },
+        "at": {
+          "description": "Quand : date UTC écrite par le serveur à l'application de l'opération.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "heads",
+        "route",
+        "bend",
+        "label",
+        "z",
+        "locked",
+        "style",
+        "author",
+        "at"
+      ],
+      "title": "Connector",
+      "type": "object"
+    },
+    "ConnectorStyle": {
+      "additionalProperties": false,
+      "description": "Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création.",
+      "properties": {
+        "hue": {
+          "$ref": "#/$defs/Hue",
+          "description": "Teinte nommée du trait, des pointes et de l'étiquette (si `text_color` = hue)."
+        },
+        "stroke_width": {
+          "description": "Épaisseur du trait.",
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Stroke Width",
+          "type": "integer"
+        },
+        "stroke_style": {
+          "$ref": "#/$defs/LineStyle",
+          "description": "Trait plein, tirets ou pointillés (jamais aucun : invisible)."
+        },
+        "opacity": {
+          "description": "Opacité du connecteur entier, en pourcent.",
+          "maximum": 100,
+          "minimum": 10,
+          "title": "Opacity",
+          "type": "integer"
+        },
+        "text_size": {
+          "description": "Taille de l'étiquette, en pixels du dessin.",
+          "maximum": 64,
+          "minimum": 8,
+          "title": "Text Size",
+          "type": "integer"
+        },
+        "text_weight": {
+          "$ref": "#/$defs/LabelWeight",
+          "description": "Graisse de l'étiquette."
+        },
+        "text_font": {
+          "$ref": "#/$defs/LabelFont",
+          "description": "Police de l'étiquette : sans (Inter) ou mono (JetBrains Mono)."
+        },
+        "text_color": {
+          "$ref": "#/$defs/LabelColor",
+          "description": "Couleur de l'étiquette : la teinte, ou l'encre du thème."
+        }
+      },
+      "required": [
+        "hue",
+        "stroke_width",
+        "stroke_style",
+        "opacity",
+        "text_size",
+        "text_weight",
+        "text_font",
+        "text_color"
+      ],
+      "title": "ConnectorStyle",
+      "type": "object"
+    },
+    "DeviceColor": {
+      "additionalProperties": false,
+      "description": "La couleur voulue d'un équipement, qui l'emporte sur celle de son type, par qui, quand.",
+      "properties": {
+        "hostname": {
+          "description": "Identité stable du nœud (`nodes[].hostname` du snapshot), à l'octet.",
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Hostname",
+          "type": "string"
+        },
+        "hue": {
+          "$ref": "#/$defs/Hue",
+          "description": "Teinte nommée, parmi les douze du contrat."
+        },
+        "author": {
+          "description": "Qui a choisi la teinte, 80 caractères au plus, sans caractère de contrôle.",
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Author",
+          "type": "string"
+        },
+        "at": {
+          "description": "Quand : date UTC écrite par le serveur à l'application de l'opération.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hostname",
+        "hue",
+        "author",
+        "at"
+      ],
+      "title": "DeviceColor",
+      "type": "object"
+    },
+    "DeviceType": {
+      "enum": [
+        "switch",
+        "router",
+        "firewall",
+        "load_balancer",
+        "wireless_controller",
+        "server",
+        "other"
+      ],
+      "title": "DeviceType",
+      "type": "string"
+    },
+    "FreeEnd": {
+      "additionalProperties": false,
+      "description": "Un bout libre : un point du plan.",
+      "properties": {
+        "kind": {
+          "const": "free",
+          "title": "Kind",
+          "type": "string"
+        },
+        "x": {
+          "description": "Abscisse du point, en unités du dessin.",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "description": "Ordonnée du point.",
+          "maximum": 1000000,
+          "minimum": -1000000,
+          "title": "Y",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "x",
+        "y"
+      ],
+      "title": "FreeEnd",
+      "type": "object"
+    },
+    "Group": {
+      "additionalProperties": false,
+      "description": "Un groupe (docs/10 §5) : des membres et un style ; le cadre se calcule depuis les membres, jamais stocké.",
+      "properties": {
+        "id": {
+          "description": "Identité stable attribuée par le serveur à la création : `g<revision>-<n>`.",
+          "pattern": "^g[0-9]+-[0-9]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "description": "Le nom du groupe, 1 à 80 caractères, modifiable sans changer l'identité.",
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Label",
+          "type": "string"
+        },
+        "description": {
+          "description": "Texte libre, 500 caractères au plus (retours à la ligne admis).",
+          "maxLength": 500,
+          "pattern": "^[^\\x00-\\x09\\x0b-\\x1f\\x7f]*$",
+          "title": "Description",
+          "type": "string"
+        },
+        "members": {
+          "description": "Les membres, par `hostname`, triés, uniques, un au moins.",
+          "items": {
+            "maxLength": 253,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "type": "string"
+          },
+          "maxItems": 10000,
+          "minItems": 1,
+          "title": "Members",
+          "type": "array"
+        },
+        "style": {
+          "$ref": "#/$defs/GroupStyle"
+        },
+        "author": {
+          "description": "Qui a créé ou modifié le groupe en dernier.",
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Author",
+          "type": "string"
+        },
+        "at": {
+          "description": "Quand : date UTC écrite par le serveur à l'application de l'opération.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "description",
+        "members",
+        "style",
+        "author",
+        "at"
+      ],
+      "title": "Group",
+      "type": "object"
+    },
+    "GroupShape": {
+      "enum": [
+        "rectangle",
+        "ellipse"
+      ],
+      "title": "GroupShape",
+      "type": "string"
+    },
+    "GroupStyle": {
+      "additionalProperties": false,
+      "description": "Le style d'un groupe (docs/10 §5) : toutes clés écrites ; le serveur complète avec les défauts à la création.",
+      "properties": {
+        "shape": {
+          "$ref": "#/$defs/GroupShape",
+          "description": "Rectangle (coins `radius`) ou ellipse circonscrite à la boîte des membres."
+        },
+        "radius": {
+          "description": "Rayon des coins du rectangle, en unités du dessin.",
+          "maximum": 80,
+          "minimum": 0,
+          "title": "Radius",
+          "type": "integer"
+        },
+        "hue": {
+          "$ref": "#/$defs/Hue",
+          "description": "Teinte nommée du cadre (remplissage, bordure, étiquette si `label_color` = hue)."
+        },
+        "fill_opacity": {
+          "description": "Opacité du remplissage, en pourcent.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Fill Opacity",
+          "type": "integer"
+        },
+        "stroke_width": {
+          "description": "Épaisseur de la bordure, en unités du dessin.",
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Stroke Width",
+          "type": "integer"
+        },
+        "stroke_style": {
+          "$ref": "#/$defs/StrokeStyle",
+          "description": "Trait de la bordure : plein, tirets, pointillés, aucun."
+        },
+        "padding": {
+          "description": "Marge entre les cartes des membres et le cadre.",
+          "maximum": 300,
+          "minimum": 0,
+          "title": "Padding",
+          "type": "integer"
+        },
+        "label_position": {
+          "$ref": "#/$defs/LabelPosition",
+          "description": "Où l'étiquette s'ancre sur le cadre (neuf positions)."
+        },
+        "label_placement": {
+          "$ref": "#/$defs/LabelPlacement",
+          "description": "Étiquette à l'intérieur ou à l'extérieur du cadre."
+        },
+        "label_size": {
+          "description": "Taille de l'étiquette, en pixels du dessin.",
+          "maximum": 64,
+          "minimum": 8,
+          "title": "Label Size",
+          "type": "integer"
+        },
+        "label_weight": {
+          "$ref": "#/$defs/LabelWeight",
+          "description": "Graisse de l'étiquette."
+        },
+        "label_font": {
+          "$ref": "#/$defs/LabelFont",
+          "description": "Police de l'étiquette : sans (Inter) ou mono (JetBrains Mono)."
+        },
+        "label_color": {
+          "$ref": "#/$defs/LabelColor",
+          "description": "Couleur de l'étiquette : la teinte du cadre, ou l'encre du thème."
+        }
+      },
+      "required": [
+        "shape",
+        "radius",
+        "hue",
+        "fill_opacity",
+        "stroke_width",
+        "stroke_style",
+        "padding",
+        "label_position",
+        "label_placement",
+        "label_size",
+        "label_weight",
+        "label_font",
+        "label_color"
+      ],
+      "title": "GroupStyle",
+      "type": "object"
+    },
+    "Head": {
+      "enum": [
+        "none",
+        "arrow"
+      ],
+      "title": "Head",
+      "type": "string"
+    },
+    "Heads": {
+      "additionalProperties": false,
+      "description": "La pointe à chaque bout : aucune (une ligne), une flèche à l'arrivée, au départ, ou aux deux.",
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/Head"
+        },
+        "end": {
+          "$ref": "#/$defs/Head"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "Heads",
+      "type": "object"
+    },
+    "Hue": {
+      "description": "Les douze teintes nommées d'une couleur d'intention ; le moteur donne à chacune sa valeur sombre et sa valeur\nclaire, le contrat ne connaît que le nom (jamais une valeur libre : docs/10, décision 4).",
+      "enum": [
+        "blue",
+        "sky",
+        "indigo",
+        "violet",
+        "pink",
+        "red",
+        "orange",
+        "amber",
+        "lime",
+        "green",
+        "teal",
+        "slate"
+      ],
+      "title": "Hue",
+      "type": "string"
+    },
+    "ImageContent": {
+      "additionalProperties": false,
+      "description": "Une image du magasin de fichiers de l'infrastructure, par son empreinte ; PNG, JPEG ou WebP, jamais SVG.",
+      "properties": {
+        "kind": {
+          "const": "image",
+          "title": "Kind",
+          "type": "string"
+        },
+        "asset": {
+          "description": "SHA-256 hexadécimal du fichier, tel que `POST /api/intent/assets` l'a rendu.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Asset",
+          "type": "string"
+        },
+        "alt": {
+          "description": "Texte de remplacement, 120 caractères au plus (vide admis).",
+          "maxLength": 120,
+          "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+          "title": "Alt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "asset",
+        "alt"
+      ],
+      "title": "ImageContent",
+      "type": "object"
+    },
+    "LabelColor": {
+      "enum": [
+        "hue",
+        "ink"
+      ],
+      "title": "LabelColor",
+      "type": "string"
+    },
+    "LabelFont": {
+      "enum": [
+        "sans",
+        "mono"
+      ],
+      "title": "LabelFont",
+      "type": "string"
+    },
+    "LabelPlacement": {
+      "enum": [
+        "inside",
+        "outside"
+      ],
+      "title": "LabelPlacement",
+      "type": "string"
+    },
+    "LabelPosition": {
+      "enum": [
+        "top_left",
+        "top",
+        "top_right",
+        "left",
+        "center",
+        "right",
+        "bottom_left",
+        "bottom",
+        "bottom_right"
+      ],
+      "title": "LabelPosition",
+      "type": "string"
+    },
+    "LabelWeight": {
+      "enum": [
+        "regular",
+        "semibold",
+        "bold"
+      ],
+      "title": "LabelWeight",
+      "type": "string"
+    },
+    "LineStyle": {
+      "enum": [
+        "solid",
+        "dashed",
+        "dotted"
+      ],
+      "title": "LineStyle",
+      "type": "string"
+    },
+    "Merge": {
+      "additionalProperties": false,
+      "description": "Des cellules fusionnées : la cellule haut gauche (`row`, `col`) couvre `rows` × `cols` cellules ; le texte est\ncelui de la cellule haut gauche, les cellules couvertes gardent le leur sans le montrer.",
+      "properties": {
+        "row": {
+          "description": "Ligne de la cellule haut gauche, depuis 0.",
+          "minimum": 0,
+          "title": "Row",
+          "type": "integer"
+        },
+        "col": {
+          "description": "Colonne de la cellule haut gauche, depuis 0.",
+          "minimum": 0,
+          "title": "Col",
+          "type": "integer"
+        },
+        "rows": {
+          "description": "Lignes couvertes, 1 au moins.",
+          "maximum": 30,
+          "minimum": 1,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "cols": {
+          "description": "Colonnes couvertes, 1 au moins.",
+          "maximum": 8,
+          "minimum": 1,
+          "title": "Cols",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "row",
+        "col",
+        "rows",
+        "cols"
+      ],
+      "title": "Merge",
+      "type": "object"
+    },
+    "NoteContent": {
+      "additionalProperties": false,
+      "description": "Une note : du texte brut, multi-ligne, jamais du HTML ni du Markdown.",
+      "properties": {
+        "kind": {
+          "const": "note",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "description": "1 à 2 000 caractères ; retours à la ligne admis, aucun autre caractère de contrôle.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x09\\x0b-\\x1f\\x7f]*$",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "title": "NoteContent",
+      "type": "object"
+    },
     "Pin": {
       "additionalProperties": false,
       "description": "Une épingle : la place voulue d'un équipement sur le dessin, par qui, quand.",
@@ -53,10 +954,223 @@
       ],
       "title": "Pin",
       "type": "object"
+    },
+    "Route": {
+      "enum": [
+        "straight",
+        "elbow",
+        "curve"
+      ],
+      "title": "Route",
+      "type": "string"
+    },
+    "ShapeContent": {
+      "additionalProperties": false,
+      "description": "Une forme : rectangle ou ellipse, avec une étiquette (une ligne ou une flèche est un connecteur).",
+      "properties": {
+        "kind": {
+          "const": "shape",
+          "title": "Kind",
+          "type": "string"
+        },
+        "shape": {
+          "$ref": "#/$defs/ShapeKind"
+        },
+        "label": {
+          "description": "Étiquette au centre (vide admis), 80 caractères au plus.",
+          "maxLength": 80,
+          "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "shape",
+        "label"
+      ],
+      "title": "ShapeContent",
+      "type": "object"
+    },
+    "ShapeKind": {
+      "enum": [
+        "rectangle",
+        "ellipse"
+      ],
+      "title": "ShapeKind",
+      "type": "string"
+    },
+    "Side": {
+      "description": "L'ancre d'un bout attaché : le contour vers l'autre bout (`auto`), ou le milieu d'un côté (1.5.0).",
+      "enum": [
+        "auto",
+        "n",
+        "e",
+        "s",
+        "w"
+      ],
+      "title": "Side",
+      "type": "string"
+    },
+    "StrokeStyle": {
+      "enum": [
+        "solid",
+        "dashed",
+        "dotted",
+        "none"
+      ],
+      "title": "StrokeStyle",
+      "type": "string"
+    },
+    "TableContent": {
+      "additionalProperties": false,
+      "description": "Un tableau de texte : lignes × colonnes, toutes les lignes de même longueur (`table_ragged`) ; des largeurs de\ncolonne et des hauteurs de ligne relatives (poids, la boîte reste la mesure), des cellules fusionnées.",
+      "properties": {
+        "kind": {
+          "const": "table",
+          "title": "Kind",
+          "type": "string"
+        },
+        "header": {
+          "description": "La première ligne est un en-tête.",
+          "title": "Header",
+          "type": "boolean"
+        },
+        "rows": {
+          "description": "1 à 30 lignes de 1 à 8 cellules, 120 caractères au plus.",
+          "items": {
+            "items": {
+              "maxLength": 120,
+              "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "maxItems": 30,
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        },
+        "widths": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 4000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Un poids par colonne (1..4000) : la largeur de la boîte se partage au prorata ; null = colonnes égales. Autant de poids que de colonnes (`table_dims_mismatch`).",
+          "title": "Widths"
+        },
+        "heights": {
+          "anyOf": [
+            {
+              "items": {
+                "maximum": 4000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Un poids par ligne, de même ; null = lignes égales. Autant de poids que de lignes.",
+          "title": "Heights"
+        },
+        "merges": {
+          "description": "Les fusions, triées par (`row`, `col`), dans le tableau, sans chevauchement, couvrant deux cellules au moins (`table_merge_outside`, `table_merge_overlap`, `table_merge_trivial`).",
+          "items": {
+            "$ref": "#/$defs/Merge"
+          },
+          "maxItems": 240,
+          "title": "Merges",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "header",
+        "rows",
+        "widths",
+        "heights",
+        "merges"
+      ],
+      "title": "TableContent",
+      "type": "object"
+    },
+    "TextAlign": {
+      "enum": [
+        "left",
+        "center",
+        "right"
+      ],
+      "title": "TextAlign",
+      "type": "string"
+    },
+    "TextValign": {
+      "enum": [
+        "top",
+        "middle",
+        "bottom"
+      ],
+      "title": "TextValign",
+      "type": "string"
+    },
+    "TypeColor": {
+      "additionalProperties": false,
+      "description": "La couleur voulue pour tous les équipements d'un type (la palette des types de l'infrastructure), par qui,\nquand.",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/DeviceType",
+          "description": "Type du contrat d'entrée (`devices[].type`) ; un seul patch par type."
+        },
+        "hue": {
+          "$ref": "#/$defs/Hue",
+          "description": "Teinte nommée, parmi les douze du contrat."
+        },
+        "author": {
+          "description": "Qui a choisi la teinte, 80 caractères au plus, sans caractère de contrôle.",
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "title": "Author",
+          "type": "string"
+        },
+        "at": {
+          "description": "Quand : date UTC écrite par le serveur à l'application de l'opération.",
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "hue",
+        "author",
+        "at"
+      ],
+      "title": "TypeColor",
+      "type": "object"
+    },
+    "ZOrder": {
+      "enum": [
+        "back",
+        "front"
+      ],
+      "title": "ZOrder",
+      "type": "string"
     }
   },
   "additionalProperties": false,
-  "description": "La couche d'intention d'une infrastructure : ses patchs keyés par identité stable, avec leur auteur et leur date.\n\nLe document ne s'écrit que par opérations (`pin`, `unpin`) ; chaque requête acceptée incrémente `revision`.\nIl n'est lu ni par B1 ni par B3 : `rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`.",
+  "description": "La couche d'intention d'une infrastructure : ses patchs keyés par identité stable, avec leur auteur et leur date.\n\nLe document ne s'écrit que par opérations (`pin`, `unpin`, `color`, `uncolor`, `color_type`, `uncolor_type`,\n`group_create`, `group_update`, `group_add`, `group_remove`, `group_delete`, `annotation_create`,\n`annotation_update`, `annotation_delete`, `connector_create`, `connector_update`, `connector_delete`) ; chaque\nrequête acceptée incrémente\n`revision`. Il n'est lu ni par B1 ni par B3 : `rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`.",
   "properties": {
     "intent_version": {
       "description": "Version semver du contrat Intent, indépendante des trois autres contrats.",
@@ -97,6 +1211,51 @@
       "maxItems": 10000,
       "title": "Pins",
       "type": "array"
+    },
+    "type_colors": {
+      "description": "La palette des types : une couleur par type au plus, triées par `type`, uniques (docs/10).",
+      "items": {
+        "$ref": "#/$defs/TypeColor"
+      },
+      "maxItems": 7,
+      "title": "Type Colors",
+      "type": "array"
+    },
+    "device_colors": {
+      "description": "Les couleurs par équipement, triées par `hostname`, uniques ; 10 000 au plus (`too_long`).",
+      "items": {
+        "$ref": "#/$defs/DeviceColor"
+      },
+      "maxItems": 10000,
+      "title": "Device Colors",
+      "type": "array"
+    },
+    "groups": {
+      "description": "Les groupes (docs/10 §5), triés par `id`, uniques ; 1 000 au plus.",
+      "items": {
+        "$ref": "#/$defs/Group"
+      },
+      "maxItems": 1000,
+      "title": "Groups",
+      "type": "array"
+    },
+    "annotations": {
+      "description": "Les annotations (docs/10 §6 : notes, formes, tableaux, images), triées par `id`, uniques ; 2 000 au plus.",
+      "items": {
+        "$ref": "#/$defs/Annotation"
+      },
+      "maxItems": 2000,
+      "title": "Annotations",
+      "type": "array"
+    },
+    "connectors": {
+      "description": "Les connecteurs (docs/10 §6 : lignes et flèches à deux bouts), triés par `id`, uniques ; 2 000 au plus.",
+      "items": {
+        "$ref": "#/$defs/Connector"
+      },
+      "maxItems": 2000,
+      "title": "Connectors",
+      "type": "array"
     }
   },
   "required": [
@@ -104,7 +1263,12 @@
     "infrastructure",
     "revision",
     "updated_at",
-    "pins"
+    "pins",
+    "type_colors",
+    "device_colors",
+    "groups",
+    "annotations",
+    "connectors"
   ],
   "type": "object"
 }

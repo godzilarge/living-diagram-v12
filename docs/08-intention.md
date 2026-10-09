@@ -3,7 +3,8 @@
 **Statut : plan annoncé le 2026-10-04 après le « Go » d'Orhan sur la toile et B4 (session autonome) ; écrit puis codé le
 même jour (contrat `Intent` v1, store, API, `ld intent`, page : glyphe, onglet Intentions, fiche, coquille avec le nom ;
 test de bout en bout uvicorn + Chromium + glissé réel) ; revue indépendante consignée dans
-`docs/revues/2026-10-04-b4-intention.md`. Les détails se corrigent au premier rendu sur une vraie infrastructure.**
+`docs/revues/2026-10-04-b4-intention.md`. Les détails se corrigent au premier rendu sur une vraie infrastructure.
+Intent 1.1.0 le 2026-10-07 : les couleurs ; 1.2.0 le même jour : les groupes ; dans `docs/10` (même mécanique, des listes de plus).**
 En une phrase : **la couche d'intention est ce que l'humain veut en plus de ce que la collecte montre ; la première
 intention est l'épingle, qui fixe la place d'un équipement sur le dessin et survit aux runs.**
 

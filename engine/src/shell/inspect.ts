@@ -2,7 +2,7 @@
 // a été résolu) ; pour un équipement, sa fiche, sa couverture de collecte, ses ports. Tout est lu, rien n'est calculé.
 import { clear, h } from "../canvas/dom";
 import type { Child } from "../canvas/dom";
-import { brief, plain, speedText, KIND_LABEL, RESOLUTION_LABEL } from "../canvas/format";
+import { brief, plain, speedText, whyText, KIND_LABEL, RESOLUTION_LABEL } from "../canvas/format";
 import { beamLabel, clusterLabel } from "../canvas/geometry";
 import { aggregateKey, aggregateOf, beamOf, clusterOf, endLabel, entityOf, ifaceKey, interfaceAt, OBSERVED } from "../canvas/model";
 import type { Change, Model, ModelInterface, ModelLink, ModelNode, Selection } from "../canvas/types";
@@ -75,21 +75,6 @@ function vlanText(itf: SnapshotInterface): string {
     return " · natif " + plain(itf.native_vlan) + " · autorisés " + (allowed || "aucun");
   }
   return "";
-}
-
-// La phrase ne dit que ce que les évidences disent : qui a observé, qui a documenté. « Confirmé » veut dire
-// « observé et documenté », pas « toutes les descriptions concordent » : un désaccord lié au câble est signalé.
-function whyText(link: ModelLink): string {
-  const witnesses = (keep: (source: string) => boolean): string => Array.from(new Set(link.raw.evidence.filter((e) => keep(e.source)).map((e) => endLabel(e.witness)))).join(", ");
-  const seen = witnesses((src) => OBSERVED[src]);
-  const written = witnesses((src) => !OBSERVED[src]);
-  const protocols = link.sources.filter((src) => OBSERVED[src]).map((src) => src.toUpperCase()).join(" et ");
-  const parts: string[] = [];
-  if (seen) parts.push("Observé en " + protocols + " depuis " + seen + ".");
-  else parts.push("Aucune observation LLDP ni CDP : ce câble n'existe que par les descriptions d'interface.");
-  parts.push(written ? "Documenté par la description de " + written + "." : "Aucune description ne le documente.");
-  if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push("Attention : une description ne concorde pas avec l'observé, voir le contrôle ci-dessous.");
-  return parts.join(" ");
 }
 
 // Les agrégats des deux bouts, cliquables quand le snapshot a leur document.
@@ -213,7 +198,7 @@ function overview(model: Model): Child[] {
 }
 
 // Une ligne pour la zone live : ce qui vient d'être sélectionné, pour un lecteur d'écran, sans lui lire tout le panneau.
-const KIND_WORD: Record<string, string> = { link: "câble", node: "équipement", aggregate: "agrégat", beam: "faisceau", cluster: "cluster HA" };
+const KIND_WORD: Record<string, string> = { link: "câble", node: "équipement", aggregate: "agrégat", beam: "faisceau", cluster: "cluster HA", group: "groupe", annotation: "annotation", connector: "connecteur" };
 export function describe(model: Model, selection: Selection | null): string {
   if (!selection || !entityOf(model, selection)) return "";
   const label = ((): string => {
@@ -222,6 +207,9 @@ export function describe(model: Model, selection: Selection | null): string {
       case "node": return (model.nodeByHost.get(selection.id) as ModelNode).hostname;
       case "aggregate": { const agg = aggregateOf(model, selection); return agg ? agg.hostname + " · " + agg.name : ""; }
       case "beam": { const beam = beamOf(model, selection); return beam ? beamLabel(beam, true) : ""; }
+      case "group": { const group = model.groupById.get(selection.id); return group ? group.label : ""; }
+      case "annotation": { const a = model.annotationById.get(selection.id); return a ? a.content.kind : ""; }
+      case "connector": { const c = model.connectorById.get(selection.id); return c ? c.label || c.id : ""; }
       default: { const cluster = clusterOf(model, selection); return cluster ? clusterLabel(cluster) : ""; }
     }
   })();

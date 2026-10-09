@@ -4,12 +4,18 @@
 // jamais effacée en silence ; retirer se fait d'un clic, retirer tout demande une confirmation dans la page (la page
 // n'a pas de boîte de dialogue). Les écritures partent par l'écrivain de la page, dans l'ordre (file de la coquille),
 // par paquets de 500 opérations au plus (la borne de l'API) ; une réponse plus ancienne que le document déjà lu est
-// ignorée (revue B4, H1).
+// ignorée (revue B4, H1). Les couleurs (docs/10) passent par le même écrivain : teinte d'un type, teinte d'un
+// équipement, dernier écrivain gagne par clé ; l'onglet les liste, orphelines comprises.
+import { KIND_LABEL as ANNOTATION_KIND, summary } from "../canvas/annotations";
+import { summary as connectorSummary } from "../canvas/connectors";
 import { clear, h } from "../canvas/dom";
+import { hueLabel } from "../canvas/hues";
+import { LABEL as ICON_LABEL } from "../canvas/icons";
 import type { Child } from "../canvas/dom";
-import type { Graph } from "../canvas/graph";
+import type { PinsCause } from "../canvas/graph";
 import { applyIntent } from "../canvas/model";
-import type { Intent, Model, Pin, Selection } from "../canvas/types";
+import { STYLE_LABEL } from "../canvas/groups";
+import type { Annotation, Connector, DeviceColor, Group, Intent, Model, Pin, Selection, TypeColor } from "../canvas/types";
 import type { Op, Writer } from "./apps";
 import { confirmable, definition, pill, table } from "./widgets";
 import type { TableRow } from "./widgets";
@@ -17,8 +23,11 @@ import type { TableRow } from "./widgets";
 export const OPS_PER_REQUEST = 500; // la borne de `POST /api/intent/patches`
 export const AUTHOR_MAX_LENGTH = 80; // celle du contrat
 
+/** Ce que l'hôte demande au graphe (graph.ts dans `/view`, la toile de l'application) : les épingles locales, retirer, se réaligner. */
+export interface PinGraph { state: { pinned: Map<string, { x: number; y: number }> }; unpin: (hostnames: string[]) => unknown; syncPins: () => void; resetPins: () => unknown; recolor: () => unknown }
+
 export interface IntentHooks {
-  graph: () => Graph;
+  graph: () => PinGraph;
   /** Ouvre un élément dans le graphe (depuis une ligne de l'onglet). */
   openInGraph: (selection: Selection | null) => void;
   /** Redessine la fiche de l'équipement sélectionné, l'en-tête et la ligne d'état. */
@@ -33,6 +42,28 @@ export interface IntentHooks {
 export interface IntentHost {
   /** Un équipement relâché après un glissé, à cette position. */
   onPin: (hostname: string, point: { x: number; y: number }) => void;
+  /** Des équipements alignés, ou glissés d'un bloc, d'un coup (application, `/view`) : une requête par paquet, dans
+   * l'ordre ; sans écrivain nommé, des déplacements locaux, dits tels. */
+  onPins: (moves: Map<string, { x: number; y: number }>, cause?: PinsCause) => void;
+  /** Retire des épingles enregistrées (application : sans le DOM de l'onglet). */
+  unpin: (hostnames: string[]) => void;
+  /** La teinte d'un équipement (docs/10), ou `null` pour revenir à celle de son type. */
+  onColor: (hostname: string, hue: string | null) => void;
+  /** La teinte d'un type pour l'infrastructure, ou `null` pour revenir au défaut du moteur. */
+  onTypeColor: (type: string, hue: string | null) => void;
+  /** La même teinte sur toute une sélection, en une requête (par paquets de 500 au plus). */
+  onColors: (hostnames: string[], hue: string | null) => void;
+  /** Des opérations de groupe (docs/10 §5), en une requête ; rend le document accepté, ou `null` sans écrivain nommé. */
+  onGroup: (ops: Op[], done: string) => Promise<Intent | null>;
+  /** Des opérations d'annotation (docs/10 §6), de même. */
+  onAnnotation: (ops: Op[], done: string) => Promise<Intent | null>;
+  /** Des opérations de connecteur (docs/10 §6, 1.4.0), de même. */
+  onConnector: (ops: Op[], done: string) => Promise<Intent | null>;
+  /** Des opérations quelconques (annuler, rétablir : application), en une requête ; la toile se réaligne sur tout
+   *  (couleurs, groupes, épingles posées ou retirées). Rend le document accepté, ou `null`. */
+  apply: (ops: Op[], done: string) => Promise<Intent | null>;
+  /** Peut écrire : un écrivain avec un nom. */
+  canWrite: () => boolean;
   /** Monte ou redessine l'onglet. */
   view: () => void;
   /** La ligne « épingle » de la fiche d'un équipement. */
@@ -43,7 +74,7 @@ const dateText = (iso: string): string => iso.replace("T", " ").replace(/:\d\d(\
 
 // Les déplacements faits à la main dans cette page et non enregistrés : sans écrivain (page autonome, nom absent),
 // ou en attendant la réponse de l'API.
-function localMoves(model: Model, graph: Graph): string[] {
+function localMoves(model: Model, graph: PinGraph): string[] {
   return Array.from(graph.state.pinned.keys()).filter((host) => !model.pinByHost.has(host)).sort();
 }
 
@@ -70,8 +101,8 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
   };
 
   // Envoie des opérations par paquets, dans l'ordre, puis réaligne le modèle, le graphe et l'onglet.
-  async function send(ops: Op[], removed: string[], done: string): Promise<void> {
-    if (!writer) return;
+  async function send(ops: Op[], removed: string[], done: string, colour = false, all = false): Promise<boolean> {
+    if (!writer) return false;
     hooks.note("enregistrement…");
     let failure: string | null = null;
     for (const part of chunks(ops, OPS_PER_REQUEST)) {
@@ -79,10 +110,13 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
       if (!outcome.ok) { failure = outcome.message; break; }
       accept(outcome.intent);
     }
-    if (removed.length) hooks.graph().unpin(removed.filter((host) => model.pinByHost.has(host) === false));
-    else hooks.graph().syncPins();
+    const graph = hooks.graph();
+    if (colour || all) graph.recolor();
+    if (removed.length) graph.unpin(removed.filter((host) => model.pinByHost.has(host) === false));
+    if (all || (!colour && !removed.length)) graph.syncPins();
     hooks.note(failure ? "non enregistré : " + failure : done);
     refresh();
+    return failure === null;
   }
 
   function onPin(hostname: string, point: { x: number; y: number }): void {
@@ -96,7 +130,53 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
     });
   }
 
+  // Un alignement, ou la sélection glissée d'un bloc : toutes les épingles d'un coup, une ligne d'état pour l'ensemble.
+  function onPins(moves: Map<string, { x: number; y: number }>, cause: PinsCause = "aligned"): void {
+    const hosts = Array.from(moves.keys()).sort();
+    const plural = hosts.length > 1 ? "s" : "";
+    const what = hosts.length + " équipement" + plural + (cause === "dragged" ? " déplacé" : " aligné") + plural;
+    if (!writer) { hooks.note(what + " ici, non enregistré" + (hosts.length > 1 ? "s" : "") + " (page sans serveur)"); return; }
+    if (!writer.author) { hooks.note(what + " ici : donnez votre nom pour enregistrer les épingles"); return; }
+    const ops: Op[] = hosts.map((hostname) => { const point = moves.get(hostname) as { x: number; y: number }; return { op: "pin", hostname, x: Math.round(point.x), y: Math.round(point.y) }; });
+    void send(ops, [], what + ", épingles enregistrées (" + writer.author + ")");
+  }
+
+  // Une couleur (docs/10) : une opération, une ligne d'état ; sans écrivain nommé, rien ne part et la page le dit.
+  function colourOps(ops: Op[], done: string): void {
+    if (!writer) { hooks.note("couleur non enregistrée (page sans serveur)"); return; }
+    if (!writer.author) { hooks.note("donnez votre nom pour enregistrer une couleur"); return; }
+    void send(ops, [], done + " (" + writer.author + ")", true);
+  }
+  const onColor = (hostname: string, hue: string | null): void => colourOps(hue ? [{ op: "color", hostname, hue }] : [{ op: "uncolor", hostname }],
+    hue ? "couleur de " + hostname + " : " + hueLabel(hue) : "couleur de " + hostname + " retirée");
+  const onColors = (hostnames: string[], hue: string | null): void => {
+    const hosts = hostnames.slice().sort();
+    if (!hosts.length) return;
+    const what = hosts.length === 1 ? hosts[0] : hosts.length + " équipements";
+    colourOps(hosts.map((hostname): Op => (hue ? { op: "color", hostname, hue } : { op: "uncolor", hostname })),
+      hue ? "couleur de " + what + " : " + hueLabel(hue) : "couleur de " + what + " retirée");
+  };
+  const onTypeColor = (type: string, hue: string | null): void => colourOps(hue ? [{ op: "color_type", type, hue }] : [{ op: "uncolor_type", type }],
+    hue ? "couleur des " + (ICON_LABEL[type] || type) + " : " + hueLabel(hue) : "couleur des " + (ICON_LABEL[type] || type) + " retirée");
+
+  async function onOps(ops: Op[], done: string, what: string): Promise<Intent | null> {
+    if (!writer) { hooks.note(what + " non enregistré (page sans serveur)"); return null; }
+    if (!writer.author) { hooks.note("donnez votre nom pour enregistrer " + what); return null; }
+    await send(ops, [], done + " (" + writer.author + ")", true);
+    return model.intent;
+  }
+  const onGroup = (ops: Op[], done: string): Promise<Intent | null> => onOps(ops, done, "un groupe");
+  const onAnnotation = (ops: Op[], done: string): Promise<Intent | null> => onOps(ops, done, "une annotation");
+  const onConnector = (ops: Op[], done: string): Promise<Intent | null> => onOps(ops, done, "un connecteur");
+
+  async function apply(ops: Op[], done: string): Promise<Intent | null> {
+    if (!writer || !writer.author) { hooks.note("donnez votre nom pour annuler ou rétablir"); return null; }
+    const removed = ops.flatMap((op) => (op.op === "unpin" ? [op.hostname] : []));
+    return (await send(ops, removed, done, false, true)) ? model.intent : null;
+  }
+
   const unpinOps = (hosts: string[]): Op[] => hosts.map((hostname) => ({ op: "unpin", hostname }));
+  const unpin = (hosts: string[]): void => { if (hosts.length) void send(unpinOps(hosts), hosts, hosts.length + " épingle" + (hosts.length > 1 ? "s retirées" : " retirée")); };
   const removeOne = (hostname: string, button: HTMLButtonElement): void => {
     button.setAttribute("disabled", ""); // un second clic avant la réponse n'envoie pas une seconde requête (revue B4, B3)
     void send(unpinOps([hostname]), [hostname], "épingle de " + hostname + " retirée");
@@ -122,6 +202,71 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
     const state = orphan ? pill("pin", "orphan", "orpheline : équipement absent de cette run") : pill("pin", "present", "présente");
     const remove: Child = canWrite() ? h("button", { type: "button", onclick: (e: Event) => removeOne(pin.hostname, e.target as HTMLButtonElement) }, "retirer") : "";
     return { cells: [target, String(pin.x), String(pin.y), pin.author, dateText(pin.at), state, remove] };
+  }
+
+  // Les couleurs de l'onglet : une ligne par type coloré, une par équipement coloré (orpheline si absent de la run).
+  function colourRow(target: Child, hue: string, author: string, at: string, orphan: boolean | null, remove: () => Op[]): TableRow {
+    const state = orphan === null ? "" : orphan ? pill("pin", "orphan", "orpheline : équipement absent de cette run") : pill("pin", "present", "présente");
+    const button: Child = canWrite() ? h("button", { type: "button", onclick: (e: Event) => { (e.target as HTMLButtonElement).setAttribute("disabled", ""); void send(remove(), [], "couleur retirée", true); } }, "retirer la couleur") : "";
+    return { cells: [target, h("span", { class: "hue-dot hue-" + hue }, hueLabel(hue)), author, dateText(at), state, button] };
+  }
+  function coloursBlock(): Child {
+    const types: TypeColor[] = model.intent && model.intent.type_colors ? model.intent.type_colors : [];
+    const devices: DeviceColor[] = model.intent && model.intent.device_colors ? model.intent.device_colors : [];
+    const orphans = new Set(model.orphanColors.map((c) => c.hostname));
+    const rows = types.map((c) => colourRow("type · " + (ICON_LABEL[c.type] || c.type), c.hue, c.author, c.at, null, () => [{ op: "uncolor_type", type: c.type }]))
+      .concat(devices.map((c) => colourRow(orphans.has(c.hostname) ? c.hostname : h("button", { class: "linklike", type: "button", onclick: () => hooks.openInGraph({ kind: "node", id: c.hostname }) }, c.hostname),
+        c.hue, c.author, c.at, orphans.has(c.hostname), () => [{ op: "uncolor", hostname: c.hostname }])));
+    const orphanOps = (): Op[] => model.orphanColors.map((c) => ({ op: "uncolor", hostname: c.hostname }));
+    return [h("h3", {}, "Couleurs enregistrées : " + rows.length + (orphans.size ? " · " + orphans.size + " orpheline" + (orphans.size > 1 ? "s" : "") : "")),
+      h("p", { class: "muted" }, "La teinte d'un type vaut pour toute l'infrastructure ; celle d'un équipement l'emporte. Douze teintes nommées, jamais une valeur libre (docs/10)."),
+      table(["cible", "teinte", "auteur", "date", "état", ""], rows, { empty: "aucune couleur : la palette des types et la fiche d'un équipement, dans l'application" }),
+      canWrite() && orphans.size ? h("div", { class: "toolbar-row" }, confirmable("retirer les couleurs orphelines", () => { void send(orphanOps(), [], "couleurs orphelines retirées", true); }, { count: orphans.size })) : null];
+  }
+
+  // Les groupes de l'onglet : une ligne par groupe, ses membres présents et orphelins ; supprimer demande confirmation.
+  function groupsBlock(): Child {
+    const list: Group[] = model.intent && model.intent.groups ? model.intent.groups : [];
+    const rows = list.map((group): TableRow => {
+      const orphans = group.members.filter((host) => { const node = model.nodeByHost.get(host); return !node || !!node.ghost; });
+      const present = group.members.length - orphans.length;
+      const state = present === 0 ? pill("pin", "orphan", "orphelin : aucun membre dans cette run") : orphans.length ? pill("pin", "orphan", orphans.length + " membre(s) absent(s)") : pill("pin", "present", "présent");
+      const remove: Child = canWrite() ? confirmable("supprimer", () => { void send([{ op: "group_delete", id: group.id }], [], "groupe " + group.label + " supprimé", true); }, { count: group.members.length }) : "";
+      return { cells: [h("span", {}, h("b", {}, group.label), " ", h("code", { class: "muted" }, group.id)), h("span", { class: "hue-dot hue-" + group.style.hue }, STYLE_LABEL[group.style.shape] || group.style.shape),
+        present + " / " + group.members.length + (orphans.length ? " · absents : " + orphans.join(", ") : ""), group.author, dateText(group.at), state, remove] };
+    });
+    return [h("h3", {}, "Groupes enregistrés : " + rows.length + (model.orphanGroups.length ? " · " + model.orphanGroups.length + " orphelin" + (model.orphanGroups.length > 1 ? "s" : "") : "")),
+      h("p", { class: "muted" }, "Un groupe = des membres + un style ; son cadre se calcule depuis ses membres (docs/10 §5). Il se crée, se modifie et se glisse dans l'application ; ici, la comptabilité."),
+      table(["groupe", "forme", "membres", "auteur", "date", "état", ""], rows, { empty: "aucun groupe : depuis la fiche d'une sélection multiple, dans l'application" })];
+  }
+
+  // Les annotations de l'onglet (docs/10 §6) : une ligne par annotation, son ancre, orpheline si l'ancre est absente.
+  function annotationsBlock(): Child {
+    const list: Annotation[] = model.intent && model.intent.annotations ? model.intent.annotations : [];
+    const orphans = new Set(model.orphanAnnotations.map((a) => a.id));
+    const rows = list.map((a): TableRow => {
+      const where = a.anchor.kind === "free" ? "libre" : a.anchor.kind + " · " + a.anchor.ref;
+      const state = orphans.has(a.id) ? pill("pin", "orphan", "orpheline : ancre absente de cette run") : pill("pin", "present", "présente");
+      const remove: Child = canWrite() ? confirmable("supprimer", () => { void send([{ op: "annotation_delete", id: a.id }], [], "annotation supprimée", true); }, { count: 1 }) : "";
+      return { cells: [h("span", {}, h("b", {}, ANNOTATION_KIND[a.content.kind] || a.content.kind), " ", h("code", { class: "muted" }, a.id)), summary(a), where, a.x + ", " + a.y + " · " + a.w + " × " + a.h, a.author, dateText(a.at), state, remove] };
+    });
+    return [h("h3", {}, "Annotations enregistrées : " + rows.length + (orphans.size ? " · " + orphans.size + " orpheline" + (orphans.size > 1 ? "s" : "") : "")),
+      h("p", { class: "muted" }, "Une annotation dit ce que la donnée ignore : note, forme, tableau, image, libre ou attachée à un équipement ou à un groupe (docs/10 §6). Elle se crée et se règle dans l'application ; ici, la comptabilité."),
+      table(["sorte", "contenu", "ancrage", "boîte", "auteur", "date", "état", ""], rows, { empty: "aucune annotation : la barre d'outils de l'application, « insérer »" })];
+  }
+
+  // Les connecteurs de l'onglet (docs/10 §6, 1.4.0) : une ligne par connecteur, ses bouts, orphelin si un bout est absent.
+  function connectorsBlock(): Child {
+    const list: Connector[] = model.intent && model.intent.connectors ? model.intent.connectors : [];
+    const orphans = new Set(model.orphanConnectors.map((c) => c.id));
+    const rows = list.map((c): TableRow => {
+      const state = orphans.has(c.id) ? pill("pin", "orphan", "orphelin : un bout vise un élément absent de cette run") : pill("pin", "present", "présent");
+      const remove: Child = canWrite() ? confirmable("supprimer", () => { void send([{ op: "connector_delete", id: c.id }], [], "connecteur supprimé", true); }, { count: 1 }) : "";
+      return { cells: [h("code", { class: "muted" }, c.id), connectorSummary(c), c.route, c.author, dateText(c.at), state, remove] };
+    });
+    return [h("h3", {}, "Connecteurs enregistrés : " + rows.length + (orphans.size ? " · " + orphans.size + " orphelin" + (orphans.size > 1 ? "s" : "") : "")),
+      h("p", { class: "muted" }, "Un connecteur relie deux bouts, libres ou attachés à un équipement, un groupe ou une annotation : une ligne ou une flèche de contexte, jamais un câble (docs/10 §6). Il se trace dans l'application ; ici, la comptabilité."),
+      table(["id", "connecteur", "tracé", "auteur", "date", "état", ""], rows, { empty: "aucun connecteur : la barre d'outils de l'application, « insérer »" })];
   }
 
   // Retirer plusieurs épingles demande une confirmation, dans la page.
@@ -151,6 +296,10 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
       orphans.size ? h("p", { class: "muted" }, "Une épingle orpheline vise un équipement qui n'est pas dans cette run (retiré, renommé, ou pas encore collecté). Elle n'est pas dessinée, elle n'est pas effacée : si l'équipement revient, elle s'applique à nouveau.") : null,
       table(headers, rows, { empty: model.intent ? "aucune épingle : glisser un équipement sur le graphe" : "pas de couche d'intention dans cette page" }),
       canWrite() ? h("div", { class: "toolbar-row" }, removeMany("retirer les épingles orphelines", orphanHosts), removeMany("retirer toutes les épingles", allHosts)) : null,
+      coloursBlock(),
+      groupsBlock(),
+      annotationsBlock(),
+      connectorsBlock(),
       h("h3", {}, "Déplacements locaux non enregistrés : " + local.length),
       local.length ? [h("p", { class: "muted" }, local.join(", ")),
         h("button", { type: "button", title: "chaque équipement retrouve sa place mémorisée ou son épingle", onclick: () => { graph.resetPins(); refresh(); } }, "oublier les déplacements locaux")]
@@ -167,7 +316,7 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
       pin && canWrite() ? h("button", { type: "button", onclick: (e: Event) => removeOne(hostname, e.target as HTMLButtonElement) }, "retirer l'épingle") : null];
   }
 
-  return { onPin, view, pinBlock };
+  return { onPin, onPins, unpin, onColor, onTypeColor, onColors, onGroup, onAnnotation, onConnector, apply, canWrite, view, pinBlock };
 }
 
 export const intent = { createIntentHost, OPS_PER_REQUEST, AUTHOR_MAX_LENGTH };

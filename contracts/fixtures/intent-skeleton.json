@@ -1,6 +1,114 @@
 {
+  "annotations": [
+    {
+      "anchor": {
+        "kind": "device",
+        "ref": "sw-core-01"
+      },
+      "at": "2026-10-08T09:30:00Z",
+      "author": "orhan",
+      "content": {
+        "kind": "note",
+        "text": "Baie 12, rangée B\nContact : équipe réseau"
+      },
+      "h": 60,
+      "id": "a6-1",
+      "leader": true,
+      "locked": false,
+      "style": {
+        "fill_opacity": 12,
+        "hue": "amber",
+        "opacity": 100,
+        "radius": 8,
+        "stroke_style": "solid",
+        "stroke_width": 1,
+        "text_align": "left",
+        "text_color": "ink",
+        "text_font": "sans",
+        "text_size": 13,
+        "text_valign": "top",
+        "text_weight": "regular"
+      },
+      "w": 220,
+      "x": -110,
+      "y": -150,
+      "z": "front"
+    }
+  ],
+  "connectors": [
+    {
+      "at": "2026-10-09T08:00:00Z",
+      "author": "orhan",
+      "bend": 40,
+      "end": {
+        "kind": "device",
+        "ref": "sw-core-02",
+        "side": "w"
+      },
+      "heads": {
+        "end": "arrow",
+        "start": "none"
+      },
+      "id": "c7-1",
+      "label": "voir aussi",
+      "locked": false,
+      "route": "curve",
+      "start": {
+        "kind": "annotation",
+        "ref": "a6-1",
+        "side": "auto"
+      },
+      "style": {
+        "hue": "slate",
+        "opacity": 100,
+        "stroke_style": "dashed",
+        "stroke_width": 2,
+        "text_color": "hue",
+        "text_font": "sans",
+        "text_size": 12,
+        "text_weight": "semibold"
+      },
+      "z": "front"
+    }
+  ],
+  "device_colors": [
+    {
+      "at": "2026-10-07T09:12:40Z",
+      "author": "orhan",
+      "hostname": "sw-core-01",
+      "hue": "amber"
+    }
+  ],
+  "groups": [
+    {
+      "at": "2026-10-07T10:02:00Z",
+      "author": "orhan",
+      "description": "",
+      "id": "g5-1",
+      "label": "Cœur",
+      "members": [
+        "sw-core-01",
+        "sw-core-02"
+      ],
+      "style": {
+        "fill_opacity": 8,
+        "hue": "indigo",
+        "label_color": "hue",
+        "label_font": "sans",
+        "label_placement": "inside",
+        "label_position": "top_left",
+        "label_size": 12,
+        "label_weight": "semibold",
+        "padding": 24,
+        "radius": 16,
+        "shape": "rectangle",
+        "stroke_style": "dashed",
+        "stroke_width": 2
+      }
+    }
+  ],
   "infrastructure": "infra-lab",
-  "intent_version": "1.0.0",
+  "intent_version": "1.5.0",
   "pins": [
     {
       "at": "2026-10-04T18:30:00Z",
@@ -17,6 +125,14 @@
       "y": -80
     }
   ],
-  "revision": 2,
-  "updated_at": "2026-10-04T18:32:15Z"
+  "revision": 7,
+  "type_colors": [
+    {
+      "at": "2026-10-07T09:11:05Z",
+      "author": "orhan",
+      "hue": "red",
+      "type": "firewall"
+    }
+  ],
+  "updated_at": "2026-10-09T08:00:00Z"
 }

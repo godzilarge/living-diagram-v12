@@ -9,6 +9,7 @@ DEFAULT_MAX_BUNDLE_BYTES = 50 * 1024 * 1024
 DEFAULT_MAX_INTENT_BYTES = (
     1024 * 1024
 )  # 500 opérations tiennent en quelques dizaines de Ko : au-delà, ce n'est pas une requête
+DEFAULT_MAX_ASSET_BYTES = 4 * 1024 * 1024  # une image d'annotation (docs/10 §6) : 4 Mo, choix d'Orhan
 DEFAULT_ARCHIVE_DIR = "./archive"
 
 
@@ -22,6 +23,7 @@ class Settings:
     archive_dir: Path
     max_bundle_bytes: int = DEFAULT_MAX_BUNDLE_BYTES
     max_intent_bytes: int = DEFAULT_MAX_INTENT_BYTES
+    max_asset_bytes: int = DEFAULT_MAX_ASSET_BYTES
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -34,6 +36,7 @@ class Settings:
             archive_dir=Path(source.get("LD_ARCHIVE_DIR", DEFAULT_ARCHIVE_DIR)),
             max_bundle_bytes=_positive_int(source, "LD_MAX_BUNDLE_BYTES", DEFAULT_MAX_BUNDLE_BYTES),
             max_intent_bytes=_positive_int(source, "LD_MAX_INTENT_BYTES", DEFAULT_MAX_INTENT_BYTES),
+            max_asset_bytes=_positive_int(source, "LD_MAX_ASSET_BYTES", DEFAULT_MAX_ASSET_BYTES),
         )
 
 

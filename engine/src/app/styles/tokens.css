@@ -1,0 +1,79 @@
+/* Les jetons de l'application : une palette sombre par défaut (le diagramme est la page ; la toile est le fond), une
+   palette claire sous `[data-theme="light"]` (préférence du navigateur, Controls). Les teintes de statut gardent leur
+   sens de `/view` (confirmé, observé, documenté, erreur, avertissement, structure, diff) : ce sont les couleurs des
+   données. L'interface, elle, est monochrome, avec une seule couleur d'accent (cyan) pour ce qui est actif : le
+   focus, la run courante, la sélection, une bascule allumée. Les douze teintes nommées (`--hue-*`, docs/10) sont
+   l'identité d'un équipement sur sa carte (rail, icône, minimap) : par défaut selon son type (hues.ts), sinon celle
+   que l'intention lui donne ; une valeur sombre et une claire par teinte, jamais une valeur libre. Les polices sont embarquées (Inter variable, JetBrains Mono variable ; fonts.css), `font-src
+   'self'`. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0f14;
+  --bg-elev: #121923;
+  --bg-elev-2: #1a2330;
+  --bg-glass: color-mix(in srgb, #121923 84%, transparent);
+  --line: #24303f;
+  --line-strong: #344459;
+  --ink: #e7edf3;
+  --ink-2: #a3b2c4;
+  --ink-3: #7f90a6; /* texte discret : ≥ 4,5:1 sur les trois fonds (revue Impeccable du 2026-10-07) */
+  --ink-4: #68798f; /* gris de décor (câbles au repos, voisins inconnus, minimap) : jamais pour du texte */
+  --accent: #5fe3f5;
+  --accent-soft: color-mix(in srgb, #5fe3f5 16%, transparent);
+  --accent-ink: #06232a;
+  --confirmed: #4cc38a; --observed: #7aa2f7; --documented: #cbb88a; /* sable : distinct de l'avertissement */
+  --error: #f0706a; --warning: #e0a040; --info: #a3b2c4;
+  --structure: #a78bfa;
+  --added: #4fd1a5; --changed: #f084c2; --removed: #7a8699;
+  --node: #19222e; --node-line: #3b4b61; --node-ink: #e7edf3;
+  --hue-blue: #5b9cf6; --hue-sky: #38bdf8; --hue-indigo: #818cf8; --hue-violet: #c084fc; --hue-pink: #f472b6; --hue-red: #f87171;
+  --hue-orange: #f2a541; --hue-amber: #fbbf24; --hue-lime: #a3e635; --hue-green: #4ade80; --hue-teal: #2dd4bf; --hue-slate: #94a3b8;
+  --pill-tint: 16%; /* le fond d'une pastille : sa teinte mêlée au fond relevé (app.css, .pill) */
+  --icon-mark: #0b0f14; /* le symbole en réserve dans l'icône de type : le fond, sur les teintes claires du sombre */
+  --grid: #1f2a38;
+  --scrim: rgba(5, 8, 12, 0.35);
+  --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --fs-xs: 11px; --fs-sm: 12px; --fs: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 20px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+  --r-sm: 6px; --r: 10px; --r-lg: 14px; --r-pill: 999px;
+  --t-fast: 150ms; --t: 220ms; --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --shadow: 0 14px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-tip: 0 8px 18px rgba(0, 0, 0, 0.5);
+  --bar-h: 44px;
+  --panel-w: 348px;
+  --z-bar: 20; --z-band: 25; --z-panel: 30; --z-palette: 40; --z-toast: 50; --z-sheet: 60;
+}
+/* Le thème clair : mêmes rôles, teintes de statut assombries pour tenir le contraste sur le blanc. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef1f5;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #e6eaf0;
+  --bg-glass: color-mix(in srgb, #ffffff 86%, transparent);
+  --line: #d3dae4;
+  --line-strong: #b6c1cf;
+  --ink: #141b24;
+  --ink-2: #4b5a6e;
+  --ink-3: #5a687a;
+  --ink-4: #7b8899;
+  --accent: #066f86;
+  --accent-soft: color-mix(in srgb, #066f86 14%, transparent);
+  --accent-ink: #ffffff;
+  --confirmed: #17794a; --observed: #2a63c4; --documented: #76653d;
+  --error: #c0322b; --warning: #a84a06; --info: #4b5a6e;
+  --structure: #6a4fc1;
+  --added: #137a5c; --changed: #b0377e; --removed: #5f6b7d;
+  --node: #ffffff; --node-line: #c7d0dc; --node-ink: #141b24;
+  --hue-blue: #2563eb; --hue-sky: #0284c7; --hue-indigo: #4f46e5; --hue-violet: #7c3aed; --hue-pink: #db2777; --hue-red: #dc2626;
+  --hue-orange: #d97706; --hue-amber: #b7791f; --hue-lime: #4d7c0f; --hue-green: #16a34a; --hue-teal: #0d9488; --hue-slate: #64748b;
+  --pill-tint: 10%;
+  --icon-mark: #ffffff; /* blanc sur les teintes profondes du clair */
+  --grid: #d6dde7;
+  --scrim: rgba(20, 27, 36, 0.25);
+  --shadow: 0 14px 40px rgba(20, 27, 36, 0.16), 0 0 0 1px rgba(20, 27, 36, 0.05);
+  --shadow-tip: 0 8px 18px rgba(20, 27, 36, 0.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-fast: 0ms; --t: 0ms; }
+}

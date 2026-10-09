@@ -3,12 +3,14 @@
 // empreinte n'en admet aucun) ; des cellules alignées en colonnes par leur largeur en caractères (police à chasse
 // fixe), jamais par des espaces. Une valeur absente s'écrit « — », jamais une valeur inventée, et jamais une raison
 // que le snapshot ne donne pas (`null` = « pas de valeur », pas « non lu »).
+import { KIND_LABEL as ANNOTATION_KIND, summary } from "./annotations";
+import { summary as connectorSummary } from "./connectors";
 import { clear, s } from "./dom";
 import { speedText, KIND_LABEL, SOURCE_LABEL, STATUS_LABEL } from "./format";
 import { beamLabel, clusterLabel } from "./geometry";
 import { endLabel, interfaceAt, SEVERITY_RANK } from "./model";
 import type { EndLike } from "./model";
-import type { Beam, Change, CheckEntry, Cluster, Model, ModelLink, ModelNode } from "./types";
+import type { Annotation, Beam, Change, CheckEntry, Cluster, Connector, Group, Model, ModelLink, ModelNode } from "./types";
 import type { HaClusterMember } from "../contracts/snapshot";
 
 const CHAR_W = 7.4, LINE_H = 16, PAD_X = 10, PAD_Y = 7, GAP = 2 * CHAR_W, OFFSET = 14; // mono 12 px
@@ -119,6 +121,26 @@ export function beamLines(beam: Pick<Beam, "a" | "b" | "known" | "links" | "degr
   ];
 }
 
+/** La bulle d'un cadre de groupe (docs/10 §5) : son nom, ses membres présents sur ses membres, qui, sa description. */
+export function groupLines(group: Group, present: number): Line[] {
+  const first = group.description.split("\n").find((text) => text.trim()) || "";
+  return [
+    line(cell(group.label, "tip-title")),
+    line(cell(present + " / " + group.members.length + " membre" + (group.members.length > 1 ? "s" : "") + " · " + group.author, "tip-muted")),
+    ...(first ? [line(cell(first.slice(0, 80)))] : []),
+  ];
+}
+
+/** La bulle d'une annotation (docs/10 §6) : sa sorte, un résumé, qui, quand : reconnaissable comme une intention. */
+export function annotationLines(a: Annotation): Line[] {
+  const where = a.anchor.kind === "free" ? "libre" : "attachée à " + a.anchor.ref;
+  return [
+    line(cell((ANNOTATION_KIND[a.content.kind] || a.content.kind) + " · " + where, "tip-title")),
+    line(cell(summary(a))),
+    line(cell("annotation de " + a.author + ", le " + a.at.slice(0, 10), "tip-muted")),
+  ];
+}
+
 export function clusterLines(cluster: Cluster): Line[] {
   return [
     line(cell(clusterLabel(cluster), "tip-title")),
@@ -181,4 +203,12 @@ export function create(svg: SVGSVGElement): Tip {
   return { group, id: "ld-tip", show, hide };
 }
 
-export const tip = { create, linkLines, nodeLines, beamLines, clusterLines };
+/** La bulle d'un connecteur (docs/10 §6, 1.4.0) : ses bouts, son étiquette, qui, quand. */
+export function connectorLines(c: Connector): Line[] {
+  return [
+    line(cell(connectorSummary(c), "tip-title")),
+    line(cell((c.route === "elbow" ? "coudé" : c.route === "curve" ? "courbe" : "droit") + " · " + (c.locked ? "verrouillé" : "glissable"))),
+    line(cell("connecteur de " + c.author + ", le " + c.at.slice(0, 10), "tip-muted")),
+  ];
+}
+export const tip = { groupLines, annotationLines, connectorLines, create, linkLines, nodeLines, beamLines, clusterLines };

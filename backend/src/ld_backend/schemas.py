@@ -7,7 +7,34 @@ quittent pas la zone. Les dates écrites par le backend sont en UTC, forme du co
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from ld_contracts.intent.intent import Author, Coordinate, PinHostname
+from ld_contracts.enums import DeviceType
+from ld_contracts.intent.annotations import (
+    Anchor,
+    AnnotationContent,
+    AnnotationId,
+    ShapeLabel,
+    Size,
+    TextAlign,
+    TextValign,
+    ZOrder,
+)
+from ld_contracts.intent.connectors import BEND_BOUND, ConnectorEnd, ConnectorId, Head, Heads, LineStyle, Route
+from ld_contracts.intent.intent import (
+    Author,
+    Coordinate,
+    GroupDescription,
+    GroupId,
+    GroupLabel,
+    GroupShape,
+    Hue,
+    LabelColor,
+    LabelFont,
+    LabelPlacement,
+    LabelPosition,
+    LabelWeight,
+    PinHostname,
+    StrokeStyle,
+)
 from pydantic import BaseModel, ConfigDict, Field
 
 Status = Literal["created", "already_present", "invalid", "conflict", "archive_error"]
@@ -119,15 +146,265 @@ class UnpinOp(ApiModel):
     hostname: PinHostname
 
 
+class ColorOp(ApiModel):
+    """Colorer un équipement : une teinte nommée, qui l'emporte sur celle de son type (docs/10)."""
+
+    op: Literal["color"]
+    hostname: PinHostname
+    hue: Hue
+
+
+class UncolorOp(ApiModel):
+    """Rendre un équipement à la couleur de son type ; sans effet s'il n'en avait pas en propre."""
+
+    op: Literal["uncolor"]
+    hostname: PinHostname
+
+
+class ColorTypeOp(ApiModel):
+    """Colorer tous les équipements d'un type (la palette des types de l'infrastructure)."""
+
+    op: Literal["color_type"]
+    type: DeviceType
+    hue: Hue
+
+
+class UncolorTypeOp(ApiModel):
+    """Rendre un type à sa teinte par défaut (celle du moteur) ; sans effet s'il n'en avait pas."""
+
+    op: Literal["uncolor_type"]
+    type: DeviceType
+
+
+class GroupStylePatch(ApiModel):
+    """Un style partiel (docs/10 §5) : chaque clé est facultative ; absente = inchangée (ou le défaut à la création)."""
+
+    shape: GroupShape | None = None
+    radius: Annotated[int, Field(strict=True, ge=0, le=80)] | None = None
+    hue: Hue | None = None
+    fill_opacity: Annotated[int, Field(strict=True, ge=0, le=100)] | None = None
+    stroke_width: Annotated[int, Field(strict=True, ge=0, le=8)] | None = None
+    stroke_style: StrokeStyle | None = None
+    padding: Annotated[int, Field(strict=True, ge=0, le=300)] | None = None
+    label_position: LabelPosition | None = None
+    label_placement: LabelPlacement | None = None
+    label_size: Annotated[int, Field(strict=True, ge=8, le=64)] | None = None
+    label_weight: LabelWeight | None = None
+    label_font: LabelFont | None = None
+    label_color: LabelColor | None = None
+
+
+Members = Annotated[list[PinHostname], Field(min_length=1, max_length=10_000)]
+
+
+class GroupCreateOp(ApiModel):
+    """Créer un groupe (docs/10 §5) : un libellé, des membres ; description et style facultatifs (défauts sinon).
+    Le serveur attribue l'identité `g<revision>-<n>`."""
+
+    op: Literal["group_create"]
+    label: GroupLabel
+    members: Members
+    description: GroupDescription = ""
+    style: GroupStylePatch = Field(default_factory=GroupStylePatch)
+
+
+class GroupUpdateOp(ApiModel):
+    """Modifier un groupe : libellé, description, liste des membres, style, chacun facultatif (absent = inchangé)."""
+
+    op: Literal["group_update"]
+    id: GroupId
+    label: GroupLabel | None = None
+    description: GroupDescription | None = None
+    members: Members | None = None
+    style: GroupStylePatch | None = None
+
+
+class GroupAddOp(ApiModel):
+    """Ajouter des membres à un groupe sans réécrire sa liste (deux ajouts simultanés ne s'écrasent pas)."""
+
+    op: Literal["group_add"]
+    id: GroupId
+    members: Members
+
+
+class GroupRemoveOp(ApiModel):
+    """Retirer des membres d'un groupe ; retirer le dernier est refusé (supprimer le groupe, explicitement)."""
+
+    op: Literal["group_remove"]
+    id: GroupId
+    members: Members
+
+
+class GroupDeleteOp(ApiModel):
+    """Supprimer un groupe ; refusé si l'`id` est inconnu (supprimé entre-temps)."""
+
+    op: Literal["group_delete"]
+    id: GroupId
+
+
+class AnnotationStylePatch(ApiModel):
+    """Un style d'annotation partiel (docs/10 §6) : chaque clé facultative ; absente = inchangée (ou le défaut de la
+    sorte à la création)."""
+
+    hue: Hue | None = None
+    fill_opacity: Annotated[int, Field(strict=True, ge=0, le=100)] | None = None
+    stroke_width: Annotated[int, Field(strict=True, ge=0, le=8)] | None = None
+    stroke_style: StrokeStyle | None = None
+    radius: Annotated[int, Field(strict=True, ge=0, le=80)] | None = None
+    opacity: Annotated[int, Field(strict=True, ge=10, le=100)] | None = None
+    text_size: Annotated[int, Field(strict=True, ge=8, le=64)] | None = None
+    text_weight: LabelWeight | None = None
+    text_font: LabelFont | None = None
+    text_color: LabelColor | None = None
+    text_align: TextAlign | None = None
+    text_valign: TextValign | None = None
+
+
+def _free_anchor() -> Anchor:
+    return Anchor(kind="free", ref=None)  # type: ignore[arg-type]
+
+
+class AnnotationCreateOp(ApiModel):
+    """Créer une annotation (docs/10 §6) : un contenu (note, forme, tableau, image) ; ancrage, boîte, plan, verrou,
+    ligne de rappel et style facultatifs (libre, taille de la sorte, devant, déverrouillée, sans rappel, défauts du
+    style). Le serveur attribue l'identité `a<revision>-<n>`."""
+
+    op: Literal["annotation_create"]
+    content: AnnotationContent
+    anchor: Anchor = Field(default_factory=_free_anchor)
+    x: Coordinate = 0
+    y: Coordinate = 0
+    w: Size | None = None
+    h: Size | None = None
+    z: ZOrder = ZOrder.FRONT
+    locked: Annotated[bool, Field(strict=True)] = False
+    leader: Annotated[bool, Field(strict=True)] = False
+    style: AnnotationStylePatch = Field(default_factory=AnnotationStylePatch)
+
+
+class AnnotationUpdateOp(ApiModel):
+    """Modifier une annotation : chaque champ facultatif (absent = inchangé) ; le contenu se remplace en entier et
+    garde sa sorte (`annotation_kind_change`)."""
+
+    op: Literal["annotation_update"]
+    id: AnnotationId
+    content: AnnotationContent | None = None
+    anchor: Anchor | None = None
+    x: Coordinate | None = None
+    y: Coordinate | None = None
+    w: Size | None = None
+    h: Size | None = None
+    z: ZOrder | None = None
+    locked: Annotated[bool, Field(strict=True)] | None = None
+    leader: Annotated[bool, Field(strict=True)] | None = None
+    style: AnnotationStylePatch | None = None
+
+
+class AnnotationDeleteOp(ApiModel):
+    """Supprimer une annotation ; refusé si l'`id` est inconnu (supprimée entre-temps)."""
+
+    op: Literal["annotation_delete"]
+    id: AnnotationId
+
+
+class ConnectorStylePatch(ApiModel):
+    """Un style de connecteur partiel (docs/10 §6, 1.4.0) : chaque clé facultative ; absente = inchangée (ou le
+    défaut à la création)."""
+
+    hue: Hue | None = None
+    stroke_width: Annotated[int, Field(strict=True, ge=1, le=8)] | None = None
+    stroke_style: LineStyle | None = None
+    opacity: Annotated[int, Field(strict=True, ge=10, le=100)] | None = None
+    text_size: Annotated[int, Field(strict=True, ge=8, le=64)] | None = None
+    text_weight: LabelWeight | None = None
+    text_font: LabelFont | None = None
+    text_color: LabelColor | None = None
+
+
+def _default_heads() -> Heads:
+    return Heads(start=Head.NONE, end=Head.ARROW)
+
+
+class ConnectorCreateOp(ApiModel):
+    """Créer un connecteur (docs/10 §6) : ses deux bouts obligatoires (libres, ou attachés à un équipement, un groupe,
+    une annotation) ; pointes (une flèche à l'arrivée), tracé (droit), courbure (0), étiquette, plan (devant), verrou
+    et style facultatifs. Le serveur attribue l'identité `c<revision>-<n>`."""
+
+    op: Literal["connector_create"]
+    start: ConnectorEnd
+    end: ConnectorEnd
+    heads: Heads = Field(default_factory=_default_heads)
+    route: Route = Route.STRAIGHT
+    bend: Annotated[int, Field(strict=True, ge=-BEND_BOUND, le=BEND_BOUND)] = 0
+    label: ShapeLabel = ""
+    z: ZOrder = ZOrder.FRONT
+    locked: Annotated[bool, Field(strict=True)] = False
+    style: ConnectorStylePatch = Field(default_factory=ConnectorStylePatch)
+
+
+class ConnectorUpdateOp(ApiModel):
+    """Modifier un connecteur : chaque champ facultatif (absent = inchangé) ; un bout se remplace en entier."""
+
+    op: Literal["connector_update"]
+    id: ConnectorId
+    start: ConnectorEnd | None = None
+    end: ConnectorEnd | None = None
+    heads: Heads | None = None
+    route: Route | None = None
+    bend: Annotated[int, Field(strict=True, ge=-BEND_BOUND, le=BEND_BOUND)] | None = None
+    label: ShapeLabel | None = None
+    z: ZOrder | None = None
+    locked: Annotated[bool, Field(strict=True)] | None = None
+    style: ConnectorStylePatch | None = None
+
+
+class ConnectorDeleteOp(ApiModel):
+    """Supprimer un connecteur ; refusé si l'`id` est inconnu (supprimé entre-temps)."""
+
+    op: Literal["connector_delete"]
+    id: ConnectorId
+
+
+IntentOp = Annotated[
+    PinOp
+    | UnpinOp
+    | ColorOp
+    | UncolorOp
+    | ColorTypeOp
+    | UncolorTypeOp
+    | GroupCreateOp
+    | GroupUpdateOp
+    | GroupAddOp
+    | GroupRemoveOp
+    | GroupDeleteOp
+    | AnnotationCreateOp
+    | AnnotationUpdateOp
+    | AnnotationDeleteOp
+    | ConnectorCreateOp
+    | ConnectorUpdateOp
+    | ConnectorDeleteOp,
+    Field(discriminator="op"),
+]
+
+
 class IntentOps(ApiModel):
     """Une requête d'écriture : qui, et quelles opérations, appliquées dans l'ordre (la dernière gagne)."""
 
-    author: Author = Field(
-        description="Nom déclaré dans la page, 80 caractères au plus ; écrit sur chaque épingle posée."
-    )
-    ops: list[Annotated[PinOp | UnpinOp, Field(discriminator="op")]] = Field(
+    author: Author = Field(description="Nom déclaré dans la page, 80 caractères au plus ; écrit sur chaque patch posé.")
+    ops: list[IntentOp] = Field(
         min_length=1, max_length=500, description="Une à cinq cents opérations, appliquées dans l'ordre."
     )
+
+
+class AssetReceipt(ApiModel):
+    """Un fichier d'image rangé dans le magasin d'une infrastructure (docs/10 §6) : son empreinte (à citer dans une
+    annotation `image`), son type reconnu aux octets, sa taille, ses dimensions."""
+
+    asset: str = Field(description="SHA-256 hexadécimal du fichier : l'identité à citer dans `ImageContent.asset`.")
+    media_type: Literal["image/png", "image/jpeg", "image/webp"]
+    bytes: int
+    width: int
+    height: int
 
 
 class RunEntry(ApiModel):

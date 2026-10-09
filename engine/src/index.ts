@@ -2,13 +2,26 @@
 // sous Node et le pilote Chromium y lisent le modèle, le graphe et les applications), le pose sur `globalThis`, puis
 // démarre la page autonome (données embarquées) ou la coquille servie (données lues par l'API). Le bloc JSON de la
 // page n'est lu qu'une fois (revue de la toile, M1).
+import { alignment } from "./canvas/align";
+import { annotations } from "./canvas/annotations";
+import { card } from "./canvas/card";
+import { connectors } from "./canvas/connectors";
 import { dom } from "./canvas/dom";
 import { format } from "./canvas/format";
 import { geometry } from "./canvas/geometry";
 import { graph } from "./canvas/graph";
+import { groups } from "./canvas/groups";
+import { hues } from "./canvas/hues";
 import { icons } from "./canvas/icons";
 import { layout } from "./canvas/layout";
 import { model } from "./canvas/model";
+import { pill } from "./canvas/pill";
+import { query } from "./canvas/query";
+import { reveal } from "./canvas/reveal";
+import { scene } from "./canvas/scene";
+import { speed } from "./canvas/speed";
+import { table } from "./canvas/table";
+import { tags } from "./canvas/tags";
 import { tip } from "./canvas/tip";
 import type { PageData } from "./canvas/types";
 import { apps } from "./shell/apps";
@@ -23,7 +36,7 @@ import { tables } from "./shell/tables";
 import { timeline } from "./shell/timeline";
 import { widgets } from "./shell/widgets";
 
-const LD = Object.assign(apps, { model, layout, geometry, dom: { ...dom, ...format, ...widgets }, icons, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
+const LD = Object.assign(apps, { model, layout, annotations, table, connectors, geometry, query, alignment, card, scene, pill, speed, tags, reveal: { reveal }, dom: { ...dom, ...format, ...widgets }, icons, hues, groups, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
 export type LD = typeof LD;
 (globalThis as unknown as { LD: LD }).LD = LD;
 

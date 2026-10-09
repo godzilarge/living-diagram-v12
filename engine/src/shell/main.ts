@@ -3,7 +3,8 @@ import { clear, h, s } from "../canvas/dom";
 import { elapsedText, STATUS_LABEL } from "../canvas/format";
 import { create as createGraph } from "../canvas/graph";
 import type { Drawn, Graph } from "../canvas/graph";
-import { path as iconPath, LABEL as ICON_LABEL, TYPES as ICON_TYPES } from "../canvas/icons";
+import { hueOfType } from "../canvas/hues";
+import { glyph, LABEL as ICON_LABEL, TYPES as ICON_TYPES } from "../canvas/icons";
 import { build, selectionFromToken, tokenOf, SELECTION_KINDS } from "../canvas/model";
 import type { Model, PageData, Selection } from "../canvas/types";
 import { apps } from "./apps";
@@ -114,7 +115,7 @@ function legend(model: Model, graph: Graph, status: Status): void {
   const span = (cls: string): HTMLElement => h("span", { class: cls });
   const note = (swatch: Element, text: string, title?: string): HTMLElement => h("span", { class: "legend-note", title: title || null }, swatch, text);
   const group = (name: string, ...items: (Element | Element[])[]): HTMLElement => h("span", { class: "legend-group" }, h("span", { class: "group-name" }, name), items);
-  const icon = (type: string): SVGElement => s("svg", { class: "legend-icon", viewBox: "0 0 16 16", "aria-hidden": "true" }, s("path", { d: iconPath(type) }));
+  const icon = (type: string): SVGElement => s("svg", { class: "legend-icon hue-" + hueOfType(model, type), viewBox: "0 0 32 32", "aria-hidden": "true" }, s("path", { class: "icon-body", d: glyph(type).body }), s("path", { class: "icon-shade", d: glyph(type).shade }), s("path", { class: "icon-mark", d: glyph(type).mark }));
   clear(byId("graph-legend")).appendChild(h("div", { class: "legend-row" },
     group("câbles", STATUSES.map(item), note(span("swatch down"), "down (estompé)")),
     group("contrôles", note(span("dot severity-warning"), "warning"), note(span("dot severity-error"), "error")),
@@ -263,7 +264,7 @@ export function boot(data: PageData, options: BootOptions = {}): App {
   };
 
   const placements = createPlacementHost(model, placer, { graph: g, note: (text) => { note = text; status(); } });
-  graph = createGraph(byId("canvas") as unknown as SVGSVGElement, model, onSelect, { onPin: intents.onPin, onPlaced: placements.onPlaced });
+  graph = createGraph(byId("canvas") as unknown as SVGSVGElement, model, onSelect, { onPin: intents.onPin, onPins: intents.onPins, onPlaced: placements.onPlaced });
   header(model, graph, status, openChecks, activate);
   mountTabs(tabs, activate, model);
   toolbar(model, graph, status, placements);

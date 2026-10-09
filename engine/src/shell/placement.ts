@@ -6,13 +6,15 @@
 // échouée, la page garde ce qu'elle a placé et le renvoie au prochain dessin (revue, M1). Sans écrivain (page
 // autonome), la mémoire ne vit que dans la page et la ligne d'état le dit. « Replacer » remplace tout le document :
 // dans une page servie, il demande confirmation, parce que tout le monde voit le même dessin.
-import type { Graph } from "../canvas/graph";
 import { applyPlacement } from "../canvas/model";
 import type { Model, Place, Placement } from "../canvas/types";
 import type { Placer } from "./apps";
 
+/** Ce que l'hôte demande au graphe : se réaligner sur le document mémorisé. */
+export interface PlaceGraph { syncPlaces: () => void }
+
 export interface PlacementHooks {
-  graph: () => Graph;
+  graph: () => PlaceGraph;
   /** Une ligne d'état sous le graphe (« 3 équipements placés et mémorisés »). */
   note: (text: string) => void;
 }

@@ -1,0 +1,45 @@
+/* La toile React Flow dans l'application : le conteneur, les poignées invisibles au centre des cartes (les câbles
+   vont de centre à centre, sous les cartes), le rectangle de sélection, la couche de la bulle, la grille et la
+   minimap (variables de React Flow reprises sur nos jetons). Les nœuds, câbles, faisceaux et clusters gardent les
+   classes et les styles de canvas.css. */
+/* Rien de la toile n'est du texte à sélectionner : sans cela, Maj + clic ou Maj + glissé sur le fond (sélection
+   multiple) étendait la sélection native du navigateur depuis le dernier clic (barre, fiche) à tout le texte de la page. */
+.flow-host { position: absolute; inset: 0; background: var(--bg); -webkit-user-select: none; user-select: none; }
+.flow-host .react-flow { width: 100%; height: 100%; background: var(--bg); isolation: isolate; /* la grille (z-index -1 chez React Flow) se peint sur ce fond, sous la toile */
+  --xy-background-pattern-color: var(--grid);
+  --xy-minimap-background-color: var(--bg-glass);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--bg) 55%, transparent);
+  --xy-minimap-mask-stroke-color: var(--accent);
+  --xy-minimap-mask-stroke-width: 1.5;
+  --xy-minimap-node-background-color: var(--ink-3);
+  --xy-minimap-node-stroke-color: transparent; }
+.react-flow__pane { cursor: grab; }
+.react-flow__pane.dragging { cursor: grabbing; }
+.react-flow__node { cursor: pointer; outline: none; }
+.react-flow__node.dragging { cursor: grabbing; }
+.react-flow__node:focus-visible .node-shape, .react-flow__node:focus-visible .cluster-hull { stroke: var(--accent); stroke-width: 3; }
+.react-flow__edge { outline: none; }
+.react-flow__edge:focus-visible .link-line, .react-flow__edge:focus-visible .beam-band { stroke: var(--accent); stroke-width: 3; stroke-opacity: 1; }
+.react-flow__handle.port { top: 50%; left: 50%; width: 1px; height: 1px; min-width: 0; min-height: 0; opacity: 0; border: 0; background: transparent; pointer-events: none; transform: translate(-50%, -50%); }
+.react-flow__selection { background: var(--accent-soft); border: 1px dashed var(--accent); }
+.react-flow__nodesselection-rect { display: none; }
+.node, .cluster { display: block; }
+.tip-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 5; }
+/* la minimap : à droite des commandes, en bas à gauche ; les cartes y prennent la couleur de leur type */
+.flow-host .react-flow__minimap.react-flow__panel { margin: 0 0 var(--sp-4) 60px; border-radius: var(--r); border: 1px solid var(--line); box-shadow: var(--shadow); overflow: hidden; backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); }
+.flow-host .react-flow__minimap-svg { width: 176px; height: 132px; } /* la taille se règle ici (4 : 3, comme sa vue), jamais par un style en ligne */
+.react-flow__minimap-node.mm-blue { fill: var(--hue-blue); }
+.react-flow__minimap-node.mm-sky { fill: var(--hue-sky); }
+.react-flow__minimap-node.mm-indigo { fill: var(--hue-indigo); }
+.react-flow__minimap-node.mm-violet { fill: var(--hue-violet); }
+.react-flow__minimap-node.mm-pink { fill: var(--hue-pink); }
+.react-flow__minimap-node.mm-red { fill: var(--hue-red); }
+.react-flow__minimap-node.mm-orange { fill: var(--hue-orange); }
+.react-flow__minimap-node.mm-amber { fill: var(--hue-amber); }
+.react-flow__minimap-node.mm-lime { fill: var(--hue-lime); }
+.react-flow__minimap-node.mm-green { fill: var(--hue-green); }
+.react-flow__minimap-node.mm-teal { fill: var(--hue-teal); }
+.react-flow__minimap-node.mm-slate { fill: var(--hue-slate); }
+.react-flow__minimap-node.mm-stub { fill: var(--ink-4); fill-opacity: 0.5; }
+.react-flow__minimap-node.mm-cluster { fill: var(--structure); fill-opacity: 0.12; }
+.react-flow__minimap-node.mm-frame { fill: var(--ink-4); fill-opacity: 0.12; }

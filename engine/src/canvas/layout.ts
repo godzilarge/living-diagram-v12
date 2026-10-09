@@ -8,16 +8,22 @@
 export interface Point { x: number; y: number }
 export type Edge = [string, string] | [string, string, number];
 export interface Box { x: number; y: number; width: number; height: number }
+type Card = { w: number; h: number };
 export interface Options {
   /** Les nœuds fixés forment un dessin existant : un nœud libre part près de ses voisins déjà placés, à chaleur réduite. */
   extend?: boolean;
+  /** La boîte d'une carte (largeur commune de la run, hauteur) : deux nœuds ne s'approchent jamais à moins d'une
+   *  carte et d'un écart (`GAP_X`, `GAP_Y`). Sans elle, une carte ordinaire (`DEFAULT_CARD`). */
+  card?: { w: number; h: number };
 }
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-export const IDEAL = 170; // longueur visée d'une arête, en unités du dessin
+export const IDEAL = 220; // longueur visée d'une arête, en unités du dessin (170 jusqu'au 2026-10-07 : les cartes portent le nom)
 const MIN_DISTANCE = 0.0001;
 const REACH = IDEAL * 3; // au-delà, deux nœuds ne se repoussent plus : les composantes séparées restent voisines
-const SHELF_GAP = 110; // pas de la rangée des nœuds sans câble
+const DEFAULT_CARD = { w: 200, h: 80 };
+const GAP_X = 60, GAP_Y = 40; // l'écart minimal entre deux cartes, à côté (la place des noms de port) et l'une sous l'autre
+const SHELF_GAP = 50; // l'écart entre deux cartes de la rangée des nœuds sans câble
 const HEAT = 1.5; // température de départ d'un dessin neuf, en longueurs d'arête
 const EXTEND_HEAT = 0.5; // celle d'un dessin complété : un nouveau nœud ne traverse pas le dessin avant de se poser
 const NEAR_STEP = 0.3; // écart entre deux nouveaux nœuds partis du même voisin, en pas de spirale
@@ -87,6 +93,8 @@ function seedNear(sorted: string[], links: WeightedEdge[], fixed: Map<string, Po
 interface Simulation {
   count: number; x: Float64Array; y: Float64Array; mx: Float64Array; my: Float64Array;
   from: Int32Array; to: Int32Array; weight: Float64Array; free: boolean[];
+  /** L'écart minimal de centre à centre, à l'horizontale et à la verticale : une carte et son écart. */
+  spanX: number; spanY: number;
 }
 
 // Une itération, sur des tableaux numériques indexés par le rang du nœud : à 500 nœuds, la même boucle écrite
@@ -123,9 +131,34 @@ function step(sim: Simulation, temperature: number): void {
     x[i] += (mx[i] / length) * capped;
     y[i] += (my[i] / length) * capped;
   }
+  separate(sim);
 }
 
-function simulation(sorted: string[], points: Map<string, Point>, links: WeightedEdge[], fixed: Map<string, Point>): Simulation {
+// Puis les recouvrements : deux nœuds plus proches qu'une carte et son écart, sur les deux axes à la fois, sont
+// écartés d'autant par position, le long de l'axe où ils se recouvrent le moins (un nœud fixé ne bouge pas, l'autre
+// prend tout l'écart). La répulsion seule n'y suffisait pas : deux cœurs tirés par les mêmes dix accès finissaient
+// l'un sur l'autre (attraction en d², répulsion en 1/d). Depuis que toutes les cartes d'une run ont la même largeur
+// (2026-10-07), la boîte est exacte : un rectangle, plus l'ellipse approchée d'avant.
+function separate(sim: Simulation): void {
+  const { count, x, y, free, spanX, spanY } = sim;
+  for (let i = 0; i < count; i += 1) {
+    for (let j = i + 1; j < count; j += 1) {
+      if (!free[i] && !free[j]) continue;
+      const dx = x[i] - x[j], dy = y[i] - y[j];
+      const overX = spanX - Math.abs(dx), overY = spanY - Math.abs(dy);
+      if (overX <= 0 || overY <= 0) continue;
+      const share = free[i] && free[j] ? 2 : 1;
+      // Deux nœuds au même point : i passe à gauche ou au-dessus de j, un ordre fixe (aucun tirage au hasard).
+      const alongX = overX / spanX < overY / spanY;
+      const sign = (alongX ? dx : dy) > 0 ? 1 : -1;
+      const pushX = alongX ? (sign * overX) / share : 0, pushY = alongX ? 0 : (sign * overY) / share;
+      if (free[i]) { x[i] += pushX; y[i] += pushY; }
+      if (free[j]) { x[j] -= pushX; y[j] -= pushY; }
+    }
+  }
+}
+
+function simulation(sorted: string[], points: Map<string, Point>, links: WeightedEdge[], fixed: Map<string, Point>, card: Card): Simulation {
   const rank = new Map(sorted.map((id, index) => [id, index] as const));
   const at = (id: string): Point => points.get(id) as Point;
   return {
@@ -134,17 +167,19 @@ function simulation(sorted: string[], points: Map<string, Point>, links: Weighte
     mx: new Float64Array(sorted.length), my: new Float64Array(sorted.length),
     from: Int32Array.from(links, (edge) => rank.get(edge.from) as number), to: Int32Array.from(links, (edge) => rank.get(edge.to) as number),
     weight: Float64Array.from(links, (edge) => edge.weight), free: sorted.map((id) => !fixed.has(id)),
+    spanX: card.w + GAP_X, spanY: card.h + GAP_Y,
   };
 }
 
 // Les nœuds sans aucun câble (équipement injoignable, par exemple) ne sont pas confiés aux forces, qui les
 // chasseraient au loin : ils sont rangés en ligne sous le graphe, dans l'ordre des identifiants. Un nœud fixé
 // (épinglé, ou mémorisé) garde sa place.
-function shelve(points: Map<string, Point>, lonely: string[], fixed: Map<string, Point>): void {
+function shelve(points: Map<string, Point>, lonely: string[], fixed: Map<string, Point>, card: Card): void {
   const box = bounds(points);
-  const perRow = Math.max(1, Math.floor(Math.max(box.width, SHELF_GAP * 4) / SHELF_GAP));
+  const pitch = card.w + SHELF_GAP;
+  const perRow = Math.max(1, Math.floor(Math.max(box.width, pitch * 4) / pitch));
   lonely.forEach((id, index) => {
-    const spot = { x: box.x + (index % perRow) * SHELF_GAP, y: box.y + box.height + 140 + Math.floor(index / perRow) * 80 };
+    const spot = { x: box.x + (index % perRow) * pitch, y: box.y + box.height + 140 + Math.floor(index / perRow) * (card.h + GAP_Y) };
     const pin = fixed.get(id);
     points.set(id, pin ? { x: pin.x, y: pin.y } : spot);
   });
@@ -163,12 +198,13 @@ export function run(ids: Iterable<string>, edges: Edge[], fixed?: Map<string, Po
     if (points.has(id)) points.set(id, { x: point.x, y: point.y });
   });
   if (options.extend) seedNear(sorted, links, held, points);
-  const sim = simulation(sorted, points, links, held);
+  const card = options.card || DEFAULT_CARD;
+  const sim = simulation(sorted, points, links, held, card);
   const iterations = iterationsFor(sorted.length);
   const heat = IDEAL * (options.extend ? EXTEND_HEAT : HEAT);
   for (let i = 0; i < iterations; i += 1) step(sim, heat * (1 - i / iterations) + 1);
   sorted.forEach((id, index) => points.set(id, held.has(id) ? (points.get(id) as Point) : { x: Math.round(sim.x[index]), y: Math.round(sim.y[index]) }));
-  shelve(points, all.filter((id) => !connected.has(id)), held);
+  shelve(points, all.filter((id) => !connected.has(id)), held, card);
   return points;
 }
 

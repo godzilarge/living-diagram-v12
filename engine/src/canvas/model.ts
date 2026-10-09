@@ -1,8 +1,12 @@
 // Modèle de lecture : des index sur le snapshot, rien d'inventé. Pur (aucun DOM), testé sous Node.
 import type { Diff } from "../contracts/diff";
+import { isOrphan } from "./annotations";
+import { attachedEnds, hostsOf as connectorHosts, isOrphan as connectorOrphan, key as refKey } from "./connectors";
+import { displayName, uniformWidth, width as cardWidthOf } from "./card";
+import type { CardExtras } from "./card";
 import type { Check, HaMode, HaRole, InterfaceRef, Link, LinkRef, Severity, Snapshot, SnapshotInterface } from "../contracts/snapshot";
 import type {
-  Aggregate, Beam, BeamEnd, Change, CheckEntry, Cluster, ComboRow, DiffKind, Entity, Intent, Model, ModelInterface, ModelLink, ModelNode,
+  Aggregate, Annotation, Beam, BeamEnd, Change, CheckEntry, Cluster, ComboRow, Connector, DiffKind, Entity, Group, Intent, Model, ModelInterface, ModelLink, ModelNode,
   PageData, Placement, Selection, SelectionKind,
 } from "./types";
 
@@ -19,6 +23,18 @@ export function haRoleGroup(mode: HaMode | string, role: HaRole | string): "lead
   if (role === "active" || (mode === "active_passive" && role === "primary")) return "lead";
   if (role === "standby" || (mode === "active_passive" && role === "secondary")) return "follow";
   return "plain";
+}
+
+/** Le badge d'un membre HA sur la carte (Orhan, 2026-10-07) : « A » quand le snapshot dit qu'il transmet, « P » quand
+ *  il dit qu'il attend, rien sinon. On ne traduit que ce qui est écrit (revue M1 du 2026-10-02) : `active` / `standby`,
+ *  ou `primary` / `secondary` en `active_passive` ; en `active_active` tous les membres transmettent, donc « A » ; un
+ *  `member`, ou un mode `other`, n'en a pas. */
+export function haBadge(mode: HaMode | string, role: HaRole | string): "A" | "P" | null {
+  if (role === "member") return null;
+  if (role === "standby") return "P";
+  if (role === "active" || mode === "active_active") return "A";
+  const group = haRoleGroup(mode, role);
+  return group === "lead" ? "A" : group === "follow" ? "P" : null;
 }
 
 /** Un bout de câble, tel qu'on le trouve dans un lien, une clé de lien ou une référence de contrôle. */
@@ -333,8 +349,36 @@ function countBy<T>(items: T[], keyOf: (item: T) => string): Map<string, number>
 // run (un fantôme du diff n'est pas un nœud de la run). Rappelé après chaque écriture acceptée par l'API.
 export function applyIntent(model: Model, intent: Intent | null): void {
   model.intent = intent;
+  const absent = (hostname: string): boolean => { const node = model.nodeByHost.get(hostname); return !node || !!node.ghost; };
   model.pinByHost = new Map((intent ? intent.pins : []).map((pin) => [pin.hostname, pin]));
-  model.orphanPins = (intent ? intent.pins : []).filter((pin) => { const node = model.nodeByHost.get(pin.hostname); return !node || !!node.ghost; });
+  model.orphanPins = (intent ? intent.pins : []).filter((pin) => absent(pin.hostname));
+  // Les couleurs (docs/10) : un document d'avant la mineure 1.1.0 n'en a pas, les listes sont alors vides.
+  model.colorByType = new Map((intent && intent.type_colors ? intent.type_colors : []).map((color) => [color.type, color]));
+  model.colorByHost = new Map((intent && intent.device_colors ? intent.device_colors : []).map((color) => [color.hostname, color]));
+  model.orphanColors = (intent && intent.device_colors ? intent.device_colors : []).filter((color) => absent(color.hostname));
+  // Les groupes (docs/10 §5) : un document d'avant 1.2.0 n'en a pas.
+  const groups = intent && intent.groups ? intent.groups : [];
+  model.groupById = new Map(groups.map((group) => [group.id, group]));
+  model.groupsByHost = new Map();
+  groups.forEach((group) => group.members.forEach((host) => { const list = model.groupsByHost.get(host) || []; list.push(group); model.groupsByHost.set(host, list); }));
+  model.orphanGroups = groups.filter((group) => group.members.every(absent));
+  // Les annotations (docs/10 §6) : un document d'avant 1.3.0 n'en a pas.
+  const notes: Annotation[] = intent && intent.annotations ? intent.annotations : [];
+  model.annotationById = new Map(notes.map((a) => [a.id, a]));
+  model.annotationsByHost = new Map();
+  model.annotationsByGroup = new Map();
+  notes.forEach((a) => {
+    const index = a.anchor.kind === "device" ? model.annotationsByHost : a.anchor.kind === "group" ? model.annotationsByGroup : null;
+    if (!index || !a.anchor.ref) return;
+    const list = index.get(a.anchor.ref) || []; list.push(a); index.set(a.anchor.ref, list);
+  });
+  model.orphanAnnotations = notes.filter((a) => isOrphan(model, a));
+  // Les connecteurs (docs/10 §6) : un document d'avant 1.4.0 n'en a pas.
+  const lines: Connector[] = intent && intent.connectors ? intent.connectors : [];
+  model.connectorById = new Map(lines.map((c) => [c.id, c]));
+  model.connectorsByRef = new Map();
+  lines.forEach((c) => attachedEnds(c).forEach((e) => { const k = refKey(e.kind, e.ref), list = model.connectorsByRef.get(k) || []; list.push(c); model.connectorsByRef.set(k, list); }));
+  model.orphanConnectors = lines.filter((c) => connectorOrphan(model, c));
 }
 
 // Le placement mémorisé, indexé : une place par hostname. Rappelé après chaque écriture acceptée par l'API.
@@ -358,7 +402,10 @@ export function build(data: PageData): Model {
     haMembershipsByHost: new Map(),
     combos: [], severityCounts: new Map(), statusCounts: new Map(), kindCounts: new Map(),
     diffOf: emptyDiffIndex(), changeOf: () => null, diffCount: 0,
-    intent: null, pinByHost: new Map(), orphanPins: [], placement: null, placeByHost: new Map(),
+    intent: null, pinByHost: new Map(), orphanPins: [], colorByType: new Map(), colorByHost: new Map(), orphanColors: [], groupById: new Map(), groupsByHost: new Map(), orphanGroups: [],
+    annotationById: new Map(), annotationsByHost: new Map(), annotationsByGroup: new Map(), orphanAnnotations: [],
+    connectorById: new Map(), connectorsByRef: new Map(), orphanConnectors: [], placement: null, placeByHost: new Map(),
+    cardWidth: 0,
   };
   snapshot.nodes.forEach((node) => model.nodeByHost.set(node.hostname, node));
   snapshot.interfaces.forEach((itf) => {
@@ -379,6 +426,7 @@ export function build(data: PageData): Model {
   model.diffOf = indexDiff(diff);
   model.changeOf = (kind, id) => model.diffOf[kind].get(id) || null;
   model.diffCount = diffCount(diff);
+  model.cardWidth = commonCardWidth(model);
   applyIntent(model, data.intent || null);
   applyPlacement(model, data.placement || null);
   return model;
@@ -403,7 +451,7 @@ export function linkFromToken(model: Model, token: string): ModelLink | null {
 // L'entité désignée par une sélection, ou null si elle n'existe pas dans ce snapshot.
 export function entityOf(model: Model, selection: Selection | null): Entity | null {
   if (!selection) return null;
-  const maps: Record<SelectionKind, Map<string, Entity>> = { node: model.nodeByHost, link: model.linkById, aggregate: model.aggregateByKey, beam: model.beamById, cluster: model.clusterById };
+  const maps: Record<SelectionKind, Map<string, Entity>> = { node: model.nodeByHost, link: model.linkById, aggregate: model.aggregateByKey, beam: model.beamById, cluster: model.clusterById, group: model.groupById, annotation: model.annotationById, connector: model.connectorById };
   return maps[selection.kind] ? maps[selection.kind].get(selection.id) || null : null;
 }
 export const nodeOf = (model: Model, selection: Selection | null): ModelNode | null => (selection && selection.kind === "node" ? (entityOf(model, selection) as ModelNode | null) : null);
@@ -411,6 +459,9 @@ export const linkOf = (model: Model, selection: Selection | null): ModelLink | n
 export const aggregateOf = (model: Model, selection: Selection | null): Aggregate | null => (selection && selection.kind === "aggregate" ? (entityOf(model, selection) as Aggregate | null) : null);
 export const beamOf = (model: Model, selection: Selection | null): Beam | null => (selection && selection.kind === "beam" ? (entityOf(model, selection) as Beam | null) : null);
 export const clusterOf = (model: Model, selection: Selection | null): Cluster | null => (selection && selection.kind === "cluster" ? (entityOf(model, selection) as Cluster | null) : null);
+export const groupOf = (model: Model, selection: Selection | null): Group | null => (selection && selection.kind === "group" ? (entityOf(model, selection) as Group | null) : null);
+/** Les membres d'un groupe présents dans la run (ni absents, ni fantômes). */
+export const presentOf = (model: Model, group: Group): string[] => group.members.filter((host) => { const node = model.nodeByHost.get(host); return !!node && !node.ghost; });
 
 // Les équipements qu'une sélection concerne : ceux à centrer, à garder visibles.
 export function hostsOf(model: Model, selection: Selection | null): string[] {
@@ -420,6 +471,9 @@ export function hostsOf(model: Model, selection: Selection | null): string[] {
     case "link": { const link = linkOf(model, selection) as ModelLink; return [link.a.hostname, link.b.hostname]; }
     case "aggregate": return [(aggregateOf(model, selection) as Aggregate).hostname];
     case "beam": { const beam = beamOf(model, selection) as Beam; return [beam.a.hostname, beam.b.hostname]; }
+    case "group": return presentOf(model, groupOf(model, selection) as Group);
+    case "annotation": { const a = model.annotationById.get(selection.id) as Annotation; return a.anchor.kind === "device" && a.anchor.ref && model.nodeByHost.has(a.anchor.ref) ? [a.anchor.ref] : a.anchor.kind === "group" ? presentOf(model, model.groupById.get(a.anchor.ref || "") || { members: [] } as unknown as Group) : []; }
+    case "connector": return connectorHosts(model.connectorById.get(selection.id) as Connector).filter((host) => model.nodeByHost.has(host));
     default: return (clusterOf(model, selection) as Cluster).hosts;
   }
 }
@@ -432,12 +486,18 @@ export function tokenOf(model: Model, selection: Selection | null): [string, str
     case "link": return ["link", linkToken(linkOf(model, selection) as ModelLink)];
     case "aggregate": { const agg = aggregateOf(model, selection) as Aggregate; return ["aggregate", JSON.stringify([agg.hostname, agg.name])]; }
     case "beam": { const beam = beamOf(model, selection) as Beam; return ["beam", JSON.stringify([beam.a.hostname, beam.a.aggregate, beam.b.hostname, beam.b.aggregate])]; }
+    case "group": return ["group", (groupOf(model, selection) as Group).id];
+    case "annotation": return ["annotation", selection.id];
+    case "connector": return ["connector", selection.id];
     default: return ["cluster", JSON.stringify((clusterOf(model, selection) as Cluster).hosts)];
   }
 }
 // Une adresse écrite avec les bouts dans l'autre ordre désigne le même élément (revue, 8).
 export function selectionFromToken(model: Model, kind: string, token: string): Selection | null {
   if (kind === "node") return model.nodeByHost.has(token) ? { kind, id: token } : null;
+  if (kind === "group") return model.groupById.has(token) ? { kind, id: token } : null;
+  if (kind === "annotation") return model.annotationById.has(token) ? { kind, id: token } : null;
+  if (kind === "connector") return model.connectorById.has(token) ? { kind, id: token } : null;
   const lengths: Record<string, number | null> = { link: 4, aggregate: 2, beam: 4, cluster: null };
   if (!(kind in lengths)) return null;
   const parts = parseToken(token, lengths[kind]);
@@ -452,7 +512,18 @@ export function selectionFromToken(model: Model, kind: string, token: string): S
   return null;
 }
 
+// Ce que la carte d'un équipement porte sous son nom : le rôle HA de son premier cluster, le compte de son stack.
+export function cardExtrasOf(model: Model, node: ModelNode): CardExtras {
+  const ha = (model.haMembershipsByHost.get(node.hostname) || [])[0];
+  return { role: ha ? ha.member.role : null, stack: node.stack ? node.stack.member_count : null };
+}
+// La largeur commune des cartes de la run, fantômes compris (ils se dessinent aussi) ; un voisin inconnu reste un disque.
+function commonCardWidth(model: Model): number {
+  const cards = model.nodes.concat(model.ghostNodes).filter((node) => node.kind !== "stub");
+  return uniformWidth(cards.map((node) => cardWidthOf(displayName(node.hostname), cardExtrasOf(model, node))));
+}
+
 export const model = {
-  build, applyIntent, applyPlacement, ifaceKey, interfaceAt, linkId, endLabel, worst, linkToken, linkFromToken, aggregateKey, clusterId, entityOf, hostsOf, tokenOf, selectionFromToken,
+  build, cardExtrasOf, haBadge, applyIntent, applyPlacement, ifaceKey, interfaceAt, linkId, endLabel, worst, linkToken, linkFromToken, aggregateKey, clusterId, entityOf, hostsOf, tokenOf, selectionFromToken, groupOf, presentOf,
   SEVERITY_RANK, OBSERVED, haRoleGroup, DIFF_SECTIONS, SELECTION_KINDS,
 };

@@ -325,7 +325,7 @@ def test_render_needs_a_file_or_a_run(capsys, tmp_path):
 # ---------------------------------------------------------------- le visualiseur, sous Node
 
 
-ENGINE_TOOLS = ("typescript", "esbuild", "json-schema-to-typescript")
+ENGINE_TOOLS = ("typescript", "esbuild", "json-schema-to-typescript", "react", "react-dom", "lucide-react")
 TSC = ENGINE / "node_modules" / "typescript" / "bin" / "tsc"
 
 
@@ -349,14 +349,131 @@ def test_the_built_viewer_matches_the_engine_sources():
         assert done.returncode == 0, f"`{shown}` a échoué :\n" + done.stdout[-2000:] + done.stderr[-2000:]
 
 
+from ld_contracts.intent import DEFAULT_ANNOTATION_STYLE, DEFAULT_CONNECTOR_STYLE, DEFAULT_GROUP_STYLE  # noqa: E402
+
 INTENT_DOC = {
-    "intent_version": "1.0.0",
+    "intent_version": "1.5.0",
     "infrastructure": "infra-lab",
     "revision": 2,
     "updated_at": "2026-10-04T18:32:15Z",
     "pins": [
         {"hostname": "gone-host", "x": -300, "y": 200, "author": "orhan", "at": "2026-10-04T18:30:00Z"},
         {"hostname": "sw-core-01", "x": 120, "y": -40, "author": "orhan", "at": "2026-10-04T18:32:15Z"},
+    ],
+    # docs/10 : une teinte de type, une teinte d'équipement, une teinte orpheline (hostname absent de la run)
+    "type_colors": [{"type": "firewall", "hue": "red", "author": "orhan", "at": "2026-10-04T18:32:15Z"}],
+    "device_colors": [
+        {"hostname": "gone-host", "hue": "pink", "author": "alice", "at": "2026-10-04T18:32:15Z"},
+        {"hostname": "sw-core-01", "hue": "amber", "author": "orhan", "at": "2026-10-04T18:32:15Z"},
+    ],
+    # docs/10 §5 : un groupe des deux cœurs (un membre absent), un groupe orphelin (aucun membre présent)
+    "groups": [
+        {
+            "id": "g2-1",
+            "label": "Cœur",
+            "description": "les deux cœurs\nvPC",
+            "members": ["gone-host", "sw-core-01", "sw-core-02"],
+            "style": {**DEFAULT_GROUP_STYLE, "hue": "indigo", "shape": "ellipse"},
+            "author": "orhan",
+            "at": "2026-10-04T18:32:15Z",
+        },
+        {
+            "id": "g2-2",
+            "label": "Ailleurs",
+            "description": "",
+            "members": ["gone-host"],
+            "style": DEFAULT_GROUP_STYLE,
+            "author": "alice",
+            "at": "2026-10-04T18:32:15Z",
+        },
+    ],
+    # docs/10 §6 : une note libre, une attachée au cœur présent (ligne de rappel), une attachée à un hostname absent
+    # (orpheline)
+    "annotations": [
+        {
+            "id": "a2-1",
+            "anchor": {"kind": "free", "ref": None},
+            "x": 300,
+            "y": -200,
+            "w": 220,
+            "h": 80,
+            "z": "front",
+            "locked": False,
+            "leader": False,
+            "content": {"kind": "note", "text": "Baie 12, rangée B\nContact : équipe réseau"},
+            "style": DEFAULT_ANNOTATION_STYLE["note"],
+            "author": "orhan",
+            "at": "2026-10-04T18:32:15Z",
+        },
+        {
+            "id": "a2-2",
+            "anchor": {"kind": "device", "ref": "sw-core-01"},
+            "x": -110,
+            "y": -160,
+            "w": 160,
+            "h": 52,
+            "z": "front",
+            "locked": False,
+            "leader": True,
+            "content": {
+                "kind": "table",
+                "header": True,
+                "rows": [["VLAN", "nom"], ["10", "users"]],
+                "widths": None,
+                "heights": None,
+                "merges": [],
+            },
+            "style": DEFAULT_ANNOTATION_STYLE["table"],
+            "author": "alice",
+            "at": "2026-10-04T18:32:15Z",
+        },
+        {
+            "id": "a2-3",
+            "anchor": {"kind": "device", "ref": "gone-host"},
+            "x": 0,
+            "y": 0,
+            "w": 200,
+            "h": 120,
+            "z": "back",
+            "locked": True,
+            "leader": False,
+            "content": {"kind": "shape", "shape": "ellipse", "label": "DMZ"},
+            "style": DEFAULT_ANNOTATION_STYLE["shape"],
+            "author": "alice",
+            "at": "2026-10-04T18:32:15Z",
+        },
+    ],
+    # docs/10 §6 (1.4.0) : un connecteur de la note libre au cœur présent, un connecteur orphelin (bout sur un
+    # hostname absent)
+    "connectors": [
+        {
+            "id": "c2-1",
+            "start": {"kind": "annotation", "ref": "a2-1", "side": "auto"},
+            "end": {"kind": "device", "ref": "sw-core-01", "side": "w"},
+            "heads": {"start": "none", "end": "arrow"},
+            "route": "curve",
+            "bend": 40,
+            "label": "voir",
+            "z": "front",
+            "locked": False,
+            "style": DEFAULT_CONNECTOR_STYLE,
+            "author": "orhan",
+            "at": "2026-10-04T18:32:15Z",
+        },
+        {
+            "id": "c2-2",
+            "start": {"kind": "device", "ref": "gone-host", "side": "auto"},
+            "end": {"kind": "free", "x": 0, "y": 0},
+            "heads": {"start": "none", "end": "none"},
+            "route": "straight",
+            "bend": 0,
+            "label": "",
+            "z": "back",
+            "locked": False,
+            "style": DEFAULT_CONNECTOR_STYLE,
+            "author": "alice",
+            "at": "2026-10-04T18:32:15Z",
+        },
     ],
 }
 

@@ -2,6 +2,8 @@
 // Le jeton se saisit ici, jamais dans l'adresse ; il est gardé dans sessionStorage (l'onglet, pas le disque) et
 // voyage en Authorization. L'adresse porte la run (?infrastructure=&run_id=) et l'état de vue (#view=…).
 import { clear, h } from "../canvas/dom";
+import { AUTHOR_KEY, call, explain, isRecord, readAuthor, readToken, ROUTES, TOKEN_KEY, writeAuthor, writeToken } from "./http";
+import type { Answer } from "./http";
 import type { Child } from "../canvas/dom";
 import type { IngestData, PageData } from "../canvas/types";
 import { pill, table } from "./widgets";
@@ -12,55 +14,9 @@ import type { Intent, Placement } from "../canvas/types";
 import { boot } from "./main";
 import { render as renderTimeline } from "./timeline";
 
-export const TOKEN_KEY = "ld-api-token";
-export const AUTHOR_KEY = "ld-author"; // le nom, dans localStorage : une commodité, pas un secret
-const ROUTES = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches", placement: "/api/placement" };
 export type ShellData = Omit<PageData, "snapshot"> & { snapshot: Snapshot | null };
-interface Answer { status: number; body: unknown }
-
-function storage(): Storage | null {
-  try { return globalThis.sessionStorage || null; } catch (error) { return null; }
-}
-function readToken(): string {
-  try { const store = storage(); return (store && store.getItem(TOKEN_KEY)) || ""; } catch (error) { return ""; }
-}
-function writeToken(token: string): void {
-  try {
-    const store = storage();
-    if (store) { if (token) store.setItem(TOKEN_KEY, token); else store.removeItem(TOKEN_KEY); }
-  } catch (error) { /* stockage indisponible : le jeton ne vit que le temps de la page */ }
-}
-
-function readAuthor(): string {
-  try { return (globalThis.localStorage && globalThis.localStorage.getItem(AUTHOR_KEY)) || ""; } catch (error) { return ""; }
-}
-function writeAuthor(name: string): void {
-  try {
-    const store = globalThis.localStorage;
-    if (store) { if (name) store.setItem(AUTHOR_KEY, name); else store.removeItem(AUTHOR_KEY); }
-  } catch (error) { /* stockage indisponible : le nom ne vit que le temps de la page */ }
-}
 
 const query = (name: string): string => new URLSearchParams(location.search).get(name) || "";
-const withParams = (route: string, params: Record<string, string>): string => route + "?" + new URLSearchParams(params).toString();
-
-async function call(route: string, params: Record<string, string>, token: string, payload?: unknown): Promise<Answer> {
-  const init: RequestInit = { headers: { Authorization: "Bearer " + token }, credentials: "omit" };
-  if (payload !== undefined) Object.assign(init, { method: "POST", headers: { ...init.headers, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  const response = await fetch(withParams(route, params), init);
-  let body: unknown = null;
-  try { body = await response.json(); } catch (error) { body = null; }
-  return { status: response.status, body };
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object";
-
-export function explain(status: number, body: unknown): string {
-  if (status === 401) return "jeton refusé par l'API";
-  const detail = isRecord(body) && typeof body.detail === "string" ? body.detail : "";
-  if (status === 404) return detail || "run inconnue pour cette infrastructure";
-  return "l'API répond " + status + (detail ? " : " + detail : "");
-}
 
 export function create(root: HTMLElement, data: ShellData): ShellApp {
   const state: ShellState = { token: readToken(), author: readAuthor(), infrastructure: query("infrastructure"), runId: query("run_id"), from: query("from"), runs: null, message: null, busy: false, pending: null };

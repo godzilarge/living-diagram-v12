@@ -191,9 +191,14 @@ qu'une sorte de patch, l'**épingle** : la place voulue d'un équipement (`x`, `
 keyée par son `hostname` à l'octet, avec `author` et `at`. Mêmes principes que le snapshot et le diff : refusé plutôt
 que signalé, toutes les clés écrites, pas d'`extras`, `pins` triées par `hostname` et uniques (refusé par le type) ;
 `revision` compte les requêtes d'écriture acceptées et `updated_at` est null si et seulement si elle vaut 0
-(`revision_update_mismatch`) ; `intent_version` suit son propre semver. D'autres sortes de patch viendront comme des
-listes à côté (additif). Ni B1 ni B3 ne lisent ce document. `fixtures/intent-skeleton.json` : deux épingles, forme
-canonique (`ld_contracts.intent.serialize.canonical_json`).
+(`revision_update_mismatch`) ; `intent_version` suit son propre semver. D'autres sortes de patch sont venues comme des
+listes à côté (additif) : les couleurs (1.1.0), les groupes (1.2.0, `docs/10` §5), les annotations (1.3.0, §6 : notes,
+formes, tableaux, images), les connecteurs (1.4.0, §6.6 : une ligne ou une flèche à deux bouts, libres ou attachés à
+un équipement, un groupe ou une annotation ; `intent/connectors.py` ; depuis 1.5.0 un bout attaché porte son ancre
+`side`, `auto` ou un côté) ; un tableau porte depuis 1.4.0 ses largeurs et hauteurs relatives et ses fusions, et
+`upgraded()` relit une mineure antérieure (un 1.3.x voit ses lignes et flèches devenir des connecteurs, un 1.4.x reçoit
+`side` = `auto`). Ni B1 ni B3 ne lisent ce document. `fixtures/intent-skeleton.json` : deux épingles, deux
+couleurs, un groupe, une annotation, un connecteur, forme canonique (`ld_contracts.intent.serialize.canonical_json`).
 
 ## Utiliser le paquet depuis votre exportateur
 
@@ -362,7 +367,7 @@ contracts/
 │   │   ├── codes.py               DIFF_ERROR_TYPES, DIFF_SHARED_ERROR_TYPES
 │   │   └── serialize.py           canonical_json
 │   ├── intent/                    contrat de la couche d'intention Intent v1 (2026-10-04, docs/08) : écrit par l'API, lu par la toile
-│   │   ├── intent.py              Pin (hostname, x, y, author, at) · Intent (revision ↔ updated_at, pins triées) · empty_intent
+│   │   ├── intent.py              Pin · TypeColor · DeviceColor · Group + GroupStyle (docs/10) · Intent 1.2.0 (quatre listes triées) · empty_intent · upgraded
 │   │   ├── codes.py               INTENT_ERROR_TYPES
 │   │   └── serialize.py           canonical_json
 │   ├── snapshot/                  contrat de sortie Snapshot v1 (2026-09-20)
@@ -434,6 +439,24 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-10-07** — **`Intent` 1.1.0 → 1.2.0, additif : les groupes** (`docs/10` §5, « Go sur le regroupement, riche en
+  fonctions, ne pas brider l'utilisateur, ergonomique »). `groups` : `{id, label, description, members, style, author, at}`,
+  triés par `id` ; **l'`id` est attribué par le serveur** (`g<revision>-<n>`), jamais le libellé ; `members` triés, uniques,
+  un au moins (`too_short` : retirer le dernier membre, c'est supprimer le groupe) ; `GroupStyle` **toutes clés écrites**
+  (forme, coins, teinte, remplissage, bordure et son trait, marge, position, placement, taille, graisse, police et couleur
+  de l'étiquette), bornes et énumérations refusées par le type, défauts du serveur (`DEFAULT_GROUP_STYLE`) à la création.
+  Un groupe = des membres + un style, jamais une forme à coordonnées : le cadre se calcule dans la toile. `upgraded()`
+  relit un 1.0.x ou un 1.1.x. Fixture : un groupe des deux cœurs.
+- **2026-10-07** — **`Intent` 1.0.0 → 1.1.0, additif : les couleurs d'intention** (`docs/10`, demande d'Orhan : « un réglage
+  pour modifier la couleur des icônes, stocké dans les intentions, visible par tout le monde, persistant »). Deux listes à
+  côté de `pins` : `type_colors` (un patch par `type` du contrat d'entrée, la palette de l'infrastructure) et
+  `device_colors` (par `hostname`, l'emporte sur le type), chacune `{…, hue, author, at}` triée par sa clé. **`hue` est une
+  teinte nommée** (`Hue`, douze valeurs), jamais une valeur libre : le moteur donne à chaque teinte sa valeur sombre et sa
+  valeur claire, et les défauts par type vivent dans le moteur, pas dans le document. Refus : `enum` (teinte ou type hors
+  énumération), `not_canonical_order` / `duplicate_identity` sur chaque liste, `patch_after_update` (remplace
+  `pin_after_update`). **Toutes les clés restent requises** : un document 1.0.x se relit en 1.1.0 par `upgraded()` (listes
+  vides), que le store du backend applique à la lecture ; `validate` reste strict. Fixture `intent-skeleton.json` : deux
+  épingles, une couleur de type, une couleur d'équipement.
 - **2026-10-04** — **Contrat `Intent` v1, quatrième contrat** (B4, `docs/08`, plan annoncé après le « Go » d'Orhan sur la
   toile et les épingles). Un document par infrastructure, jamais par run ; patchs keyés par identité stable (le `hostname`
   d'un nœud, à l'octet), jamais par coordonnée ni par run ; une seule sorte en V1, l'épingle (`x`, `y` entiers stricts bornés

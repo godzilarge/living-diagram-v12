@@ -4,6 +4,7 @@ import hmac
 import json
 import re
 from collections.abc import Callable
+from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -23,11 +24,12 @@ from pydantic.json_schema import models_json_schema
 from starlette.requests import ClientDisconnect
 
 from ld_backend.archive import ArchiveCorruptError, BundleArchive
+from ld_backend.assets import AssetStore, AssetTypeError, AssetUnknownError
 from ld_backend.config import Settings
 from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, load_archived_snapshot
 from ld_backend.ingest import ingest_bundle, result_payload
-from ld_backend.intent import IntentCorruptError, IntentLimitError, IntentStore
+from ld_backend.intent import IntentCorruptError, IntentGroupError, IntentLimitError, IntentStore
 from ld_backend.placement import (
     Placement,
     PlacementCorruptError,
@@ -38,7 +40,8 @@ from ld_backend.placement import (
     placement_json,
 )
 from ld_backend.render import render_shell
-from ld_backend.schemas import IngestReport, IntentOps, RunEntry, RunList
+from ld_backend.render.app import APP_ASSET_PREFIX, APP_CSP, APP_ROUTE, read_app_asset, render_app
+from ld_backend.schemas import AssetReceipt, IngestReport, IntentOps, RunEntry, RunList
 
 # Une run s'adresse par paramètres de requête, jamais par le chemin : `infrastructure` est un libellé libre et
 # `run_id` vient de l'amont ; un `/` dans l'un ou l'autre rendait la run archivée illisible (404).
@@ -49,8 +52,11 @@ SNAPSHOT = "/api/snapshot"
 DIFF = "/api/diff"
 INTENT = "/api/intent"
 INTENT_PATCHES = "/api/intent/patches"
+INTENT_ASSETS = "/api/intent/assets"
+IMAGE_MEDIA_TYPE = re.compile(r"image/(png|jpeg|webp)", re.IGNORECASE)
 PLACEMENT = "/api/placement"
 VIEW = "/view"
+APP_ASSET = APP_ASSET_PREFIX + "{name:path}"
 JSON_MEDIA_TYPE = re.compile(r"application/(?:[\w.-]+\+)?json", re.IGNORECASE)
 SCHEMA_REF_TEMPLATE = "#/components/schemas/{model}"
 CONTRACT_MODELS = (RunBundle, Snapshot, Diff, Intent, IntentOps, Placement, PlacementWrite)
@@ -258,6 +264,45 @@ def _archived_snapshot(store: BundleArchive, infrastructure: str, run_id: str, s
         raise HTTPException(status_code=500, detail="entrée d'archive corrompue, intervention nécessaire") from exc
 
 
+ASSET_POST_RESPONSES: dict[int | str, dict[str, Any]] = {
+    201: {"description": "fichier rangé sous son empreinte (`asset`), type reconnu aux octets, dimensions lues"},
+    200: {"description": "fichier déjà présent : la même empreinte"},
+    404: {"description": "infrastructure sans run archivée"},
+    413: {"description": "corps au-delà de `LD_MAX_ASSET_BYTES` (4 Mo par défaut)"},
+    415: {"description": "`Content-Type` qui n'est pas `image/png`, `image/jpeg` ou `image/webp`"},
+    422: {
+        "description": "octets de tête qui ne sont ni PNG, ni JPEG, ni WebP (`asset_unrecognized`) : un SVG est refusé"
+    },
+}
+ASSET_GET_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {"description": "les octets du fichier, `Content-Type` vérifié à la lecture, `nosniff`, cache immuable"},
+    404: {"description": "empreinte inconnue pour cette infrastructure"},
+}
+ASSET_DELETE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    204: {"description": "fichier retiré"},
+    404: {"description": "empreinte inconnue pour cette infrastructure"},
+    409: {"description": "une annotation cite encore ce fichier (`asset_in_use`)"},
+}
+
+
+async def _read_bytes_body(request: Request, max_bytes: int) -> bytes:
+    """Le corps brut, en flux, coupé dès que la limite est dépassée (un fichier d'image)."""
+    declared = request.headers.get("content-length")
+    if declared is not None and declared.isdigit() and int(declared) > max_bytes:
+        raise _too_large(max_bytes)
+    chunks: list[bytes] = []
+    total = 0
+    try:
+        async for chunk in request.stream():
+            total += len(chunk)
+            if total > max_bytes:
+                raise _too_large(max_bytes)
+            chunks.append(chunk)
+    except ClientDisconnect as exc:
+        raise HTTPException(status_code=400, detail="connexion fermée avant la fin du corps") from exc
+    return b"".join(chunks)
+
+
 async def _read_json_body(request: Request, max_bytes: int) -> Any:
     """Lit le corps en flux et coupe dès que la limite est dépassée : jamais tout en mémoire d'abord."""
     _require_json(request)
@@ -341,7 +386,8 @@ def _placement_or_500(load: Callable[[], Placement]) -> Placement:
 
 def create_app(settings: Settings, archive: BundleArchive | None = None) -> FastAPI:
     store = archive or BundleArchive(settings.archive_dir)
-    intents = IntentStore(settings.archive_dir)
+    assets = AssetStore(settings.archive_dir)
+    intents = IntentStore(settings.archive_dir, asset_exists=assets.exists)
     placements = PlacementStore(settings.archive_dir)
     app = IngestApp(
         title="Living Diagram — ingestion",
@@ -369,6 +415,31 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
     )
     def view() -> HTMLResponse:
         return HTMLResponse(shell)
+
+    application = render_app()  # une fois : la page ne dépend d'aucune run ; ses fichiers, eux, sont lus à la requête
+
+    @app.get(
+        APP_ROUTE,
+        response_class=HTMLResponse,
+        summary="L'application (le jeton se saisit dans la page)",
+        description="La face utilisateur de Living Diagram : le diagramme est la page. Servie sans jeton, sans "
+        "donnée ; elle charge `/assets/app/app.js` et `/assets/app/app.css` depuis sa propre origine (CSP "
+        "`'self'`, aucune ressource externe) et lit la run par l'API avec le jeton saisi dans la page. Adresse "
+        "partageable : `/?infrastructure=&run_id=&from=#node=…` ; le jeton n'y entre jamais.",
+    )
+    def application_page() -> HTMLResponse:
+        return HTMLResponse(application, headers={"Content-Security-Policy": APP_CSP, "Cache-Control": "no-cache"})
+
+    @app.get(APP_ASSET, include_in_schema=False)
+    def application_asset(name: str, request: Request) -> Response:
+        found = read_app_asset(name)
+        if found is None:
+            raise HTTPException(status_code=404, detail="fichier inconnu")
+        content, media_type, etag = found
+        headers = {"ETag": etag, "Cache-Control": "no-cache"}
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers=headers)
+        return Response(content=content, media_type=media_type, headers=headers)
 
     @app.post(BUNDLES, dependencies=[guard], status_code=201, responses=POST_RESPONSES, summary="Ingérer un RunBundle")
     async def post_bundle(request: Request) -> JSONResponse:
@@ -427,7 +498,7 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
         dependencies=[guard],
         response_class=Response,
         responses=INTENT_RESPONSES,
-        summary="Lire la couche d'intention d'une infrastructure (B4 : épingles)",
+        summary="Lire la couche d'intention d'une infrastructure (B4 : épingles ; docs/10 : couleurs)",
     )
     def get_intent(infrastructure: Label) -> Response:
         intent = _intent_or_500(lambda: intents.load(infrastructure))
@@ -438,10 +509,16 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
         dependencies=[guard],
         response_class=Response,
         responses=PATCHES_RESPONSES,
-        summary="Appliquer des opérations à la couche d'intention (pin, unpin)",
+        summary="Appliquer des opérations à la couche d'intention (pin, unpin, color, uncolor, color_type, "
+        "uncolor_type, group_create, group_update, group_add, group_remove, group_delete, annotation_create, "
+        "annotation_update, annotation_delete)",
         description="Le document ne s'écrit que par opérations : poser ou remplacer une épingle (`pin`), la retirer "
-        "(`unpin`). Appliquées dans l'ordre, journalisées (auteur, date, opérations). Une infrastructure sans run "
-        "archivée est refusée (404).",
+        "(`unpin`) ; colorer un équipement d'une teinte nommée (`color`) ou lui rendre celle de son type (`uncolor`) ; "
+        "colorer un type (`color_type`) ou lui rendre sa teinte par défaut (`uncolor_type`) ; créer, modifier, "
+        "étoffer, réduire ou supprimer un groupe (`group_create`, `group_update`, `group_add`, `group_remove`, "
+        "`group_delete` ; docs/10 §5) ; créer, modifier ou supprimer une annotation (note, forme, tableau, image ; "
+        "`annotation_create`, `annotation_update`, `annotation_delete` ; docs/10 §6). Appliquées dans l'ordre, "
+        "journalisées (auteur, date, opérations). Une infrastructure sans run archivée est refusée (404).",
     )
     async def post_intent_patches(infrastructure: Label, request: Request) -> Response:
         if not store.list_runs(infrastructure):
@@ -457,7 +534,75 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
             intent = _intent_or_500(lambda: intents.apply(infrastructure, ops, now))
         except IntentLimitError as exc:
             return _problem("corps de requête invalide", [{"loc": ("ops",), "type": "too_long", "msg": str(exc)}])
+        except IntentGroupError as exc:
+            return _problem("corps de requête invalide", [{"loc": ("ops",), "type": exc.code, "msg": str(exc)}])
+        except ValidationError as exc:  # une annotation incohérente une fois assemblée (ligne de rappel sans ancre)
+            return _problem("corps de requête invalide", list(exc.errors()))
         return Response(content=intent_json(intent), media_type="application/json")
+
+    @app.post(
+        INTENT_ASSETS,
+        dependencies=[guard],
+        status_code=201,
+        responses=ASSET_POST_RESPONSES,
+        summary="Envoyer une image pour une annotation (PNG, JPEG, WebP ; jamais SVG), rangée sous son empreinte",
+        description="Le corps est le fichier brut, `Content-Type` image ; reconnu à ses octets de tête, jamais à son "
+        "nom ni à son type déclaré ; borné par `LD_MAX_ASSET_BYTES` (4 Mo). Un fichier déjà présent répond 200 avec "
+        "la même empreinte. L'empreinte se cite ensuite dans `annotation_create` (`content.kind` = `image`).",
+    )
+    async def post_intent_asset(infrastructure: Label, request: Request, response: Response) -> AssetReceipt:
+        if not await run_in_threadpool(store.list_runs, infrastructure):
+            raise HTTPException(status_code=404, detail="aucune run archivée pour cette infrastructure")
+        declared = request.headers.get("content-type", "")
+        if not IMAGE_MEDIA_TYPE.match(declared):
+            raise HTTPException(status_code=415, detail="`Content-Type` attendu : image/png, image/jpeg ou image/webp")
+        data = await _read_bytes_body(request, settings.max_asset_bytes)
+        try:
+            info, created = await run_in_threadpool(assets.put, infrastructure, data)
+        except AssetTypeError as exc:
+            return _problem("fichier refusé", [{"loc": ("body",), "type": "asset_unrecognized", "msg": str(exc)}])  # type: ignore[return-value]
+        response.status_code = 201 if created else 200
+        return AssetReceipt(**asdict(info))
+
+    @app.get(
+        INTENT_ASSETS,
+        dependencies=[guard],
+        response_class=Response,
+        responses=ASSET_GET_RESPONSES,
+        summary="Lire une image du magasin d'une infrastructure, par son empreinte",
+    )
+    def get_intent_asset(infrastructure: Label, asset: Label) -> Response:
+        try:
+            data, media_type = assets.get(infrastructure, asset)
+        except AssetUnknownError as exc:
+            raise HTTPException(status_code=404, detail="image inconnue pour cette infrastructure") from exc
+        except AssetTypeError as exc:
+            raise HTTPException(
+                status_code=500, detail="fichier du magasin illisible : intervention nécessaire"
+            ) from exc
+        headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=31536000, immutable"}
+        return Response(content=data, media_type=media_type, headers=headers)
+
+    @app.delete(
+        INTENT_ASSETS,
+        dependencies=[guard],
+        status_code=204,
+        response_class=Response,
+        responses=ASSET_DELETE_RESPONSES,
+        summary="Retirer une image du magasin ; refusé tant qu'une annotation la cite (`asset_in_use`)",
+    )
+    def delete_intent_asset(infrastructure: Label, asset: Label) -> Response:
+        intent = _intent_or_500(lambda: intents.load(infrastructure))
+        cited = any(a.content.kind == "image" and a.content.asset == asset for a in intent.annotations)
+        if cited:
+            raise HTTPException(
+                status_code=409, detail="image citée par une annotation : supprimez l'annotation d'abord"
+            )
+        try:
+            assets.delete(infrastructure, asset)
+        except AssetUnknownError as exc:
+            raise HTTPException(status_code=404, detail="image inconnue pour cette infrastructure") from exc
+        return Response(status_code=204)
 
     @app.get(
         PLACEMENT,

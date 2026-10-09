@@ -67,7 +67,7 @@ chaque bundle est valide à zéro constat. Détail et catalogue :
 | Onglet | Ce qu'on y voit |
 |---|---|
 | **Graphe** | Un nœud par équipement, un tracé par câble. **Glisser un équipement l'épingle** (B4) : dans `/view` avec un nom saisi, l'épingle s'enregistre pour tout le monde et survit aux runs ; un glyphe d'épingle marque les équipements épinglés. **Les autres équipements gardent aussi leur place d'une run à l'autre** (placement mémorisé, `docs/09` : la première place d'un équipement est celle qui reste, une nouvelle run ne place que les nouveaux) ; « replacer » recalcule tout autour des épingles et, dans `/view`, remplace le placement mémorisé pour tout le monde (confirmation dans la page). Vert = confirmé (observé et documenté), bleu = observé seul (LLDP / CDP), orange pointillé = documenté seul (descriptions). **Cliquer un câble : ses sources** (qui témoigne, ce qu'il annonce, comment le nom a été résolu), ses contrôles, ses deux ports avec leur description brute et lue. Cliquer un équipement : sa fiche, sa couverture de collecte, ses câbles, ses interfaces. Glisser déplace, la molette zoome. Les voisins inconnus (stubs) sont masqués par défaut. **Survoler un câble** : vitesse, duplex, média et état des deux bouts, tels que lus ; survoler un équipement : sa fiche courte. Chaque équipement porte l'icône de son type et son nom ; un membre de cluster HA porte son rôle tel qu'enregistré (fond teinté s'il forwarde, grisé s'il attend, rouge si down). Les pastilles de l'en-tête sont des boutons : « 2 error » ouvre les contrôles filtrés, un statut se masque. Bouton « légende » pour afficher ou replier la carte de légende. Tab parcourt les éléments, Entrée sélectionne. |
-| **Intentions** | La couche d'intention (B4, `docs/08`) : les épingles enregistrées (qui, quand, où), les orphelines (équipement absent de cette run : dites telles, jamais effacées en silence), retirer une ou toutes (confirmation dans la page), votre nom. En page générée : lecture seule. |
+| **Intentions** | La couche d'intention (B4, `docs/08` ; couleurs et groupes, `docs/10`) : les épingles enregistrées (qui, quand, où), les orphelines (équipement absent de cette run : dites telles, jamais effacées en silence), retirer une ou toutes (confirmation dans la page), les couleurs (par type, par équipement, orphelines), les groupes (membres, absents, supprimer), votre nom. En page générée : lecture seule. Les couleurs et les groupes se font dans l'application (`/`) : la fiche d'un équipement ou d'une sélection, le volet « palette des types » du menu, la fiche d'un groupe (clic sur son cadre). |
 | **Contrôles** | Tout ce que B1 signale (désaccord description / LLDP, voisin inconnu, vu d'un seul côté…), filtrable ; cliquer une cible l'ouvre dans le graphe. |
 | **Qualité des données** | Ce qui sert à corriger l'exportateur : couverture par équipement et par topic, constats du contrat d'entrée (clés oubliées, interface locale inconnue…), descriptions non lues, voisins non résolus, normalisations. |
 | **Sources** | Combien de câbles par combinaison de sources (LLDP + description, description seule…), et la liste de tous les câbles. |
@@ -92,7 +92,7 @@ uv run ld render --infrastructure <infra> --run-id <run> --archive ./archive --o
 uv run ld correlate --infrastructure <infra> --archive ./archive     # recalcule les snapshots (après une correction de B1)
 uv run ld diff --infrastructure <infra> --archive ./archive          # ce qui a changé à la dernière run (B3) ; --from / --to, --out diff.json
 uv run ld render --infrastructure <infra> --run-id <run> --from <run d'avant> --archive ./archive --out page.html   # la page avec les changements
-uv run ld intent --infrastructure <infra> --archive ./archive        # les épingles de la couche d'intention (B4), lecture seule
+uv run ld intent --infrastructure <infra> --archive ./archive        # épingles, couleurs, groupes, annotations, connecteurs et images de la couche d'intention (B4, docs/10), lecture seule
 uv run ld placement --infrastructure <infra> --archive ./archive     # le placement mémorisé (docs/09) ; --forget le retire, il se recalcule au prochain dessin
 ```
 
@@ -126,12 +126,23 @@ curl -s -G http://127.0.0.1:8000/api/diff           -H "$H" --data-urlencode "in
 curl -s -G http://127.0.0.1:8000/api/intent         -H "$H" --data-urlencode "infrastructure=<infra>"
 curl -s -X POST "http://127.0.0.1:8000/api/intent/patches?infrastructure=<infra>" -H "$H" -H "Content-Type: application/json" \
      -d '{"author": "orhan", "ops": [{"op": "pin", "hostname": "<hostname>", "x": 120, "y": -40}]}'
+#     une annotation (docs/10 §6) : {"op": "annotation_create", "content": {"kind": "note", "text": "Baie 12"}} ; une image :
+#     d'abord POST /api/intent/assets?infrastructure=<infra> (corps = le fichier, Content-Type image/png|jpeg|webp, 4 Mo), puis
+#     {"op": "annotation_create", "content": {"kind": "image", "asset": "<sha256 rendu>", "alt": ""}} ; un connecteur (docs/10 §6.6) :
+#     {"op": "connector_create", "start": {"kind": "device", "ref": "<hostname>", "side": "auto"}, "end": {"kind": "free", "x": 300, "y": -40}}
+#     (`side` = l'ancre d'un bout attaché : auto, n, e, s ou w ; sur la toile, tirer depuis un point d'ancrage d'une carte)
 # 2 quater. le placement mémorisé (docs/09) : lu et écrit par la page /view elle-même ; lisible ici
 curl -s -G http://127.0.0.1:8000/api/placement      -H "$H" --data-urlencode "infrastructure=<infra>"
 # 3. dessiner la run archivée (même dossier d'archive que le serveur) ; --from <run d'avant> pour y peindre les changements
 uv run ld render --infrastructure <infra> --run-id <run> --archive ./archive --out page.html
-# 4. ou la lire dans le navigateur, sans rien générer : la page servie par l'API
-#    http://127.0.0.1:8000/view?infrastructure=<infra>&run_id=<run>
+# 4. ou la lire dans le navigateur, sans rien générer : l'application (2026-10-07), ou la page de lecture de B1
+#    http://127.0.0.1:8000/                                    l'application : jeton, infrastructure, puis la dernière run comparée à la précédente
+#    http://127.0.0.1:8000/?infrastructure=<infra>&run_id=<run>&from=<run d'avant>#node=<hostname>   (adresse partageable, jamais le jeton)
+#      « / » ouvre la palette (nom ou champ:regex : sélectionner, masquer, isoler) ; Maj + clic ou Maj + glissé = sélection multiple,
+#      glisser un équipement sélectionné déplace tout le bloc ; en bas à gauche : grille, aimant, minimap, cadrer, thème clair / sombre
+#      (préférences du navigateur, jamais dans l'adresse) ;
+#      la fiche d'une sélection multiple aligne ou répartit (épingles sous votre nom) ; la bande en bas passe de run en run
+#    http://127.0.0.1:8000/view?infrastructure=<infra>&run_id=<run>                                    la page de lecture de B1 (qualité des données, sources, contrôles)
 #    http://127.0.0.1:8000/view?infrastructure=<infra>&run_id=<run>&from=<run d'avant>     (avec le diff ; la liste des runs propose « avec la précédente »)
 #    puis, dans la page, la bande des runs sous l'en-tête : ← → passent de run en run, le diff suit (comparée à la run qu'on quitte)
 ```
@@ -181,7 +192,8 @@ backend : Python n'a jamais besoin de Node pour fonctionner.
 | lister les runs | `ld runs --infrastructure X` ou `GET /api/ingest/bundles?infrastructure=X` |
 | récupérer le snapshot (JSON) | `GET /api/snapshot?infrastructure=X&run_id=Y`, ou `archive/X/Y/snapshot.json` |
 | épingler un équipement (B4) | glisser dans `/view` avec un nom saisi ; ou `POST /api/intent/patches?infrastructure=X` `{"author","ops":[{"op":"pin","hostname","x","y"}]}` |
-| lire les épingles | `ld intent --infrastructure X`, `GET /api/intent?infrastructure=X`, onglet **Intentions** |
+| lire les épingles, couleurs, groupes, annotations | `ld intent --infrastructure X`, `GET /api/intent?infrastructure=X`, onglet **Intentions** |
+| annoter le diagramme (note, forme, tableau, image, connecteur ; `docs/10` §6) | dans l'application (`/`), bloc **Insérer** de la barre d'outils ou le clic droit, avec un nom ; Ctrl+V colle une image ou un texte ; un tableau s'édite sur la toile (double-clic, frontières, clic droit) ; ou `POST /api/intent/patches` (`annotation_create`, `connector_create`), images par `POST /api/intent/assets` |
 | lire ou oublier le placement mémorisé (`docs/09`) | `ld placement --infrastructure X [--forget]`, `GET /api/placement?infrastructure=X` ; « replacer » dans `/view` |
 | dessiner une run archivée | `ld render --infrastructure X --run-id Y --out page.html` |
 | la lire dans le navigateur, serveur lancé | `http://127.0.0.1:8000/view?infrastructure=X&run_id=Y` (jeton saisi dans la page) |

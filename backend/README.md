@@ -172,7 +172,7 @@ backend/
 │   ├── diffs.py              branchement de B3 : deux snapshots archivés (par défaut les deux dernières runs) ou deux fichiers, résumé texte ; jamais stocké
 │   ├── files.py              écriture atomique et verrou (fichier + fil) partagés par les stores d'intention et de placement
 │   ├── intent.py             B4 (2026-10-04, docs/08) : IntentStore, un document Intent par infrastructure sous <archive>/_intent/, écrit par
-│   │                         opérations (pin, unpin), verrou, écriture atomique, journal d'audit ; IntentCorruptError
+│   │                         opérations (pin, unpin, color, uncolor, color_type, uncolor_type, group_create / update / add / remove / delete), verrou, écriture atomique, journal d'audit ; IntentCorruptError
 │   ├── placement.py          le placement mémorisé (2026-10-06, docs/09) : Place, Placement, PlacementWrite (formes typées, OpenAPI),
 │   │                         PlacementStore sous <archive>/_placement/ (load, record : première place gagnante, forget) ; PlacementCorruptError
 │   ├── schemas.py            formes de réponse et de requête typées (IngestReport, RunList, IntentOps : PinOp | UnpinOp) et `utc_z` : une seule forme de date
@@ -398,7 +398,7 @@ le diff comme `docs/07` §6 l'annonce (`tests/diff/test_synth.py`). Deux vérit�
 des cœurs existaient déjà, ce sont les port-channels qui s'ajoutent ou se retirent. Revue indépendante :
 `docs/revues/2026-10-04-b3-diff.md`.
 
-## B4, la couche d'intention : `ld intent`, `GET /api/intent`, `POST /api/intent/patches` (2026-10-04)
+## B4, la couche d'intention : `ld intent`, `GET /api/intent`, `POST /api/intent/patches` (2026-10-04 ; couleurs et groupes le 2026-10-07)
 
 En une phrase : **ce que l'humain veut en plus de ce que la collecte montre ; la première intention est l'épingle, la
 place voulue d'un équipement sur le dessin, keyée par son nom, qui survit aux runs.** Conception : `docs/08-intention.md` ;
@@ -409,7 +409,12 @@ ne le lisent (`rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapsh
 |---|---|
 | `GET /api/intent?infrastructure=X` | le document `Intent` (forme canonique) ; le document vide (`revision` 0, `pins` vide) si rien n'a jamais été écrit ; 500 neutre si le fichier est corrompu |
 | `POST /api/intent/patches?infrastructure=X` avec `{"author": "orhan", "ops": [{"op": "pin", "hostname": "sw-core-01", "x": 120, "y": -40}, {"op": "unpin", "hostname": "…"}]}` | le document résultant ; `revision + 1`, `updated_at`, chaque épingle posée porte `author` et `at` (date du serveur) ; opérations appliquées dans l'ordre, **dernier écrivain gagne par épingle** ; 404 pour une infrastructure sans run archivée ; 422 à la forme de l'API (auteur vide ou > 80, liste vide ou > 500, coordonnée non entière ou hors ±1 000 000, opération inconnue), jamais une valeur dans un message |
-| `ld intent --infrastructure X [--archive]` | les épingles, lecture seule ; sortie 1 si le document est corrompu |
+| `ld intent --infrastructure X [--archive]` | les épingles, les couleurs, les groupes, les annotations, les connecteurs et les images du magasin (dont celles que rien ne cite), lecture seule ; sortie 1 si le document est corrompu |
+| `POST /api/intent/patches` avec `{"op": "annotation_create", "content": {"kind": "note", "text": "Baie 12"}, "x": 40, "y": -20}` (répond avec l'`id` `a<revision>-<n>` ; `content.kind` ∈ `note`, `shape` (`rectangle` \| `ellipse`), `table` (`rows`, `header`, `widths` / `heights` poids ou null, `merges`), `image` ; `anchor` `{"kind": "free"\|"device"\|"group", "ref"}`, `w`, `h`, `z` `back`\|`front`, `locked`, `leader`, `style` partiel facultatifs), `annotation_update` (`id`, chaque champ facultatif ; le contenu se remplace en entier, de la même sorte), `annotation_delete` (`id`) | **les annotations** (`docs/10` §6, Intent 1.3.0, tableaux 1.4.0) : ce que seul l'humain sait, posé sur la toile, libre ou attaché à un équipement ou à un groupe ; défauts par sorte (style, taille) ; 422 `unknown_annotation`, `annotation_kind_change`, `unknown_asset` (image absente du magasin), `anchor_ref_mismatch`, `leader_without_anchor`, `table_ragged`, `table_dims_mismatch`, `table_merge_*`, bornes du style |
+| `POST /api/intent/patches` avec `{"op": "connector_create", "start": {"kind": "device", "ref": "sw-core-01", "side": "e"}, "end": {"kind": "free", "x": 300, "y": -40}}` (répond avec l'`id` `c<revision>-<n>` ; bouts `free` (`x`, `y`) \| `device` (`ref` = hostname) \| `group` \| `annotation` (`ref` = id), un bout attaché porte son ancre `side` `auto` (le contour vers l'autre bout) \| `n` \| `e` \| `s` \| `w` (le milieu de ce côté, 1.5.0) ; `heads` `{start, end}` `none`\|`arrow`, `route` `straight`\|`elbow`\|`curve`, `bend` ±2000, `label`, `z`, `locked`, `style` partiel facultatifs), `connector_update` (`id`, chaque champ facultatif, un bout remplacé en entier), `connector_delete` (`id`) | **les connecteurs** (`docs/10` §6.6, Intent 1.4.0, ancres 1.5.0) : une ligne ou une flèche entre deux bouts, libres ou attachés, qui suit ce qui bouge ; une intention, jamais un câble ; défauts : flèche à l'arrivée, droit, ardoise ; 422 `unknown_connector`, `connector_same_ends`, `end_ref_mismatch`, bornes du style. Un document 1.3.x est relu avec ses lignes et flèches converties en connecteurs, un 1.4.x avec `side` = `auto` |
+| `POST /api/intent/assets?infrastructure=X` (corps = le fichier brut, `Content-Type: image/png`, `image/jpeg` ou `image/webp`) → `{"asset", "media_type", "bytes", "width", "height"}` ; `GET …/assets?infrastructure=X&asset=<sha256>` ; `DELETE …` | **le magasin d'images** (`assets.py`, `<archive>/_intent/<infra>/assets/<sha256>`) : reconnu **aux octets de tête** (jamais au nom ni au type déclaré ; un SVG est refusé, 422), borné par `LD_MAX_ASSET_BYTES` (4 Mo, 413), 415 hors image, 201 puis 200 pour un même fichier (une empreinte, un fichier), lecture avec le type vérifié, `nosniff` et cache immuable, 409 `asset_in_use` tant qu'une annotation cite le fichier |
+| `POST /api/intent/patches` avec `{"op": "group_create", "label": "Cœur", "members": ["sw-core-01", "sw-core-02"], "style": {"hue": "indigo"}}` (répond avec l'`id` `g<revision>-<n>`), `group_update` (`id`, puis `label`, `description`, `members`, `style` partiel, chacun facultatif), `group_add` / `group_remove` (`id`, `members`), `group_delete` (`id`) | **les groupes** (`docs/10` §5, Intent 1.2.0) : des membres et un style (forme, coins, teinte, remplissage, bordure, marge, étiquette), le cadre calculé par la toile ; dernier écrivain gagne par groupe, par membre pour `add` / `remove` ; 422 `unknown_group` (supprimé entre-temps), `group_without_member` (retirer le dernier membre : supprimer le groupe), bornes et énumérations du style |
+| `POST /api/intent/patches` avec `{"op": "color", "hostname": "sw-core-01", "hue": "amber"}`, `{"op": "uncolor", "hostname": "…"}`, `{"op": "color_type", "type": "firewall", "hue": "red"}`, `{"op": "uncolor_type", "type": "…"}` | **les couleurs d'intention** (`docs/10`, Intent 1.1.0) : une teinte nommée parmi douze (`blue sky indigo violet pink red orange amber lime green teal slate`), par équipement (l'emporte) ou par type (la palette de l'infrastructure) ; dernier écrivain gagne par clé ; 422 sur une teinte ou un type hors énumération ; un `intent.json` écrit en 1.0.0 se relit avec ses listes de couleurs vides et s'écrit en 1.1.0 à la prochaine opération |
 | `ld render --infrastructure X --run-id Y` | la page embarque le document (clé `intent`, **lecture seule** : sans serveur, un déplacement reste local) ; en mode fichier, pas d'intention |
 | `/view` | lit `/api/intent` avec le snapshot ; **le nom saisi dans la page** (champ « votre nom », gardé dans `localStorage`) signe les épingles ; glisser un équipement envoie `pin` à la relâche, l'onglet **Intentions** liste, retire, confirme avant de tout retirer |
 
@@ -570,6 +575,31 @@ Chromium ; **bout en bout sur trois runs** : clic et clavier sur la bande, diff 
 toile) et les tests sous Node avec un `fetch` simulé (saisie du jeton, liste des runs, chargement, jeton refusé
 oublié, 404 expliqué ; la bande : ordre, marques, ← → et « comparer à », un seul écouteur d'adresse, liste
 indisponible).
+
+## L'application : `GET /`, `GET /assets/app/…` (2026-10-07)
+
+**Ce que c'est** : la face utilisateur de Living Diagram, une application React servie à `/` qui affiche le diagramme
+d'une run, run après run, avec ses changements et ses intentions. `/view` reste la page de lecture de B1 (qualité
+des données, sources, contrôles, comptabilité des intentions, « replacer »), gelée.
+
+- **`GET /`** : la page, servie sans jeton et sans donnée, comme `/view` et `/docs`. Elle embarque le catalogue des
+  codes de contrôle (sens, règle), charge `/assets/app/app.js` et `/assets/app/app.css` depuis sa propre origine, et
+  lit la run par l'API avec le jeton saisi dans la page (gardé dans `sessionStorage`, jamais dans l'adresse).
+  Adresse partageable : `/?infrastructure=<infra>&run_id=<run>&from=<run d'avant>#node=<hostname>` ; sans `run_id`,
+  la dernière run s'ouvre comparée à la précédente.
+- **CSP** (en-tête) : `default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self';
+  base-uri 'none'; form-action 'none'` : aucun CDN, aucune ressource externe, aucun style en ligne. React, React Flow
+  (2026-10-07), Lucide et les polices (Inter, JetBrains Mono, OFL) sont dans le bundle et les assets.
+- **`GET /assets/app/{name}`** : `app.js`, `app.css`, `fonts/*.woff2`, **lus à la requête** dans les assets du paquet
+  (`src/ld_backend/render/assets/app/`, versionnés, construits par `npm run build` dans `engine/`), servis avec un
+  `ETag` (empreinte du contenu, 304 sur `If-None-Match`) et `Cache-Control: no-cache`. La liste des fichiers fait
+  foi : un nom inventé, un `..`, une extension inconnue sont des 404 sans détail.
+- **Tests** : `tests/test_app.py` (page, CSP, fichiers, 404, sources de l'application sans `innerHTML` ni
+  `dangerouslySetInnerHTML` ni style en ligne, tests Node des modules purs, parcours de bout en bout dans Chromium :
+  accueil, dernière run, clic, Maj + clic, alignement et glissé du bloc épinglés par l'API, palette, règle dans l'adresse, bande des
+  runs, glissé) ; la dérive du bundle est vérifiée avec celle de `viewer.js` (`build.mjs --check`).
+
+Guide de l'application : `engine/README.md` § L'application.
 
 ## Vérifier et faire évoluer
 

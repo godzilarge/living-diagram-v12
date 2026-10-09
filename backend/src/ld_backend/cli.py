@@ -13,6 +13,7 @@ from ld_contracts.snapshot import Snapshot
 from ld_contracts.snapshot.serialize import canonical_json
 
 from ld_backend.archive import ArchiveCorruptError, BundleArchive
+from ld_backend.assets import AssetStore
 from ld_backend.config import DEFAULT_ARCHIVE_DIR, ConfigError, Settings
 from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, archived_pair, snapshot_from_data, summary_lines
@@ -67,20 +68,54 @@ def _cmd_runs(args: argparse.Namespace) -> int:
 
 
 def _cmd_intent(args: argparse.Namespace) -> int:
-    """Lit la couche d'intention d'une infrastructure (B4) : ses épingles, qui, quand ; lecture seule."""
+    """Lit la couche d'intention d'une infrastructure (B4, docs/10) : ses épingles et ses couleurs, qui, quand ;
+    lecture seule."""
     try:
         intent = IntentStore(Path(args.archive)).load(args.infrastructure)
     except IntentCorruptError, OSError:
         print("document d'intention corrompu ou illisible : intervention nécessaire")
         return EXIT_INVALID
+    colors = len(intent.type_colors) + len(intent.device_colors)
     print(
-        f"révision {intent.revision} · {len(intent.pins)} épingle(s)"
-        + (f" · {utc_z(intent.updated_at)}" if intent.updated_at else "")
+        f"révision {intent.revision} · {len(intent.pins)} épingle(s) · {colors} couleur(s) · "
+        f"{len(intent.groups)} groupe(s) · {len(intent.annotations)} annotation(s) · "
+        f"{len(intent.connectors)} connecteur(s)" + (f" · {utc_z(intent.updated_at)}" if intent.updated_at else "")
     )
     for pin in intent.pins:
         print(f"{pin.hostname}\t{pin.x}\t{pin.y}\t{pin.author}\t{utc_z(pin.at)}")
     if not intent.pins:
         print("aucune épingle pour cette infrastructure")
+    for color in intent.type_colors:
+        print(f"type {color.type}\t{color.hue}\t{color.author}\t{utc_z(color.at)}")
+    for color in intent.device_colors:
+        print(f"{color.hostname}\t{color.hue}\t{color.author}\t{utc_z(color.at)}")
+    if not colors:
+        print("aucune couleur pour cette infrastructure")
+    for group in intent.groups:
+        members = ", ".join(group.members)
+        style = f"{group.style.shape} {group.style.hue}"
+        print(f"groupe {group.id}\t{group.label}\t{style}\t{members}\t{group.author}\t{utc_z(group.at)}")
+    if not intent.groups:
+        print("aucun groupe pour cette infrastructure")
+    for a in intent.annotations:
+        anchor = a.anchor.kind if a.anchor.ref is None else f"{a.anchor.kind} {a.anchor.ref}"
+        box = f"{a.x},{a.y} {a.w}x{a.h}"
+        print(f"annotation {a.id}\t{a.content.kind}\t{anchor}\t{box}\t{a.author}\t{utc_z(a.at)}")
+    if not intent.annotations:
+        print("aucune annotation pour cette infrastructure")
+    for c in intent.connectors:
+        ends = " → ".join(
+            f"{e.x},{e.y}" if e.kind == "free" else f"{e.kind} {e.ref} ({e.side})" for e in (c.start, c.end)
+        )
+        shape = f"{c.route} {c.heads.start}/{c.heads.end}"
+        print(f"connecteur {c.id}\t{ends}\t{shape}\t{c.label}\t{c.author}\t{utc_z(c.at)}")
+    if not intent.connectors:
+        print("aucun connecteur pour cette infrastructure")
+    cited = {a.content.asset for a in intent.annotations if a.content.kind == "image"}
+    for asset in AssetStore(Path(args.archive)).list(args.infrastructure):
+        state = "citée" if asset.asset in cited else "citée par aucune annotation"
+        size = f"{asset.width}x{asset.height}\t{asset.bytes} octets"
+        print(f"image {asset.asset[:12]}…\t{asset.media_type}\t{size}\t{state}")
     return EXIT_OK
 
 

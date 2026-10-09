@@ -540,6 +540,8 @@ const joined = (lines) => lines.map((cells) => cells.map((cell) => cell.text).jo
 test("une vitesse s'écrit en Gb/s ou en Mb/s ; non lue, elle ne s'écrit pas", () => {
   const { LD } = load(page);
   assert.deepEqual(clone([10000, 2500, 1000, 100, 20000, null].map(LD.dom.speedText)), ["10 Gb/s", "2,5 Gb/s", "1 Gb/s", "100 Mb/s", "20 Gb/s", null]);
+  assert.deepEqual(clone(["TenGigabitEthernet1/0/1", "GigabitEthernet0", "Ethernet1/49", "port-channel10", "Port-channel20", "Ethernet", "EthernetX", "mgmt0", "x1", null].map(LD.dom.shortPort)),
+    ["Te1/0/1", "Gi0", "Eth1/49", "Po10", "Po20", "Ethernet", "EthernetX", "mgmt0", "x1", ""], "forme courte seulement devant un chiffre");
 });
 
 test("la bulle d'un câble donne, par bout, vitesse, duplex, média et état, tels que lus", () => {
@@ -739,7 +741,8 @@ test("un nœud porte une icône de type dessinée et son nom raccourci au besoin
   const { document } = load(page, data);
   const canvas = document.getElementById("canvas");
   const node = (host) => canvas.withClass("node").find((g) => g.getAttribute("data-node") === host);
-  assert.match(node("sw-core-01").withClass("node-icon")[0].getAttribute("d"), /^M/, "une icône dessinée, pas un glyphe");
+  assert.match(node("sw-core-01").withClass("icon-body")[0].getAttribute("d"), /^M/, "une icône dessinée (silhouette pleine), pas un glyphe");
+  assert.equal(node("sw-core-01").withClass("icon-mark").length, 1, "le symbole en réserve dans la silhouette");
   assert.equal(node("sw-core-01").withClass("node-tag").length, 0, "le type n'est plus un texte dans le nœud");
   assert.match(node("sw-core-01").getAttribute("aria-label"), /sw-core-01 · équipement collecté · switch/);
   const label = node(long).withClass("node-label")[0].textContent;
@@ -989,6 +992,72 @@ test("le modèle indexe les épingles et dit lesquelles sont orphelines", { skip
   assert.deepEqual(clone(Array.from(model.pinByHost.keys())), ["gone-host", "sw-core-01"]);
   assert.deepEqual(clone(model.orphanPins.map((p) => p.hostname)), ["gone-host"], "un hostname absent de la run : épingle orpheline, gardée");
   assert.equal(load(intentPage).LD.model.build({ ...intentPage.data, intent: undefined }).intent, null, "sans intention, rien n'est inventé");
+});
+
+test("la couleur d'intention (docs/10) : celle de l'équipement, sinon celle du type, sinon le défaut du moteur ; classes, légende, onglet", { skip: !intentPage }, () => {
+  const { LD, document } = load(intentPage, intentPage.data);
+  const model = LD.app.model;
+  assert.deepEqual(clone(LD.hues.HUES.length), 12);
+  assert.equal(LD.hues.DEFAULT_HUE.switch, "blue");
+  assert.equal(LD.hues.hueOfNode(model, { hostname: "sw-core-01", type: "switch" }), "amber", "la teinte propre l'emporte");
+  assert.equal(LD.hues.hueOfNode(model, { hostname: "fw-edge-01", type: "firewall" }), "red", "sinon celle du type, posée par l'intention");
+  assert.equal(LD.hues.hueOfNode(model, { hostname: "sw-core-02", type: "switch" }), "blue", "sinon le défaut du moteur");
+  assert.equal(LD.hues.hueOfNode(model, { hostname: "x", type: null }), "slate", "un type absent est ardoise");
+  assert.deepEqual(clone(model.orphanColors.map((c) => c.hostname)), ["gone-host"], "une couleur sur un hostname absent de la run est orpheline, gardée");
+  const canvas = document.getElementById("canvas");
+  assert.equal(nodeOf(canvas, "sw-core-01").classList.contains("hue-amber"), true, "la carte porte sa teinte");
+  assert.equal(nodeOf(canvas, "fw-edge-01").classList.contains("hue-red"), true);
+  assert.equal(nodeOf(canvas, "sw-core-02").classList.contains("hue-blue") && nodeOf(canvas, "sw-core-02").classList.contains("type-switch"), true, "le type reste une classe, la teinte en est une autre");
+  const legend = document.getElementById("graph-legend").withClass("legend-icon");
+  assert.equal(legend.some((el) => el.classList.contains("hue-red")), true, "la légende suit la palette des types");
+  assert.equal(legend.some((el) => el.classList.contains("hue-blue")), true);
+  const without = load(intentPage).LD.model.build({ ...intentPage.data, intent: { ...intentPage.data.intent, type_colors: undefined, device_colors: undefined } });
+  assert.equal(without.colorByType.size + without.colorByHost.size, 0, "un document d'avant 1.1.0 : aucune couleur, rien n'est inventé");
+  LD.app.activate("intent");
+  const text = document.getElementById("view-intent").textContent;
+  assert.match(text, /Couleurs enregistrées : 3 · 1 orpheline/);
+  assert.match(text, /type · firewall/);
+  assert.equal(document.getElementById("view-intent").all((n) => n.tagName === "button" && n.textContent === "retirer la couleur").length, 0, "sans écrivain nommé, pas de bouton");
+});
+
+test("les groupes (docs/10 §5) : indexés par id et par membre, orphelins dits tels, cadre calculé depuis les membres, étiquette ancrée, sélection par identité, onglet", { skip: !intentPage }, () => {
+  const { LD, document } = load(intentPage, intentPage.data);
+  const model = LD.app.model;
+  assert.deepEqual(clone(Array.from(model.groupById.keys())), ["g2-1", "g2-2"]);
+  assert.deepEqual(clone((model.groupsByHost.get("sw-core-01") || []).map((g) => g.id)), ["g2-1"]);
+  assert.deepEqual(clone(model.orphanGroups.map((g) => g.id)), ["g2-2"], "aucun membre dans la run : groupe orphelin, gardé");
+  const core = model.groupById.get("g2-1");
+  assert.deepEqual(clone(LD.groups.presentMembers(model, core)), ["sw-core-01", "sw-core-02"]);
+  assert.deepEqual(clone(LD.groups.orphanMembers(model, core)), ["gone-host"]);
+  // l'enveloppe (G0) : la boîte des cartes, élargie de la marge ; l'ellipse circonscrite ; entière
+  const rect = LD.groups.frameOf([{ x: 0, y: 0 }, { x: 300, y: 100 }], [{ w: 200, h: 72 }, { w: 200, h: 72 }], { shape: "rectangle", padding: 24 });
+  assert.deepEqual(clone(rect), { x: -124, y: -60, w: 548, h: 220 });
+  const ellipse = LD.groups.frameOf([{ x: 0, y: 0 }], [{ w: 200, h: 100 }], { shape: "ellipse", padding: 0 });
+  assert.equal(ellipse.w === Math.round(200 * Math.SQRT2) && ellipse.h === Math.round(100 * Math.SQRT2), true, "demi-axes × √2");
+  assert.equal(LD.groups.frameOf([], [], { shape: "rectangle", padding: 24 }), null, "sans membre présent, pas de cadre");
+  const frame = { x: 0, y: 0, w: 400, h: 200 };
+  assert.deepEqual(clone(LD.groups.labelSlot(frame, { shape: "rectangle", label_position: "top_left", label_placement: "inside", label_size: 12 })), { x: 8, y: 8, anchor: "start", baseline: "hanging" });
+  assert.deepEqual(clone(LD.groups.labelSlot(frame, { shape: "rectangle", label_position: "bottom", label_placement: "outside", label_size: 20 })), { x: 200, y: 212, anchor: "middle", baseline: "hanging" });
+  assert.deepEqual(clone(LD.groups.labelSlot(frame, { shape: "rectangle", label_position: "right", label_placement: "outside", label_size: 12 })), { x: 408, y: 100, anchor: "start", baseline: "middle" });
+  assert.equal(LD.groups.labelSlot(frame, { shape: "ellipse", label_position: "top_left", label_placement: "inside", label_size: 12 }).x > 8, true, "dans une ellipse, un coin rentre jusqu'à la courbe");
+  assert.equal(LD.groups.dashArray({ stroke_style: "dashed", stroke_width: 2 }), "8 5");
+  assert.equal(LD.groups.dashArray({ stroke_style: "solid", stroke_width: 2 }), null);
+  // la sélection par identité (G3) : `#group=<id>`, ses membres présents
+  const selection = LD.model.selectionFromToken(model, "group", "g2-1");
+  assert.deepEqual(clone(selection), { kind: "group", id: "g2-1" });
+  assert.deepEqual(clone(LD.model.hostsOf(model, selection)), ["sw-core-01", "sw-core-02"]);
+  assert.deepEqual(clone(LD.model.tokenOf(model, selection)), ["group", "g2-1"]);
+  assert.equal(LD.model.selectionFromToken(model, "group", "g9-9"), null);
+  const related = LD.scene.relatedTo(model, selection);
+  assert.deepEqual(clone(Array.from(related.hosts).sort()), ["sw-core-01", "sw-core-02"], "un groupe éclaire ses membres présents");
+  assert.equal(related.groups.has("g2-1"), true);
+  const visible = LD.scene.visible(model, { showStubs: false, showDiff: true, hiddenStatuses: new Set(), hide: [], only: null });
+  assert.deepEqual(clone(visible.groups.map((g) => g.id)), ["g2-1"], "un groupe se dessine dès qu'un membre est visible (G4)");
+  assert.match(LD.inspect.describe(model, selection), /^groupe Cœur sélectionné$/);
+  LD.app.activate("intent");
+  const text = document.getElementById("view-intent").textContent;
+  assert.match(text, /Groupes enregistrés : 2 · 1 orphelin/);
+  assert.match(text, /Cœur/);
 });
 
 test("le graphe part des épingles enregistrées, les marque, et « replacer » les garde", { skip: !intentPage }, () => {
@@ -1630,4 +1699,534 @@ test("sans liste des runs, la run s'ouvre sans bande et l'en-tête le dit ; le f
   assert.match(document.getElementById("run-meta").textContent, /liste des runs indisponible : l'API répond 500/);
   LD.shellApp.render();
   assert.equal(strip(document).hidden, true);
+});
+
+// ---------------------------------------------------------------- la toile pour l'application (2026-10-07) : sélection
+// multiple, rectangle, règles de masquage et d'isolement, alignement. La page `/view` n'en expose rien, la toile le sait.
+
+test("Maj + clic ajoute à la sélection multiple ; un clic simple la remplace ; un seul reste une sélection simple", () => {
+  const { LD, document } = load(page, page.data);
+  const graph = LD.app.graph;
+  const hosts = [];
+  const nodeOf = (host) => document.getElementById("canvas").all((n) => n.getAttribute("data-node") === host)[0];
+  const press = (host, extra) => { const el = nodeOf(host); el.fire("pointerdown", { clientX: 5, clientY: 5, ...extra }); el.fire("pointerup", {}); };
+  press("sw-core-01", {});
+  assert.deepEqual(clone(graph.state.selection), { kind: "node", id: "sw-core-01" });
+  assert.deepEqual(clone(Array.from(graph.state.selected)), ["sw-core-01"], "un équipement sélectionné est le seul membre de la sélection multiple");
+  press("sw-core-02", { shiftKey: true });
+  assert.equal(graph.state.selection, null, "deux équipements : plus de sélection simple");
+  assert.deepEqual(clone(Array.from(graph.state.selected).sort()), ["sw-core-01", "sw-core-02"]);
+  assert.equal(document.getElementById("canvas").withClass("selected").length, 2);
+  assert.match(document.getElementById("canvas").getAttribute("class"), /has-selection/);
+  press("sw-core-02", { shiftKey: true });
+  assert.deepEqual(clone(graph.state.selection), { kind: "node", id: "sw-core-01" }, "retirer le second rend une sélection simple");
+  press("fw-edge-01", {});
+  assert.deepEqual(clone(Array.from(graph.state.selected)), ["fw-edge-01"], "un clic simple remplace tout");
+  graph.selectHosts(["sw-core-01", "sw-core-02", "inconnu"]);
+  assert.deepEqual(clone(Array.from(graph.state.selected).sort()), ["sw-core-01", "sw-core-02"], "un nom inconnu de la run est ignoré");
+  graph.selectHosts([]);
+  assert.equal(graph.state.selection, null);
+  assert.equal(graph.state.selected.size, 0);
+  void hosts;
+});
+
+test("Maj + glissé sur le fond sélectionne les équipements du rectangle ; sans Maj, c'est un panoramique", () => {
+  const { LD, document } = load(page, page.data);
+  const graph = LD.app.graph;
+  const canvas = document.getElementById("canvas");
+  const screen = (host) => { const p = graph.state.positions.get(host), v = graph.state.view; return { x: p.x * v.k + v.tx, y: p.y * v.k + v.ty }; };
+  const a = screen("sw-core-01"), b = screen("sw-core-02");
+  const left = Math.min(a.x, b.x) - 5, right = Math.max(a.x, b.x) + 5, top = Math.min(a.y, b.y) - 5, bottom = Math.max(a.y, b.y) + 5;
+  const before = { ...graph.state.view };
+  canvas.fire("pointerdown", { target: canvas, clientX: left, clientY: top, shiftKey: true });
+  canvas.fire("pointermove", { clientX: right, clientY: bottom, shiftKey: true });
+  const marquee = canvas.withClass("marquee")[0];
+  assert.equal(marquee.getAttribute("visibility"), "visible", "le rectangle se dessine pendant le glissé");
+  canvas.fire("pointerup", { clientX: right, clientY: bottom, shiftKey: true });
+  assert.equal(marquee.getAttribute("visibility"), "hidden");
+  assert.deepEqual(clone(before), clone(graph.state.view), "la vue n'a pas bougé");
+  assert.equal(graph.state.selected.has("sw-core-01") && graph.state.selected.has("sw-core-02"), true);
+  const others = Array.from(graph.state.selected).filter((h) => !["sw-core-01", "sw-core-02"].includes(h));
+  for (const host of others) { const p = screen(host); assert.equal(p.x >= left && p.x <= right && p.y >= top && p.y <= bottom, true, host + " est bien dans le rectangle"); }
+  canvas.fire("pointerdown", { target: canvas, clientX: 10, clientY: 10 });
+  canvas.fire("pointermove", { clientX: 70, clientY: 10 });
+  canvas.fire("pointerup", { clientX: 70, clientY: 10 });
+  assert.equal(graph.state.view.tx, before.tx + 60, "sans Maj, le fond se déplace");
+});
+
+test("les règles masquent et isolent ; une règle de recherche éclaire par champ", () => {
+  const { LD, document } = load(page, page.data);
+  const graph = LD.app.graph;
+  const canvas = document.getElementById("canvas");
+  const drawn = () => canvas.all((n) => n.getAttribute("data-node") !== null).map((n) => n.getAttribute("data-node")).sort();
+  const all = drawn();
+  assert.equal(all.length, 5);
+  graph.state.hide = [LD.query.parseRule("fw-")];
+  graph.render(true);
+  assert.deepEqual(drawn(), all.filter((h) => !h.includes("fw-")), "masquer retire les équipements désignés et leurs câbles");
+  assert.equal(canvas.withClass("link").every((l) => !/fw-/.test(l.getAttribute("aria-label"))), true);
+  graph.state.hide = [];
+  graph.state.only = LD.query.parseRule("^sw-core-01$");
+  graph.render(true);
+  const kept = drawn();
+  assert.equal(kept.includes("sw-core-01"), true);
+  assert.equal(kept.length < all.length, true, "isoler ne garde que l'équipement et ses voisins directs");
+  for (const host of kept) {
+    const neighbour = host === "sw-core-01" || LD.app.model.linksByNode.get(host).some((l) => l.a.hostname === "sw-core-01" || l.b.hostname === "sw-core-01");
+    assert.equal(neighbour, true, host + " est un voisin direct");
+  }
+  graph.state.hide = [LD.query.parseRule("^sw-core-01$")];
+  graph.render(true);
+  assert.equal(drawn().includes("sw-core-01"), false, "masquer gagne sur isoler");
+  graph.state.hide = []; graph.state.only = null; graph.render(true);
+  assert.deepEqual(drawn(), all);
+  graph.state.query = "type:firewall";
+  graph.repaint();
+  const lit = canvas.withClass("match").map((n) => n.getAttribute("data-node")).sort();
+  assert.deepEqual(lit, all.filter((h) => (LD.app.model.nodeByHost.get(h).type === "firewall")));
+  graph.state.query = "(";
+  graph.repaint();
+  assert.equal(canvas.withClass("match").length, 0, "une regex illisible n'éclaire rien et ne casse rien");
+});
+
+test("l'alignement est pur, entier, et la toile l'applique à la sélection multiple en le disant à la page", () => {
+  const { LD, document } = load(page, page.data);
+  const positions = new Map([["a", { x: 10.4, y: 100 }], ["b", { x: 50, y: 140 }], ["c", { x: 90, y: 180 }], ["d", { x: 200, y: 7 }]]);
+  const row = LD.alignment.align(positions, ["c", "a", "b"], "horizontal");
+  assert.deepEqual(clone(Object.fromEntries(row)), { a: { x: 10, y: 140 }, c: { x: 90, y: 140 } }, "même y moyen, arrondi ; b n'a pas bougé");
+  const column = LD.alignment.align(positions, ["a", "b", "c"], "vertical");
+  assert.deepEqual(clone(Object.fromEntries(column)), { a: { x: 50, y: 100 }, c: { x: 50, y: 180 } });
+  const spread = LD.alignment.align(new Map([["a", { x: 0, y: 0 }], ["b", { x: 10, y: 0 }], ["c", { x: 100, y: 0 }]]), ["a", "b", "c"], "distribute-horizontal");
+  assert.deepEqual(clone(Object.fromEntries(spread)), { b: { x: 50, y: 0 } }, "répartir ne bouge que les intermédiaires");
+  assert.equal(LD.alignment.align(positions, ["a"], "horizontal").size, 0, "un seul : rien");
+  assert.equal(LD.alignment.align(positions, ["a", "b"], "distribute-vertical").size, 0, "deux : rien à répartir");
+  assert.equal(LD.alignment.align(positions, ["a", "zz"], "horizontal").size, 0, "un inconnu est ignoré");
+  // Sur la toile : les deux cœurs alignés horizontalement, épinglés localement, la page prévenue.
+  const pins = [];
+  const graph = LD.graph.create(document.getElementById("canvas"), LD.app.model, () => {}, { onPins: (moves) => pins.push(clone(Object.fromEntries(moves))) });
+  graph.render(false);
+  graph.selectHosts(["sw-core-01", "sw-core-02"]);
+  const moved = graph.alignSelected("horizontal");
+  assert.equal(moved.size >= 1, true);
+  assert.equal(graph.state.positions.get("sw-core-01").y, graph.state.positions.get("sw-core-02").y);
+  assert.equal(pins.length, 1);
+  for (const host of moved.keys()) assert.equal(graph.state.pinned.has(host), true, host + " porte une épingle locale");
+  assert.equal(graph.alignSelected("distribute-vertical").size, 0, "deux équipements : rien à répartir, la page n'est pas prévenue");
+  assert.equal(pins.length, 1);
+});
+
+test("glisser un équipement de la sélection multiple déplace toute la sélection d'un bloc ; la page reçoit un seul paquet d'épingles", () => {
+  const { LD, document } = load(page, page.data);
+  const canvas = document.getElementById("canvas");
+  const pins = [], single = [];
+  const graph = LD.graph.create(canvas, LD.app.model, () => {}, {
+    onPin: (host, point) => single.push({ host, point: clone(point) }),
+    onPins: (moves, cause) => pins.push({ cause, moves: clone(Object.fromEntries(moves)) }),
+  });
+  graph.render(false);
+  const k = graph.state.view.k;
+  const before = (host) => clone(graph.state.positions.get(host));
+  const moved = (host, from) => { const p = graph.state.positions.get(host); return { dx: Math.round((p.x - from.x) * k), dy: Math.round((p.y - from.y) * k) }; };
+  graph.selectHosts(["sw-core-01", "sw-core-02"]);
+  const a = before("sw-core-01"), b = before("sw-core-02"), other = before("fw-edge-01");
+  dragNode(nodeOf(canvas, "sw-core-01")); // de (10, 10) à (90, 40) à l'écran
+  assert.deepEqual(moved("sw-core-01", a), { dx: 80, dy: 30 });
+  assert.deepEqual(moved("sw-core-02", b), { dx: 80, dy: 30 }, "le second suit du même écart : le bloc garde sa forme");
+  assert.deepEqual(moved("fw-edge-01", other), { dx: 0, dy: 0 }, "hors sélection, rien ne bouge");
+  assert.equal(graph.state.pinned.has("sw-core-02"), true, "chacun porte une épingle locale");
+  assert.equal(pins.length, 1, "un seul paquet pour la page");
+  assert.equal(pins[0].cause, "dragged");
+  assert.deepEqual(Object.keys(pins[0].moves).sort(), ["sw-core-01", "sw-core-02"]);
+  assert.equal(single.length, 0, "pas d'épingle une à une");
+  assert.deepEqual(clone(Array.from(graph.state.selected).sort()), ["sw-core-01", "sw-core-02"], "la sélection reste");
+  dragNode(nodeOf(canvas, "fw-edge-01"));
+  assert.deepEqual(moved("fw-edge-01", other), { dx: 80, dy: 30 }, "un équipement hors sélection se glisse seul");
+  assert.deepEqual(moved("sw-core-01", a), { dx: 80, dy: 30 }, "la sélection n'a pas suivi");
+  assert.equal(single.length, 1, "un seul équipement : son épingle part seule");
+  assert.equal(pins.length, 1);
+});
+
+test("la carte d'un équipement : le nom dedans, l'icône pleine à gauche, les noms de port hors de la carte (card.ts)", () => {
+  const { LD, document } = load(page, page.data);
+  const card = LD.card.plan("DC01-CORE-01", { role: null, stack: null });
+  assert.equal(card.h, LD.card.CARD_H);
+  assert.equal(card.h >= 72, true, "une carte haute : l'icône pleine y tient à 40 px");
+  assert.equal(card.label.anchor, "start");
+  assert.equal(card.label.x + LD.card.monoWidth("DC01-CORE-01") <= card.w / 2, true, "le nom tient dans la carte, à droite du rail et de l'icône");
+  assert.equal(card.icon.x + LD.icons.SIZE * card.icon.scale < card.label.x, true, "l'icône à gauche du nom");
+  assert.equal(LD.icons.SIZE * card.icon.scale, 40, "l'icône à 40 px");
+  assert.equal(card.rail.startsWith("M") && card.rail.endsWith("Z"), true, "le rail de couleur est un tracé fermé");
+  assert.equal(LD.card.displayName("dc01-core-01"), "DC01-CORE-01", "la carte écrit le nom en capitales");
+  assert.equal(LD.card.displayName("a-very-long-hostname-indeed-yes"), "A-VERY-LONG…INDEED-YES", "raccourci au milieu, puis en capitales");
+  const withRole = LD.card.plan("DC01-CORE-01", { role: "primary", stack: 2 });
+  assert.equal(withRole.role.anchor, "start");
+  assert.equal(withRole.role.x === withRole.label.x && withRole.role.x < withRole.stack.x, true, "rôle puis compte de stack, alignés sous le nom");
+  assert.equal(withRole.role.y > withRole.label.y, true, "la petite ligne sous le nom");
+  assert.equal(withRole.h, card.h, "même hauteur avec ou sans ligne du dessous : les rangées restent alignées");
+  assert.equal(LD.card.plan("A-VERY-LONG-HOSTNAME-INDEED", { role: null, stack: null }).w > card.w, true, "un nom long élargit la carte");
+  assert.equal(LD.card.textWidth("WWWW") > LD.card.textWidth("iiii"), true, "les lettres larges comptent plus");
+  assert.equal(LD.card.reach({ w: 100, h: 40 }, 1, 0), 50, "un câble horizontal sort au bord droit");
+  assert.equal(LD.card.reach({ w: 100, h: 40 }, 0, -1), 20, "un câble vertical sort en haut");
+  // Sur la toile de /view : une carte par équipement, un disque par voisin inconnu, le nom d'un port au-delà du bord.
+  const canvas = document.getElementById("canvas");
+  const node = (host) => canvas.withClass("node").find((g) => g.getAttribute("data-node") === host);
+  assert.equal(node("sw-core-01").withClass("node-icon").length, 1, "une icône de type par carte");
+  assert.equal(node("sw-core-01").withClass("icon-shade").length, 1, "en trois couches");
+  assert.equal(node("sw-core-01").withClass("node-shape")[0].getAttribute("width") >= "1", true, "la carte est un rectangle");
+  const graph = LD.app.graph;
+  graph.state.showStubs = true;
+  graph.render(true);
+  const stub = canvas.withClass("node").find((g) => g.classList.contains("kind-stub"));
+  assert.equal(!!stub, true, "la fixture a un voisin inconnu");
+  assert.equal(stub.withClass("node-icon").length, 0, "un voisin inconnu reste un disque sans icône");
+  assert.equal(stub.withClass("node-label")[0].getAttribute("text-anchor"), "middle");
+  const horizontal = LD.geometry.chord({ x: 0, y: 0 }, { x: 400, y: 0 }, 0, [70, 70]);
+  assert.equal(horizontal.ends[0].x >= 86 && horizontal.ends[1].x <= 314, true, "les noms de port à 16 unités du bord de la carte");
+  assert.equal(LD.geometry.chord({ x: 0, y: 0 }, { x: 400, y: 0 }, 0).ends[0].x, 78, "sans boîte connue, comme avant");
+});
+
+test("une largeur de carte unique par run : la plus large, arrondie à deux carreaux de grille ; le placement la respecte", () => {
+  const { LD, document } = load(page, page.data);
+  const model = LD.app.model;
+  const cards = model.nodes.filter((n) => n.kind !== "stub");
+  const natural = cards.map((n) => LD.card.width(LD.card.displayName(n.hostname), LD.model.cardExtrasOf(model, n)));
+  assert.equal(model.cardWidth % LD.card.WIDTH_STEP, 0, "un multiple de " + LD.card.WIDTH_STEP + " : les bords tombent sur la grille");
+  assert.equal(model.cardWidth >= Math.max(...natural) && model.cardWidth < Math.max(...natural) + LD.card.WIDTH_STEP, true, "la plus large, arrondie au palier supérieur");
+  assert.equal(LD.card.CARD_H % 20, 0, "la hauteur aussi est un multiple de la grille");
+  assert.equal(LD.card.plan("SW", { role: null, stack: null }, 320).w, 320, "une largeur imposée est tenue");
+  assert.equal(LD.card.plan("A-VERY-LONG…INDEED-YES", { role: null, stack: null }, 100).w > 100, true, "jamais plus étroite que son nom");
+  assert.equal(LD.card.uniformWidth([]), LD.card.WIDTH_STEP * Math.ceil(LD.card.width("", { role: null, stack: null }) / LD.card.WIDTH_STEP), "une run sans carte : la carte minimale");
+  const widths = new Set(document.getElementById("canvas").withClass("node").filter((g) => !g.classList.contains("kind-stub"))
+    .map((g) => g.withClass("node-shape")[0].getAttribute("width")));
+  assert.deepEqual(Array.from(widths).map(Number), [model.cardWidth], "toutes les cartes de /view ont la même largeur");
+  // Deux cœurs tirés par les mêmes dix accès, cartes de 320 : aucun rectangle n'en recouvre un autre.
+  const box = { w: 320, h: LD.card.CARD_H };
+  const edges = [];
+  for (let i = 0; i < 10; i += 1) edges.push(["core-a", "acc-" + i], ["core-b", "acc-" + i]);
+  const placed = Array.from(LD.layout.run(["core-a", "core-b", ...Array.from({ length: 10 }, (_, i) => "acc-" + i)], edges, new Map(), { card: box }).values());
+  for (let i = 0; i < placed.length; i += 1) for (let j = i + 1; j < placed.length; j += 1) {
+    const dx = Math.abs(placed[i].x - placed[j].x), dy = Math.abs(placed[i].y - placed[j].y);
+    assert.equal(dx >= box.w || dy >= box.h, true, `deux cartes se recouvrent : écart ${dx} × ${dy}`);
+  }
+});
+
+test("le badge HA d'une carte : A ou P seulement là où le snapshot le dit (model.haBadge)", () => {
+  const { LD } = load(page, page.data);
+  const badge = LD.model.haBadge;
+  assert.equal(badge("active_passive", "primary"), "A");
+  assert.equal(badge("active_passive", "secondary"), "P");
+  assert.equal(badge("other", "active"), "A");
+  assert.equal(badge("other", "standby"), "P");
+  assert.equal(badge("active_active", "primary"), "A", "en actif-actif, tous les membres transmettent");
+  assert.equal(badge("active_active", "secondary"), "A");
+  assert.equal(badge("other", "primary"), null, "primary hors actif-passif : on n'en déduit rien");
+  assert.equal(badge("active_passive", "member"), null);
+});
+
+test("la scène (scene.ts) : visibles selon les filtres, placement en deux temps déterministe et sans chevauchement, ce qu'une sélection éclaire", () => {
+  const { LD } = load(page, page.data);
+  const model = LD.app.model;
+  const base = { showStubs: false, showDiff: true, hiddenStatuses: new Set(), hide: [], only: null };
+  const a = LD.scene.visible(model, base);
+  assert.equal(a.nodes.every((n) => n.kind !== "stub"), true, "sans la bascule, aucun voisin inconnu");
+  assert.equal(LD.scene.visible(model, { ...base, showStubs: true }).nodes.length > a.nodes.length, true, "les voisins inconnus s'ajoutent");
+  assert.equal(LD.scene.visible(model, { ...base, hiddenStatuses: new Set(["confirmed"]) }).links.every((l) => l.status !== "confirmed"), true, "un statut masqué retire ses câbles");
+  const first = LD.scene.placeScene(model, a.nodes, new Map(), new Map());
+  const second = LD.scene.placeScene(model, a.nodes, new Map(), new Map());
+  assert.deepEqual(clone(Object.fromEntries(first.positions)), clone(Object.fromEntries(second.positions)), "même dessin deux fois");
+  assert.equal(first.fresh.size > 0, true, "un premier dessin a des places neuves");
+  const memory = new Map();
+  LD.scene.placeScene(model, a.nodes, new Map(), memory);
+  assert.equal(LD.scene.placeScene(model, a.nodes, new Map(), memory).fresh.size, 0, "la mémoire tient : rien de neuf au second dessin");
+  const points = Array.from(first.positions.values());
+  let closest = Infinity;
+  for (let i = 0; i < points.length; i += 1) for (let j = i + 1; j < points.length; j += 1) closest = Math.min(closest, Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y));
+  assert.equal(closest >= LD.layout.IDEAL * 0.5, true, "deux équipements ne se chevauchent jamais : " + closest);
+  const related = LD.scene.relatedTo(model, { kind: "node", id: "sw-core-01" });
+  assert.equal(related.hosts.has("sw-core-01") && related.links.size > 0, true, "un équipement éclaire ses câbles");
+  assert.equal(LD.scene.relatedToHosts(model, new Set(["sw-core-01", "sw-core-02"])).links.size >= 1, true, "deux cœurs éclairent les câbles entre eux");
+  assert.equal(LD.scene.relatedTo(model, null).hosts.size, 0);
+});
+
+test("la pastille (pill.ts) : largeur à chasse fixe, jetons de vitesse, noms courts des port-channels, texte d'un faisceau", () => {
+  const { LD } = load(page, page.data);
+  const { pillWidth, speedToken, aggregateShort, beamPillText } = LD.pill;
+  assert.equal(pillWidth("ACTIF"), 49);
+  assert.equal(pillWidth("2", "icon"), 37, "icône + chiffre");
+  assert.equal(pillWidth("10G", "dot"), 45);
+  assert.deepEqual([100, 1000, 2500, 10000, 25000, 40000, 100000, 400000].map(speedToken), ["100M", "1G", "2.5G", "10G", "25G", "40G", "100G", "400G"]);
+  assert.deepEqual(["port-channel10", "Port-channel1", "Po20", "Bundle-Ether3", "agg-core", "ae0"].map(aggregateShort), ["PO10", "PO1", "PO20", "BE3", "AGG-CORE", "AE0"]);
+  const beam = (a, b, extra = {}) => ({ a: { aggregate: a }, b: { aggregate: b }, peerLink: false, mlags: [], ...extra });
+  assert.equal(beamPillText(beam("port-channel10", "Port-channel10")), "PO10", "même numéro des deux côtés : un seul");
+  assert.equal(beamPillText(beam("port-channel10", "port-channel20")), "PO10/PO20", "un numéro est local à son équipement : les deux");
+  assert.equal(beamPillText(beam("Po20", "agg", { mlags: [{ raw: { mlag_id: 20 } }, { raw: { mlag_id: 21 } }] })), "MLAG 20+21");
+  assert.equal(beamPillText(beam("Po10", "Po10", { peerLink: true })), "peer-link");
+});
+
+test("la vitesse (speed.ts) : une pastille par faisceau ou par paire, rien d'inventé, un désaccord en avertissement", () => {
+  const { LD } = load(page, page.data);
+  const model = LD.app.model;
+  const groups = LD.speed.speedGroups(model, model.links);
+  const byKey = new Map(groups.map((g) => [g.key.split("\u0000").join(" "), g]));
+  assert.equal(byKey.get("beam:sw-core-01 port-channel10 sw-core-02 port-channel10").text, "2×10G", "le peer-link : deux câbles de 10G, une pastille");
+  assert.equal(byKey.get("beam:fw-edge-01 agg-core sw-core-01 port-channel20").text, "10G");
+  const wan = byKey.get("pair:rt-wan-01 sw-core-01");
+  assert.equal(wan.text, "1G");
+  assert.equal(wan.dashed, true, "un seul bout lu : pointillée");
+  assert.equal(groups.every((g) => g.tone === "neutral"), true);
+  assert.equal(groups.some((g) => g.links.some((l) => l.ghost)), false, "les fantômes n'ont pas de vitesse");
+  // un modèle à la main : deux bouts qui diffèrent, un câble sans vitesse lue, un faisceau mixte, deux groupes sur une paire
+  const itf = (hostname, name, speed, type = "physical") => [hostname + "\u0000" + name, { hostname, name, type, speed_mbps: speed }];
+  const ends = (a, ia, b, ib) => ({ a: { hostname: a, interface: ia }, b: { hostname: b, interface: ib } });
+  const beamX = { id: "bx", links: [] };
+  const link = (id, e, extra = {}) => ({ id, pair: e.a.hostname + "|" + e.b.hostname, raw: { oper: "up" }, worst: null, beam: null, ghost: false, indexInPair: 0, pairCount: 1, ...e, ...extra });
+  const links = [
+    link("l1", ends("a", "e1", "b", "e1")),
+    link("l2", ends("a", "e2", "c", "e2")),
+    link("l3", ends("a", "e3", "d", "e3"), { beam: beamX, indexInPair: 0, pairCount: 3 }),
+    link("l4", ends("a", "e4", "d", "e4"), { beam: beamX, indexInPair: 1, pairCount: 3 }),
+    link("l5", ends("a", "e5", "d", "e5"), { indexInPair: 2, pairCount: 3, worst: "error" }),
+  ];
+  beamX.links = [links[2], links[3]];
+  const hand = { ifaceByKey: new Map([itf("a", "e1", 10000), itf("b", "e1", 1000), itf("a", "e3", 10000), itf("d", "e3", 10000), itf("a", "e4", 1000), itf("d", "e4", 1000), itf("a", "e5", 10000), itf("d", "e5", 10000)]), ghostIfaceByKey: new Map() };
+  const got = new Map(LD.speed.speedGroups(hand, links).map((g) => [g.key, g]));
+  assert.equal(got.get("pair:a|b").text, "10G/1G", "les deux bouts, dans l'ordre du câble");
+  assert.equal(got.get("pair:a|b").tone, "warning");
+  assert.equal(got.has("pair:a|c"), false, "aucun bout lu : pas de pastille");
+  assert.equal(got.get("beam:bx").text, "10G+1G", "un faisceau mixte, du plus rapide au plus lent");
+  assert.equal(got.get("pair:a|d").worst, "error", "le point de gravité du câble entre dans sa pastille");
+  assert.notEqual(got.get("beam:bx").t, got.get("pair:a|d").t, "deux groupes sur une paire : deux places le long de la courbe");
+});
+
+test("la place des pastilles de câble (tags.ts) : sur la courbe, ni sur une carte ni sur une autre pastille, déterministe", () => {
+  const { LD } = load(page, page.data);
+  const { placeTags, tagCenter, MIDDLE, NEAR_Q } = LD.tags;
+  const p = { x: 0, y: 0 }, q = { x: 400, y: 0 };
+  const card = (c) => ({ x: c.x - 80, y: c.y - 40, w: 160, h: 80 });
+  const req = (id, prefer, w = 60) => ({ id, p, q, offset: 0, w, prefer });
+  const got = placeTags([req("speed", MIDDLE), req("po", MIDDLE), req("mlag", NEAR_Q)], [card(p), card(q)]);
+  assert.deepEqual({ ...got.get("speed") }, { t: 0.5, side: 0 }, "la première au milieu, sur la courbe");
+  const po = got.get("po");
+  assert.equal(po.side, 0, "la deuxième reste sur la courbe, à côté");
+  assert.notEqual(po.t, 0.5);
+  const rect = (id, w = 60) => { const c = tagCenter(p, q, 0, w, got.get(id)); return { x: c.x - w / 2, y: c.y - 10, w, h: 20 }; };
+  const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const all = ["speed", "po", "mlag"].map((id) => rect(id));
+  all.forEach((a, i) => all.forEach((b, j) => { if (i < j) assert.equal(hit(a, b), false, "aucune pastille sur une autre"); }));
+  all.forEach((a) => [card(p), card(q)].forEach((c) => assert.equal(hit(a, c), false, "aucune pastille sur une carte")));
+  assert.ok(rect("mlag").x > 200, "une MLAG se lit près de l'équipement double-attaché");
+  // un lien court : plus de place sur la courbe, la pastille se décale à côté
+  const short = { x: 220, y: 0 };
+  const crowded = placeTags([{ id: "a", p, q: short, offset: 0, w: 50, prefer: MIDDLE }, { id: "b", p, q: short, offset: 0, w: 50, prefer: MIDDLE }], [card(p), card(short)]);
+  assert.equal(crowded.get("b").side !== 0, true, "à côté de la courbe quand elle est pleine");
+  assert.ok(tagCenter(p, short, 0, 50, crowded.get("b")).y < 0, "vers le haut de l'écran");
+  const twice = () => JSON.stringify(Array.from(placeTags([req("speed", MIDDLE), req("po", MIDDLE)], [card(p), card(q)])));
+  assert.equal(twice(), twice(), "même entrée, mêmes places");
+});
+
+test("ce qu'un clic révèle (reveal.ts) : la patte, les autres pattes du même MLAG, le peer-link ; rien pour un équipement", () => {
+  const { LD } = load(page, page.data);
+  const model = LD.app.model;
+  const ids = (set) => Array.from(set).map((id) => id.split("\u0000").join(" "));
+  const leg = model.beams.find((b) => b.mlags.length && b.b.hostname === "sw-core-01");
+  const shown = LD.reveal.reveal(model, { kind: "link", id: leg.links[0].id });
+  assert.deepEqual(ids(shown.primary), ["fw-edge-01 agg-core sw-core-01 port-channel20"]);
+  assert.deepEqual(ids(shown.sibling), ["fw-edge-01 agg-core sw-core-02 port-channel20"], "l'autre patte du vPC 20");
+  assert.deepEqual(ids(shown.peer), ["sw-core-01 port-channel10 sw-core-02 port-channel10"]);
+  const peer = model.beams.find((b) => b.peerLink);
+  const alone = LD.reveal.reveal(model, { kind: "beam", id: peer.id });
+  assert.deepEqual([alone.primary.size, alone.sibling.size, alone.peer.size], [1, 0, 0], "le peer-link ne révèle que lui");
+  const node = LD.reveal.reveal(model, { kind: "node", id: "sw-core-01" });
+  assert.equal(node.primary.size + node.sibling.size + node.peer.size, 0);
+  const related = LD.scene.relatedTo(model, { kind: "link", id: leg.links[0].id });
+  assert.equal(related.beams.has(shown.sibling.values().next().value), true, "la patte sœur ne s'estompe pas");
+  assert.equal(related.hosts.has("sw-core-02"), true);
+});
+
+test("les annotations (annotations.ts) : boîte depuis l'ancre, écart inverse, retour à la ligne, grille, ligne de rappel, visibilité", () => {
+  const { LD } = load(page);
+  const A = LD.annotations;
+  const style = A.DEFAULT_STYLE.note;
+  const free = { id: "a1-1", anchor: { kind: "free", ref: null }, x: 100, y: 50, w: 220, h: 80, z: "front", locked: false, leader: false, content: { kind: "note", text: "x" }, style };
+  assert.deepEqual(clone(A.frameOf(free, null)), { x: 100, y: 50, w: 220, h: 80 }, "libre : sa boîte");
+  const onCard = { ...free, anchor: { kind: "device", ref: "sw-core-01" }, x: -110, y: -160 };
+  const card = { kind: "device", center: { x: 400, y: 300 }, box: { w: 220, h: 80 } };
+  assert.deepEqual(clone(A.frameOf(onCard, card)), { x: 290, y: 140, w: 220, h: 80 }, "attachée : relative au centre de la carte");
+  assert.equal(A.frameOf(onCard, null), null, "sans ancre dessinée, pas de boîte");
+  assert.deepEqual(clone(A.offsetOf(onCard, { x: 290, y: 140 }, card)), { x: -110, y: -160 }, "l'écart inverse");
+  const onGroup = { ...free, anchor: { kind: "group", ref: "g2-1" }, x: 10, y: 10 };
+  assert.deepEqual(clone(A.frameOf(onGroup, { kind: "group", frame: { x: 1000, y: 2000, w: 500, h: 300 } })), { x: 1010, y: 2010, w: 220, h: 80 }, "attachée à un groupe : relative à son coin");
+  assert.deepEqual(clone(A.offsetOf(onGroup, { x: 1010, y: 2010 }, { kind: "group", frame: { x: 1000, y: 2000, w: 500, h: 300 } })), { x: 10, y: 10 });
+  const lines = A.wrapText("Baie 12, rangée B, contact équipe réseau", 120, style);
+  assert.equal(lines.length >= 2 && lines.every((l) => LD.card.textWidth(l, 13) <= 120), true, "chaque ligne tient dans la largeur : " + JSON.stringify(lines));
+  assert.deepEqual(clone(A.wrapText("un\ndeux", 500, style)), ["un", "deux"], "un retour écrit est gardé");
+  assert.equal(A.wrapText("abcdefghijklmnopqrstuvwxyz", 40, style).length > 1, true, "un mot trop long est coupé");
+  const laid = A.layoutText("une ligne", { x: 0, y: 0, w: 220, h: 80 }, { ...style, text_align: "center", text_valign: "middle" });
+  assert.equal(laid.anchor, "middle");
+  assert.equal(laid.lines[0].x, 110);
+  assert.equal(A.layoutText("a\nb\nc\nd\ne\nf\ng", { x: 0, y: 0, w: 220, h: 40 }, style).clipped, true, "ce qui dépasse est coupé, dit tel");
+  assert.equal(A.fitCell("un texte vraiment trop long pour la colonne", 60, A.DEFAULT_STYLE.table).endsWith("…"), true);
+  assert.deepEqual(clone(A.borderPoint({ x: 0, y: 0, w: 100, h: 50 }, { x: 300, y: 25 })), { x: 100, y: 25 }, "le bord d'une boîte vers un point");
+  const leader = A.leaderOf({ x: 0, y: 0, w: 100, h: 50 }, { x: 300, y: 0, w: 100, h: 50 });
+  assert.deepEqual(clone(leader), { x1: 100, y1: 25, x2: 300, y2: 25 }, "du bord de la boîte au bord de l'ancre");
+  assert.equal(A.leaderOf({ x: 0, y: 0, w: 100, h: 50 }, { x: 50, y: 10, w: 100, h: 50 }), null, "qui se touchent : rien");
+  assert.equal(A.shownWith(free, new Set(), new Set()), true, "libre : toujours");
+  assert.equal(A.shownWith(onCard, new Set(["sw-core-01"]), new Set()), true);
+  assert.equal(A.shownWith(onCard, new Set(), new Set()), false, "attachée à un équipement masqué : non dessinée");
+  assert.equal(A.shownWith(onGroup, new Set(), new Set(["g2-1"])), true);
+  assert.equal(A.summary({ ...free, content: { kind: "table", header: true, rows: [["VLAN", "nom"], ["10", "x"]] } }), "2 × 2 · VLAN | nom");
+  assert.equal(A.summary({ ...free, content: { kind: "shape", shape: "ellipse", label: "WAN" } }), "ellipse · WAN");
+});
+
+test("le tableau (table.ts) : grille au prorata des poids, fusions, lignes et colonnes insérées ou retirées, frontières glissées", () => {
+  const T = load(page).LD.table;
+  const base = T.fresh([["a", "b", "c"], ["d", "e", "f"]]);
+  assert.deepEqual(clone(T.grid(base, { w: 300, h: 60 })), { xs: [0, 100, 200, 300], ys: [0, 30, 60], columns: 3, rows: 2 }, "sans poids : égales");
+  const weighted = { ...base, widths: [1, 1, 2], heights: [1, 3] };
+  assert.deepEqual(clone(T.grid(weighted, { w: 400, h: 80 }).xs), [0, 100, 200, 400], "au prorata, la dernière frontière exactement au bout");
+  assert.deepEqual(clone(T.grid(weighted, { w: 400, h: 80 }).ys), [0, 20, 80]);
+  const merged = T.merge(base, { r0: 0, c0: 0, r1: 1, c1: 1 });
+  assert.deepEqual(clone(merged.merges), [{ row: 0, col: 0, rows: 2, cols: 2 }]);
+  const g = T.grid(merged, { w: 300, h: 60 });
+  const visible = T.cells(merged, g);
+  assert.deepEqual(clone(visible.map((c) => c.r + ":" + c.c)), ["0:0", "0:2", "1:2"], "les cellules couvertes ne se dessinent pas");
+  assert.deepEqual([visible[0].w, visible[0].h, visible[0].text], [200, 60, "a"], "la fusion a la boîte de ses cellules, le texte du coin");
+  assert.deepEqual(clone(T.cellAt(merged, g, 150, 45)), [0, 0], "un point dans la fusion désigne son coin");
+  assert.deepEqual(clone(T.cellAt(merged, g, 250, 45)), [1, 2]);
+  assert.equal(T.cellAt(merged, g, 350, 10), null, "hors du tableau : rien");
+  assert.deepEqual(clone(T.rangeOf(merged, [1, 2], [0, 1])), { r0: 0, c0: 0, r1: 1, c1: 2 }, "une plage qui touche une fusion l'englobe");
+  assert.equal(T.merge(base, { r0: 0, c0: 0, r1: 0, c1: 0 }), base, "une seule cellule ne se fusionne pas");
+  assert.deepEqual(clone(T.split(merged, 1, 1).merges), [], "séparer depuis n'importe quelle cellule couverte");
+  assert.equal(T.split(base, 0, 0), base);
+  const grown = T.insertRow(merged, 1);
+  assert.equal(grown.rows.length, 3);
+  assert.deepEqual(clone(grown.rows[1]), ["", "", ""]);
+  assert.deepEqual(clone(grown.merges), [{ row: 0, col: 0, rows: 3, cols: 2 }], "une fusion enjambée s'allonge");
+  assert.deepEqual(clone(T.insertRow(merged, 0).merges), [{ row: 1, col: 0, rows: 2, cols: 2 }], "une fusion dessous se décale");
+  assert.deepEqual(clone(T.insertRow(weighted, 2).heights), [1, 3, 2], "une ligne de plus prend le poids moyen");
+  assert.deepEqual(clone(T.deleteRow(merged, 0).merges), [{ row: 0, col: 0, rows: 1, cols: 2 }], "une fusion réduite à une ligne de deux colonnes reste");
+  assert.deepEqual(clone(T.deleteColumn(T.deleteRow(merged, 0), 1).merges), [], "réduite à une cellule, elle part");
+  assert.deepEqual(clone(T.deleteRow(T.merge(base, { r0: 0, c0: 0, r1: 0, c1: 2 }), 1).merges), [{ row: 0, col: 0, rows: 1, cols: 3 }]);
+  assert.equal(T.deleteRow(T.fresh([["x"]]), 0).rows.length, 1, "jamais la dernière ligne");
+  const wider = T.insertColumn(weighted, 1);
+  assert.deepEqual(clone(wider.rows[0]), ["a", "", "b", "c"]);
+  assert.deepEqual(clone(wider.widths), [1, 1, 1, 2]);
+  assert.deepEqual(clone(T.deleteColumn(wider, 1)), clone(weighted), "retirer ce qu'on a inséré rend le tableau d'avant");
+  assert.equal(T.insertColumn(T.fresh([new Array(8).fill("")]), 0).rows[0].length, 8, "huit colonnes au plus");
+  const resized = T.resizeColumn(base, T.grid(base, { w: 300, h: 60 }), 1, 50);
+  assert.deepEqual(clone(resized.widths), [150, 50, 100], "les deux colonnes voisines se partagent, les poids deviennent les largeurs");
+  assert.deepEqual(clone(T.resizeColumn(base, T.grid(base, { w: 300, h: 60 }), 1, 500).widths), [180, 20, 100], "jamais sous 20");
+  assert.equal(T.resizeColumn(base, T.grid(base, { w: 300, h: 60 }), 0, 50), base, "le bord du tableau ne se glisse pas (les poignées le font)");
+  assert.deepEqual(clone(T.resizeRow(base, T.grid(base, { w: 300, h: 60 }), 1, -5).heights), [25, 35]);
+  assert.deepEqual(clone(T.grownBox(base, T.insertColumn(base, 3), { w: 300, h: 60 })), { w: 400, h: 60 }, "une colonne de plus : une piste moyenne de plus en largeur");
+  assert.deepEqual(clone(T.grownBox(base, T.deleteRow(base, 0), { w: 300, h: 60 })), { w: 300, h: 30 }, "une ligne de moins : d'autant en hauteur");
+  assert.deepEqual(clone(T.grownBox(base, T.setCell(base, 0, 0, "x"), { w: 300, h: 60 })), { w: 300, h: 60 }, "une cellule changée : rien");
+  assert.equal(T.setCell(base, 1, 2, "z").rows[1][2], "z");
+  assert.equal(base.rows[1][2], "f", "jamais de mutation");
+});
+
+test("les connecteurs (connectors.ts) : bouts résolus au bord des boîtes, tracés droit / coudé / courbe, courbure lue d'un glissé, pointes, orphelins, visibilité", () => {
+  const { LD } = load(page);
+  const C = LD.connectors;
+  const boxA = { kind: "box", frame: { x: 0, y: 0, w: 100, h: 50 } }, boxB = { kind: "box", frame: { x: 300, y: 0, w: 100, h: 50 } };
+  const straight = C.pathOf(boxA, boxB, "straight", 0);
+  assert.deepEqual(clone([straight.a, straight.b]), [{ x: 100, y: 25 }, { x: 300, y: 25 }], "du bord d'une boîte au bord de l'autre");
+  assert.equal(straight.d, "M100.0,25.0 L300.0,25.0");
+  assert.deepEqual(clone(straight.mid), { x: 200, y: 25 });
+  assert.deepEqual(clone(straight.dirB), { x: 1, y: 0 }, "la pointe d'arrivée regarde vers la droite");
+  const point = { kind: "point", at: { x: 200, y: 200 } };
+  const down = C.pathOf(boxA, point, "straight", 0);
+  assert.equal(down.b.x === 200 && down.b.y === 200, true, "un bout libre est le point lui-même");
+  assert.equal(down.a.y, 50, "le départ sort par le bas de la boîte vers un point dessous");
+  const elbow = C.pathOf(boxA, boxB, "elbow", 0);
+  assert.equal(elbow.d, "M100.0,25.0 L200.0,25.0 L200.0,25.0 L300.0,25.0", "coudé, à l'horizontale : deux coins sur le milieu");
+  const elbowBent = C.pathOf(boxA, { kind: "point", at: { x: 300, y: 200 } }, "elbow", 30);
+  assert.match(elbowBent.d, /^M100\.0,25\.0 L230\.0,25\.0 L230\.0,200\.0 L300\.0,200\.0$/, "la courbure décale le segment médian");
+  assert.deepEqual(clone(elbowBent.mid), { x: 230, y: 112.5 });
+  const curve = C.pathOf(boxA, boxB, "curve", 40);
+  assert.match(curve.d, /^M97\.0,50\.0 Q200\.0,130\.0 303\.0,50\.0$/, "le tracé sort par le bas des boîtes (vers le contrôle) ; le contrôle est à deux fois la courbure de la corde");
+  assert.deepEqual(clone(curve.mid), { x: 200, y: 90 }, "le milieu de l'arc s'écarte de la courbure");
+  assert.equal(C.bendFrom(curve.a, curve.b, "curve", curve.mid), 40, "l'inverse sur le tracé lui-même");
+  assert.equal(C.bendFrom({ x: 100, y: 25 }, { x: 300, y: 25 }, "curve", { x: 200, y: 65 }), 40, "l'inverse : la courbure depuis le milieu glissé");
+  assert.equal(C.bendFrom({ x: 100, y: 25 }, { x: 300, y: 200 }, "elbow", { x: 230, y: 100 }), 30);
+  assert.equal(C.pathOf(boxA, boxB, "curve", 0).d, straight.d, "une courbe sans courbure est droite");
+  assert.equal(C.arrowHead({ x: 10, y: 0 }, { x: 1, y: 0 }, 10), "10.0,0.0 0.0,4.5 0.0,-4.5");
+  assert.equal(C.headSize({ stroke_width: 2 }), 12);
+  const model = { nodeByHost: new Map([["sw", { ghost: false }], ["old", { ghost: true }]]), groupById: new Map([["g1-1", { members: ["sw"] }], ["g1-2", { members: ["gone"] }]]), annotationById: new Map([["a1-1", {}], ["a1-2", {}]]), orphanAnnotations: [] };
+  model.orphanAnnotations.push(model.annotationById.get("a1-2"));
+  const line = (start, end) => ({ start, end });
+  const free = { kind: "free", x: 0, y: 0 };
+  assert.equal(C.isOrphan(model, line(free, { kind: "device", ref: "sw" })), false);
+  assert.equal(C.isOrphan(model, line(free, { kind: "device", ref: "old" })), true, "un fantôme ne porte rien");
+  assert.equal(C.isOrphan(model, line({ kind: "group", ref: "g1-2" }, free)), true, "un groupe sans membre présent");
+  assert.equal(C.isOrphan(model, line({ kind: "annotation", ref: "a1-2" }, free)), true, "une annotation elle-même orpheline");
+  assert.equal(C.isOrphan(model, line({ kind: "annotation", ref: "a1-1" }, { kind: "group", ref: "g1-1" })), false);
+  assert.equal(C.shownWith(line({ kind: "device", ref: "sw" }, free), new Set(["sw"]), new Set(), new Set()), true);
+  assert.equal(C.shownWith(line({ kind: "device", ref: "sw" }, { kind: "annotation", ref: "a1-1" }), new Set(["sw"]), new Set(), new Set()), false, "l'annotation du bout n'est pas dessinée");
+  assert.deepEqual(clone(C.hostsOf(line({ kind: "device", ref: "sw" }, { kind: "device", ref: "fw" }))), ["sw", "fw"]);
+  assert.equal(C.summary({ start: free, end: { kind: "device", ref: "sw" }, heads: { start: "none", end: "arrow" }, label: "WAN" }), "flèche · 0, 0 → équipement sw · WAN");
+  assert.deepEqual(clone(C.reversed({ start: free, end: { kind: "device", ref: "sw" }, heads: { start: "none", end: "arrow" } })), { start: { kind: "device", ref: "sw" }, end: free, heads: { start: "arrow", end: "none" } });
+  assert.deepEqual(clone(C.bbox([{ x: 10, y: 20 }, { x: -5, y: 40 }], 2)), { x: -7, y: 18, w: 19, h: 24 });
+  // Les ancres (1.5.0) : le milieu de chaque côté ; la plus proche à portée d'un point ; le contour réel (coins arrondis,
+  // ellipse) ; une ancre fixe sort perpendiculairement, et le coudé se décide entre les sorties (en équerre : un seul coin).
+  const F = { x: 0, y: 0, w: 100, h: 50 };
+  assert.deepEqual(clone(C.anchorsOf(F).map((a) => [a.side, a.at.x, a.at.y])), [["n", 50, 0], ["e", 100, 25], ["s", 50, 50], ["w", 0, 25]]);
+  assert.deepEqual(clone(C.nearestAnchor(F, { x: 96, y: 28 }, 10)), { side: "e", at: { x: 100, y: 25 } });
+  assert.equal(C.nearestAnchor(F, { x: 50, y: 20 }, 10), null, "trop loin de toute ancre");
+  assert.deepEqual(clone(C.outlinePoint(F, { kind: "rect", rx: 0 }, { x: 200, y: 100 })), { x: 100, y: 50 }, "sans coin arrondi : le coin");
+  assert.deepEqual(clone(C.outlinePoint(F, { kind: "rect", rx: 10 }, { x: 200, y: 100 })), { x: 96, y: 48 }, "coins arrondis : sur l'arc du coin, plus sur le coin fantôme");
+  assert.deepEqual(clone(C.outlinePoint(F, { kind: "rect", rx: 10 }, { x: 200, y: 25 })), { x: 100, y: 25 }, "sur un côté plat, rien ne change");
+  assert.deepEqual(clone(C.outlinePoint(F, { kind: "ellipse" }, { x: 200, y: 100 })), { x: 85, y: 43 }, "ellipse : sur la courbe");
+  assert.deepEqual(clone(C.outlinePoint(F, { kind: "ellipse" }, { x: 50, y: 100 })), { x: 50, y: 50 });
+  const east = { ...boxA, side: "e" }, west = { ...boxB, side: "w" };
+  const anchored = C.pathOf(east, west, "elbow", 0);
+  assert.equal(anchored.d, "M100.0,25.0 L124.0,25.0 L200.0,25.0 L200.0,25.0 L276.0,25.0 L300.0,25.0", "chaque ancre sort de 24, le coudé se décide entre les sorties");
+  assert.deepEqual(clone([anchored.chord.a, anchored.chord.b, anchored.bendable]), [{ x: 124, y: 25 }, { x: 276, y: 25 }, true]);
+  const square = C.pathOf(east, { kind: "box", frame: { x: 300, y: 200, w: 100, h: 50 }, side: "n" }, "elbow", 0);
+  assert.equal(square.d, "M100.0,25.0 L124.0,25.0 L350.0,25.0 L350.0,176.0 L350.0,200.0", "en équerre : un seul coin, à l'aplomb de l'arrivée");
+  assert.deepEqual(clone([square.mid, square.dirB, square.bendable]), [{ x: 350, y: 25 }, { x: 0, y: 1 }, false], "pas de segment médian : rien à courber ; la pointe arrive par le haut");
+  const south = C.pathOf({ ...boxA, side: "s" }, boxB, "straight", 0);
+  assert.deepEqual(clone(south.a), { x: 50, y: 50 }, "une ancre fixe est le point de départ, quel que soit le tracé");
+  assert.deepEqual(clone(C.pathOf({ ...boxA, side: "auto" }, boxB, "straight", 0).a), { x: 100, y: 25 }, "auto = le contour vers l'autre bout");
+  assert.equal(C.summary({ start: free, end: { kind: "device", ref: "sw", side: "e" }, heads: { start: "none", end: "arrow" }, label: "" }), "flèche · 0, 0 → équipement sw (droite)");
+  assert.deepEqual(clone(C.attachedEnd("group", "g1-1")), { kind: "group", ref: "g1-1", side: "auto" }, "sans ancre dite : auto");
+  assert.deepEqual(clone(C.SIDES), ["auto", "n", "e", "s", "w"]);
+});
+
+test("le modèle indexe les annotations et dit lesquelles sont orphelines ; la scène ne dessine que celles dont l'ancre est dessinée", { skip: !intentPage }, () => {
+  const { LD } = load(intentPage, intentPage.data);
+  const model = LD.app.model;
+  assert.deepEqual(clone(Array.from(model.annotationById.keys())), ["a2-1", "a2-2", "a2-3"]);
+  assert.deepEqual(clone(model.orphanAnnotations.map((a) => a.id)), ["a2-3"], "attachée à un hostname absent : orpheline, gardée");
+  assert.deepEqual(clone((model.annotationsByHost.get("sw-core-01") || []).map((a) => a.id)), ["a2-2"]);
+  const base = { showStubs: false, showDiff: true, hiddenStatuses: new Set(), hide: [], only: null };
+  assert.deepEqual(clone(LD.scene.visible(model, base).annotations.map((a) => a.id)), ["a2-1", "a2-2"], "la libre et celle du cœur présent ; jamais l'orpheline");
+  const hidden = LD.scene.visible(model, { ...base, hide: [LD.query.parseRule("^sw-core-01$")] });
+  assert.deepEqual(clone(hidden.annotations.map((a) => a.id)), ["a2-1"], "l'équipement masqué emporte son annotation (A1)");
+  assert.deepEqual(clone(LD.scene.visible(model, { ...base, showNotes: false }).annotations), [], "la couche éteinte");
+  const related = LD.scene.relatedTo(model, { kind: "annotation", id: "a2-2" });
+  assert.equal(related.hosts.has("sw-core-01") && related.annotations.has("a2-2"), true, "une annotation éclaire son ancre");
+  assert.equal(LD.scene.relatedTo(model, { kind: "node", id: "sw-core-01" }).annotations.has("a2-2"), true, "et l'équipement, ses annotations");
+  assert.deepEqual(clone(LD.model.tokenOf(model, { kind: "annotation", id: "a2-1" })), ["annotation", "a2-1"]);
+  assert.deepEqual(clone(LD.model.selectionFromToken(model, "annotation", "a2-1")), { kind: "annotation", id: "a2-1" });
+  assert.equal(LD.model.selectionFromToken(model, "annotation", "a9-9"), null);
+  const lines = LD.tip.annotationLines(model.annotationById.get("a2-2"));
+  assert.match(joined(lines), /tableau · attachée à sw-core-01/);
+  assert.match(joined(lines), /annotation de alice/);
+  // Les connecteurs (1.4.0) : indexés par bout, orphelin quand un bout vise un absent, dessinés avec leurs bouts, éclairés avec eux.
+  assert.deepEqual(clone(Array.from(model.connectorById.keys())), ["c2-1", "c2-2"]);
+  assert.deepEqual(clone((model.connectorsByRef.get("device\u0000sw-core-01") || []).map((c) => c.id)), ["c2-1"]);
+  assert.deepEqual(clone(model.orphanConnectors.map((c) => c.id)), ["c2-2"], "un bout sur gone-host : orphelin");
+  assert.deepEqual(clone(LD.scene.visible(model, base).connectors.map((c) => c.id)), ["c2-1"], "dessiné avec sa note et son cœur ; jamais l'orphelin");
+  assert.deepEqual(clone(LD.scene.visible(model, { ...base, showNotes: false }).connectors), [], "la couche éteinte éteint aussi les connecteurs");
+  assert.deepEqual(clone(hidden.connectors), [], "le cœur masqué emporte le connecteur qui y touche");
+  assert.equal(LD.scene.relatedTo(model, { kind: "node", id: "sw-core-01" }).connectors.has("c2-1"), true, "l'équipement éclaire ses connecteurs");
+  const fromLine = LD.scene.relatedTo(model, { kind: "connector", id: "c2-1" });
+  assert.equal(fromLine.hosts.has("sw-core-01") && fromLine.annotations.has("a2-1") && fromLine.connectors.has("c2-1"), true, "un connecteur éclaire ses deux bouts");
+  assert.deepEqual(clone(LD.model.tokenOf(model, { kind: "connector", id: "c2-1" })), ["connector", "c2-1"]);
+  assert.deepEqual(clone(LD.model.selectionFromToken(model, "connector", "c2-1")), { kind: "connector", id: "c2-1" });
+  assert.deepEqual(clone(LD.model.hostsOf(model, { kind: "connector", id: "c2-2" })), [], "l'équipement absent ne compte pas");
+  assert.match(joined(LD.tip.connectorLines(model.connectorById.get("c2-1"))), /flèche · annotation a2-1 → équipement sw-core-01 \(gauche\) · voir.*courbe.*connecteur de orhan/s);
+  const tab = LD.app.model.intent.annotations.length;
+  assert.equal(tab, 3);
 });

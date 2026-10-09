@@ -26,28 +26,54 @@ def test_committed_intent_schema_matches_generated_schema():
 def test_the_skeleton_fixture_is_valid_and_canonical():
     report = validate_intent_file(SKELETON)
     assert report.ok and report.intent is not None and len(report.intent.pins) == 2
+    assert [c.hue for c in report.intent.type_colors] == ["red"] and [c.hue for c in report.intent.device_colors] == [
+        "amber"
+    ]
     assert canonical_json(report.intent) == SKELETON.read_text(encoding="utf-8"), "la fixture est la forme canonique"
 
 
 def test_validate_intent_dict_reports_without_values():
     report = validate_intent_dict({"intent_version": "1.0.0"})
-    assert not report.ok and report.errors[0].path in {"infrastructure", "revision", "updated_at", "pins"}
+    assert not report.ok and report.errors[0].path in {
+        "infrastructure",
+        "revision",
+        "updated_at",
+        "pins",
+        "type_colors",
+        "device_colors",
+    }
     assert validate_intent_dict([]).errors[0].message.startswith("un objet JSON")
 
 
 def test_the_reference_has_a_part_d_with_every_field_and_the_catalogue():
     text = generate_markdown()
     assert "## Partie D — Intention : Intent v1" in text
-    for field in ("hostname", "x", "y", "author", "at", "revision", "updated_at", "pins"):
+    for field in (
+        "hostname",
+        "x",
+        "y",
+        "author",
+        "at",
+        "revision",
+        "updated_at",
+        "pins",
+        "type_colors",
+        "device_colors",
+        "hue",
+        "type",
+    ):
         assert f"| `{field}` |" in text, field
-    assert "`revision_update_mismatch`" in text and "`intent_major_unsupported`" in text
+    assert (
+        "`revision_update_mismatch`" in text and "`intent_major_unsupported`" in text and "`patch_after_update`" in text
+    )
     assert "Quatre contrats" in text and "partie D" in text
 
 
 def test_cli_validates_an_intent_and_refuses_a_broken_one(tmp_path, capsys):
     assert cli.main(["validate", "--contract", "intent", str(SKELETON)]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("valid: intent 1.0.0") and "pins 2" in out
+    assert out.startswith("valid: intent 1.5.0") and "pins 2" in out
+    assert "annotations 1" in out and "connectors 1" in out
     broken = tmp_path / "broken.json"
     broken.write_text(json.dumps({**json.loads(SKELETON.read_text(encoding="utf-8")), "revision": 0}), encoding="utf-8")
     assert cli.main(["validate", "--contract", "intent", str(broken)]) == 1

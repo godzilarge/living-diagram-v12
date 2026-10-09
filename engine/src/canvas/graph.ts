@@ -1,41 +1,71 @@
 // Le graphe : un nœud par équipement, un tracé par câble (deux câbles entre les mêmes équipements restent deux
 // tracés), coloré par statut ; sous les câbles, une bande par faisceau d'agrégat et un cadre par cluster HA ; une
-// bulle au survol (tip.ts). La géométrie pure est dans geometry.ts. Rien n'est déduit ici : ce qui est dessiné est
-// dans le snapshot.
+// bulle au survol (tip.ts). La géométrie pure est dans geometry.ts, le pointeur (panoramique, glissé, rectangle de
+// sélection) dans pointer.ts, les règles de recherche et de masquage dans query.ts, l'alignement dans align.ts.
+// Rien n'est déduit ici : ce qui est dessiné est dans le snapshot.
+import { align as alignPositions } from "./align";
+import type { AlignMode } from "./align";
 import { clear, s } from "./dom";
 import { DIFF_LABEL, KIND_LABEL, STATUS_LABEL } from "./format";
 import { beamBand, beamLabel, chord, clusterLabel, curve, hull, CHAR_W } from "./geometry";
 import type { BeamBand } from "./geometry";
-import { path as iconPath, LABEL as ICON_LABEL, SIZE as ICON_SIZE } from "./icons";
+import { CARD_H, STUB_R, plan as cardPlan, displayName, reach, shortName } from "./card";
+import type { Box } from "./card";
+import { hueOfNode } from "./hues";
+import { glyph, LABEL as ICON_LABEL } from "./icons";
+
+// L'icône de type en trois couches (icons.ts) : silhouette à la couleur du type, bandeau du bas, symbole en réserve.
+const typeGlyph = (type: string | null, transform: string): SVGGElement => {
+  const g = glyph(type);
+  return s("g", { class: "node-icon", transform }, s("path", { class: "icon-body", d: g.body }), s("path", { class: "icon-shade", d: g.shade }), s("path", { class: "icon-mark", d: g.mark }));
+};
 import { bounds, run as placeAll, wired } from "./layout";
 import type { Edge, Point } from "./layout";
 import { aggregateOf, beamOf, clusterOf, endLabel, entityOf, haRoleGroup, hostsOf, linkOf, nodeOf, worst } from "./model";
+import { bind as bindPointer } from "./pointer";
+import type { ScreenRect, View } from "./pointer";
+import { keepByRules, matches, parseRule } from "./query";
+import type { Rule } from "./query";
 import { beamLines, clusterLines, create as createTip, linkLines, nodeLines } from "./tip";
 import type { Line } from "./tip";
 import type { Beam, Cluster, Model, ModelLink, ModelNode, Selection } from "./types";
 
-const NODE_W = 48, NODE_H = 40, STUB_R = 8, CLICK_SLOP = 4, ICON_SCALE = 1.3, LABEL_MAX = 22;
-const ICON_PX = ICON_SIZE * ICON_SCALE;
 const ZOOM_FAR = 0.7, ZOOM_NEAR = 1.2;
 
-export interface View { k: number; tx: number; ty: number }
+export type { View };
 export interface LinkEls { group: SVGGElement; line: SVGPathElement; hit: SVGPathElement; halo: SVGPathElement | null; diff: SVGPathElement | null; mark: SVGCircleElement | null; ports: SVGTextElement[] }
 export interface BeamEls { group: SVGGElement; band: SVGPathElement; hit: SVGPathElement; label: SVGTextElement; labelHit: SVGRectElement; tag: SVGGElement; shape: BeamBand }
 export interface ClusterEls { group: SVGGElement; rect: SVGRectElement; label: SVGTextElement }
+/** `selection` : l'élément lu (câble, équipement, structure) ; `selected` : la sélection multiple, des équipements
+ * (un seul équipement sélectionné est à la fois `selection` et le seul membre de `selected`). `hide` / `only` : les
+ * règles de masquage et d'isolement (query.ts), appliquées au dessin ; `query` : la règle de recherche, qui éclaire. */
+export interface Insets { top: number; right: number; bottom: number; left: number }
 export interface GraphState {
-  showStubs: boolean; showPorts: boolean; showDiff: boolean; hiddenStatuses: Set<string>; query: string;
-  pinned: Map<string, Point>; placed: Map<string, Point>; positions: Map<string, Point>; view: View; selection: Selection | null;
+  showStubs: boolean; showPorts: boolean; showDiff: boolean; hiddenStatuses: Set<string>; query: string; hide: Rule[]; only: Rule | null;
+  /** Ce que la page pose sur la toile (barre, bande, panneau) : `fit` et `centerOn` cadrent dans ce qui reste visible. */
+  insets: Insets;
+  pinned: Map<string, Point>; placed: Map<string, Point>; positions: Map<string, Point>; view: View; selection: Selection | null; selected: Set<string>;
   nodeEls: Map<string, SVGGElement>; linkEls: Map<string, LinkEls>; beamEls: Map<string, BeamEls>; clusterEls: Map<string, ClusterEls>;
 }
 export interface Drawn { nodes: number; links: number }
-/** `onPin` : un équipement vient d'être relâché après un glissé, à cette position (unités du dessin). `onPlaced` : le
- * graphe vient de placer des équipements qui n'avaient pas de place mémorisée (`replace` : tout a été replacé). */
-export interface GraphOptions { onPin?: (hostname: string, point: Point) => void; onPlaced?: (fresh: Map<string, Point>, replace: boolean) => void }
+/** `onPin` : un équipement vient d'être relâché après un glissé, à cette position (unités du dessin). `onPins` : des
+ * équipements viennent d'être alignés, ou glissés d'un bloc (la sélection multiple), à ces positions. `onPlaced` : le
+ * graphe vient de placer des équipements qui n'avaient pas de place mémorisée (`replace` : tout a été replacé).
+ * `onHosts` : la sélection multiple a changé. */
+export type PinsCause = "aligned" | "dragged";
+export interface GraphOptions {
+  onPin?: (hostname: string, point: Point) => void; onPins?: (moves: Map<string, Point>, cause: PinsCause) => void;
+  onPlaced?: (fresh: Map<string, Point>, replace: boolean) => void; onHosts?: (hosts: string[]) => void;
+}
 export interface Graph {
   state: GraphState;
   render: (keepView: boolean) => Drawn;
   fit: () => void;
   select: (selection: Selection | null) => void;
+  /** La sélection multiple : ces équipements, et eux seuls (un seul = sélection simple ; aucun = rien). */
+  selectHosts: (hosts: string[]) => void;
+  /** Aligne ou répartit la sélection multiple ; rend ce qui a bougé (déplacements locaux, épinglés par la page ou non). */
+  alignSelected: (mode: AlignMode) => Map<string, Point>;
   reveal: (selection: Selection | null) => boolean;
   repaint: () => void;
   /** Oublie les déplacements locaux non enregistrés : chaque équipement retrouve sa place mémorisée ou son épingle. */
@@ -44,6 +74,8 @@ export interface Graph {
   replaceAll: () => Drawn;
   /** Réaligne les épingles locales sur le document enregistré (après une écriture acceptée) ; sans replacer. */
   syncPins: () => void;
+  /** Après une couleur d'intention acceptée : les cartes reprennent leur teinte (un redessin, cadrage gardé). */
+  recolor: () => Drawn;
   /** Réaligne la mémoire locale sur le document mémorisé (après une écriture acceptée) : la place enregistrée gagne. */
   syncPlaces: () => void;
   /** Retire des épingles (locales et enregistrées) et replace, en gardant la vue. */
@@ -52,14 +84,6 @@ export interface Graph {
 
 // Le glyphe d'épingle, dans le coin haut gauche d'un équipement épinglé (tracé 16 × 16, même trait que les icônes).
 const PIN_PATH = "M8 1.5a4 4 0 0 1 4 4c0 2.8-4 7.5-4 7.5S4 8.3 4 5.5a4 4 0 0 1 4-4z M8 4a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z";
-
-// Un hostname très long est raccourci au milieu sur la toile ; le nom complet reste dans la bulle, la fiche et aria-label.
-const shortName = (name: string): string => (name.length <= LABEL_MAX ? name : name.slice(0, 11) + "…" + name.slice(-10));
-
-function nodeShape(node: ModelNode): SVGElement {
-  if (node.kind === "stub") return s("circle", { class: "node-shape", r: STUB_R });
-  return s("rect", { class: "node-shape", x: -NODE_W / 2, y: -NODE_H / 2, width: NODE_W, height: NODE_H, rx: 9 });
-}
 
 export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: Selection | null) => void, options: GraphOptions = {}): Graph {
   // Les épingles enregistrées (couche d'intention) sont des contraintes dures dès le premier placement. Un fantôme du
@@ -70,8 +94,8 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   // Le placement mémorisé (docs/09) : la place de chaque équipement déjà dessiné, lue dans le document embarqué ou servi,
   // puis complétée par ce que cette page place. Un fantôme mémorisé se dessine là où il était.
   const savedPlaces = (): Map<string, Point> => new Map(Array.from(model.placeByHost, ([host, place]) => [host, { x: place.x, y: place.y }]));
-  const state: GraphState = { showStubs: false, showPorts: false, showDiff: true, hiddenStatuses: new Set(), query: "", pinned: savedPins(), placed: savedPlaces(),
-    positions: new Map(), view: { k: 1, tx: 0, ty: 0 }, selection: null, nodeEls: new Map(), linkEls: new Map(), beamEls: new Map(), clusterEls: new Map() };
+  const state: GraphState = { showStubs: false, showPorts: false, showDiff: true, hiddenStatuses: new Set(), query: "", hide: [], only: null, insets: { top: 0, right: 0, bottom: 0, left: 0 }, pinned: savedPins(), placed: savedPlaces(),
+    positions: new Map(), view: { k: 1, tx: 0, ty: 0 }, selection: null, selected: new Set(), nodeEls: new Map(), linkEls: new Map(), beamEls: new Map(), clusterEls: new Map() };
   const viewport = s("g", { class: "viewport" });
   const clusterLayer = s("g", { class: "clusters" });
   const beamLayer = s("g", { class: "beams" });
@@ -82,6 +106,10 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   clear(svg).appendChild(viewport);
   const tip = createTip(svg); // au-dessus du viewport, en coordonnées d'écran
   const at = (hostname: string): Point => state.positions.get(hostname) as Point;
+  // La boîte de chaque équipement dessiné (sa carte, ou le disque d'un voisin inconnu) : où ses câbles sortent, ce que
+  // le cadre de son cluster entoure.
+  const cards = new Map<string, Box>();
+  const boxOf = (hostname: string): Box => cards.get(hostname) || { w: STUB_R * 2, h: STUB_R * 2 };
 
   // Les fantômes du diff (retirés depuis la run d'avant) se dessinent avec les changements ; un fantôme stub suit la règle des stubs.
   const allNodes = (): ModelNode[] => model.nodes.concat(state.showDiff ? model.ghostNodes : []);
@@ -90,15 +118,41 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   // Rien n'est peint quand les changements sont masqués : ni halo, ni couronne, ni fantôme.
   const changeOf = (kind: "node" | "link", entity: { ghost?: boolean }, id: string): string | null =>
     (!state.showDiff ? null : entity.ghost ? "removed" : (model.changeOf(kind, id) || { kind: null }).kind);
-  const visibleNodes = (): ModelNode[] => allNodes().filter((n) => state.showStubs || n.kind !== "stub");
+  // Les voisins inconnus d'abord (bascule), puis les règles : masquer gagne sur isoler, et isoler garde les voisins
+  // directs de ce qu'il désigne (query.ts).
+  const visibleNodes = (): ModelNode[] => keepByRules(allNodes().filter((n) => state.showStubs || n.kind !== "stub"), allLinks(), state.hide, state.only);
+  const multi = (): boolean => state.selected.size >= 2;
   // Les classes du svg : sélection, noms des ports, et le palier de zoom (de loin, les petites étiquettes disparaissent).
   function svgClasses(): void {
     const k = state.view.k;
-    svg.setAttribute("class", [state.selection ? "has-selection" : "", state.showPorts ? "show-ports" : "", k < ZOOM_FAR ? "zoom-far" : k >= ZOOM_NEAR ? "zoom-near" : ""].filter(Boolean).join(" "));
+    svg.setAttribute("class", [state.selection || multi() ? "has-selection" : "", state.showPorts ? "show-ports" : "", k < ZOOM_FAR ? "zoom-far" : k >= ZOOM_NEAR ? "zoom-near" : ""].filter(Boolean).join(" "));
   }
   const applyView = (): void => { viewport.setAttribute("transform", `translate(${state.view.tx},${state.view.ty}) scale(${state.view.k})`); svgClasses(); };
-  let dragging = false;
-  let pan: { x: number; y: number; tx: number; ty: number; moved: boolean; target: EventTarget | null } | null = null; // un équipement en cours de glissé, une vue en cours de panoramique : pas de bulle
+  // Le pointeur (pointer.ts) : il tient les appuis, le graphe lui prête ce qu'il sait faire. Un équipement déplacé
+  // (glissé, alignement) prend sa position et une épingle locale ; la page décide d'enregistrer ou non.
+  function moveTo(hostname: string, point: Point): void {
+    state.positions.set(hostname, point);
+    state.pinned.set(hostname, point);
+    const el = state.nodeEls.get(hostname);
+    if (el) el.classList.toggle("pinned", true);
+    moveNode(hostname);
+    follow(hostname);
+  }
+  const pointer = bindPointer(svg, {
+    view: () => state.view,
+    setView: (view) => { state.view = view; applyView(); },
+    at, moveTo, select, toggleHost, selectIn, entityAt,
+    // Un équipement de la sélection multiple entraîne toute la sélection (ses équipements dessinés) ; relâchée d'un bloc,
+    // elle fait un seul paquet d'épingles ; un seul équipement, ou une page sans `onPins` : une épingle par équipement.
+    companions: (hostname) => (multi() && state.selected.has(hostname) ? Array.from(state.selected).filter((host) => state.nodeEls.has(host)) : [hostname]),
+    dropped: (hosts) => {
+      const moves = new Map(hosts.map((host): [string, Point] => [host, { ...at(host) }]));
+      if (moves.size > 1 && options.onPins) options.onPins(moves, "dragged");
+      else if (options.onPin) moves.forEach((point, host) => options.onPin?.(host, point));
+    },
+    tipHide: () => tip.hide(),
+    tipShowAt: (entity, x, y) => tip.show(entity.kind + ":" + entity.id, () => tipLines(entity), x, y, svg.getBoundingClientRect()),
+  });
 
   function visibleLinks(shown: Set<string>): ModelLink[] {
     return allLinks().filter((l) => shown.has(l.a.hostname) && shown.has(l.b.hostname) && !state.hiddenStatuses.has(l.status));
@@ -110,19 +164,25 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   }
   const visibleClusters = (shown: Set<string>): Cluster[] => model.clusters.filter((c) => c.hosts.filter((h) => shown.has(h)).length >= 2);
 
+  // La partie visible de la toile, moins ce que la page pose dessus.
+  const visibleRect = (): { x: number; y: number; width: number; height: number } => {
+    const rect = svg.getBoundingClientRect(), i = state.insets;
+    return { x: i.left, y: i.top, width: Math.max((rect.width || 900) - i.left - i.right, 100), height: Math.max((rect.height || 600) - i.top - i.bottom, 100) };
+  };
   function fit(): void {
     const box = bounds(state.positions);
-    const rect = svg.getBoundingClientRect();
-    const width = rect.width || 900, height = rect.height || 600, margin = 70;
-    const k = Math.min((width - 2 * margin) / box.width, (height - 2 * margin) / box.height, 1.6);
+    const area = visibleRect(), margin = 70;
+    const k = Math.min((area.width - 2 * margin) / box.width, (area.height - 2 * margin) / box.height, 1.6);
     state.view = { k: Math.max(k, 0.05), tx: 0, ty: 0 };
-    state.view.tx = width / 2 - (box.x + box.width / 2) * state.view.k;
-    state.view.ty = height / 2 - (box.y + box.height / 2) * state.view.k;
+    state.view.tx = area.x + area.width / 2 - (box.x + box.width / 2) * state.view.k;
+    state.view.ty = area.y + area.height / 2 - (box.y + box.height / 2) * state.view.k;
     applyView();
   }
 
   function placeLink(link: ModelLink, els: LinkEls): void {
-    const shape = curve(at(link.a.hostname), at(link.b.hostname), link);
+    const p = at(link.a.hostname), q = at(link.b.hostname);
+    const clear: [number, number] = [reach(boxOf(link.a.hostname), q.x - p.x, q.y - p.y), reach(boxOf(link.b.hostname), q.x - p.x, q.y - p.y)]; // les noms de port hors des cartes
+    const shape = curve(p, q, link, clear);
     [els.line, els.hit, els.halo, els.diff].forEach((el) => { if (el) el.setAttribute("d", shape.path); });
     if (els.mark) { els.mark.setAttribute("cx", String(shape.mid.x)); els.mark.setAttribute("cy", String(shape.mid.y)); }
     els.ports.forEach((text, i) => {
@@ -205,7 +265,8 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
 
   function placeCluster(cluster: Cluster, els: ClusterEls): void {
     const points = cluster.hosts.map((h) => state.positions.get(h)).filter((p): p is Point => !!p);
-    const box = hull(points, Math.max(...cluster.hosts.map((h) => h.length)));
+    const boxes = cluster.hosts.map(boxOf);
+    const box = hull(points, Math.max(...boxes.map((b) => b.w)), Math.max(...boxes.map((b) => b.h)));
     (["x", "y", "width", "height"] as const).forEach((name) => els.rect.setAttribute(name, String(box[name])));
     els.label.setAttribute("x", String(box.x + 10));
     els.label.setAttribute("y", String(box.y + 15));
@@ -235,22 +296,29 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     // Le nom domine ; le type est une icône dessinée (icons.ts), le rôle HA s'écrit sous l'icône.
     const typeLabel = node.type ? ICON_LABEL[node.type] || node.type : null;
     const change = changeOf("node", node, node.hostname); // le diff : une couronne autour du nœud ; un fantôme s'estompe
-    const ring = change && change !== "removed" ? (node.kind === "stub" ? s("circle", { class: "node-ring", r: STUB_R + 4 })
-      : s("rect", { class: "node-ring", x: -NODE_W / 2 - 4, y: -NODE_H / 2 - 4, width: NODE_W + 8, height: NODE_H + 8, rx: 12 })) : null;
+    // La carte (card.ts) : icône de type (trois couches, icons.ts), nom, rôle HA et compte de stack dedans ; un voisin inconnu reste un disque.
+    const name = node.kind === "stub" ? shortName(node.hostname) : displayName(node.hostname);
+    const card = node.kind === "stub" ? null : cardPlan(name, { role: ha ? ha.member.role : null, stack: node.stack ? node.stack.member_count : null }, model.cardWidth);
+    const box: Box = card || { w: STUB_R * 2, h: STUB_R * 2 };
+    cards.set(node.hostname, box);
+    const ring = change && change !== "removed" ? (card ? s("rect", { class: "node-ring", x: -card.w / 2 - 4, y: -card.h / 2 - 4, width: card.w + 8, height: card.h + 8, rx: card.rx + 4 })
+      : s("circle", { class: "node-ring", r: STUB_R + 4 })) : null;
     const pinned = state.pinned.has(node.hostname) ? " pinned" : ""; // une place voulue (couche d'intention), ou un glissé local
-    const group = s("g", { class: `node kind-${node.kind} collection-${node.collection || "none"}${haClasses}${change ? " diff-" + change : ""}${pinned}`, tabindex: 0, role: "button", "data-node": node.hostname,
+    const group = s("g", { class: `node kind-${node.kind} type-${node.type || "unknown"} hue-${hueOfNode(model, node)} collection-${node.collection || "none"}${haClasses}${change ? " diff-" + change : ""}${pinned}`, tabindex: 0, role: "button", "data-node": node.hostname,
         "aria-label": `${node.hostname} · ${KIND_LABEL[node.kind]}${typeLabel ? " · " + typeLabel : ""}${node.collection ? " · collecte : " + node.collection : ""}${ha ? " · HA " + ha.member.role : ""}${change ? " · " + DIFF_LABEL[change] : ""}` },
-      ring, nodeShape(node),
-      node.kind === "stub" ? null : s("path", { class: "node-icon", d: iconPath(node.type),
-        transform: `translate(${-ICON_PX / 2},${ha ? -NODE_H / 2 + 3 : -ICON_PX / 2}) scale(${ICON_SCALE})` }),
-      ha ? s("text", { class: "node-role", y: NODE_H / 2 - 5 }, ha.member.role) : null,
-      s("text", { class: "node-label", y: node.kind === "stub" ? 22 : NODE_H / 2 + 14 }, shortName(node.hostname)),
-      node.stack ? s("text", { class: "node-stack", x: NODE_W / 2 + 4, y: 4 }, "×" + node.stack.member_count) : null,
-      severity === "error" || severity === "warning" ? s("circle", { class: "node-badge severity-" + severity, cx: NODE_W / 2 - 1, cy: -NODE_H / 2 + 1, r: 6 }) : null,
-      s("path", { class: "node-pin", d: PIN_PATH, transform: node.kind === "stub" ? `translate(${-STUB_R - 14},${-STUB_R - 14})` : `translate(${-NODE_W / 2 - 9},${-NODE_H / 2 - 9})` }));
+      ring,
+      card ? s("rect", { class: "node-shape", x: -card.w / 2, y: -card.h / 2, width: card.w, height: card.h, rx: card.rx }) : s("circle", { class: "node-shape", r: STUB_R }),
+      card ? s("path", { class: "node-rail", d: card.rail }) : null,
+      card ? typeGlyph(node.type, `translate(${card.icon.x},${card.icon.y}) scale(${card.icon.scale})`) : null,
+      card && card.role && ha ? s("text", { class: "node-role", x: card.role.x, y: card.role.y, "text-anchor": card.role.anchor }, ha.member.role) : null,
+      s("text", { class: "node-label", x: card ? card.label.x : 0, y: card ? card.label.y : STUB_R + 14, "text-anchor": card ? card.label.anchor : "middle" }, name),
+      card && card.stack && node.stack ? s("text", { class: "node-stack", x: card.stack.x, y: card.stack.y, "text-anchor": card.stack.anchor }, "×" + node.stack.member_count) : null,
+      severity === "error" || severity === "warning" ? s("circle", { class: "node-badge severity-" + severity, cx: box.w / 2 - 2, cy: -box.h / 2 + 2, r: 6 }) : null,
+      s("path", { class: "node-pin", d: PIN_PATH, transform: `translate(${-box.w / 2 - 9},${-box.h / 2 - 9})` }));
     state.nodeEls.set(node.hostname, group);
     moveNode(node.hostname);
-    bindNode(group, node.hostname);
+    pointer.bindNode(group, node.hostname);
+    bindFocus(group, { kind: "node", id: node.hostname }, () => screenPoint(node.hostname));
     return group;
   }
 
@@ -281,7 +349,7 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   function bindFocus(group: SVGGElement, selection: Selection, pointOf: () => Point): void {
     group.addEventListener("keydown", (event) => { if ((event as KeyboardEvent).key === "Enter") select(selection); });
     group.addEventListener("focus", () => {
-      if (dragging || pan) return;
+      if (pointer.busy()) return;
       const rect = svg.getBoundingClientRect();
       if (!onScreen(pointOf(), rect)) centerOn(selection);
       const point = pointOf();
@@ -289,44 +357,6 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
       group.setAttribute("aria-describedby", tip.id);
     });
     group.addEventListener("blur", () => { tip.hide(); group.removeAttribute("aria-describedby"); });
-  }
-
-  function bindNode(group: SVGGElement, hostname: string): void {
-    let start: { x: number; y: number; origin: Point; moved: boolean } | null = null;
-    const end = (): void => { start = null; dragging = false; };
-    group.addEventListener("pointerdown", (event) => {
-      const pointer = event as PointerEvent;
-      if (pointer.button > 0) return; // clic droit ou central : ni glissé ni sélection
-      event.stopPropagation();
-      dragging = true;
-      tip.hide();
-      start = { x: pointer.clientX, y: pointer.clientY, origin: { ...at(hostname) }, moved: false };
-      group.setPointerCapture(pointer.pointerId);
-    });
-    group.addEventListener("pointermove", (event) => {
-      if (!start) return;
-      const pointer = event as PointerEvent;
-      const dx = pointer.clientX - start.x, dy = pointer.clientY - start.y;
-      if (!start.moved && Math.hypot(dx, dy) < CLICK_SLOP) return;
-      start.moved = true;
-      const point = { x: start.origin.x + dx / state.view.k, y: start.origin.y + dy / state.view.k };
-      state.positions.set(hostname, point);
-      state.pinned.set(hostname, point);
-      group.classList.toggle("pinned", true);
-      moveNode(hostname);
-      follow(hostname);
-    });
-    // Au relâchement : un appui sans mouvement sélectionne ; un glissé épingle, et la page décide d'enregistrer ou non.
-    group.addEventListener("pointerup", () => {
-      if (start && !start.moved) select({ kind: "node", id: hostname });
-      else if (start && start.moved && options.onPin) options.onPin(hostname, { ...at(hostname) });
-      end();
-    });
-    // Un appui annulé (toucher ou stylet interrompu, fenêtre qui perd le focus, nœud redessiné) n'a jamais de
-    // relâchement : on libère quand même, sinon le nœud suivrait la souris sans appui et la bulle resterait morte (revue, H1).
-    group.addEventListener("pointercancel", end);
-    group.addEventListener("lostpointercapture", end);
-    bindFocus(group, { kind: "node", id: hostname }, () => screenPoint(hostname));
   }
 
   // Ce que le pointeur a touché : un câble, un faisceau, un cluster, un équipement, ou le fond. On remonte du point
@@ -349,53 +379,16 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     return clusterLines(clusterOf(model, selection) as Cluster);
   }
 
-  function bindCanvas(): void {
-    svg.addEventListener("pointerdown", (event) => {
-      const pointer = event as PointerEvent;
-      if (pointer.button > 0) return;
-      tip.hide();
-      pan = { x: pointer.clientX, y: pointer.clientY, tx: state.view.tx, ty: state.view.ty, moved: false, target: event.target };
-      svg.setPointerCapture(pointer.pointerId); // la capture détourne l'événement click : on ne s'appuie pas dessus
-    });
-    svg.addEventListener("pointermove", (event) => {
-      if (!pan) return;
-      const pointer = event as PointerEvent;
-      const dx = pointer.clientX - pan.x, dy = pointer.clientY - pan.y;
-      if (!pan.moved && Math.hypot(dx, dy) < CLICK_SLOP) return;
-      pan.moved = true;
-      state.view.tx = pan.tx + dx; state.view.ty = pan.ty + dy;
-      applyView();
-    });
-    svg.addEventListener("pointerup", () => {
-      if (pan && !pan.moved) select(entityAt(pan.target));
-      pan = null;
-    });
-    svg.addEventListener("pointercancel", () => { pan = null; }); // un appui annulé ne laisse pas la vue suivre la souris (revue, H1)
-    svg.addEventListener("lostpointercapture", () => { pan = null; });
-    // Le survol : la bulle suit le pointeur tant qu'il reste sur le même élément ; un glissé (vue ou équipement) la cache.
-    svg.addEventListener("pointermove", (event) => {
-      if (pan || dragging) { tip.hide(); return; }
-      const entity = entityAt(event.target);
-      if (!entity) { tip.hide(); return; }
-      const pointer = event as PointerEvent;
-      const rect = svg.getBoundingClientRect();
-      tip.show(entity.kind + ":" + entity.id, () => tipLines(entity), pointer.clientX - rect.left, pointer.clientY - rect.top, rect);
-    });
-    svg.addEventListener("pointerleave", () => tip.hide());
-    svg.addEventListener("wheel", (event) => {
-      event.preventDefault();
-      const wheel = event as WheelEvent;
-      const rect = svg.getBoundingClientRect();
-      const x = wheel.clientX - rect.left, y = wheel.clientY - rect.top;
-      const k = Math.min(Math.max(state.view.k * Math.exp(-wheel.deltaY * 0.0015), 0.05), 6);
-      state.view.tx = x - ((x - state.view.tx) / state.view.k) * k;
-      state.view.ty = y - ((y - state.view.ty) / state.view.k) * k;
-      state.view.k = k;
-      applyView();
-    }, { passive: false });
-  }
-
   interface Related { hosts: Set<string>; links: Set<string>; beams: Set<string>; clusters: Set<string> }
+
+  // Ce qu'une sélection multiple éclaire : ses équipements, et les câbles, faisceaux et clusters entièrement entre eux.
+  function relatedToHosts(hosts: Set<string>): Related {
+    const related: Related = { hosts: new Set(hosts), links: new Set(), beams: new Set(), clusters: new Set() };
+    hosts.forEach((host) => (model.linksByNode.get(host) || []).forEach((link) => { if (hosts.has(link.a.hostname) && hosts.has(link.b.hostname)) related.links.add(link.id); }));
+    model.beams.forEach((beam) => { if (hosts.has(beam.a.hostname) && hosts.has(beam.b.hostname)) related.beams.add(beam.id); });
+    model.clusters.forEach((cluster) => { if (cluster.hosts.every((host) => hosts.has(host))) related.clusters.add(cluster.id); });
+    return related;
+  }
 
   // Ce qu'une sélection éclaire : les équipements, câbles, faisceaux et clusters qui la concernent.
   function relatedTo(selection: Selection | null): Related {
@@ -424,15 +417,16 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
 
   function paintSelection(): void {
     const selection = state.selection;
-    const related = relatedTo(selection);
+    const related = multi() ? relatedToHosts(state.selected) : relatedTo(selection);
     const is = (kind: string, id: string): boolean => !!selection && selection.kind === kind && selection.id === id;
     svgClasses();
-    const query = state.query.trim().toLowerCase();
+    const query = parseRule(state.query); // `[champ:]regex` : `type:firewall` éclaire les firewalls, `adm` les noms qui le contiennent
     const selectedAggregate = selection && selection.kind === "aggregate" ? aggregateOf(model, selection) : null;
     state.nodeEls.forEach((el, id) => {
-      el.classList.toggle("selected", is("node", id) || (!!selectedAggregate && selectedAggregate.hostname === id));
+      const node = model.nodeByHost.get(id);
+      el.classList.toggle("selected", is("node", id) || state.selected.has(id) || (!!selectedAggregate && selectedAggregate.hostname === id));
       el.classList.toggle("related", related.hosts.has(id));
-      el.classList.toggle("match", query !== "" && id.toLowerCase().includes(query));
+      el.classList.toggle("match", !!node && matches(query, node));
     });
     state.linkEls.forEach((els, id) => {
       els.group.classList.toggle("selected", is("link", id));
@@ -450,10 +444,43 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     });
   }
 
+  // La sélection simple : un élément, lu ; un équipement est aussi le seul membre de la sélection multiple. La page
+  // apprend l'élément (`onSelect`) et, si elle écoute, la sélection multiple (`onHosts`).
+  const notifyHosts = (): void => { if (options.onHosts) options.onHosts(Array.from(state.selected)); };
   function select(selection: Selection | null): void {
     state.selection = selection;
+    state.selected = new Set(selection && selection.kind === "node" ? [selection.id] : []);
     paintSelection();
     onSelect(selection);
+    notifyHosts();
+  }
+  // La sélection multiple : des équipements de cette run ; un seul redevient une sélection simple, aucun = rien.
+  function selectHosts(hosts: string[]): void {
+    const kept = new Set(hosts.filter((host) => model.nodeByHost.has(host)));
+    state.selected = kept;
+    state.selection = kept.size === 1 ? { kind: "node", id: Array.from(kept)[0] } : null;
+    paintSelection();
+    onSelect(state.selection);
+    notifyHosts();
+  }
+  function toggleHost(hostname: string): void {
+    const next = new Set(state.selected);
+    if (next.has(hostname)) next.delete(hostname); else next.add(hostname);
+    selectHosts(Array.from(next));
+  }
+  // Le rectangle de sélection : les équipements dessinés dont le centre est dans le rectangle d'écran.
+  function selectIn(rect: ScreenRect): void {
+    const inside = Array.from(state.nodeEls.keys()).filter((host) => {
+      const p = screenPoint(host);
+      return p.x >= rect.left && p.x <= rect.right && p.y >= rect.top && p.y <= rect.bottom;
+    });
+    selectHosts(inside);
+  }
+  function alignSelected(mode: AlignMode): Map<string, Point> {
+    const moved = alignPositions(state.positions, Array.from(state.selected).filter((host) => state.nodeEls.has(host)), mode);
+    moved.forEach((point, host) => moveTo(host, point));
+    if (moved.size && options.onPins) options.onPins(moved, "aligned");
+    return moved;
   }
 
   // Les membres d'un cluster s'attirent comme s'ils étaient câblés : le cadre reste compact, un membre injoignable
@@ -473,11 +500,12 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   let unplaced = new Set<string>(); // les équipements dessinés sans place à retenir (rangés sous le graphe)
   function place(nodes: ModelNode[]): { positions: Map<string, Point>; fresh: Map<string, Point> } {
     const edges = layoutEdges();
+    const card = { w: model.cardWidth, h: CARD_H };
     const infra = nodes.filter((n) => n.kind !== "stub").map((n) => n.hostname);
     const stubs = nodes.filter((n) => n.kind === "stub").map((n) => n.hostname);
     const of = (ids: string[], source: Map<string, Point>): [string, Point][] => ids.filter((id) => source.has(id)).map((id) => [id, source.get(id) as Point]);
     const remembered = of(infra, state.placed);
-    const base = placeAll(infra, edges, new Map([...remembered, ...of(infra, state.pinned)]), { extend: remembered.length > 0 });
+    const base = placeAll(infra, edges, new Map([...remembered, ...of(infra, state.pinned)]), { extend: remembered.length > 0, card });
     const fresh = new Map<string, Point>();
     const held = wired(infra, edges);
     unplaced = new Set(infra.filter((id) => !held.has(id)));
@@ -490,7 +518,7 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     });
     if (!stubs.length) return { positions: base, fresh };
     const fixed = new Map([...base, ...of(stubs, state.placed), ...of(stubs, state.pinned)]);
-    return { positions: placeAll(nodes.map((n) => n.hostname), edges, fixed, { extend: true }), fresh };
+    return { positions: placeAll(nodes.map((n) => n.hostname), edges, fixed, { extend: true, card }), fresh };
   }
 
   // Replace tout : nœuds visibles, placement (les nœuds épinglés et mémorisés gardent leur place), tracés.
@@ -501,7 +529,7 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     const { positions, fresh } = place(nodes);
     state.positions = positions;
     tip.hide(); // l'élément survolé va être redessiné
-    [state.nodeEls, state.linkEls, state.beamEls, state.clusterEls].forEach((map) => map.clear());
+    [state.nodeEls, state.linkEls, state.beamEls, state.clusterEls, cards].forEach((map) => map.clear());
     [clusterLayer, beamLayer, linkLayer, labelLayer, nodeLayer].forEach(clear);
     visibleClusters(shown).forEach((cluster) => clusterLayer.appendChild(drawCluster(cluster)));
     visibleBeams(shown, links).forEach((beam) => beamLayer.appendChild(drawBeam(beam)));
@@ -518,11 +546,11 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
   function centerOn(selection: Selection | null): void {
     const ends = hostsOf(model, selection).map((host) => state.positions.get(host)).filter((p): p is Point => !!p);
     if (!ends.length) return;
-    const rect = svg.getBoundingClientRect();
+    const area = visibleRect();
     const x = ends.reduce((sum, p) => sum + p.x, 0) / ends.length, y = ends.reduce((sum, p) => sum + p.y, 0) / ends.length;
     state.view.k = Math.max(state.view.k, 0.8);
-    state.view.tx = (rect.width || 900) / 2 - x * state.view.k;
-    state.view.ty = (rect.height || 600) / 2 - y * state.view.k;
+    state.view.tx = area.x + area.width / 2 - x * state.view.k;
+    state.view.ty = area.y + area.height / 2 - y * state.view.k;
     applyView();
   }
 
@@ -578,11 +606,10 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
 
   const drawn = (): Drawn => ({ nodes: state.nodeEls.size, links: state.linkEls.size });
 
-  bindCanvas();
-  return { state, render: (keepView) => render(keepView), fit, select, reveal, repaint: paintSelection,
+  return { state, render: (keepView) => render(keepView), fit, select, selectHosts, alignSelected, reveal, repaint: paintSelection,
     resetPins: () => { state.pinned = savedPins(); return render(true); },
     replaceAll: () => { state.pinned = savedPins(); state.placed = new Map(); return render(false, true); },
-    syncPins, syncPlaces,
+    syncPins, syncPlaces, recolor: () => render(true),
     // Une épingle retirée replace le graphe seulement si son équipement est dessiné (une orpheline ne bouge rien).
     unpin: (hostnames) => {
       const shown = hostnames.some((host) => state.nodeEls.has(host));

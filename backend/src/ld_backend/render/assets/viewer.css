@@ -6,6 +6,9 @@
   --error: #c0322b; --warning: #915c08; --info: #5a6779; --node: #ffffff; --node-ink: #16202e;
   --structure: #5b4aa8; /* clusters HA, peer-link, rôle, heartbeat : une famille à part, ni accent ni statut */
   --added: #1b9e77; --changed: #c2418c; --removed: #7a8699; /* le diff : ajouté, changé, retiré (fantôme) ; hors des teintes de statut */
+  /* les douze teintes nommées (docs/10) : l'identité d'un équipement sur sa carte, par type ou par intention */
+  --hue-blue: #2563eb; --hue-sky: #0284c7; --hue-indigo: #4f46e5; --hue-violet: #7c3aed; --hue-pink: #db2777; --hue-red: #dc2626;
+  --hue-orange: #d97706; --hue-amber: #b7791f; --hue-lime: #4d7c0f; --hue-green: #16a34a; --hue-teal: #0d9488; --hue-slate: #64748b; --icon-mark: #ffffff;
   --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Liberation Sans", Arial, sans-serif;
 }
@@ -16,6 +19,8 @@
     --error: #f0706a; --warning: #e0a040; --info: #94a2b5; --node: #212b38; --node-ink: #e4e9f0;
     --structure: #a78bfa;
     --added: #4fd1a5; --changed: #f084c2; --removed: #94a2b5;
+    --hue-blue: #5b9cf6; --hue-sky: #38bdf8; --hue-indigo: #818cf8; --hue-violet: #c084fc; --hue-pink: #f472b6; --hue-red: #f87171;
+    --hue-orange: #f2a541; --hue-amber: #fbbf24; --hue-lime: #a3e635; --hue-green: #4ade80; --hue-teal: #2dd4bf; --hue-slate: #94a3b8; --icon-mark: #10151c;
   }
 }
 * { box-sizing: border-box; }
@@ -182,17 +187,36 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .show-ports .link:not(.crowded) .port-label, .link.selected .port-label { display: block; }
 /* paliers de zoom (classe posée sur le svg par applyView) : de loin, seuls les noms et les formes restent */
 .zoom-far .port-label, .zoom-far .beam-tag, .zoom-far .node-role, .zoom-far .node-stack { display: none; }
+.node, .legend-icon, .hue-dot { --type: var(--hue-slate); }
 .node { cursor: pointer; }
+.hue-blue { --type: var(--hue-blue); }
+.hue-sky { --type: var(--hue-sky); }
+.hue-indigo { --type: var(--hue-indigo); }
+.hue-violet { --type: var(--hue-violet); }
+.hue-pink { --type: var(--hue-pink); }
+.hue-red { --type: var(--hue-red); }
+.hue-orange { --type: var(--hue-orange); }
+.hue-amber { --type: var(--hue-amber); }
+.hue-lime { --type: var(--hue-lime); }
+.hue-green { --type: var(--hue-green); }
+.hue-teal { --type: var(--hue-teal); }
+.hue-slate { --type: var(--hue-slate); }
+.hue-dot::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--type); margin-right: 5px; vertical-align: -1px; }
 .node-shape { fill: var(--node); stroke: var(--ink); stroke-width: 1.5; }
+.node-rail { fill: var(--type); pointer-events: none; }
+/* l'icône de type en trois couches (icons.ts) : silhouette à la couleur du type, bandeau du bas, symbole en réserve */
+.node-icon { pointer-events: none; }
+.icon-body { fill: var(--type); }
+.icon-shade { fill: #000; fill-opacity: 0.2; }
+.icon-mark { fill: var(--icon-mark); }
 .kind-external .node-shape { stroke-dasharray: 4 3; }
 .kind-stub .node-shape { fill: var(--raised); stroke: var(--muted); }
 .collection-partial .node-shape { stroke: var(--warning); stroke-width: 2.5; }
 .collection-unreachable .node-shape, .collection-failed .node-shape { stroke: var(--error); stroke-width: 2.5; }
 .collection-not_collected .node-shape { stroke: var(--muted); stroke-dasharray: 2 3; }
-.node-icon { fill: none; stroke: var(--node-ink); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-.node-label { font: 600 12.5px var(--sans); fill: var(--ink); text-anchor: middle; paint-order: stroke; stroke: var(--ground); stroke-width: 3.5px; pointer-events: none; }
-.kind-stub .node-label { font-weight: 500; font-size: 11px; fill: var(--muted); }
-.node-stack { font: 600 10px var(--sans); fill: var(--muted); pointer-events: none; }
+.node-label { font: 700 15px var(--mono); letter-spacing: 0.02em; fill: var(--ink); pointer-events: none; }
+.kind-stub .node-label { font: 500 11px var(--sans); letter-spacing: 0; fill: var(--muted); paint-order: stroke; stroke: var(--ground); stroke-width: 3.5px; }
+.node-stack { font: 600 11px var(--sans); fill: var(--muted); pointer-events: none; }
 /* l'épingle (couche d'intention, B4) : un glyphe dans le coin haut gauche d'un équipement dont la place est voulue */
 .node-pin { display: none; fill: var(--surface); stroke: var(--structure); stroke-width: 1.4; stroke-linejoin: round; pointer-events: none; }
 .node.pinned .node-pin { display: block; }
@@ -204,7 +228,7 @@ td .pill { font-size: 11px; padding: 0 6px; }
 /* le rôle HA d'un membre, tel qu'enregistré ; le fond ne dit « forwarde / en attente » que là où le snapshot le dit
    (active / standby, ou primary / secondary en active_passive) ; état down en rouge ; 8 px est le plancher, en dessous
    le palier de zoom le masque et la teinte reste */
-.node-role { font: 650 7.5px var(--sans); fill: var(--muted); text-anchor: middle; pointer-events: none; }
+.node-role { font: 650 10px var(--sans); fill: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; pointer-events: none; }
 .ha-lead .node-shape { fill: color-mix(in srgb, var(--structure) 18%, var(--node)); }
 .ha-lead .node-role { fill: var(--structure); }
 .ha-follow .node-shape { fill: color-mix(in srgb, var(--muted) 24%, var(--node)); }
@@ -226,7 +250,7 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .has-selection .beam-tag:not(.selected):not(.related) { opacity: 0.28; }
 .cluster-hull { fill: var(--structure); fill-opacity: 0.07; stroke: var(--structure); stroke-opacity: 0.6; stroke-width: 1.2; stroke-dasharray: 6 4; cursor: pointer; }
 .cluster.selected .cluster-hull { fill-opacity: 0.12; stroke-opacity: 1; stroke-width: 2.5; stroke-dasharray: none; }
-.cluster-label { font: 600 9px var(--sans); fill: var(--structure); pointer-events: none; }
+.cluster-label { font: 600 10px var(--sans); fill: var(--structure); pointer-events: none; }
 .link-halo { fill: none; stroke: var(--structure); stroke-opacity: 0.25; stroke-width: 9; stroke-linecap: round; }
 .pill.member-bundled, .pill.state-up, .pill.degraded-false, .pill.oper-up { border-color: var(--confirmed); color: var(--confirmed); }
 .pill.member-suspended, .pill.member-standby, .pill.member-individual, .pill.member-not_in_use, .pill.degraded-true { border-color: var(--warning); color: var(--warning); }
@@ -253,7 +277,7 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .legend-note .swatch.diff-added { background: var(--added); }
 .legend-note .swatch.diff-changed { background: var(--changed); }
 .legend-note .swatch.diff-removed { border-top: 2px dashed var(--removed); }
-.legend-icon { width: 15px; height: 15px; fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.legend-icon { width: 16px; height: 16px; }
 
 /* la bulle au survol : un groupe SVG en coordonnées d'écran, jamais un style en ligne */
 .tip { pointer-events: none; }

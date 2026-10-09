@@ -2,13 +2,13 @@
 // `../contracts/`). Rien ici n'est inventé : chaque entité garde son document brut (`raw`) et des index vers les
 // autres. Les types du DOM ne sont pas importés : le modèle est pur, testé sous Node sans navigateur.
 import type { Diff, FieldChange } from "../contracts/diff";
-import type { Intent, Pin } from "../contracts/intent";
+import type { Annotation, AnnotationStyle, Connector, ConnectorStyle, DeviceColor, Group, GroupStyle, Intent, Pin, TypeColor } from "../contracts/intent";
 import type {
   Check, Coverage, Endpoint, HaCluster, HaClusterMember, HeartbeatInterface, Link, MlagDomain, Node as SnapshotNode,
   Report, Severity, Snapshot, SnapshotAggregate, SnapshotInterface, Source,
 } from "../contracts/snapshot";
 
-export type SelectionKind = "node" | "link" | "aggregate" | "beam" | "cluster";
+export type SelectionKind = "node" | "link" | "aggregate" | "beam" | "cluster" | "group" | "annotation" | "connector";
 export interface Selection { kind: SelectionKind; id: string }
 export type ChangeKind = "added" | "removed" | "changed";
 export interface Change { kind: ChangeKind; fields: FieldChange[] }
@@ -41,7 +41,7 @@ export interface Cluster {
 }
 export interface HaMembership { cluster: Cluster; member: HaClusterMember }
 export interface ComboRow { combo: string; status: string; observed: boolean; count: number }
-export type Entity = ModelNode | ModelLink | Aggregate | Beam | Cluster;
+export type Entity = ModelNode | ModelLink | Aggregate | Beam | Cluster | Group | Annotation | Connector;
 
 /** Le rapport d'ingestion embarqué dans la page (forme de `IngestReport` du backend, réduite à ce que la page lit). */
 export interface IngestFinding { code: string; message: string; hostname: string | null; ref: string | null; details: Record<string, string | number> }
@@ -57,7 +57,7 @@ export interface Placement { infrastructure: string; revision: number; updated_a
 export interface PageData {
   snapshot: Snapshot; ingest: IngestData | null; origin: string; catalogue: Record<string, CatalogueEntry>; diff?: Diff; intent?: Intent; placement?: Placement;
 }
-export type { Intent, Pin };
+export type { Annotation, AnnotationStyle, Connector, ConnectorStyle, DeviceColor, Group, GroupStyle, Intent, Pin, TypeColor };
 
 export interface Model {
   source: Source; report: Report; coverage: Coverage[]; ingest: IngestData | null; origin: string; catalogue: Record<string, CatalogueEntry>;
@@ -75,6 +75,16 @@ export interface Model {
   /** La couche d'intention (B4) : le document tel que lu, ses épingles par hostname, et celles dont l'équipement n'est
    * pas un nœud de cette run (orphelines : listées, jamais effacées en silence). */
   intent: Intent | null; pinByHost: Map<string, Pin>; orphanPins: Pin[];
+  /** Les couleurs d'intention (docs/10) : par type, par équipement ; orphelines si l'équipement n'est pas dans la run. */
+  colorByType: Map<string, TypeColor>; colorByHost: Map<string, DeviceColor>; orphanColors: DeviceColor[];
+  /** Les groupes (docs/10 §5) : par id, par membre ; orphelins quand aucun membre n'est dans la run. */
+  groupById: Map<string, Group>; groupsByHost: Map<string, Group[]>; orphanGroups: Group[];
+  /** Les annotations (docs/10 §6) : par id, par équipement et par groupe d'ancrage ; orphelines quand l'ancre est absente. */
+  annotationById: Map<string, Annotation>; annotationsByHost: Map<string, Annotation[]>; annotationsByGroup: Map<string, Annotation[]>; orphanAnnotations: Annotation[];
+  /** Les connecteurs (docs/10 §6, 1.4.0) : par id, par bout attaché (`sorte\0ref`, connectors.key) ; orphelins quand un bout est absent. */
+  connectorById: Map<string, Connector>; connectorsByRef: Map<string, Connector[]>; orphanConnectors: Connector[];
   /** Le placement mémorisé (docs/09) : le document tel que lu, et la place de chaque équipement par hostname. */
   placement: Placement | null; placeByHost: Map<string, Place>;
+  /** La largeur commune des cartes de la run (card.ts, `uniformWidth`) : toutes les cartes ont la même. */
+  cardWidth: number;
 }

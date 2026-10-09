@@ -2066,11 +2066,14 @@ câble `down`, un contrôle `link_down` apparu), en forme canonique :
 
 Le JSON Schema équivalent est `src/ld_contracts/schema/diff-v1.schema.json`.
 
-## Partie D — Intention : Intent v1.0.0
+## Partie D — Intention : Intent v1.5.0
 
 L'intention est ce que l'humain veut en plus de ce que la collecte montre : des patchs keyés par identité
-stable, qui survivent aux runs. V1 ne connaît qu'une sorte de patch, l'épingle (la place voulue d'un
-équipement sur le dessin). D'autres sortes viendront comme des listes à côté, sans rien changer à celle-ci.
+stable, qui survivent aux runs. Six sortes de patch : l'épingle (la place voulue d'un équipement sur le
+dessin, 1.0.0), la couleur d'un type et la couleur d'un équipement (1.1.0), le groupe (des membres et un
+style, 1.2.0 ; docs/10 §5), l'annotation (une note, une forme, un tableau ou une image, libre ou attachée,
+1.3.0 ; docs/10 §6), le connecteur (une ligne ou une flèche à deux bouts, 1.4.0 ; ancres 1.5.0). D'autres
+sortes viendront comme des listes à côté, sans rien changer à celles-ci.
 Ce document est écrit par l'API de Living Diagram (`POST /api/intent/patches`) et lu par la toile ; il ne
 concerne pas l'exportateur. Sa version suit son propre semver.
 
@@ -2078,8 +2081,11 @@ concerne pas l'exportateur. Sa version suit son propre semver.
 
 La couche d'intention d'une infrastructure : ses patchs keyés par identité stable, avec leur auteur et leur date.
 
-Le document ne s'écrit que par opérations (`pin`, `unpin`) ; chaque requête acceptée incrémente `revision`.
-Il n'est lu ni par B1 ni par B3 : `rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`.
+Le document ne s'écrit que par opérations (`pin`, `unpin`, `color`, `uncolor`, `color_type`, `uncolor_type`,
+`group_create`, `group_update`, `group_add`, `group_remove`, `group_delete`, `annotation_create`,
+`annotation_update`, `annotation_delete`, `connector_create`, `connector_update`, `connector_delete`) ; chaque
+requête acceptée incrémente
+`revision`. Il n'est lu ni par B1 ni par B3 : `rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`.
 
 | Champ | Type | Requis | Signification |
 |---|---|---|---|
@@ -2088,6 +2094,11 @@ Il n'est lu ni par B1 ni par B3 : `rendu = f(snapshot ⊕ intent, vue)`, `diff =
 | `revision` | entier ≥ 0 | oui | Nombre de requêtes d'écriture acceptées ; 0 = jamais écrit. |
 | `updated_at` | date-time ISO 8601 avec fuseau \| null | oui | Date UTC de la dernière écriture ; null si et seulement si `revision` vaut 0. |
 | `pins` | liste de [Pin](#pin) | oui | Les épingles, triées par `hostname`, uniques ; 10 000 au plus (`too_long`). |
+| `type_colors` | liste de [TypeColor](#typecolor) | oui | La palette des types : une couleur par type au plus, triées par `type`, uniques (docs/10). |
+| `device_colors` | liste de [DeviceColor](#devicecolor) | oui | Les couleurs par équipement, triées par `hostname`, uniques ; 10 000 au plus (`too_long`). |
+| `groups` | liste de [Group](#group) | oui | Les groupes (docs/10 §5), triés par `id`, uniques ; 1 000 au plus. |
+| `annotations` | liste de [Annotation](#annotation) | oui | Les annotations (docs/10 §6 : notes, formes, tableaux, images), triées par `id`, uniques ; 2 000 au plus. |
+| `connectors` | liste de [Connector](#connector) | oui | Les connecteurs (docs/10 §6 : lignes et flèches à deux bouts), triés par `id`, uniques ; 2 000 au plus. |
 
 ### Documents
 
@@ -2103,7 +2114,302 @@ Une épingle : la place voulue d'un équipement sur le dessin, par qui, quand.
 | `author` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Qui a posé ou déplacé l'épingle (nom déclaré dans la page), 80 caractères au plus, blancs de bord retirés, sans caractère de contrôle. |
 | `at` | date-time ISO 8601 avec fuseau | oui | Quand : date UTC écrite par le serveur à l'application de l'opération. |
 
+#### TypeColor
+
+La couleur voulue pour tous les équipements d'un type (la palette des types de l'infrastructure), par qui,
+quand.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `type` | [DeviceType](#devicetype) | oui | Type du contrat d'entrée (`devices[].type`) ; un seul patch par type. |
+| `hue` | [Hue](#hue) | oui | Teinte nommée, parmi les douze du contrat. |
+| `author` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Qui a choisi la teinte, 80 caractères au plus, sans caractère de contrôle. |
+| `at` | date-time ISO 8601 avec fuseau | oui | Quand : date UTC écrite par le serveur à l'application de l'opération. |
+
+#### DeviceColor
+
+La couleur voulue d'un équipement, qui l'emporte sur celle de son type, par qui, quand.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `hostname` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Identité stable du nœud (`nodes[].hostname` du snapshot), à l'octet. |
+| `hue` | [Hue](#hue) | oui | Teinte nommée, parmi les douze du contrat. |
+| `author` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Qui a choisi la teinte, 80 caractères au plus, sans caractère de contrôle. |
+| `at` | date-time ISO 8601 avec fuseau | oui | Quand : date UTC écrite par le serveur à l'application de l'opération. |
+
+#### Group
+
+Un groupe (docs/10 §5) : des membres et un style ; le cadre se calcule depuis les membres, jamais stocké.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `id` | texte, motif `^g[0-9]+-[0-9]+$` | oui | Identité stable attribuée par le serveur à la création : `g<revision>-<n>`. |
+| `label` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Le nom du groupe, 1 à 80 caractères, modifiable sans changer l'identité. |
+| `description` | texte, motif `^[^\x00-\x09\x0b-\x1f\x7f]*$` | oui | Texte libre, 500 caractères au plus (retours à la ligne admis). |
+| `members` | liste de texte, motif `^[^\x00-\x1f\x7f]+$` (au moins 1) | oui | Les membres, par `hostname`, triés, uniques, un au moins. |
+| `style` | [GroupStyle](#groupstyle) | oui |  |
+| `author` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Qui a créé ou modifié le groupe en dernier. |
+| `at` | date-time ISO 8601 avec fuseau | oui | Quand : date UTC écrite par le serveur à l'application de l'opération. |
+
+#### GroupStyle
+
+Le style d'un groupe (docs/10 §5) : toutes clés écrites ; le serveur complète avec les défauts à la création.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `shape` | [GroupShape](#groupshape) | oui | Rectangle (coins `radius`) ou ellipse circonscrite à la boîte des membres. |
+| `radius` | entier ≥ 0 ≤ 80 | oui | Rayon des coins du rectangle, en unités du dessin. |
+| `hue` | [Hue](#hue) | oui | Teinte nommée du cadre (remplissage, bordure, étiquette si `label_color` = hue). |
+| `fill_opacity` | entier ≥ 0 ≤ 100 | oui | Opacité du remplissage, en pourcent. |
+| `stroke_width` | entier ≥ 0 ≤ 8 | oui | Épaisseur de la bordure, en unités du dessin. |
+| `stroke_style` | [StrokeStyle](#strokestyle) | oui | Trait de la bordure : plein, tirets, pointillés, aucun. |
+| `padding` | entier ≥ 0 ≤ 300 | oui | Marge entre les cartes des membres et le cadre. |
+| `label_position` | [LabelPosition](#labelposition) | oui | Où l'étiquette s'ancre sur le cadre (neuf positions). |
+| `label_placement` | [LabelPlacement](#labelplacement) | oui | Étiquette à l'intérieur ou à l'extérieur du cadre. |
+| `label_size` | entier ≥ 8 ≤ 64 | oui | Taille de l'étiquette, en pixels du dessin. |
+| `label_weight` | [LabelWeight](#labelweight) | oui | Graisse de l'étiquette. |
+| `label_font` | [LabelFont](#labelfont) | oui | Police de l'étiquette : sans (Inter) ou mono (JetBrains Mono). |
+| `label_color` | [LabelColor](#labelcolor) | oui | Couleur de l'étiquette : la teinte du cadre, ou l'encre du thème. |
+
+#### Annotation
+
+Une annotation (docs/10 §6) : un contenu, une boîte, un ancrage, un style ; signée, datée.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `id` | texte, motif `^a[0-9]+-[0-9]+$` | oui | Identité stable attribuée par le serveur à la création : `a<revision>-<n>`. |
+| `anchor` | [Anchor](#anchor) | oui |  |
+| `x` | entier ≥ -1000000 ≤ 1000000 | oui | Abscisse du coin haut gauche : dans le plan si libre, sinon relative à l'ancre. |
+| `y` | entier ≥ -1000000 ≤ 1000000 | oui | Ordonnée du coin haut gauche, même repère. |
+| `w` | entier ≥ 20 ≤ 4000 | oui | Largeur, 20 à 4 000 unités du dessin. |
+| `h` | entier ≥ 20 ≤ 4000 | oui | Hauteur, 20 à 4 000 unités du dessin. |
+| `z` | [ZOrder](#zorder) | oui | `back` : sous les cadres et les cartes ; `front` : au-dessus de tout. |
+| `locked` | booléen | oui | Verrouillée : ni glissé ni redimensionnement sur la toile. |
+| `leader` | booléen | oui | Ligne de rappel vers l'ancre ; faux si libre (`leader_without_anchor`). |
+| `content` | [NoteContent](#notecontent) \| [ShapeContent](#shapecontent) \| [TableContent](#tablecontent) \| [ImageContent](#imagecontent) | oui |  |
+| `style` | [AnnotationStyle](#annotationstyle) | oui |  |
+| `author` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Qui a créé ou modifié l'annotation en dernier. |
+| `at` | date-time ISO 8601 avec fuseau | oui | Quand : date UTC écrite par le serveur à l'application de l'opération. |
+
+#### Anchor
+
+À quoi l'annotation est attachée : rien (libre, dans le plan), un équipement (par `hostname`), un groupe (par
+`id`). `ref` est null si et seulement si l'annotation est libre (`anchor_ref_mismatch`).
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | [AnchorKind](#anchorkind) | oui | `free` : coordonnées du plan ; `device` : relative au centre de la carte ; `group` : relative au coin haut gauche du cadre. |
+| `ref` | texte, motif `^[^\x00-\x1f\x7f]+$` \| null | oui | Le `hostname` de l'équipement ou l'`id` du groupe ; null si libre. |
+
+#### NoteContent
+
+Une note : du texte brut, multi-ligne, jamais du HTML ni du Markdown.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | `note` | oui |  |
+| `text` | texte, motif `^[^\x00-\x09\x0b-\x1f\x7f]*$` | oui | 1 à 2 000 caractères ; retours à la ligne admis, aucun autre caractère de contrôle. |
+
+#### ShapeContent
+
+Une forme : rectangle ou ellipse, avec une étiquette (une ligne ou une flèche est un connecteur).
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | `shape` | oui |  |
+| `shape` | [ShapeKind](#shapekind) | oui |  |
+| `label` | texte, motif `^[^\x00-\x1f\x7f]*$` | oui | Étiquette au centre (vide admis), 80 caractères au plus. |
+
+#### TableContent
+
+Un tableau de texte : lignes × colonnes, toutes les lignes de même longueur (`table_ragged`) ; des largeurs de
+colonne et des hauteurs de ligne relatives (poids, la boîte reste la mesure), des cellules fusionnées.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | `table` | oui |  |
+| `header` | booléen | oui | La première ligne est un en-tête. |
+| `rows` | liste de liste de texte, motif `^[^\x00-\x1f\x7f]*$` (au moins 1) | oui | 1 à 30 lignes de 1 à 8 cellules, 120 caractères au plus. |
+| `widths` | liste de entier ≥ 1 ≤ 4000 \| null | oui | Un poids par colonne (1..4000) : la largeur de la boîte se partage au prorata ; null = colonnes égales. Autant de poids que de colonnes (`table_dims_mismatch`). |
+| `heights` | liste de entier ≥ 1 ≤ 4000 \| null | oui | Un poids par ligne, de même ; null = lignes égales. Autant de poids que de lignes. |
+| `merges` | liste de [Merge](#merge) | oui | Les fusions, triées par (`row`, `col`), dans le tableau, sans chevauchement, couvrant deux cellules au moins (`table_merge_outside`, `table_merge_overlap`, `table_merge_trivial`). |
+
+#### Merge
+
+Des cellules fusionnées : la cellule haut gauche (`row`, `col`) couvre `rows` × `cols` cellules ; le texte est
+celui de la cellule haut gauche, les cellules couvertes gardent le leur sans le montrer.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `row` | entier ≥ 0 | oui | Ligne de la cellule haut gauche, depuis 0. |
+| `col` | entier ≥ 0 | oui | Colonne de la cellule haut gauche, depuis 0. |
+| `rows` | entier ≥ 1 ≤ 30 | oui | Lignes couvertes, 1 au moins. |
+| `cols` | entier ≥ 1 ≤ 8 | oui | Colonnes couvertes, 1 au moins. |
+
+#### ImageContent
+
+Une image du magasin de fichiers de l'infrastructure, par son empreinte ; PNG, JPEG ou WebP, jamais SVG.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | `image` | oui |  |
+| `asset` | texte, motif `^[0-9a-f]{64}$` | oui | SHA-256 hexadécimal du fichier, tel que `POST /api/intent/assets` l'a rendu. |
+| `alt` | texte, motif `^[^\x00-\x1f\x7f]*$` | oui | Texte de remplacement, 120 caractères au plus (vide admis). |
+
+#### AnnotationStyle
+
+Le style d'une annotation (docs/10 §6) : toutes clés écrites ; le serveur complète avec les défauts de la sorte
+à la création.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `hue` | [Hue](#hue) | oui | Teinte nommée (remplissage, bordure, texte si `text_color` = hue). |
+| `fill_opacity` | entier ≥ 0 ≤ 100 | oui | Opacité du remplissage, en pourcent. |
+| `stroke_width` | entier ≥ 0 ≤ 8 | oui | Épaisseur de la bordure (ou du trait d'une ligne). |
+| `stroke_style` | [StrokeStyle](#strokestyle) | oui | Trait de la bordure : plein, tirets, pointillés, aucun. |
+| `radius` | entier ≥ 0 ≤ 80 | oui | Rayon des coins d'un rectangle, d'une note, d'une image. |
+| `opacity` | entier ≥ 10 ≤ 100 | oui | Opacité de l'annotation entière, en pourcent. |
+| `text_size` | entier ≥ 8 ≤ 64 | oui | Taille du texte, en pixels du dessin. |
+| `text_weight` | [LabelWeight](#labelweight) | oui | Graisse du texte. |
+| `text_font` | [LabelFont](#labelfont) | oui | Police du texte : sans (Inter) ou mono (JetBrains Mono). |
+| `text_color` | [LabelColor](#labelcolor) | oui | Couleur du texte : la teinte, ou l'encre du thème. |
+| `text_align` | [TextAlign](#textalign) | oui | Alignement horizontal du texte dans la boîte. |
+| `text_valign` | [TextValign](#textvalign) | oui | Alignement vertical du texte dans la boîte. |
+
+#### Connector
+
+Un connecteur (docs/10 §6) : deux bouts, des pointes, un tracé, une étiquette, un style ; signé, daté.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `id` | texte, motif `^c[0-9]+-[0-9]+$` | oui | Identité stable attribuée par le serveur à la création : `c<revision>-<n>`. |
+| `start` | [FreeEnd](#freeend) \| [AttachedEnd](#attachedend) | oui | Le bout de départ : libre, ou attaché à un équipement, un groupe, une annotation. |
+| `end` | [FreeEnd](#freeend) \| [AttachedEnd](#attachedend) | oui | Le bout d'arrivée, de même ; jamais le même élément que le départ (`connector_same_ends`). |
+| `heads` | [Heads](#heads) | oui |  |
+| `route` | [Route](#route) | oui | Droit ; coudé (deux angles droits) ; courbe (un arc). |
+| `bend` | entier ≥ -2000 ≤ 2000 | oui | Courbe : écart du milieu de l'arc à la corde, perpendiculaire, signé ; coudé : décalage du segment médian ; droit : ignoré. |
+| `label` | texte, motif `^[^\x00-\x1f\x7f]*$` | oui | Étiquette au milieu du tracé (vide admis), 80 caractères au plus. |
+| `z` | [ZOrder](#zorder) | oui | `back` : sous les cadres et les cartes ; `front` : au-dessus de tout. |
+| `locked` | booléen | oui | Verrouillé : ni bout ni courbure ne se glissent sur la toile. |
+| `style` | [ConnectorStyle](#connectorstyle) | oui |  |
+| `author` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Qui a créé ou modifié le connecteur en dernier. |
+| `at` | date-time ISO 8601 avec fuseau | oui | Quand : date UTC écrite par le serveur à l'application de l'opération. |
+
+#### FreeEnd
+
+Un bout libre : un point du plan.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | `free` | oui |  |
+| `x` | entier ≥ -1000000 ≤ 1000000 | oui | Abscisse du point, en unités du dessin. |
+| `y` | entier ≥ -1000000 ≤ 1000000 | oui | Ordonnée du point. |
+
+#### AttachedEnd
+
+Un bout attaché : le tracé part de l'ancre de l'élément (un côté), ou de son contour vers l'autre bout.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | `device` \| `group` \| `annotation` | oui |  |
+| `ref` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Le `hostname` de l'équipement, l'`id` du groupe (`g<revision>-<n>`) ou de l'annotation (`a<revision>-<n>`). |
+| `side` | [Side](#side) | oui | L'ancre : `auto` = le point du contour qui regarde l'autre bout ; `n`, `e`, `s`, `w` = le milieu de ce côté de la boîte, d'où le tracé coudé part perpendiculairement (1.5.0). |
+
+#### Heads
+
+La pointe à chaque bout : aucune (une ligne), une flèche à l'arrivée, au départ, ou aux deux.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `start` | [Head](#head) | oui |  |
+| `end` | [Head](#head) | oui |  |
+
+#### ConnectorStyle
+
+Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `hue` | [Hue](#hue) | oui | Teinte nommée du trait, des pointes et de l'étiquette (si `text_color` = hue). |
+| `stroke_width` | entier ≥ 1 ≤ 8 | oui | Épaisseur du trait. |
+| `stroke_style` | [LineStyle](#linestyle) | oui | Trait plein, tirets ou pointillés (jamais aucun : invisible). |
+| `opacity` | entier ≥ 10 ≤ 100 | oui | Opacité du connecteur entier, en pourcent. |
+| `text_size` | entier ≥ 8 ≤ 64 | oui | Taille de l'étiquette, en pixels du dessin. |
+| `text_weight` | [LabelWeight](#labelweight) | oui | Graisse de l'étiquette. |
+| `text_font` | [LabelFont](#labelfont) | oui | Police de l'étiquette : sans (Inter) ou mono (JetBrains Mono). |
+| `text_color` | [LabelColor](#labelcolor) | oui | Couleur de l'étiquette : la teinte, ou l'encre du thème. |
+
 ### Énumérations
+
+#### AnchorKind
+
+`free` \| `device` \| `group`
+
+#### GroupShape
+
+`rectangle` \| `ellipse`
+
+#### Head
+
+`none` \| `arrow`
+
+#### Hue
+
+`blue` \| `sky` \| `indigo` \| `violet` \| `pink` \| `red` \| `orange` \| `amber` \| `lime` \| `green` \| `teal` \| `slate`
+
+#### LabelColor
+
+`hue` \| `ink`
+
+#### LabelFont
+
+`sans` \| `mono`
+
+#### LabelPlacement
+
+`inside` \| `outside`
+
+#### LabelPosition
+
+`top_left` \| `top` \| `top_right` \| `left` \| `center` \| `right` \| `bottom_left` \| `bottom` \| `bottom_right`
+
+#### LabelWeight
+
+`regular` \| `semibold` \| `bold`
+
+#### LineStyle
+
+`solid` \| `dashed` \| `dotted`
+
+#### Route
+
+`straight` \| `elbow` \| `curve`
+
+#### ShapeKind
+
+`rectangle` \| `ellipse`
+
+#### Side
+
+`auto` \| `n` \| `e` \| `s` \| `w`
+
+#### StrokeStyle
+
+`solid` \| `dashed` \| `dotted` \| `none`
+
+#### TextAlign
+
+`left` \| `center` \| `right`
+
+#### TextValign
+
+`top` \| `middle` \| `bottom`
+
+#### ZOrder
+
+`back` \| `front`
+
+Types partagés avec le RunBundle, définis en partie A : [DeviceType](#devicetype).
 
 ### Règles transverses
 
@@ -2112,14 +2418,40 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
 
 - **Un document par infrastructure, jamais par run** : l'intention est longue, les runs passent. Il ne porte
   aucun `collector_run_id`.
-- **Les patchs sont keyés par identité stable, jamais par coordonnée ni par run** : une épingle vise le
-  `hostname` d'un nœud, à l'octet ; sa valeur est une position entière en unités du dessin. Un nœud absent de la
-  run affichée rend son épingle **orpheline** : elle est listée, jamais effacée en silence (règle I3).
+- **Les patchs sont keyés par identité stable, jamais par coordonnée ni par run** : une épingle ou une
+  couleur d'équipement vise le `hostname` d'un nœud, à l'octet ; une couleur de type vise un `type` du contrat
+  d'entrée ; un groupe porte un `id` attribué par le serveur (`g<revision>-<n>`). Un nœud absent de la run
+  affichée rend son patch **orphelin** : listé, jamais effacé en silence (règles I3, C2, G4).
+- **Un groupe = des membres + un style, jamais une forme à coordonnées** (docs/10 §5) : son cadre se calcule
+  depuis les cartes de ses membres ; toutes les clés du style sont écrites, le serveur complète avec les défauts.
+- **Une annotation dit ce que la donnée ignore** (docs/10 §6) : une note, une forme, un tableau ou une image,
+  avec une boîte (`x`, `y`, `w`, `h`) et un ancrage, libre dans le plan ou attachée à un équipement (relative au
+  centre de sa carte) ou à un groupe (relative au coin haut gauche de son cadre) ; `ref` est null si et seulement
+  si l'ancrage est `free` ; une ligne de rappel suppose une ancre ; les lignes d'un tableau ont la même
+  longueur, ses largeurs et hauteurs relatives comptent autant d'entrées que de colonnes et de lignes, ses
+  fusions restent dans le tableau sans se chevaucher ;
+  une image est une empreinte SHA-256 d'un fichier du magasin de l'infrastructure (PNG, JPEG, WebP ; jamais SVG).
+  Identité `a<revision>-<n>` attribuée par le serveur ; ancre absente de la run ⇒ annotation orpheline, listée.
+- **Un connecteur relie deux bouts** (docs/10 §6, 1.4.0) : une ligne ou une flèche, chaque bout libre (un point
+  du plan) ou attaché à un équipement, un groupe ou une annotation, par une ancre (`side`, 1.5.0 : le milieu d'un
+  côté, ou `auto` = le contour vers l'autre bout) ; jamais deux fois le même élément ; pointes, tracé droit /
+  coudé / courbe et courbure, étiquette. Identité `c<revision>-<n>` ;
+  un bout attaché à un élément absent ⇒ connecteur orphelin, listé. Ce n'est pas un câble : une intention.
+- **Une couleur est une teinte nommée** (`hue`, douze valeurs), jamais une valeur libre : le moteur donne à
+  chaque teinte sa valeur sombre et sa valeur claire ; les défauts par type vivent dans le moteur, pas ici
+  (docs/10).
 - **Toutes les clés sont écrites** ; aucun défaut, pas d'`extras` ; entiers stricts, dates ISO 8601 avec fuseau.
-- **Ordre canonique vérifié par le type** : `pins` triées par `hostname`, uniques.
+- **Ordre canonique vérifié par le type** : `pins` et `device_colors` triées par `hostname`, `type_colors` par
+  `type`, `groups`, `annotations` et `connectors` par `id`, les `members` d'un groupe par `hostname` ; uniques.
 - **`revision` compte les requêtes d'écriture acceptées** ; `updated_at` est null si et seulement si `revision`
-  vaut 0. Le document ne s'écrit que par opérations (`pin`, `unpin`) : dernier écrivain gagne par épingle, chaque
-  requête est journalisée côté serveur (qui, quand, quoi).
+  vaut 0. Le document ne s'écrit que par opérations (`pin`, `unpin`, `color`, `uncolor`, `color_type`,
+  `uncolor_type`, `group_create`, `group_update`, `group_add`, `group_remove`, `group_delete`,
+  `annotation_create`, `annotation_update`, `annotation_delete`, `connector_create`, `connector_update`,
+  `connector_delete`) : dernier écrivain gagne par clé, chaque requête est journalisée côté serveur (qui, quand,
+  quoi).
+- **Un document d'une mineure antérieure se relit dans la mineure courante** avec les listes qu'il ignore vides
+  (`upgraded`), par le store ; la validation d'un fichier reste stricte. Un 1.3.x y voit ses lignes et ses
+  flèches devenir des connecteurs, ses tableaux recevoir des colonnes et des lignes égales.
 - **Ni B1 ni B3 ne lisent ce document** : `rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapshot`.
 - **Sérialisation canonique** : `ld_contracts.intent.serialize.canonical_json`, même forme que le snapshot.
 
@@ -2127,25 +2459,149 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
 
 | Type | Signification |
 |---|---|
-| `not_canonical_order` | les épingles ne sont pas triées par `hostname` |
-| `duplicate_identity` | deux épingles visent le même `hostname` |
+| `not_canonical_order` | une liste n'est pas triée par sa clé (`pins` et `device_colors` par `hostname`, `type_colors` par `type`, `groups`, `annotations` et `connectors` par `id`, `members` d'un groupe par `hostname`, `merges` d'un tableau par (`row`, `col`)) |
+| `duplicate_identity` | deux patchs d'une même liste visent la même clé (`hostname`, `type` ou `id`) |
+| `anchor_ref_mismatch` | l'ancrage d'une annotation est incohérent : `ref` est null si et seulement si `kind` est `free`, et l'ancre d'un groupe est un `id` de groupe (`g<revision>-<n>`) |
+| `leader_without_anchor` | une annotation libre porte une ligne de rappel : il n'y a rien à relier |
+| `table_ragged` | les lignes d'un tableau n'ont pas toutes le même nombre de cellules |
+| `table_dims_mismatch` | un tableau n'a pas autant de largeurs que de colonnes, ou de hauteurs que de lignes |
+| `table_merge_outside` | une fusion de cellules sort du tableau |
+| `table_merge_overlap` | deux fusions de cellules se chevauchent |
+| `table_merge_trivial` | une fusion ne couvre qu'une cellule |
+| `end_ref_mismatch` | un bout de connecteur attaché à un groupe ou à une annotation n'en porte pas l'`id` (`g<revision>-<n>`, `a<revision>-<n>`) |
+| `connector_same_ends` | les deux bouts d'un connecteur visent le même élément |
 | `revision_update_mismatch` | `revision` et `updated_at` ne vont pas ensemble (`updated_at` est null si et seulement si `revision` vaut 0) |
-| `pin_after_update` | une épingle est datée après `updated_at` : le document ne peut pas être plus ancien que ce qu'il porte |
-| `too_long` | trop d'épingles (10 000 au plus), ou un texte trop long (`hostname` 253, `author` 80) |
-| `string_pattern_mismatch` | un texte (`hostname`, `author`) contient un caractère de contrôle |
+| `patch_after_update` | un patch (épingle, couleur) est daté après `updated_at` : le document ne peut pas être plus ancien que ce qu'il porte |
+| `too_long` | trop d'épingles, de couleurs ou de membres (10 000 au plus), trop de groupes (1 000), trop d'annotations ou de connecteurs (2 000), un tableau de plus de 30 lignes ou 8 colonnes, ou un texte trop long (`hostname` 253, `author` et `label` 80, `description` 500, note 2 000, cellule et `alt` 120) |
+| `too_short` | un groupe sans membre (retirer le dernier membre, c'est supprimer le groupe), un tableau sans ligne ou sans colonne |
+| `string_too_short` | une note vide, ou un nom vide (`author`, `label`) |
+| `greater_than_equal` | une valeur de style, une taille ou une courbure sous sa borne basse (docs/10 §5.2, §6.2) |
+| `less_than_equal` | une valeur de style, une taille ou une courbure au-dessus de sa borne haute (docs/10 §5.2, §6.2) |
+| `enum` | une valeur hors de son énumération (`hue` : douze teintes nommées ; `type` : les types du contrat d'entrée ; les énumérations du style d'un groupe, d'une annotation ou d'un connecteur, l'ancrage, le plan, la sorte d'une forme, le tracé et les pointes d'un connecteur) |
+| `union_tag_invalid` | le contenu d'une annotation porte une sorte inconnue (`note`, `shape`, `table`, `image`), ou un bout de connecteur une sorte inconnue (`free`, `device`, `group`, `annotation`) |
+| `union_tag_not_found` | le contenu d'une annotation ou un bout de connecteur ne dit pas sa sorte (`kind`) |
+| `string_pattern_mismatch` | un texte (`hostname`, `author`, `label`, `description`, note, cellule, `alt`) contient un caractère de contrôle, un `id` de groupe, d'annotation ou de connecteur n'a pas la forme `g<revision>-<n>` / `a<revision>-<n>` / `c<revision>-<n>`, ou l'empreinte d'une image n'est pas un SHA-256 hexadécimal |
 | `intent_major_unsupported` | la version majeure d'`intent_version` n'est pas celle du validateur |
 | `datetime_numeric` | une date est donnée en nombre (epoch) au lieu d'ISO 8601 avec fuseau |
 | `extra_forbidden` | un champ inconnu est présent (aucun `extras` dans ce contrat) |
 | `missing` | un champ est absent : toutes les clés de l'intention sont requises, `null` compris |
 
-### Exemple : deux épingles
+### Exemple : deux épingles, deux couleurs, un groupe, une annotation, un connecteur
 
 `fixtures/intent-skeleton.json`, en forme canonique :
 
 ```json
 {
+  "annotations": [
+    {
+      "anchor": {
+        "kind": "device",
+        "ref": "sw-core-01"
+      },
+      "at": "2026-10-08T09:30:00Z",
+      "author": "orhan",
+      "content": {
+        "kind": "note",
+        "text": "Baie 12, rangée B\nContact : équipe réseau"
+      },
+      "h": 60,
+      "id": "a6-1",
+      "leader": true,
+      "locked": false,
+      "style": {
+        "fill_opacity": 12,
+        "hue": "amber",
+        "opacity": 100,
+        "radius": 8,
+        "stroke_style": "solid",
+        "stroke_width": 1,
+        "text_align": "left",
+        "text_color": "ink",
+        "text_font": "sans",
+        "text_size": 13,
+        "text_valign": "top",
+        "text_weight": "regular"
+      },
+      "w": 220,
+      "x": -110,
+      "y": -150,
+      "z": "front"
+    }
+  ],
+  "connectors": [
+    {
+      "at": "2026-10-09T08:00:00Z",
+      "author": "orhan",
+      "bend": 40,
+      "end": {
+        "kind": "device",
+        "ref": "sw-core-02",
+        "side": "w"
+      },
+      "heads": {
+        "end": "arrow",
+        "start": "none"
+      },
+      "id": "c7-1",
+      "label": "voir aussi",
+      "locked": false,
+      "route": "curve",
+      "start": {
+        "kind": "annotation",
+        "ref": "a6-1",
+        "side": "auto"
+      },
+      "style": {
+        "hue": "slate",
+        "opacity": 100,
+        "stroke_style": "dashed",
+        "stroke_width": 2,
+        "text_color": "hue",
+        "text_font": "sans",
+        "text_size": 12,
+        "text_weight": "semibold"
+      },
+      "z": "front"
+    }
+  ],
+  "device_colors": [
+    {
+      "at": "2026-10-07T09:12:40Z",
+      "author": "orhan",
+      "hostname": "sw-core-01",
+      "hue": "amber"
+    }
+  ],
+  "groups": [
+    {
+      "at": "2026-10-07T10:02:00Z",
+      "author": "orhan",
+      "description": "",
+      "id": "g5-1",
+      "label": "Cœur",
+      "members": [
+        "sw-core-01",
+        "sw-core-02"
+      ],
+      "style": {
+        "fill_opacity": 8,
+        "hue": "indigo",
+        "label_color": "hue",
+        "label_font": "sans",
+        "label_placement": "inside",
+        "label_position": "top_left",
+        "label_size": 12,
+        "label_weight": "semibold",
+        "padding": 24,
+        "radius": 16,
+        "shape": "rectangle",
+        "stroke_style": "dashed",
+        "stroke_width": 2
+      }
+    }
+  ],
   "infrastructure": "infra-lab",
-  "intent_version": "1.0.0",
+  "intent_version": "1.5.0",
   "pins": [
     {
       "at": "2026-10-04T18:30:00Z",
@@ -2162,8 +2618,16 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
       "y": -80
     }
   ],
-  "revision": 2,
-  "updated_at": "2026-10-04T18:32:15Z"
+  "revision": 7,
+  "type_colors": [
+    {
+      "at": "2026-10-07T09:11:05Z",
+      "author": "orhan",
+      "hue": "red",
+      "type": "firewall"
+    }
+  ],
+  "updated_at": "2026-10-09T08:00:00Z"
 }
 ```
 
