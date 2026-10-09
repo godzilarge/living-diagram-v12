@@ -19,7 +19,7 @@ from ld_contracts.diff.serialize import canonical_json as diff_json
 from ld_contracts.intent import Intent
 from ld_contracts.intent.serialize import canonical_json as intent_json
 from ld_contracts.snapshot import Snapshot
-from pydantic import ValidationError
+from pydantic import AwareDatetime, ValidationError
 from pydantic.json_schema import models_json_schema
 from starlette.requests import ClientDisconnect
 
@@ -30,6 +30,7 @@ from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, load_archived_snapshot
 from ld_backend.ingest import ingest_bundle, result_payload
 from ld_backend.intent import IntentCorruptError, IntentGroupError, IntentLimitError, IntentStore
+from ld_backend.journal import MAX_LIMIT, Category, JournalCursorError, JournalPage, JournalQuery, JournalReader
 from ld_backend.placement import (
     Placement,
     PlacementCorruptError,
@@ -53,6 +54,7 @@ DIFF = "/api/diff"
 INTENT = "/api/intent"
 INTENT_PATCHES = "/api/intent/patches"
 INTENT_ASSETS = "/api/intent/assets"
+INTENT_JOURNAL = "/api/intent/journal"
 IMAGE_MEDIA_TYPE = re.compile(r"image/(png|jpeg|webp)", re.IGNORECASE)
 PLACEMENT = "/api/placement"
 VIEW = "/view"
@@ -188,6 +190,10 @@ PLACEMENT_WRITE_RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 
 Label = Annotated[str, Query(min_length=1)]
+JOURNAL_RESPONSES: dict[int | str, dict[str, Any]] = {
+    422: {"description": "paramètre invalide (catégorie inconnue, date sans fuseau, curseur illisible), sans écho"},
+}
+
 FromLabel = Annotated[str, Query(min_length=1, alias="from", description="run de départ")]
 ToLabel = Annotated[str, Query(min_length=1, alias="to", description="run d'arrivée")]
 
@@ -389,6 +395,7 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
     assets = AssetStore(settings.archive_dir)
     intents = IntentStore(settings.archive_dir, asset_exists=assets.exists)
     placements = PlacementStore(settings.archive_dir)
+    journal = JournalReader(settings.archive_dir)
     app = IngestApp(
         title="Living Diagram — ingestion",
         version="0.1.0",
@@ -603,6 +610,48 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
         except AssetUnknownError as exc:
             raise HTTPException(status_code=404, detail="image inconnue pour cette infrastructure") from exc
         return Response(status_code=204)
+
+    @app.get(
+        INTENT_JOURNAL,
+        dependencies=[guard],
+        responses=JOURNAL_RESPONSES,
+        summary="Lire le journal des modifications de l'intention (qui, quand, quoi), filtré, la plus récente d'abord",
+        description="Une entrée par requête acceptée par `POST /api/intent/patches` : auteur déclaré, date, révision, "
+        "catégories (`positions`, `colors`, `groups`, `annotations`, `connectors`, `other`), identités créées, "
+        "sujets cités avec leur nom d'alors, opérations telles que reçues. Sans `infrastructure`, toutes les "
+        "infrastructures. Filtres combinés : `author` et `category` répétables (l'un ou l'autre), `q` (chaque mot, "
+        "sans la casse, sur l'auteur, l'infrastructure, les noms et le contenu des opérations), `since` inclus, "
+        "`until` exclu. Pagination par `before` = le `next` de la page précédente. Lecture seule ; une ligne "
+        "illisible est sautée et comptée (`unreadable`).",
+    )
+    def get_intent_journal(
+        infrastructure: Annotated[str | None, Query(min_length=1)] = None,
+        author: Annotated[list[str] | None, Query(description="répétable")] = None,
+        category: Annotated[list[Category] | None, Query(description="répétable")] = None,
+        q: Annotated[str, Query(max_length=200)] = "",
+        since: AwareDatetime | None = None,
+        until: AwareDatetime | None = None,
+        before: Annotated[str | None, Query(max_length=400)] = None,
+        limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 100,
+    ) -> JournalPage:
+        query = JournalQuery(
+            infrastructure=infrastructure,
+            authors=tuple(author or ()),
+            categories=tuple(category or ()),
+            q=q,
+            since=since,
+            until=until,
+            before=before,
+            limit=limit,
+        )
+        try:
+            return journal.page(query)
+        except JournalCursorError as exc:
+            return _problem(
+                "paramètres de requête invalides", [{"loc": ("before",), "type": "cursor", "msg": str(exc)}]
+            )  # type: ignore[return-value]
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail="journal illisible, intervention nécessaire") from exc
 
     @app.get(
         PLACEMENT,

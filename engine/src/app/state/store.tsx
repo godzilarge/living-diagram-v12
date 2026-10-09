@@ -29,17 +29,19 @@ import type { AppWriter } from "../api/writers";
 import { emptyStack, labels } from "./history";
 import type { Stack } from "./history";
 import { formatHash, formatSearch, parseHash, parseSearch } from "./address";
+import { journalCommands } from "./journal-commands";
+import type { JournalCommands } from "./journal-commands";
 import { debug } from "./debug";
 import { readPrefs, writePrefs } from "./prefs";
 import type { Prefs } from "./prefs";
 import { initialState, reducer } from "./reducer";
-import type { Action, AppState, ContextMenuState, SelectionToken, ViewState } from "./types";
+import type { Action, AppState, ContextMenuState, SelectionToken, ViewMode, ViewState } from "./types";
 import { stepWalk, walkHosts, walkLabel } from "./walk";
 import type { Walk, WalkKind } from "./walk";
 
 export interface CanvasHandle { toile: Toile; intents: IntentHost; placements: PlacementHost; writer: Writer; placer: Placer | null; undo: Undo }
 
-export interface Commands {
+export interface Commands extends JournalCommands {
   connect: (fields: { token: string; infrastructure: string; author: string }) => void;
   listRuns: () => void;
   openRun: (runId: string, from: string) => void;
@@ -49,6 +51,9 @@ export interface Commands {
   forgetToken: () => void;
   setAuthor: (name: string) => void;
   setView: (patch: Partial<ViewState>) => void;
+  /** La vue (2026-10-09) : Diagramme ou Contrôle ; quitter le Contrôle finit un parcours de défauts. */
+  setMode: (mode: ViewMode) => void;
+  // La vue Journal (filtres, lecture, « montrer », retour) : `journal-commands.ts`.
   /** Une préférence du navigateur (thème, grille, aimant, minimap) : appliquée et rangée dans `localStorage`. */
   setPrefs: (patch: Partial<Prefs>) => void;
   toggleStatus: (status: string) => void;
@@ -134,10 +139,16 @@ export const useModel = (): Model | null => { const { state } = useStore(); retu
 /** L'intention n'a pas pu être lue avec la run : l'écriture est coupée (on écrirait sur un document qu'on n'a pas vu). */
 export const WRITE_LOCK = "L'intention de cette infrastructure n'a pas pu être lue : les modifications sont coupées pour ne rien écraser.";
 export const useWriteLock = (): string | null => { const { state } = useStore(); return state.run.kind === "ready" && !state.run.data.intent ? WRITE_LOCK : null; };
+/** Vrai en vue Diagramme avec un écrivain qui a un nom : tout ce qui s'édite (couleurs, groupes, annotations, épingles)
+ *  passe par ici ; la vue Contrôle se lit seulement (2026-10-09). */
+export const useEditable = (): boolean => { const { state, handle } = useStore(); return state.view.mode === "diagram" && !!handle && handle.intents.canWrite(); };
+/** Vrai en vue Contrôle. */
+export const useControl = (): boolean => { const { state } = useStore(); return state.view.mode === "control"; };
 
-const sameView = (a: ViewState, b: ViewState): boolean => a.showStubs === b.showStubs && a.showPorts === b.showPorts && a.showSpeeds === b.showSpeeds
-  && a.showBeams === b.showBeams && a.showPins === b.showPins && a.showNotes === b.showNotes && a.showDiff === b.showDiff
-  && a.only === b.only && a.hide.join("\n") === b.hide.join("\n") && a.hiddenStatuses.join(",") === b.hiddenStatuses.join(",");
+const sameView = (a: ViewState, b: ViewState): boolean => a.mode === b.mode && a.showStubs === b.showStubs && a.showPorts === b.showPorts && a.showSpeeds === b.showSpeeds
+  && a.showBeams === b.showBeams && a.showPins === b.showPins && a.showNotes === b.showNotes && a.showOper === b.showOper && a.showDiff === b.showDiff
+  && a.only === b.only && a.hide.join("\n") === b.hide.join("\n") && a.hiddenStatuses.join(",") === b.hiddenStatuses.join(",")
+  && JSON.stringify(a.journal) === JSON.stringify(b.journal);
 
 // Ce que l'adresse porte comme sélection : l'élément lu (par identité), ou celui qu'on attend encore de la toile.
 function selectionToken(state: AppState): SelectionToken | null {
@@ -155,6 +166,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
   stateRef.current = state;
   const handleRef = useRef<CanvasHandle | null>(null);
   const opening = useRef(0); // une ouverture plus récente rend la précédente muette (sa réponse n'écrit pas)
+  const pushNext = useRef(false); // la prochaine écriture de l'adresse est une nouvelle entrée d'historique (« montrer »)
   // La session (jeton, infrastructure) se lit ici, tenue à jour avant toute action : une commande lancée dans la
   // foulée d'un `dispatch` ne doit pas lire un état que React n'a pas encore appliqué.
   const sessionRef = useRef<Session>({ token: "", infrastructure: "" });
@@ -270,6 +282,17 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         if (handleRef.current) handleRef.current.writer.author = trimmed;
       },
       setView,
+      setMode: (mode) => {
+        if (current().view.mode === mode) return;
+        if (mode !== "control" && current().walk) endWalk(); // les comptes d'erreurs n'existent qu'en Contrôle
+        if (mode === "journal" && current().journalUi.back) dispatch({ type: "journalUi", patch: { back: false } });
+        setView({ mode });
+      },
+      ...journalCommands({
+        dispatch, current, session, setView, pushNext: () => { pushNext.current = true; },
+        dropToken: () => { writeToken(""); sessionRef.current = { ...sessionRef.current, token: "" }; dispatch({ type: "session", token: "" }); dispatch({ type: "connect", open: true }); },
+        connect: (fields) => commands.connect(fields),
+      }),
       setPrefs: (patch) => { writePrefs({ ...current().prefs, ...patch }); dispatch({ type: "prefs", patch }); },
       toggleStatus: (status) => {
         const masked = rules().hiddenStatuses;
@@ -453,9 +476,25 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       if (!sameView(stateRef.current.view, next.view)) dispatch({ type: "view", patch: next.view });
       dispatch({ type: "want", wanted: next.selection });
     };
+    // Retour / Suivant du navigateur (« montrer » depuis le Journal pousse une entrée) : la run, la vue et la sélection
+    // de l'entrée retrouvée ; une autre infrastructure se rouvre.
+    const onPop = (): void => {
+      const where = parseSearch(location.search), now = stateRef.current.address;
+      if (where.infrastructure && where.infrastructure !== sessionRef.current.infrastructure) commands.connect({ token: sessionRef.current.token, infrastructure: where.infrastructure, author: stateRef.current.author });
+      else if (where.runId && (where.runId !== now.runId || where.from !== now.from)) commands.openRun(where.runId, where.from);
+      onHash();
+    };
     window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onPop);
+    return () => { window.removeEventListener("hashchange", onHash); window.removeEventListener("popstate", onPop); };
   }, [commands]);
+
+  // La vue Journal se lit à l'ouverture et à chaque changement de filtres ou d'infrastructure (toujours à neuf : le
+  // journal a pu grandir depuis la dernière fois).
+  const journalKey = state.view.mode === "journal" ? JSON.stringify([state.view.journal, state.address.infrastructure, state.token]) : "";
+  useEffect(() => {
+    if (journalKey && stateRef.current.token) commands.loadJournal(false);
+  }, [journalKey, commands]);
 
   // L'adresse suit l'état : run, bascules, règles, sélection par identité. Jamais le jeton.
   useEffect(() => {
@@ -463,7 +502,9 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
     const search = formatSearch(state.address);
     const hash = formatHash(state.view, selectionToken(state));
     const wanted = location.pathname + search + hash;
-    if (location.pathname + location.search + location.hash !== wanted) history.replaceState(null, "", wanted);
+    if (location.pathname + location.search + location.hash === wanted) return;
+    if (pushNext.current) history.pushState(null, "", wanted); else history.replaceState(null, "", wanted);
+    pushNext.current = false;
   }, [state.address, state.view, state.selection, state.wanted, state.run]);
 
   const value = useMemo<StoreValue>(() => ({ state, dispatch, commands, catalogue, handle }), [state, commands, catalogue, handle]);

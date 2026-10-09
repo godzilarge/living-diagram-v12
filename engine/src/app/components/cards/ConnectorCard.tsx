@@ -10,7 +10,7 @@ import type { Side } from "../../../canvas/connectors";
 import { FONTS, LABEL_COLORS, WEIGHTS } from "../../../canvas/groups";
 import { hueLabel } from "../../../canvas/hues";
 import type { Connector, ConnectorStyle, Model } from "../../../canvas/types";
-import { useStore } from "../../state/store";
+import { useEditable, useStore } from "../../state/store";
 import { Badge } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, Menu, NumberField, Row, Section, Segmented, Select, TextInput, Title } from "../../ui/inspector";
 import { HostLink, HueSetting, WriteHint, signed } from "./shared";
@@ -35,8 +35,8 @@ function SideSelect({ label, value, onChange }: { label: string; value: Side; on
 }
 
 export function ConnectorCard({ model, c }: { model: Model; c: Connector }) {
-  const { commands, handle } = useStore();
-  const canWrite = !!handle && handle.intents.canWrite();
+  const { commands } = useStore();
+  const canWrite = useEditable();
   const [confirm, setConfirm] = useState(false);
   useEffect(() => { setConfirm(false); }, [c.id]);
   const s = c.style;

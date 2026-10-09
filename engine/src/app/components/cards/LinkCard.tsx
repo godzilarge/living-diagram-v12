@@ -1,6 +1,6 @@
-// La fiche d'un câble, dans la grammaire de l'inspecteur : ses deux bouts, son statut et ses sources, pourquoi il est
-// dessiné (une phrase), ses faits (vitesse, faisceau, agrégats), ses contrôles, les deux ports côte à côte ; les
-// évidences une à une, repliées.
+// La fiche d'un câble en vue Contrôle (celle de la vue Diagramme est LinkFacts.tsx, 2026-10-09) : ses deux bouts, son
+// statut et ses sources, pourquoi il est dessiné (une phrase), ses faits (vitesse, faisceau, agrégats), ses contrôles,
+// les deux ports côte à côte ; les évidences une à une, repliées.
 import { Cable, Crosshair } from "lucide-react";
 import { RESOLUTION_LABEL, speedText, whyText } from "../../../canvas/format";
 import type { ReactNode } from "react";
@@ -10,6 +10,7 @@ import type { Endpoint } from "../../../contracts/snapshot";
 import { useStore } from "../../state/store";
 import { Badge, DiffBadge, SourceBadge, StatusBadge } from "../../ui";
 import { Facts, IconButton, Inspector, InspectorHead, Section } from "../../ui/inspector";
+import { l2Text } from "./NodeFacts";
 import { ChecksSection, HostLink, changeText } from "./shared";
 
 /** Le titre d'un port : l'équipement, puis le port dessous (un nom long ne se coupe jamais au milieu). */
@@ -18,7 +19,8 @@ const PortHead = ({ end }: { end: Endpoint }) => <h4><span className="host">{end
 /** Une description brute, coupable après chaque `|` (la convention `criticité|voisin|port|options`). */
 const Breakable = ({ text }: { text: string }): ReactNode => text.split("|").map((part, i) => <span key={i}>{i ? "|" : ""}<wbr />{part}</span>);
 
-function Port({ model, end, removed }: { model: Model; end: Endpoint; removed: boolean }) {
+/** Un bout de câble tel que son équipement le décrit : état, vitesse, média, agrégat, mode L2, description brute. */
+export function Port({ model, end, removed }: { model: Model; end: Endpoint; removed: boolean }) {
   const found = interfaceAt(model, end.hostname, end.interface, removed);
   if (!found) return <div className="insp-port"><PortHead end={end} /><p className="insp-hint">absent de interfaces[] : non collecté, ou nom tel qu'annoncé par le voisin</p></div>;
   const itf = found.itf;
@@ -31,6 +33,7 @@ function Port({ model, end, removed }: { model: Model; end: Endpoint; removed: b
         ["vitesse", [speedText(itf.speed_mbps), itf.duplex].filter(Boolean).join(" · ") || null],
         ["média", itf.media],
         ["agrégat", itf.aggregate ? itf.aggregate.name + (itf.aggregate.member_status ? " (" + itf.aggregate.member_status + ")" : "") : null],
+        ["L2", l2Text(itf)],
       ]} />
       {itf.description !== null ? <p className="desc" title="description brute"><Breakable text={itf.description} /></p> : null}
     </div>

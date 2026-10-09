@@ -32,7 +32,7 @@
 .zoom-far .card-pills .pill-svg:not(.tone-danger) { display: none; }
 /* la carte : sa teinte (`--type`, posée par la classe `hue-*` : celle du type, ou celle que l'intention donne, docs/10)
    colore le rail et l'icône, sur la carte comme sur l'icône d'une fiche et sur une pastille */
-.node, .type-icon, .swatch, .frame, .annotation, .connector { --type: var(--hue-slate); }
+.node, .type-icon, .swatch, .frame, .annotation, .connector, .tip-end-dot { --type: var(--hue-slate); }
 .node { cursor: pointer; }
 .hue-blue { --type: var(--hue-blue); }
 .hue-sky { --type: var(--hue-sky); }
@@ -116,18 +116,44 @@
 .has-selection .frame:not(.selected):not(.related) { opacity: 0.35; }
 .link-halo { fill: none; stroke: var(--structure); stroke-opacity: 0.22; stroke-width: 9; stroke-linecap: round; }
 .marquee { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; }
-/* la bulle au survol (tip.ts) */
+/* La bulle au survol (tip.ts dit quoi, bubble.ts dessine où ; Orhan, 2026-10-09 : « un mode tableau », puis « encore
+   lourd, entassé, ça manque d'aération ») : trois tailles seulement (l'identité en Inter 600 13, la donnée en mono 12,
+   la méta en 11 : libellés en Inter, port sous un nom en mono, compléments), de l'air (lignes de 23, marges de
+   16 × 14), la blancheur sépare l'en-tête du tableau, un filet inset avant le verdict seul ; la bordure est celle des
+   champs, pas la forte. Une arrivée (`--t-tip`, 6 px, opacité) jouée à chaque apparition ; la bulle reste posée tant
+   que l'élément ne change pas ; la sortie est immédiate ; fondu seul sous `prefers-reduced-motion`. Pas de couleur sur
+   `.tip text` : (0,1,1) battrait les rôles en (0,1,0) ; la précision géométrique rend les avances fractionnaires que
+   l'estimation suppose (la couche de la bulle n'est pas sous `.flow svg`). */
 .tip { pointer-events: none; }
-.tip-box { fill: var(--bg-elev); stroke: var(--line-strong); stroke-width: 1; filter: drop-shadow(var(--shadow-tip)); }
-.tip-line { font: 12px var(--mono); fill: var(--ink); }
-.tip-title { font-weight: 650; }
-.tip-muted { fill: var(--ink-2); }
-.tip-line.severity-error { fill: var(--error); }
-.tip-line.severity-warning { fill: var(--warning); }
-.tip-line.severity-info { fill: var(--ink-2); }
-.tip-line.tip-diff-added { fill: var(--added); }
-.tip-line.tip-diff-changed { fill: var(--changed); }
-.tip-line.tip-diff-removed { fill: var(--removed); }
+.tip-box { fill: var(--bg-elev); stroke: var(--line); stroke-width: 1; filter: drop-shadow(var(--shadow-tip)); }
+.tip text { font-variant-numeric: tabular-nums; text-rendering: geometricPrecision; }
+.tip-title { font: 600 13px var(--sans); letter-spacing: -0.005em; fill: var(--ink); }
+.tip-value, .tip-code { font: 450 12px var(--mono); fill: var(--ink); }
+:root[data-theme="light"] .tip-value, :root[data-theme="light"] .tip-code { font-weight: 400; }
+.tip-label { font: 400 12px var(--sans); fill: var(--ink-3); }
+.tip-sub, .tip-subtitle, .tip-note, .tip-sev, .tip-end-note { font: 400 11px var(--sans); fill: var(--ink-3); }
+.tip-port { font: 400 11px var(--mono); fill: var(--ink-3); letter-spacing: 0.01em; }
+.tip-note.tone-warning { fill: var(--warning); }
+.tip-note.tone-danger { fill: var(--error); }
+.tip-muted { fill: var(--ink-3); }
+.tip-value.sev-warning { fill: var(--warning); } /* la rangée visée par un contrôle : ses deux valeurs à sa gravité */
+.tip-value.sev-error { fill: var(--error); }
+.tip-rule { stroke: var(--line); stroke-width: 1; }
+.tip-dot { stroke: none; }
+.tip-dot.dot-ok { fill: var(--confirmed); }
+.tip-dot.dot-danger, .tip-dot.severity-error { fill: var(--error); }
+.tip-dot.dot-warning, .tip-dot.severity-warning { fill: var(--warning); }
+.tip-dot.dot-muted, .tip-dot.severity-info { fill: var(--ink-3); }
+.tip-icon { fill: none; stroke: var(--ink-3); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.tip-icon-beam, .tip-icon-cluster { stroke: var(--structure); }
+.tip-icon-beam circle { fill: var(--structure); stroke: none; }
+.tip-icon.type-icon { stroke: none; }
+.tip-end-dot { fill: var(--type); stroke: none; } /* les deux bouts du câble, à la teinte de leur équipement (`hue-*`) */
+.tip-body { transform-box: fill-box; transform-origin: 50% 0; }
+.tip.on .tip-body { animation: tip-in var(--t-tip) cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes tip-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tip.on .tip-body { animation: tip-fade var(--t-tip-reduced) linear both; } }
 /* La pastille sur la toile (pill.tsx ; tons et couleurs dans app.css, `.pill, .pill-svg`) : détourée du fond, elle
    coupe le bord de la carte ou le câble dessous. */
 .pill-svg .pill-knock { fill: var(--bg); }
@@ -235,3 +261,24 @@
 .react-flow__node-annotation:focus-visible .annotation-shape { stroke: var(--accent); stroke-width: 2; }
 .note-editor { position: absolute; inset: 0; width: 100%; height: 100%; resize: none; padding: 8px; box-sizing: border-box; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg-elev); color: var(--ink); font: 13px/1.35 var(--sans); outline: none; }
 .react-flow__node:has(.note-editor) { z-index: 1000 !important; }
+/* La vue Diagramme (Orhan, 2026-10-09 : « dans la vue diagramme, je n'ai pas besoin de la partie contrôle ») : les
+   câbles à l'encre, sans tiret ni teinte de source ; aucun point de gravité, aucun cerne de collecte ; une pastille de
+   faisceau ou de vitesse ne porte jamais le ton d'un verdict. Le diff, l'état HA, les stacks, les faisceaux restent :
+   ce sont des faits. La vue Contrôle garde les règles du dessus. */
+.mode-diagram .link-line { stroke: var(--ink-2); stroke-opacity: 0.78; stroke-dasharray: none; }
+.mode-diagram .link.oper-down .link-line { stroke-opacity: 0.78; }
+.mode-diagram .link.diff-removed .link-line { stroke: var(--removed); stroke-dasharray: 3 5; stroke-opacity: 0.85; }
+.mode-diagram .link-mark, .mode-diagram .node-badge { display: none; }
+.mode-diagram .collection-partial .node-shape, .mode-diagram .collection-unreachable .node-shape, .mode-diagram .collection-failed .node-shape, .mode-diagram .collection-not_collected .node-shape {
+  stroke: var(--node-line); stroke-width: 1.2; stroke-dasharray: none; }
+.mode-diagram .node.pinned .node-shape, .mode-diagram .node:hover .node-shape { stroke-dasharray: none; }
+.mode-diagram .node:hover .node-shape { stroke: var(--ink-2); stroke-width: 2; }
+.mode-diagram .node.selected .node-shape { stroke: var(--accent); stroke-width: 2.5; }
+.mode-diagram .kind-external .node-shape { stroke-dasharray: 4 3; }
+.mode-diagram .beam-tag .pill-svg.tone-warning { --tone: var(--structure); }
+.mode-diagram .speed-pill .pill-svg.tone-warning { --pill-fg: var(--ink-2); --pill-bg: var(--bg-elev-2); --pill-line: var(--line-strong); }
+.mode-diagram .speed-pill .pill-dot { display: none; }
+/* La couche « câbles down » (panneau Affichage, `oper=1`) : ce que les équipements disent de leurs ports, dans les deux
+   vues ; un câble dont un bout est down se tire en pointillé court, effacé. */
+.show-oper .link.oper-down .link-line { stroke-dasharray: 3 4; stroke-opacity: 0.45; }
+.show-oper.mode-diagram .link.oper-down .link-line { stroke: var(--ink-3); }

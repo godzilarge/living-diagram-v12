@@ -5,16 +5,16 @@ import { X } from "lucide-react";
 import type { MouseEvent } from "react";
 import { defaultHue, hueLabel, hueOfType } from "../../canvas/hues";
 import { LABEL as ICON_LABEL, TYPES } from "../../canvas/icons";
-import { useModel, useStore } from "../state/store";
+import { useEditable, useModel, useStore } from "../state/store";
 import { Button, Dialog } from "../ui";
 import { Swatches } from "./cards/Swatches";
 import { TypeIcon, WriteHint, dateText } from "./cards/shared";
 
 export function TypePalette() {
-  const { dispatch, commands, handle } = useStore();
+  const { dispatch, commands } = useStore();
   const model = useModel();
+  const canWrite = useEditable();
   if (!model) return null;
-  const canWrite = !!handle && handle.intents.canWrite();
   const close = (): void => dispatch({ type: "colors", open: false });
   const onBackdrop = (event: MouseEvent<HTMLDivElement>): void => { if (event.target === event.currentTarget) close(); };
   return (

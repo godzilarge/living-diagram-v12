@@ -643,7 +643,7 @@ def test_hover_and_keyboard_focus_in_a_real_browser(tmp_path, bundle_dict):
         assert tab.js(f"{tip}.getAttribute('visibility')") == "hidden"
         tab.js("document.querySelector('[data-node=\"fw-edge-01\"]').focus()")
         assert tab.js(f"{tip}.getAttribute('visibility')") == "visible"
-        assert "primary · up · priorité 200" in tab.js(f"{tip}.textContent")
+        assert "priorité 200" in tab.js(f"{tip}.textContent") and "primary" in tab.js(f"{tip}.textContent")
         assert tab.js("document.activeElement.getAttribute('aria-describedby')") == "ld-tip"
         tab.js("document.activeElement.blur()")
         assert tab.js(f"{tip}.getAttribute('visibility')") == "hidden"

@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { DEFAULT_LENGTH } from "../../canvas/connectors";
 import { deleteColumn, deleteRow, insertColumn, insertRow, merge, split } from "../../canvas/table";
-import { useModel, useStore } from "../state/store";
+import { useEditable, useModel, useStore } from "../state/store";
 import { menuItems } from "../state/context";
 import type { ContextTarget, MenuItem } from "../state/context";
 import type { TableContent } from "../../contracts/intent";
@@ -30,8 +30,8 @@ export function ContextMenu() {
     if (first) first.focus();
     return () => { document.removeEventListener("pointerdown", down, true); window.removeEventListener("wheel", close); window.removeEventListener("resize", close); window.removeEventListener("blur", close); };
   }, [menu, commands]);
+  const editable = useEditable();
   if (!menu || !model || !handle) return null;
-  const editable = handle.intents.canWrite();
   const items = menuItems(menu.target, model, { editable, selectedHosts: state.hosts, hasSelection: !!state.selection || state.hosts.length > 0, pinned: (host) => model.pinByHost.has(host) });
   if (!items.length) return null;
   // Le menu reste dans la fenêtre : il se décale à gauche ou au-dessus du clic quand la place manque.

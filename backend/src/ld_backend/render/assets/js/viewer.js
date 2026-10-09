@@ -31,8 +31,8 @@
     const step2 = (last - first) / (ordered.length - 1);
     ordered.forEach((host, index) => {
       const point = at(host);
-      const value = Math.round(first + step2 * index);
-      if (point[axis] !== value) moved.set(host, axis === "x" ? { x: value, y: Math.round(point.y) } : { x: Math.round(point.x), y: value });
+      const value2 = Math.round(first + step2 * index);
+      if (point[axis] !== value2) moved.set(host, axis === "x" ? { x: value2, y: Math.round(point.y) } : { x: Math.round(point.x), y: value2 });
     });
     return moved;
   }
@@ -168,17 +168,17 @@
     if (ch === "…") return 0.95;
     return 0.6;
   }
-  function textWidth(text, px = LABEL_PX) {
+  function textWidth(text2, px = LABEL_PX) {
     let total2 = 0;
-    for (const ch of text) total2 += em(ch);
+    for (const ch of text2) total2 += em(ch);
     return Math.ceil(total2 * px + 2);
   }
-  var monoWidth = (text, px = LABEL_PX) => Math.ceil(Array.from(text).length * MONO_EM * px + 2);
+  var monoWidth = (text2, px = LABEL_PX) => Math.ceil(Array.from(text2).length * MONO_EM * px + 2);
   var shortName = (name) => name.length <= LABEL_MAX ? name : name.slice(0, 11) + "…" + name.slice(-10);
   var displayName = (hostname) => shortName(hostname).toUpperCase();
-  var clamp = (value) => Math.min(MAX_W, Math.max(MIN_W, Math.round(value)));
+  var clamp = (value2) => Math.min(MAX_W, Math.max(MIN_W, Math.round(value2)));
   var stackText = (count) => "×" + count;
-  var r2 = (value) => String(Math.round(value * 100) / 100);
+  var r2 = (value2) => String(Math.round(value2 * 100) / 100);
   function railPath(w, h2, rx, rail) {
     const x0 = -w / 2, y0 = -h2 / 2;
     const dy = rx - Math.sqrt(rx * rx - (rx - rail) * (rx - rail));
@@ -310,17 +310,17 @@
     const inside = style.label_placement === "inside";
     const pos = style.label_position;
     const col = pos === "left" || pos.endsWith("_left") ? "left" : pos === "right" || pos.endsWith("_right") ? "right" : "center";
-    const row = pos.startsWith("top") ? "top" : pos.startsWith("bottom") ? "bottom" : "middle";
-    const corner = style.shape === "ellipse" && inside && col !== "center" && row !== "middle";
+    const row2 = pos.startsWith("top") ? "top" : pos.startsWith("bottom") ? "bottom" : "middle";
+    const corner = style.shape === "ellipse" && inside && col !== "center" && row2 !== "middle";
     const ix = m + (corner ? frame.w * 0.146 : 0), iy = m + (corner ? frame.h * 0.146 : 0);
     let x = col === "left" ? inside ? ix : -m : col === "right" ? inside ? frame.w - ix : frame.w + m : frame.w / 2;
     let anchor = col === "left" ? "start" : col === "right" ? "end" : "middle";
-    if (!inside && row !== "middle" && col !== "center") {
+    if (!inside && row2 !== "middle" && col !== "center") {
       x = col === "left" ? 0 : frame.w;
     }
-    if (!inside && row === "middle" && col !== "center") anchor = col === "left" ? "end" : "start";
-    const y = row === "top" ? inside ? iy : -m : row === "bottom" ? inside ? frame.h - iy : frame.h + m : frame.h / 2;
-    const baseline = row === "middle" ? "middle" : row === "top" ? inside ? "hanging" : "alphabetic" : inside ? "alphabetic" : "hanging";
+    if (!inside && row2 === "middle" && col !== "center") anchor = col === "left" ? "end" : "start";
+    const y = row2 === "top" ? inside ? iy : -m : row2 === "bottom" ? inside ? frame.h - iy : frame.h + m : frame.h / 2;
+    const baseline = row2 === "middle" ? "middle" : row2 === "top" ? inside ? "hanging" : "alphabetic" : inside ? "alphabetic" : "hanging";
     return { x: Math.round(x), y: Math.round(y), anchor, baseline };
   }
   var dashArray = (style) => {
@@ -394,21 +394,21 @@
     return { x: Math.round(at.x - anchor.frame.x), y: Math.round(at.y - anchor.frame.y) };
   }
   var anchorRect = (anchor) => anchor.kind === "group" ? anchor.frame : { x: anchor.center.x - anchor.box.w / 2, y: anchor.center.y - anchor.box.h / 2, w: anchor.box.w, h: anchor.box.h };
-  var widthOf = (text, style) => style.text_font === "mono" ? monoWidth(text, style.text_size) : textWidth(text, style.text_size);
+  var widthOf = (text2, style) => style.text_font === "mono" ? monoWidth(text2, style.text_size) : textWidth(text2, style.text_size);
   var lineHeight = (size) => Math.round(size * 1.35);
-  function wrapText(text, width2, style) {
+  function wrapText(text2, width2, style) {
     const out = [];
     const fits = (s2) => widthOf(s2, style) <= width2;
-    text.split("\n").forEach((paragraph) => {
-      let line2 = "";
+    text2.split("\n").forEach((paragraph) => {
+      let line = "";
       paragraph.split(" ").forEach((word) => {
-        const candidate = line2 ? line2 + " " + word : word;
+        const candidate = line ? line + " " + word : word;
         if (fits(candidate)) {
-          line2 = candidate;
+          line = candidate;
           return;
         }
-        if (line2) out.push(line2);
-        line2 = "";
+        if (line) out.push(line);
+        line = "";
         let rest = word;
         while (rest && !fits(rest)) {
           let cut = 1;
@@ -416,15 +416,15 @@
           out.push(rest.slice(0, cut));
           rest = rest.slice(cut);
         }
-        line2 = rest;
+        line = rest;
       });
-      out.push(line2);
+      out.push(line);
     });
     return out;
   }
-  function layoutText(text, frame, style, pad = PAD2) {
+  function layoutText(text2, frame, style, pad = PAD2) {
     const inner = Math.max(10, frame.w - 2 * pad);
-    const all = wrapText(text, inner, style);
+    const all = wrapText(text2, inner, style);
     const lh = lineHeight(style.text_size);
     const max = Math.max(1, Math.floor((frame.h - 2 * pad) / lh));
     const kept = all.slice(0, max);
@@ -432,13 +432,13 @@
     const top = style.text_valign === "top" ? pad : style.text_valign === "bottom" ? frame.h - pad - block : (frame.h - block) / 2;
     const x = style.text_align === "left" ? pad : style.text_align === "right" ? frame.w - pad : frame.w / 2;
     const anchor = style.text_align === "left" ? "start" : style.text_align === "right" ? "end" : "middle";
-    return { lines: kept.map((line2, i) => ({ text: line2, x: Math.round(x), y: Math.round(top + i * lh + style.text_size) })), anchor, clipped: all.length > kept.length };
+    return { lines: kept.map((line, i) => ({ text: line, x: Math.round(x), y: Math.round(top + i * lh + style.text_size) })), anchor, clipped: all.length > kept.length };
   }
-  function fitCell(text, width2, style) {
-    if (widthOf(text, style) <= width2) return text;
-    let cut = text.length;
-    while (cut > 0 && widthOf(text.slice(0, cut) + "…", style) > width2) cut -= 1;
-    return cut ? text.slice(0, cut) + "…" : "";
+  function fitCell(text2, width2, style) {
+    if (widthOf(text2, style) <= width2) return text2;
+    let cut = text2.length;
+    while (cut > 0 && widthOf(text2.slice(0, cut) + "…", style) > width2) cut -= 1;
+    return cut ? text2.slice(0, cut) + "…" : "";
   }
   function borderPoint(rect, toward) {
     const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2, dx = toward.x - cx, dy = toward.y - cy;
@@ -630,12 +630,12 @@
     return into;
   }
   function fill(element, attrs, children) {
-    for (const [name, value] of Object.entries(attrs || {})) {
-      if (value === null || value === void 0 || value === false) continue;
+    for (const [name, value2] of Object.entries(attrs || {})) {
+      if (value2 === null || value2 === void 0 || value2 === false) continue;
       const event = HANDLERS.get(name);
-      if (name === "class") element.setAttribute("class", String(value));
-      else if (event) element.addEventListener(event, value);
-      else element.setAttribute(name, value === true ? "" : String(value));
+      if (name === "class") element.setAttribute("class", String(value2));
+      else if (event) element.addEventListener(event, value2);
+      else element.setAttribute(name, value2 === true ? "" : String(value2));
     }
     for (const child of flatten(children)) {
       if (child === null || child === void 0 || child === false || Array.isArray(child)) continue;
@@ -682,10 +682,10 @@
     }
     return best;
   }
-  function pushTo(map, key2, value) {
+  function pushTo(map, key2, value2) {
     const found = map.get(key2);
-    if (found) found.push(value);
-    else map.set(key2, [value]);
+    if (found) found.push(value2);
+    else map.set(key2, [value2]);
   }
   function attachChecks(model2, checks) {
     checks.forEach((check, index) => {
@@ -913,15 +913,15 @@
     });
   }
   var LOCAL_PORT_KEYS = /* @__PURE__ */ new Set(["member", "interface", "members", "priorities", "disputed", "clusters"]);
-  function mentioned(value, found) {
-    if (Array.isArray(value)) value.forEach((item) => mentioned(item, found));
-    else if (value && typeof value === "object") {
-      const record = value;
+  function mentioned(value2, found) {
+    if (Array.isArray(value2)) value2.forEach((item) => mentioned(item, found));
+    else if (value2 && typeof value2 === "object") {
+      const record = value2;
       if ("hostname" in record && "interface" in record) found.ends.add(ifaceKey(String(record.hostname), record.interface));
       else Object.entries(record).forEach(([key2, item]) => {
         if (!LOCAL_PORT_KEYS.has(key2)) mentioned(item, found);
       });
-    } else if (typeof value === "string") found.names.add(value);
+    } else if (typeof value2 === "string") found.names.add(value2);
     return found;
   }
   function concerns(check, link, portKey) {
@@ -972,12 +972,12 @@
     const rows = /* @__PURE__ */ new Map();
     for (const link of links) {
       const key2 = link.combo + SEP + link.status;
-      let row = rows.get(key2);
-      if (!row) {
-        row = { combo: link.combo, status: link.status, observed: link.sources.some((s2) => OBSERVED[s2]), count: 0 };
-        rows.set(key2, row);
+      let row2 = rows.get(key2);
+      if (!row2) {
+        row2 = { combo: link.combo, status: link.status, observed: link.sources.some((s2) => OBSERVED[s2]), count: 0 };
+        rows.set(key2, row2);
       }
-      row.count += 1;
+      row2.count += 1;
     }
     return Array.from(rows.values()).sort((x, y) => y.count - x.count || (x.combo < y.combo ? -1 : 1));
   }
@@ -1261,6 +1261,10 @@
   var SOURCE_LABEL = { lldp: "LLDP", cdp: "CDP", description: "Description" };
   var STATUS_LABEL = { confirmed: "confirmé", observed_only: "observé seul", documented_only: "documenté seul" };
   var KIND_LABEL2 = { device: "équipement collecté", external: "équipement d'une autre infra", stub: "voisin inconnu" };
+  var COLLECTION_LABEL = { success: "réussie", unreachable: "injoignable", failed: "en échec", partial: "partielle", not_collected: "non collecté" };
+  var HA_MODE_LABEL = { active_passive: "actif-passif", active_active: "actif-actif", standalone: "autonome", other: "autre" };
+  var SEVERITY_LABEL = { error: "erreur", warning: "avertissement", info: "info" };
+  var TYPE_SHORT_LABEL = { switch: "switch", router: "routeur", firewall: "firewall", load_balancer: "répartiteur", wireless_controller: "WLC", server: "serveur", other: "autre" };
   var RESOLUTION_LABEL = {
     hostname: "nom exact",
     hostname_casefold: "nom, à la casse près",
@@ -1290,32 +1294,39 @@
     for (const [long, short] of PORT_SHORT) if (name.startsWith(long) && /^\d/.test(name.slice(long.length))) return short + name.slice(long.length);
     return name;
   }
-  var isEnd = (value) => "hostname" in value && "interface" in value;
-  function plain(value) {
-    if (value === null || value === void 0) return "—";
-    if (Array.isArray(value)) return value.length ? value.map(plain).join(", ") : "—";
-    if (typeof value === "object") {
-      if (isEnd(value)) return endWithFacts(value);
-      return Object.entries(value).map(([k, v]) => k + " : " + plain(v)).join(" ; ");
+  var isEnd = (value2) => "hostname" in value2 && "interface" in value2;
+  function plain(value2) {
+    if (value2 === null || value2 === void 0) return "—";
+    if (Array.isArray(value2)) return value2.length ? value2.map(plain).join(", ") : "—";
+    if (typeof value2 === "object") {
+      if (isEnd(value2)) return endWithFacts(value2);
+      return Object.entries(value2).map(([k, v]) => k + " : " + plain(v)).join(" ; ");
     }
-    return String(value);
+    return String(value2);
   }
   var FACT_ORDER = ["oper_status", "oper_reason", "speed_mbps", "switchport_mode", "vlan"];
   var factRank = (key2) => FACT_ORDER.includes(key2) ? FACT_ORDER.indexOf(key2) : FACT_ORDER.length;
-  function endWithFacts(value) {
-    const facts = Object.entries(value).filter(([k, v]) => k !== "hostname" && k !== "interface" && v !== null && v !== void 0).sort((x, y) => factRank(x[0]) - factRank(y[0]) || (x[0] < y[0] ? -1 : 1));
-    const label2 = endLabel(value);
+  function endWithFacts(value2) {
+    const facts = Object.entries(value2).filter(([k, v]) => k !== "hostname" && k !== "interface" && v !== null && v !== void 0).sort((x, y) => factRank(x[0]) - factRank(y[0]) || (x[0] < y[0] ? -1 : 1));
+    const label2 = endLabel(value2);
     return facts.length ? label2 + " (" + facts.map(([k, v]) => k + " " + plain(v)).join(", ") + ")" : label2;
   }
-  function brief(value) {
-    if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) return value.length + " élément" + (value.length > 1 ? "s" : "");
-    return plain(value);
+  function brief(value2) {
+    if (Array.isArray(value2) && value2.some((item) => item && typeof item === "object")) return value2.length + " élément" + (value2.length > 1 ? "s" : "");
+    return plain(value2);
   }
   function elapsedText(seconds) {
     if (seconds === 0) return "même début de collecte";
     const abs = Math.abs(seconds);
     const amount = abs >= 86400 ? Math.round(abs / 8640) / 10 + " j" : abs >= 3600 ? Math.round(abs / 360) / 10 + " h" : Math.round(abs / 60) + " min";
     return amount + (seconds < 0 ? " plus tôt" : " plus tard");
+  }
+  function durationText(seconds) {
+    if (seconds === null || seconds === void 0 || seconds < 0) return null;
+    const d = Math.floor(seconds / 86400), h2 = Math.floor(seconds % 86400 / 3600), m = Math.floor(seconds % 3600 / 60);
+    if (d) return d + " j" + (h2 ? " " + h2 + " h" : "");
+    if (h2) return h2 + " h" + (m ? " " + m + " min" : "");
+    return m ? m + " min" : Math.floor(seconds) + " s";
   }
   function speedText(mbps) {
     if (mbps === null || mbps === void 0) return null;
@@ -1334,7 +1345,7 @@
     if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push("Attention : une description ne concorde pas avec l'observé, voir le contrôle ci-dessous.");
     return parts.join(" ");
   }
-  var format = { plain, brief, shortPort, speedText, elapsedText, whyText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL: KIND_LABEL2, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL };
+  var format = { plain, brief, shortPort, speedText, durationText, elapsedText, whyText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL: KIND_LABEL2, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL, COLLECTION_LABEL, HA_MODE_LABEL, SEVERITY_LABEL, TYPE_SHORT_LABEL };
 
   // src/canvas/layout.ts
   var GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -1606,7 +1617,7 @@
     server: "slate",
     other: "slate"
   };
-  var isHue = (value) => typeof value === "string" && HUES.includes(value);
+  var isHue = (value2) => typeof value2 === "string" && HUES.includes(value2);
   var hueLabel = (hue) => isHue(hue) ? HUE_LABEL[hue] : hue;
   var defaultHue = (type) => type && DEFAULT_HUE[type] || FALLBACK_HUE;
   function hueOfType(model2, type) {
@@ -1773,19 +1784,19 @@
     const pattern = isField(prefix) ? word.slice(cut + 1) : word;
     return { field, pattern, regex: new RegExp(pattern, "i") };
   }
-  function parseRule(text) {
-    const words = text.trim().split(/\s+/).filter(Boolean);
+  function parseRule(text2) {
+    const words = text2.trim().split(/\s+/).filter(Boolean);
     try {
-      return { text, terms: words.map(term), error: null };
+      return { text: text2, terms: words.map(term), error: null };
     } catch (error) {
-      return { text, terms: [], error: error.message };
+      return { text: text2, terms: [], error: error.message };
     }
   }
-  var matches = (rule, node) => rule.terms.length > 0 && rule.terms.every((t) => t.regex.test(valueOf(node, t.field)));
-  var escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  var matches = (rule2, node) => rule2.terms.length > 0 && rule2.terms.every((t) => t.regex.test(valueOf(node, t.field)));
+  var escape = (text2) => text2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   var exactRule = (hostnames) => "^(" + hostnames.slice().sort().map(escape).join("|") + ")$";
   function keepByRules(nodes, links, hide, only) {
-    const kept = nodes.filter((node) => !hide.some((rule) => matches(rule, node)));
+    const kept = nodes.filter((node) => !hide.some((rule2) => matches(rule2, node)));
     if (!only) return kept;
     const core = new Set(kept.filter((node) => matches(only, node)).map((node) => node.hostname));
     const near = new Set(core);
@@ -1797,182 +1808,511 @@
   }
   var query = { FIELDS, parseRule, matches, exactRule, keepByRules, valueOf };
 
-  // src/canvas/tip.ts
-  var CHAR_W2 = 7.4;
-  var LINE_H = 16;
-  var PAD_X = 10;
-  var PAD_Y = 7;
-  var GAP2 = 2 * CHAR_W2;
+  // src/canvas/pill.ts
+  var PILL_H = 20;
+  var PILL_PAD = 7;
+  var PILL_ADV = 6.82;
+  var PILL_ICON = 12;
+  var PILL_DOT = 6;
+  var PILL_LEAD_GAP = 4;
+  var PILL_MAX = 14;
+  function pillWidth(text2, lead = null) {
+    const leadW = lead === "icon" ? PILL_ICON + PILL_LEAD_GAP : lead === "dot" ? PILL_DOT + PILL_LEAD_GAP : 0;
+    return Math.ceil(2 * PILL_PAD + leadW + Array.from(text2).length * PILL_ADV);
+  }
+  function speedToken(mbps) {
+    if (mbps < 1e3) return mbps + "M";
+    const g = Math.round(mbps / 100) / 10;
+    return (Number.isInteger(g) ? String(g) : g.toFixed(1)) + "G";
+  }
+  var SHORT = [[/^port-?channel\s*(\d.*)$/i, "PO"], [/^bundle-?ether\s*(\d.*)$/i, "BE"], [/^po(\d.*)$/i, "PO"]];
+  function aggregateShort(name) {
+    for (const [pattern, prefix] of SHORT) {
+      const found = pattern.exec(name);
+      if (found) return prefix + found[1];
+    }
+    return name.toUpperCase();
+  }
+  function beamPillText(beam) {
+    if (beam.peerLink) return "peer-link";
+    if (beam.mlags.length) return "MLAG " + beam.mlags.map((d) => d.raw.mlag_id).join("+");
+    const a = aggregateShort(beam.a.aggregate), b = aggregateShort(beam.b.aggregate);
+    return a === b ? a : a + "/" + b;
+  }
+  var pill = { beamPillText, pillWidth, speedToken, aggregateShort, PILL_H, PILL_MAX };
+
+  // src/canvas/bubble.ts
+  var PAD_X = 16;
+  var PAD_Y = 14;
+  var RX2 = 10;
+  var TITLE_PX = 13;
+  var VALUE_PX = 12;
+  var META_PX = 11;
+  var H_TITLE = 22;
+  var H_SUB = 18;
+  var H_SPACE = 12;
+  var H_RULE = 25;
+  var H_ENDS = 36;
+  var H_END_NOTE = 16;
+  var H_ROW = 23;
+  var H_NOTE = 20;
+  var H_PILLS = 28;
+  var BASE_TITLE = 15;
+  var BASE_SUB = H_TITLE + 13;
+  var BASE_END_NAME = 14;
+  var BASE_END_PORT = 31;
+  var BASE_END_NOTE = 46;
+  var BASE_ROW = 15;
+  var BASE_NOTE = 14;
+  var BASE_PILLS = 18;
+  var RULE_Y = 12.5;
+  var DOT_Y = 11;
+  var ICON = 18;
+  var ICON_GRID = 16;
+  var ICON_GAP = 10;
+  var PILL_GAP = 6;
+  var LABEL_GAP = 20;
+  var COL_GAP = 28;
+  var DOT_R = 3;
+  var DOT_W = 12;
+  var SUB_GAP2 = 8;
+  var SEV_GAP = 10;
   var OFFSET = 14;
+  var BOLD = 1.05;
+  var valueWidth = (v) => (v.dot ? DOT_W : 0) + monoWidth(v.text, VALUE_PX) + (v.sub ? SUB_GAP2 + textWidth(v.sub, META_PX) : 0);
+  var titleWidth = (text2) => Math.ceil(textWidth(text2, TITLE_PX) * BOLD);
+  var endWidth = (e) => Math.max(titleWidth(e.name), e.port ? monoWidth(e.port, META_PX) : 0, e.note ? textWidth(e.note, META_PX) : 0);
+  var pillsWidth = (pills) => pills.length ? pills.reduce((sum, p) => sum + pillWidth(p.text.toUpperCase()), 0) + PILL_GAP * (pills.length - 1) : 0;
+  var sevLabel = (severity) => SEVERITY_LABEL[severity] || severity;
+  var hasEndNotes = (b) => b.ends.some((e) => !!e.note);
+  function columns(blocks) {
+    const cols = { label: 0, values: [] };
+    const dotted = blocks.some((b) => b.kind === "row" && b.dot);
+    for (const b of blocks) {
+      if (b.kind === "ends") {
+        cols.label = Math.max(cols.label, ICON);
+        b.ends.forEach((e, i) => {
+          cols.values[i] = Math.max(cols.values[i] || 0, endWidth(e));
+        });
+        if (b.pills && b.pills.length) {
+          const last = b.ends.length - 1;
+          cols.values[last] = Math.max(cols.values[last] || 0, titleWidth(b.ends[last].name) + PILL_GAP + pillsWidth(b.pills));
+        }
+      } else if (b.kind === "row") {
+        cols.label = Math.max(cols.label, (dotted ? DOT_W : 0) + (b.mono ? monoWidth(b.label, VALUE_PX) : textWidth(b.label, VALUE_PX)));
+        b.values.forEach((v, i) => {
+          cols.values[i] = Math.max(cols.values[i] || 0, valueWidth(v));
+        });
+      }
+    }
+    return cols;
+  }
+  var tableWidth = (cols) => cols.values.length ? cols.label + LABEL_GAP + cols.values.reduce((sum, w) => sum + w, 0) + COL_GAP * (cols.values.length - 1) : 0;
+  var checksSevWidth = (items) => Math.max(0, ...items.map((c) => textWidth(sevLabel(c.severity), META_PX)));
+  function blockWidth(b) {
+    switch (b.kind) {
+      case "head":
+        return Math.max((b.icon ? ICON + ICON_GAP : 0) + titleWidth(b.title) + (b.pills.length ? PILL_GAP + pillsWidth(b.pills) : 0), b.sub ? textWidth(b.sub, META_PX) : 0);
+      case "pills":
+        return pillsWidth(b.pills) + (b.text ? PILL_GAP + (b.mono ? monoWidth(b.text, VALUE_PX) : textWidth(b.text, META_PX)) : 0);
+      case "note":
+        return textWidth(b.text, META_PX);
+      case "checks": {
+        const sev = checksSevWidth(b.items);
+        return Math.max(
+          0,
+          ...b.items.map((c) => DOT_W + sev + SEV_GAP + monoWidth(c.code, VALUE_PX) + (c.count > 1 ? SUB_GAP2 + textWidth("×" + c.count, META_PX) : 0)),
+          b.rest ? textWidth(restText(b.rest), META_PX) : 0
+        );
+      }
+      default:
+        return 0;
+    }
+  }
+  function blockHeight(b) {
+    switch (b.kind) {
+      case "head":
+        return H_TITLE + (b.sub ? H_SUB : 0);
+      case "ends":
+        return H_ENDS + (hasEndNotes(b) ? H_END_NOTE : 0);
+      case "row":
+        return H_ROW;
+      case "pills":
+        return H_PILLS;
+      case "note":
+        return H_NOTE;
+      case "checks":
+        return H_ROW * b.items.length + (b.rest ? H_NOTE : 0);
+      case "space":
+        return H_SPACE;
+      case "rule":
+        return H_RULE;
+    }
+  }
+  var restText = (rest) => "… et " + rest + " autre" + (rest > 1 ? "s" : "") + " contrôle" + (rest > 1 ? "s" : "");
+  function measure(blocks) {
+    const width2 = Math.max(tableWidth(columns(blocks)), ...blocks.map(blockWidth));
+    return { width: 2 * PAD_X + Math.ceil(width2), height: 2 * PAD_Y + blocks.reduce((sum, b) => sum + blockHeight(b), 0) };
+  }
+  var STROKE_ICONS = {
+    beam: () => [s("path", { d: "M2.5 10.5 8.5 4.5" }), s("path", { d: "M7.5 13.5 13.5 7.5" }), s("circle", { cx: 2.5, cy: 10.5, r: 1.3 }), s("circle", { cx: 13.5, cy: 7.5, r: 1.3 })],
+    cluster: () => [s("rect", { x: 2.5, y: 5.5, width: 8, height: 8, rx: 1.6 }), s("path", { d: "M5.5 5.5V4a1.5 1.5 0 0 1 1.5-1.5H12A1.5 1.5 0 0 1 13.5 4v5a1.5 1.5 0 0 1-1.5 1.5h-1.5" })],
+    group: () => [s("rect", { x: 2.5, y: 2.5, width: 11, height: 11, rx: 2, "stroke-dasharray": "2.5 2" })],
+    note: () => [s("path", { d: "M3 2.5h10v7l-3 3H3z" }), s("path", { d: "M10 12.5v-3h3" })],
+    connector: () => [s("circle", { cx: 3.5, cy: 12.5, r: 2 }), s("circle", { cx: 12.5, cy: 3.5, r: 2 }), s("path", { d: "M3.5 10.5C3.5 6 6 3.5 10.5 3.5" })]
+  };
+  function icon(which, x, y) {
+    const k = ICON / ICON_GRID;
+    if (which.kind === "type") {
+      const g = glyph(which.type), kk = ICON / SIZE;
+      return s(
+        "g",
+        { class: "tip-icon type-icon hue-" + which.hue, transform: `translate(${x},${y}) scale(${kk})` },
+        s("path", { class: "icon-body", d: g.body }),
+        s("path", { class: "icon-shade", d: g.shade }),
+        s("path", { class: "icon-mark", d: g.mark })
+      );
+    }
+    if (which.kind === "link") {
+      return s(
+        "g",
+        { class: "tip-icon tip-icon-link", transform: `translate(${x},${y}) scale(${k})` },
+        s("path", { d: "M5.2 10.8 10.8 5.2" }),
+        s("circle", { class: "tip-end-dot hue-" + which.hues[0], cx: 3.5, cy: 12.5, r: 2.4 }),
+        s("circle", { class: "tip-end-dot hue-" + which.hues[1], cx: 12.5, cy: 3.5, r: 2.4 })
+      );
+    }
+    return s("g", { class: "tip-icon tip-icon-" + which.kind, transform: `translate(${x},${y}) scale(${k})` }, ...STROKE_ICONS[which.kind]());
+  }
+  function pill2(p, x, y) {
+    const label2 = p.text.toUpperCase(), w = pillWidth(label2);
+    return s(
+      "g",
+      { class: "pill-svg tone-" + p.tone + (p.dashed ? " dashed" : "") },
+      s("rect", { class: "pill-box", x: x + 0.5, y: y + 0.5, width: w - 1, height: PILL_H - 1, rx: (PILL_H - 1) / 2 }),
+      s("text", { x: x + PILL_PAD, y: y + 14 }, label2)
+    );
+  }
+  function pillRow(pills, x, y, into) {
+    pills.forEach((p, i) => {
+      into.appendChild(pill2(p, x, y));
+      x += pillWidth(p.text.toUpperCase()) + (i < pills.length - 1 ? PILL_GAP : 0);
+    });
+    return x;
+  }
+  var dot2 = (cls, x, y) => s("circle", { class: "tip-dot " + cls, cx: x + DOT_R + 1, cy: y + DOT_Y, r: DOT_R });
+  function value(v, x, y, into) {
+    if (v.dot) {
+      into.appendChild(dot2("dot-" + v.dot, x, y));
+      x += DOT_W;
+    }
+    into.appendChild(s("text", { class: "tip-value" + (v.muted ? " tip-muted" : "") + (v.tone ? " sev-" + v.tone : ""), x, y: y + BASE_ROW }, v.text));
+    if (v.sub) into.appendChild(s("text", { class: "tip-sub", x: x + monoWidth(v.text, VALUE_PX) + SUB_GAP2, y: y + BASE_ROW }, v.sub));
+  }
+  function drawEnds(b, cols, valueX, y, body) {
+    body.appendChild(icon(b.icon, PAD_X + (cols.label - ICON) / 2, y + (H_ENDS - ICON) / 2 - 1));
+    b.ends.forEach((e, i) => {
+      body.appendChild(s("text", { class: "tip-title" + (e.muted ? " tip-muted" : ""), x: valueX(i), y: y + BASE_END_NAME }, e.name));
+      if (e.port) body.appendChild(s("text", { class: "tip-port", x: valueX(i), y: y + BASE_END_PORT }, e.port));
+      if (e.note) body.appendChild(s("text", { class: "tip-end-note", x: valueX(i), y: y + BASE_END_NOTE }, e.note));
+    });
+    if (b.pills && b.pills.length) {
+      const last = b.ends.length - 1;
+      pillRow(b.pills, valueX(last) + titleWidth(b.ends[last].name) + PILL_GAP, y + BASE_END_NAME - PILL_H + 5, body);
+    }
+  }
+  function drawChecks(b, y, body) {
+    const sev = checksSevWidth(b.items);
+    b.items.forEach((c, i) => {
+      const top = y + H_ROW * i, codeX = PAD_X + DOT_W + sev + SEV_GAP;
+      body.appendChild(dot2("severity-" + c.severity, PAD_X, top));
+      body.appendChild(s("text", { class: "tip-sev severity-" + c.severity, x: PAD_X + DOT_W, y: top + BASE_ROW }, sevLabel(c.severity)));
+      body.appendChild(s("text", { class: "tip-code", x: codeX, y: top + BASE_ROW }, c.code));
+      if (c.count > 1) body.appendChild(s("text", { class: "tip-sub", x: codeX + monoWidth(c.code, VALUE_PX) + SUB_GAP2, y: top + BASE_ROW }, "×" + c.count));
+    });
+    if (b.rest) body.appendChild(s("text", { class: "tip-note", x: PAD_X, y: y + H_ROW * b.items.length + BASE_NOTE }, restText(b.rest)));
+  }
+  function draw(body, box2, blocks) {
+    clear(body).appendChild(box2);
+    const size = measure(blocks), cols = columns(blocks);
+    const dotted = blocks.some((b) => b.kind === "row" && b.dot);
+    const valueX = (i) => PAD_X + cols.label + LABEL_GAP + cols.values.slice(0, i).reduce((sum, w) => sum + w + COL_GAP, 0);
+    let y = PAD_Y;
+    for (const b of blocks) {
+      if (b.kind === "head") {
+        let x = PAD_X;
+        if (b.icon) {
+          body.appendChild(icon(b.icon, x, y + (H_TITLE - ICON) / 2));
+          x += ICON + ICON_GAP;
+        }
+        body.appendChild(s("text", { class: "tip-title", x, y: y + BASE_TITLE }, b.title));
+        if (b.pills.length) pillRow(b.pills, x + titleWidth(b.title) + PILL_GAP, y + (H_TITLE - PILL_H) / 2, body);
+        if (b.sub) body.appendChild(s("text", { class: "tip-subtitle", x: PAD_X, y: y + BASE_SUB }, b.sub));
+      } else if (b.kind === "ends") {
+        drawEnds(b, cols, valueX, y, body);
+      } else if (b.kind === "row") {
+        if (b.dot) body.appendChild(dot2("dot-" + b.dot, PAD_X, y));
+        body.appendChild(s("text", { class: b.mono ? "tip-value" : "tip-label", x: PAD_X + (dotted ? DOT_W : 0), y: y + BASE_ROW }, b.label));
+        b.values.forEach((v, i) => value(v, valueX(i), y, body));
+      } else if (b.kind === "pills") {
+        const after = pillRow(b.pills, PAD_X, y + (H_PILLS - PILL_H) / 2, body);
+        if (b.text) body.appendChild(s("text", { class: b.mono ? "tip-value" : "tip-subtitle", x: after + PILL_GAP, y: y + BASE_PILLS }, b.text));
+      } else if (b.kind === "note") {
+        body.appendChild(s("text", { class: "tip-note" + (b.tone ? " tone-" + b.tone : ""), x: PAD_X, y: y + BASE_NOTE }, b.text));
+      } else if (b.kind === "checks") {
+        drawChecks(b, y, body);
+      } else if (b.kind === "rule") {
+        body.appendChild(s("line", { class: "tip-rule", x1: PAD_X, x2: size.width - PAD_X, y1: y + RULE_Y, y2: y + RULE_Y }));
+      }
+      y += blockHeight(b);
+    }
+    box2.setAttribute("width", String(size.width));
+    box2.setAttribute("height", String(size.height));
+    return size;
+  }
+  function text(blocks) {
+    const lines = [];
+    for (const b of blocks) {
+      if (b.kind === "head") {
+        lines.push([b.title, ...b.pills.map((p) => p.text)].join(" · "));
+        if (b.sub) lines.push(b.sub);
+      } else if (b.kind === "ends") {
+        lines.push(b.ends.map((e) => e.name + " · " + (e.port === null ? "?" : e.port)).join(" | ") + (b.pills && b.pills.length ? " · " + b.pills.map((p) => p.text).join(" · ") : ""));
+        b.ends.filter((e) => e.note).forEach((e) => lines.push(e.name + " · " + (e.port === null ? "?" : e.port) + " : " + e.note));
+      } else if (b.kind === "row") lines.push([b.label, ...b.values.map((v) => v.text + (v.sub ? " · " + v.sub : ""))].join(" "));
+      else if (b.kind === "pills") lines.push([...b.pills.map((p) => p.text), b.text].filter(Boolean).join(" · "));
+      else if (b.kind === "note") lines.push(b.text);
+      else if (b.kind === "checks") {
+        b.items.forEach((c) => lines.push(c.severity + " · " + c.code + (c.count > 1 ? " ×" + c.count : "")));
+        if (b.rest) lines.push(restText(b.rest));
+      }
+    }
+    return lines.join("\n");
+  }
+  function create(svg) {
+    const box2 = s("rect", { class: "tip-box", rx: RX2 });
+    const body = s("g", { class: "tip-body" }, box2);
+    const group = s("g", { class: "tip", visibility: "hidden", role: "tooltip", id: "ld-tip" }, body);
+    svg.appendChild(group);
+    let shownFor = null, size = { width: 0, height: 0 };
+    function place(x, y, area) {
+      const x0 = area.x || 0, y0 = area.y || 0, right = x0 + area.width, bottom = y0 + area.height;
+      const wanted = {
+        x: x + OFFSET + size.width > right ? x - OFFSET - size.width : x + OFFSET,
+        y: y + OFFSET + size.height > bottom ? y - OFFSET - size.height : y + OFFSET
+      };
+      const left = Math.max(x0, Math.min(wanted.x, right - size.width));
+      const top = Math.max(y0, Math.min(wanted.y, bottom - size.height));
+      group.setAttribute("transform", `translate(${Math.round(left)},${Math.round(top)})`);
+    }
+    function show2(key2, blocksOf, x, y, area) {
+      const visible2 = group.getAttribute("visibility") === "visible";
+      const fresh2 = key2 !== shownFor;
+      if (fresh2) {
+        shownFor = key2;
+        size = draw(body, box2, blocksOf());
+      }
+      if (fresh2 || !visible2) place(x, y, area);
+      if (!visible2) group.setAttribute("class", "tip on");
+      group.setAttribute("visibility", "visible");
+    }
+    function hide() {
+      shownFor = null;
+      group.setAttribute("class", "tip");
+      group.setAttribute("visibility", "hidden");
+    }
+    function dispose() {
+      hide();
+      if (group.parentNode) group.parentNode.removeChild(group);
+    }
+    return { group, id: "ld-tip", show: show2, hide, dispose };
+  }
+
+  // src/canvas/tip.ts
   var DASH2 = "—";
   var SOURCE_ORDER = ["lldp", "cdp", "description"];
   var MAX_CHECK_LINES = 6;
-  var cell = (text, cls) => ({ text: String(text), cls: cls || null });
-  var line = (...cells2) => cells2;
+  var MAX_NAME = 36;
+  var MAX_TEXT = 72;
+  var STATUS_TONE = { confirmed: "ok", observed_only: "observed", documented_only: "documented" };
+  var COLLECTION_DOT = { success: "ok", partial: "warning", failed: "danger", unreachable: "danger", not_collected: "muted" };
+  var KIND_PILL = { external: "autre infra", stub: "voisin inconnu" };
+  var ROW_OF_CHECK = { link_speed_mismatch: "speed", link_duplex_mismatch: "duplex", link_oper_mismatch: "state" };
+  var SEVERITY_DOT = { error: "danger", warning: "warning", info: "muted" };
+  var head = (title, icon2, pills = [], sub = null) => ({ kind: "head", title, icon: icon2, pills, sub });
+  var row = (label2, ...values) => ({ kind: "row", label: label2, values });
+  var val = (text2, extra = {}) => ({ text: String(text2), ...extra });
+  var note = (text2, tone) => ({ kind: "note", text: clipText(text2), tone });
+  var rule = { kind: "rule" };
+  var space = { kind: "space" };
+  var present = (candidate) => candidate !== null;
+  var portName = (end) => end.interface === null || end.interface === void 0 ? "?" : end.interface;
   var plural = (count, word) => count + " " + word + (count > 1 ? "s" : "");
+  var clipName = (name) => name.length <= MAX_NAME ? name : name.slice(0, 18) + "…" + name.slice(-17);
+  var clipText = (text2) => text2.length <= MAX_TEXT ? text2 : text2.slice(0, MAX_TEXT - 1) + "…";
+  var capitalized = (text2) => text2.charAt(0).toUpperCase() + text2.slice(1);
+  var stateDot = (state) => state === "up" ? "ok" : state === "down" ? "danger" : state ? "muted" : null;
   function endFacts(model2, end, removed) {
     const found = interfaceAt(model2, end.hostname, end.interface, removed);
-    if (!found) return { present: false, ghost: false, speed: null, duplex: null, media: null, state: null };
+    if (!found) return { present: false, ghost: false, speed: null, duplex: null, media: null, state: null, reason: null };
     const itf = found.itf;
-    return {
-      present: true,
-      ghost: found.ghost,
-      speed: speedText(itf.speed_mbps),
-      duplex: itf.duplex,
-      media: itf.media,
-      state: itf.oper_status + (itf.oper_reason ? " · " + itf.oper_reason : "")
-    };
+    return { present: true, ghost: found.ghost, speed: speedText(itf.speed_mbps), duplex: itf.duplex, media: itf.media, state: itf.oper_status, reason: itf.oper_reason };
   }
-  function checkLines(checks) {
+  var endNote = (f) => !f.present ? "absent de interfaces[]" : f.ghost ? "interface retirée, valeurs de la run d'avant" : null;
+  function checkBlocks(checks) {
+    if (!checks.length) return [];
     const counts = /* @__PURE__ */ new Map();
     checks.forEach((c) => {
-      const key2 = c.severity + " · " + c.code;
+      const key2 = c.severity + " " + c.code;
       counts.set(key2, (counts.get(key2) || 0) + 1);
     });
-    const rank = (key2) => SEVERITY_RANK[key2.split(" · ")[0]];
-    const rows = Array.from(counts.keys()).sort((x, y) => rank(x) - rank(y) || (x < y ? -1 : x > y ? 1 : 0));
-    const lines = rows.slice(0, MAX_CHECK_LINES).map((key2) => line(cell(key2 + (counts.get(key2) > 1 ? " ×" + counts.get(key2) : ""), "severity-" + key2.split(" · ")[0])));
-    const rest = rows.slice(MAX_CHECK_LINES).reduce((sum, key2) => sum + counts.get(key2), 0);
-    if (rest) lines.push(line(cell("… et " + rest + " autre" + (rest > 1 ? "s" : "") + " contrôle" + (rest > 1 ? "s" : ""), "tip-muted")));
-    return lines;
+    const rank = (key2) => SEVERITY_RANK[key2.split(" ")[0]];
+    const keys = Array.from(counts.keys()).sort((x, y) => rank(x) - rank(y) || (x < y ? -1 : x > y ? 1 : 0));
+    const items = keys.slice(0, MAX_CHECK_LINES).map((key2) => ({ severity: key2.split(" ")[0], code: key2.split(" ")[1], count: counts.get(key2) }));
+    const rest = keys.slice(MAX_CHECK_LINES).reduce((sum, key2) => sum + counts.get(key2), 0);
+    return [{ kind: "checks", items, rest }];
   }
-  var DIFF_WORD = { added: "ajouté dans cette run", removed: "retiré depuis la run d'avant", changed: "changé" };
-  function diffLine(change) {
+  var DIFF_WORD = { added: "ajouté", removed: "retiré", changed: "changé" };
+  var DIFF_TEXT = { added: "dans cette run", removed: "depuis la run d'avant", changed: "" };
+  function diffBlock(change) {
     if (!change) return null;
     const fields = change.fields || [];
-    const paths = change.kind === "changed" ? " : " + fields.slice(0, 4).map((f) => f.path).join(", ") + (fields.length > 4 ? "…" : "") : "";
-    return line(cell(DIFF_WORD[change.kind] + paths, "tip-diff-" + change.kind));
+    const paths = change.kind === "changed" ? fields.slice(0, 4).map((f) => f.path).join(", ") + (fields.length > 4 ? "…" : "") : DIFF_TEXT[change.kind];
+    return { kind: "pills", pills: [{ text: DIFF_WORD[change.kind], tone: change.kind }], text: paths ? clipText(paths) : null, mono: change.kind === "changed" };
   }
   function sourcesText(sources) {
     const ordered = SOURCE_ORDER.filter((src) => sources.includes(src)).concat(sources.filter((src) => !SOURCE_ORDER.includes(src)));
     return ordered.map((src) => SOURCE_LABEL[src] || src).join(" + ");
   }
-  var present = (candidate) => candidate !== null;
-  function linkLines(model2, link) {
+  var ALL = { control: true };
+  function linkLines(model2, link, opts = ALL) {
+    const control = opts.control !== false;
     const ends = [link.a, link.b];
     const facts = ends.map((end) => endFacts(model2, end, link.ghost));
-    const row = (label2, key2) => facts.some((f) => f[key2] !== null) ? line(cell(label2, "tip-muted"), ...facts.map((f) => cell(f[key2] === null ? DASH2 : f[key2]))) : null;
-    const traits = [row("vitesse", "speed"), row("duplex", "duplex"), row("média", "media")].filter(present);
-    return [
-      line(cell(endLabel(link.a) + " ↔ " + endLabel(link.b), "tip-title")),
-      line(cell(STATUS_LABEL[link.status] + " · " + sourcesText(link.sources) + " · " + link.raw.oper, "tip-muted")),
-      diffLine(link.ghost ? { kind: "removed" } : model2.changeOf("link", link.id)),
-      ...ends.filter((end, index) => !facts[index].present).map((end) => line(cell(endLabel(end) + " : absent de interfaces[]", "tip-muted"))),
-      ...ends.filter((end, index) => facts[index].ghost).map((end) => line(cell(endLabel(end) + " : interface retirée, valeurs de la run d'avant", "tip-muted"))),
-      line(cell(""), cell(link.a.interface, "tip-muted"), cell(link.b.interface, "tip-muted")),
-      ...traits.length ? traits : [line(cell("vitesse, duplex, média : aucune valeur", "tip-muted"))],
-      row("état", "state"),
-      ...checkLines(link.checks)
-    ].filter(present);
+    const flagged = /* @__PURE__ */ new Map();
+    if (control) link.checks.forEach((c) => {
+      const key2 = ROW_OF_CHECK[c.code];
+      if (key2 && c.severity !== "info" && flagged.get(key2) !== "error") flagged.set(key2, c.severity);
+    });
+    const tone = (key2) => flagged.get(key2) || null;
+    const rowDot = (key2) => flagged.has(key2) ? SEVERITY_DOT[flagged.get(key2)] : null;
+    const trait = (label2, key2) => facts.some((f) => f[key2] !== null) ? { kind: "row", label: label2, dot: rowDot(key2), values: facts.map((f) => f[key2] === null ? val(DASH2, { muted: true }) : val(f[key2], { tone: tone(key2) })) } : null;
+    const traits = [trait("vitesse", "speed"), trait("duplex", "duplex"), trait("média", "media")].filter(present);
+    const state = facts.some((f) => f.state !== null) ? {
+      kind: "row",
+      label: "état",
+      dot: rowDot("state"),
+      values: facts.map((f) => f.state === null ? val(DASH2, { muted: true }) : val(f.state, { dot: stateDot(f.state), sub: f.reason, tone: tone("state") }))
+    } : null;
+    const verdict = control ? {
+      kind: "pills",
+      text: sourcesText(link.sources),
+      pills: [{ text: STATUS_LABEL[link.status], tone: STATUS_TONE[link.status] || "neutral" }, ...link.raw.oper === "down" ? [{ text: "down", tone: "danger" }] : []]
+    } : null;
+    const footer = [verdict, diffBlock(link.ghost ? { kind: "removed" } : model2.changeOf("link", link.id)), ...control ? checkBlocks(link.checks) : []].filter(present);
+    const hueOf = (hostname) => {
+      const node = model2.nodeByHost.get(hostname);
+      return node ? hueOfNode(model2, node) : defaultHue(null);
+    };
+    const heads = {
+      kind: "ends",
+      icon: { kind: "link", hues: [hueOf(link.a.hostname), hueOf(link.b.hostname)] },
+      ends: ends.map((end, index) => ({ name: clipName(end.hostname), port: portName(end), muted: !facts[index].present, note: endNote(facts[index]) }))
+    };
+    const blocks = [
+      heads,
+      space,
+      ...traits.length ? traits : [note("vitesse, duplex, média : aucune valeur")],
+      state,
+      ...footer.length ? [rule, ...footer] : []
+    ];
+    return blocks.filter(present);
   }
-  var memberText = (member) => member.role + " · " + member.state + (member.priority !== null && member.priority !== void 0 ? " · priorité " + member.priority : "");
-  function nodeLines(model2, node) {
+  var priorityText = (member) => member.priority !== null && member.priority !== void 0 ? "priorité " + member.priority : null;
+  var modeLabel = (mode) => HA_MODE_LABEL[mode] || mode;
+  function nodeLines(model2, node, opts = ALL) {
+    const control = opts.control !== false;
     const memberships = model2.haMembershipsByHost.get(node.hostname) || [];
     const links = (model2.linksByNode.get(node.hostname) || []).filter((l) => !l.ghost);
     const ghosts = (model2.linksByNode.get(node.hostname) || []).length - links.length;
-    const hardware = [node.vendor, node.model].filter(Boolean).join(" · ");
+    const hardware = [node.vendor ? capitalized(node.vendor) : null, node.model].filter(Boolean).join(" ");
     const system = [node.os_name, node.os_version].filter(Boolean).join(" ");
+    const pills = [
+      ...node.type ? [{ text: TYPE_SHORT_LABEL[node.type] || node.type, tone: "neutral" }] : [],
+      ...KIND_PILL[node.kind] ? [{ text: KIND_PILL[node.kind], tone: "muted", dashed: true }] : []
+    ];
     const facts = [
-      node.collection ? "collecte : " + node.collection : null,
-      plural(links.length, "câble") + (ghosts ? " · " + plural(ghosts, "câble retiré") : ""),
-      node.stack ? "stack ×" + node.stack.member_count : null,
-      node.evidence && node.evidence.capabilities.length ? "capacités : " + node.evidence.capabilities.join(", ") : null
-    ].filter(Boolean);
-    return [
-      line(cell(node.hostname + " · " + KIND_LABEL2[node.kind] + (node.type ? " · " + node.type : ""), "tip-title")),
-      diffLine(node.ghost ? { kind: "removed" } : model2.changeOf("node", node.hostname)),
-      hardware || system ? line(cell([hardware, system].filter(Boolean).join(" · "), "tip-muted")) : null,
-      line(cell(facts.join(" · "), "tip-muted")),
-      ...memberships.map((ha) => line(cell(clusterLabel(ha.cluster) + " · " + memberText(ha.member)))),
-      // tous ses clusters (revue, B4)
-      ...checkLines(model2.checksByNode.get(node.hostname) || [])
+      row("câbles", val(links.length, { sub: ghosts ? plural(ghosts, "retiré") : null })),
+      node.stack ? row("stack", val(plural(node.stack.member_count, "membre"))) : null,
+      node.evidence && node.evidence.capabilities.length ? row("capacités", val(clipText(node.evidence.capabilities.join(", ")))) : null,
+      ...memberships.flatMap((ha) => [
+        // tous ses clusters (revue, B4)
+        row("cluster HA", val(clipName(ha.cluster.raw.cluster_name || ha.cluster.hosts.join(" + ")), { sub: modeLabel(ha.cluster.raw.mode) })),
+        row("rôle", val(ha.member.role, { sub: priorityText(ha.member) })),
+        row("état", val(ha.member.state, { dot: stateDot(ha.member.state) }))
+      ])
     ].filter(present);
-  }
-  function beamLines(beam) {
-    const nature = beamLabel(beam, false);
-    const protocols = Array.from(new Set(beam.known.map((agg) => agg.raw.protocol + (agg.raw.lacp_mode ? " " + agg.raw.lacp_mode : ""))));
+    const footer = [
+      diffBlock(node.ghost ? { kind: "removed" } : model2.changeOf("node", node.hostname)),
+      control && node.collection ? row("collecte", val(COLLECTION_LABEL[node.collection] || node.collection, { dot: COLLECTION_DOT[node.collection] || "muted" })) : null,
+      ...control ? checkBlocks(model2.checksByNode.get(node.hostname) || []) : []
+    ].filter(present);
     return [
-      line(cell("faisceau " + endLabel({ hostname: beam.a.hostname, interface: beam.a.aggregate }) + " ⇄ " + endLabel({ hostname: beam.b.hostname, interface: beam.b.aggregate }) + (nature ? " · " + nature : ""), "tip-title")),
-      line(cell(plural(beam.links.length, "câble") + (protocols.length ? " · " + protocols.join(" / ") : "") + (beam.degraded ? " · un agrégat dégradé" : ""), "tip-muted")),
-      ...checkLines(beam.checks)
+      head(clipName(node.hostname), { kind: "type", type: node.type, hue: hueOfNode(model2, node) }, pills, clipText([hardware, system].filter(Boolean).join(" · ")) || null),
+      space,
+      ...facts,
+      ...footer.length ? [rule, ...footer] : []
     ];
   }
-  function groupLines(group, present2) {
-    const first = group.description.split("\n").find((text) => text.trim()) || "";
+  function beamLines(beam, opts = ALL) {
+    const protocols = Array.from(new Set(beam.known.map((agg) => agg.raw.protocol + (agg.raw.lacp_mode ? " " + agg.raw.lacp_mode : ""))));
+    const nature = [...beam.peerLink ? [{ text: "peer-link", tone: "structure" }] : [], ...beam.mlags.map((d) => ({ text: "MLAG " + d.raw.mlag_id, tone: "structure" }))];
+    const checks = opts.control !== false ? checkBlocks(beam.checks) : [];
     return [
-      line(cell(group.label, "tip-title")),
-      line(cell(present2 + " / " + group.members.length + " membre" + (group.members.length > 1 ? "s" : "") + " · " + group.author, "tip-muted")),
-      ...first ? [line(cell(first.slice(0, 80)))] : []
+      { kind: "ends", icon: { kind: "beam" }, ends: [{ name: clipName(beam.a.hostname), port: beam.a.aggregate }, { name: clipName(beam.b.hostname), port: beam.b.aggregate }], pills: nature },
+      space,
+      row("câbles", val(beam.links.length)),
+      ...protocols.length ? [row("protocole", val(protocols.join(" / ")))] : [],
+      ...beam.degraded ? [note("un agrégat dégradé", "warning")] : [],
+      ...checks.length ? [rule, ...checks] : []
+    ];
+  }
+  function groupLines(group, shown) {
+    const first = group.description.split("\n").find((text2) => text2.trim()) || "";
+    return [
+      head(clipText(group.label), { kind: "group" }, [], shown + " / " + plural(group.members.length, "membre") + " · " + group.author),
+      ...first ? [note(first)] : []
     ];
   }
   function annotationLines(a) {
     const where = a.anchor.kind === "free" ? "libre" : "attachée à " + a.anchor.ref;
     return [
-      line(cell((KIND_LABEL[a.content.kind] || a.content.kind) + " · " + where, "tip-title")),
-      line(cell(summary(a))),
-      line(cell("annotation de " + a.author + ", le " + a.at.slice(0, 10), "tip-muted"))
+      head(KIND_LABEL[a.content.kind] || a.content.kind, { kind: "note" }, [{ text: where, tone: "muted" }]),
+      note(summary(a)),
+      note("annotation de " + a.author + ", le " + a.at.slice(0, 10))
     ];
   }
-  function clusterLines(cluster) {
+  function clusterLines(cluster, opts = ALL) {
+    const checks = opts.control !== false ? checkBlocks(cluster.checks) : [];
     return [
-      line(cell(clusterLabel(cluster), "tip-title")),
-      ...cluster.raw.members.map((m) => line(cell(m.hostname), cell(memberText(m), "tip-muted"))),
-      ...checkLines(cluster.checks)
+      head(clipName(cluster.raw.cluster_name || cluster.hosts.join(" + ")), { kind: "cluster" }, [{ text: "HA", tone: "structure" }], modeLabel(cluster.raw.mode)),
+      space,
+      ...cluster.raw.members.map((m) => ({
+        kind: "row",
+        mono: true,
+        label: clipName(m.hostname),
+        values: [val(m.role), val(m.state, { dot: stateDot(m.state) }), ...priorityText(m) ? [val(priorityText(m), { muted: true })] : []]
+      })),
+      ...checks.length ? [rule, ...checks] : []
     ];
-  }
-  function create(svg) {
-    const box2 = s("rect", { class: "tip-box", rx: 5 });
-    const group = s("g", { class: "tip", visibility: "hidden", role: "tooltip", id: "ld-tip" }, box2);
-    svg.appendChild(group);
-    let shownFor = null, size = { width: 0, height: 0 };
-    function fill2(lines) {
-      clear(group).appendChild(box2);
-      const widths = [0];
-      lines.filter((cells2) => cells2.length > 1).forEach((cells2) => cells2.forEach((c, col) => {
-        widths[col] = Math.max(widths[col] || 0, c.text.length);
-      }));
-      const offsets = widths.map((_, col) => widths.slice(0, col).reduce((sum, w) => sum + w * CHAR_W2 + GAP2, 0));
-      lines.forEach((cells2, row) => cells2.forEach((c, col) => {
-        if (c.text === "") return;
-        group.appendChild(s("text", { class: "tip-line" + (c.cls ? " " + c.cls : ""), x: PAD_X + offsets[col], y: PAD_Y + LINE_H * (row + 1) - 4 }, c.text));
-      }));
-      const last = widths.length - 1;
-      const spanning = Math.max(0, ...lines.filter((cells2) => cells2.length === 1).map((cells2) => cells2[0].text.length));
-      size = { width: 2 * PAD_X + Math.max(offsets[last] + widths[last] * CHAR_W2, spanning * CHAR_W2), height: 2 * PAD_Y + LINE_H * lines.length };
-      box2.setAttribute("width", String(size.width));
-      box2.setAttribute("height", String(size.height));
-    }
-    function place(x, y, rect) {
-      const wanted = {
-        x: x + OFFSET + size.width > rect.width ? x - OFFSET - size.width : x + OFFSET,
-        y: y + OFFSET + size.height > rect.height ? y - OFFSET - size.height : y + OFFSET
-      };
-      const left = Math.max(0, Math.min(wanted.x, rect.width - size.width));
-      const top = Math.max(0, Math.min(wanted.y, rect.height - size.height));
-      group.setAttribute("transform", `translate(${Math.round(left)},${Math.round(top)})`);
-    }
-    function show2(key2, linesOf, x, y, rect) {
-      if (key2 !== shownFor) {
-        shownFor = key2;
-        fill2(linesOf());
-      }
-      place(x, y, rect);
-      group.setAttribute("visibility", "visible");
-    }
-    function hide() {
-      shownFor = null;
-      group.setAttribute("visibility", "hidden");
-    }
-    return { group, id: "ld-tip", show: show2, hide };
   }
   function connectorLines(c) {
     return [
-      line(cell(summary2(c), "tip-title")),
-      line(cell((c.route === "elbow" ? "coudé" : c.route === "curve" ? "courbe" : "droit") + " · " + (c.locked ? "verrouillé" : "glissable"))),
-      line(cell("connecteur de " + c.author + ", le " + c.at.slice(0, 10), "tip-muted"))
+      head(clipText(summary2(c)), { kind: "connector" }, [{ text: c.route === "elbow" ? "coudé" : c.route === "curve" ? "courbe" : "droit", tone: "muted" }, { text: c.locked ? "verrouillé" : "glissable", tone: "muted" }]),
+      note("connecteur de " + c.author + ", le " + c.at.slice(0, 10))
     ];
   }
-  var tip = { groupLines, annotationLines, connectorLines, create, linkLines, nodeLines, beamLines, clusterLines };
+  var tip = { groupLines, annotationLines, connectorLines, create, text, clipName, linkLines, nodeLines, beamLines, clusterLines };
 
   // src/canvas/graph.ts
   var typeGlyph = (type, transform) => {
@@ -2097,17 +2437,17 @@
         els.mark.setAttribute("cx", String(shape.mid.x));
         els.mark.setAttribute("cy", String(shape.mid.y));
       }
-      els.ports.forEach((text, i) => {
-        text.setAttribute("x", String(shape.ends[i].x));
-        text.setAttribute("y", String(shape.ends[i].y));
-        text.setAttribute("text-anchor", shape.anchor || "middle");
+      els.ports.forEach((text2, i) => {
+        text2.setAttribute("x", String(shape.ends[i].x));
+        text2.setAttribute("y", String(shape.ends[i].y));
+        text2.setAttribute("text-anchor", shape.anchor || "middle");
       });
     }
     function drawLink(link) {
       const change = changeOf3("link", link, link.id);
       const diffHalo = change ? s("path", { class: "diff-halo" }) : null;
       const halo = link.heartbeat ? s("path", { class: "link-halo" }) : null;
-      const line2 = s("path", { class: "link-line" });
+      const line = s("path", { class: "link-line" });
       const hit = s("path", { class: "link-hit" });
       const mark = link.worst === "error" || link.worst === "warning" ? s("circle", { class: "link-mark severity-" + link.worst, r: 4.5 }) : null;
       const ports = [link.a.interface, link.b.interface].map((name) => s("text", { class: "port-label" }, name));
@@ -2123,12 +2463,12 @@
         },
         diffHalo,
         halo,
-        line2,
+        line,
         hit,
         mark,
         ports
       );
-      const els = { group, line: line2, hit, halo, diff: diffHalo, mark, ports };
+      const els = { group, line, hit, halo, diff: diffHalo, mark, ports };
       state.linkEls.set(link.id, els);
       placeLink(link, els);
       bindFocus(group, { kind: "link", id: link.id }, () => toScreen(curve(at(link.a.hostname), at(link.b.hostname), link).mid));
@@ -2148,8 +2488,8 @@
       const side = els.shape.offset === 0 ? up : Math.sign(els.shape.offset);
       const away = els.shape.band / 2 + 8;
       const x = axis.mid.x + nx * side * away, y = axis.mid.y + ny * side * away;
-      const text = els.label.textContent || "";
-      const width2 = CHAR_W * 0.95 * text.length + 10;
+      const text2 = els.label.textContent || "";
+      const width2 = CHAR_W * 0.95 * text2.length + 10;
       els.label.setAttribute("x", String(x));
       els.label.setAttribute("y", String(y));
       els.labelHit.setAttribute("x", String(x - width2 / 2));
@@ -2157,7 +2497,7 @@
       els.labelHit.setAttribute("width", String(width2));
       els.labelHit.setAttribute("height", "14");
       els.tag.setAttribute("transform", `rotate(${angle.toFixed(2)} ${x} ${y})`);
-      els.tag.setAttribute("visibility", text ? "visible" : "hidden");
+      els.tag.setAttribute("visibility", text2 ? "visible" : "hidden");
     }
     function drawBeam(beam) {
       const shape = beamBand(beam);
@@ -2554,38 +2894,33 @@
   }
   var graph = { create: create2 };
 
-  // src/canvas/pill.ts
-  var PILL_H = 20;
-  var PILL_PAD = 7;
-  var PILL_ADV = 6.82;
-  var PILL_ICON = 12;
-  var PILL_DOT = 6;
-  var PILL_LEAD_GAP = 4;
-  var PILL_MAX = 14;
-  function pillWidth(text, lead = null) {
-    const leadW = lead === "icon" ? PILL_ICON + PILL_LEAD_GAP : lead === "dot" ? PILL_DOT + PILL_LEAD_GAP : 0;
-    return Math.ceil(2 * PILL_PAD + leadW + Array.from(text).length * PILL_ADV);
+  // src/canvas/neighbors.ts
+  var OBSERVED2 = /* @__PURE__ */ new Set(["lldp", "cdp"]);
+  var SEP2 = "\0";
+  function neighborsOf(model2, hostname) {
+    const rows = /* @__PURE__ */ new Map();
+    (model2.linksByNode.get(hostname) || []).forEach((link) => {
+      if (link.ghost) return;
+      link.raw.evidence.forEach((e) => {
+        if (e.witness.hostname !== hostname || !OBSERVED2.has(e.source) || e.witness.interface === null) return;
+        const key2 = e.witness.interface + SEP2 + e.remote_raw.name + SEP2 + (e.remote_raw.port === null ? "" : e.remote_raw.port);
+        const row2 = rows.get(key2);
+        if (row2) {
+          if (!row2.sources.includes(e.source)) rows.set(key2, { ...row2, sources: row2.sources.concat(e.source).sort() });
+          return;
+        }
+        rows.set(key2, { port: e.witness.interface, neighbor: e.remote_raw.name, neighborPort: e.remote_raw.port, sources: [e.source], resolved: e.remote_resolved.hostname });
+      });
+    });
+    const rank = new Map((model2.ifacesByNode.get(hostname) || []).map((itf, i) => [ifaceKey(hostname, itf.name), i]));
+    const at = (port) => {
+      const r = rank.get(ifaceKey(hostname, port));
+      return r === void 0 ? Number.MAX_SAFE_INTEGER : r;
+    };
+    const cmp = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+    return Array.from(rows.values()).sort((x, y) => at(x.port) - at(y.port) || cmp(x.port, y.port) || cmp(x.neighbor, y.neighbor) || cmp(x.neighborPort || "", y.neighborPort || ""));
   }
-  function speedToken(mbps) {
-    if (mbps < 1e3) return mbps + "M";
-    const g = Math.round(mbps / 100) / 10;
-    return (Number.isInteger(g) ? String(g) : g.toFixed(1)) + "G";
-  }
-  var SHORT = [[/^port-?channel\s*(\d.*)$/i, "PO"], [/^bundle-?ether\s*(\d.*)$/i, "BE"], [/^po(\d.*)$/i, "PO"]];
-  function aggregateShort(name) {
-    for (const [pattern, prefix] of SHORT) {
-      const found = pattern.exec(name);
-      if (found) return prefix + found[1];
-    }
-    return name.toUpperCase();
-  }
-  function beamPillText(beam) {
-    if (beam.peerLink) return "peer-link";
-    if (beam.mlags.length) return "MLAG " + beam.mlags.map((d) => d.raw.mlag_id).join("+");
-    const a = aggregateShort(beam.a.aggregate), b = aggregateShort(beam.b.aggregate);
-    return a === b ? a : a + "/" + b;
-  }
-  var pill = { beamPillText, pillWidth, speedToken, aggregateShort, PILL_H, PILL_MAX };
+  var neighbors = { neighborsOf };
 
   // src/canvas/reveal.ts
   var nothingRevealed = () => ({ primary: /* @__PURE__ */ new Set(), sibling: /* @__PURE__ */ new Set(), peer: /* @__PURE__ */ new Set() });
@@ -2849,8 +3184,8 @@
     return out;
   }
   function grid(content, frame) {
-    const columns = Math.max(1, columnsOf(content)), rows = Math.max(1, content.rows.length);
-    return { xs: tracks(content.widths, columns, frame.w), ys: tracks(content.heights, rows, frame.h), columns, rows };
+    const columns2 = Math.max(1, columnsOf(content)), rows = Math.max(1, content.rows.length);
+    return { xs: tracks(content.widths, columns2, frame.w), ys: tracks(content.heights, rows, frame.h), columns: columns2, rows };
   }
   function mergeAt(content, r, c) {
     return content.merges.find((m) => r >= m.row && r < m.row + m.rows && c >= m.col && c < m.col + m.cols) || null;
@@ -2861,11 +3196,11 @@
   }
   function cells(content, g) {
     const out = [];
-    content.rows.forEach((row, r) => row.forEach((text, c) => {
+    content.rows.forEach((row2, r) => row2.forEach((text2, c) => {
       const m = mergeAt(content, r, c);
       if (m && (m.row !== r || m.col !== c)) return;
       const rows = m ? m.rows : 1, cols = m ? m.cols : 1;
-      out.push({ r, c, rows, cols, x: g.xs[c], y: g.ys[r], w: g.xs[c + cols] - g.xs[c], h: g.ys[r + rows] - g.ys[r], text });
+      out.push({ r, c, rows, cols, x: g.xs[c], y: g.ys[r], w: g.xs[c + cols] - g.xs[c], h: g.ys[r + rows] - g.ys[r], text: text2 });
     }));
     return out;
   }
@@ -2898,15 +3233,15 @@
     const kept = merges.filter((m) => m.rows * m.cols >= 2 && m.rows >= 1 && m.cols >= 1).sort((a, b) => a.row - b.row || a.col - b.col);
     return { ...content, merges: kept };
   }
-  function setCell(content, r, c, text) {
-    return { ...content, rows: asRows(content.rows.map((row, i) => i === r ? row.map((cell2, j) => j === c ? text.slice(0, MAX_CELL) : cell2) : row)) };
+  function setCell(content, r, c, text2) {
+    return { ...content, rows: asRows(content.rows.map((row2, i) => i === r ? row2.map((cell, j) => j === c ? text2.slice(0, MAX_CELL) : cell) : row2)) };
   }
   var average = (values) => Math.max(1, Math.round(values.reduce((s2, v) => s2 + v, 0) / values.length));
   function insertRow(content, at) {
     if (content.rows.length >= MAX_ROWS) return content;
-    const columns = columnsOf(content);
+    const columns2 = columnsOf(content);
     const rows = content.rows.slice();
-    rows.splice(at, 0, new Array(columns).fill(""));
+    rows.splice(at, 0, new Array(columns2).fill(""));
     const heights = content.heights ? content.heights.slice() : null;
     if (heights) heights.splice(at, 0, average(content.heights));
     const merges = content.merges.map((m) => m.row >= at ? { ...m, row: m.row + 1 } : m.row + m.rows > at ? { ...m, rows: m.rows + 1 } : m);
@@ -2921,8 +3256,8 @@
   }
   function insertColumn(content, at) {
     if (columnsOf(content) >= MAX_COLUMNS) return content;
-    const rows = content.rows.map((row) => {
-      const next = row.slice();
+    const rows = content.rows.map((row2) => {
+      const next = row2.slice();
       next.splice(at, 0, "");
       return next;
     });
@@ -2932,9 +3267,9 @@
     return normalized({ ...content, rows: asRows(rows), widths }, merges);
   }
   function deleteColumn(content, at) {
-    const columns = columnsOf(content);
-    if (columns <= 1 || at < 0 || at >= columns) return content;
-    const rows = content.rows.map((row) => row.filter((_, j) => j !== at));
+    const columns2 = columnsOf(content);
+    if (columns2 <= 1 || at < 0 || at >= columns2) return content;
+    const rows = content.rows.map((row2) => row2.filter((_, j) => j !== at));
     const widths = content.widths ? content.widths.filter((_, j) => j !== at) : null;
     const merges = content.merges.map((m) => m.col > at ? { ...m, col: m.col - 1 } : m.col + m.cols > at ? { ...m, cols: m.cols - 1 } : m);
     return normalized({ ...content, rows: asRows(rows), widths }, merges);
@@ -2980,7 +3315,7 @@
   var MIDDLE = [0.5, 0.4, 0.6, 0.32, 0.68, 0.25, 0.75];
   var NEAR_Q = [0.7, 0.62, 0.78, 0.55, 0.5, 0.45, 0.4];
   var NEAR_P = NEAR_Q.map((t) => Math.round((1 - t) * 100) / 100);
-  var GAP3 = 3;
+  var GAP2 = 3;
   var TAG_WEIGHT = 4;
   var CELL = 64;
   function normal2(p, q) {
@@ -2991,7 +3326,7 @@
     const at = pointOn(p, q, offset, slot.t);
     if (!slot.side) return at;
     const n2 = normal2(p, q);
-    const away = Math.abs(n2.x) * (w / 2) + Math.abs(n2.y) * (PILL_H / 2) + GAP3;
+    const away = Math.abs(n2.x) * (w / 2) + Math.abs(n2.y) * (PILL_H / 2) + GAP2;
     return { x: at.x + n2.x * slot.side * away, y: at.y + n2.y * slot.side * away };
   }
   var Grid = class {
@@ -3041,7 +3376,7 @@
     requests.forEach((req) => {
       let best = null, cost = Infinity;
       for (const slot of candidates(req)) {
-        const got = grid2.overlap(rectAt(tagCenter(req.p, req.q, req.offset, req.w, slot), req.w, GAP3));
+        const got = grid2.overlap(rectAt(tagCenter(req.p, req.q, req.offset, req.w, slot), req.w, GAP2));
         if (got < cost) {
           best = slot;
           cost = got;
@@ -3060,31 +3395,31 @@
   var apps = {};
 
   // src/shell/widgets.ts
-  var pill2 = (kind, value, label2) => h("span", { class: "pill " + kind + "-" + value }, label2 === void 0 ? value : label2);
-  var sourcePill = (source) => pill2("source", source, SOURCE_LABEL[source] || source);
-  var statusPill = (status) => pill2("status", status, STATUS_LABEL[status] || status);
-  var severityPill = (severity) => pill2("severity", severity);
-  var diffPill = (kind) => pill2("diff", kind, DIFF_LABEL[kind] || kind);
+  var pill3 = (kind, value2, label2) => h("span", { class: "pill " + kind + "-" + value2 }, label2 === void 0 ? value2 : label2);
+  var sourcePill = (source) => pill3("source", source, SOURCE_LABEL[source] || source);
+  var statusPill = (status) => pill3("status", status, STATUS_LABEL[status] || status);
+  var severityPill = (severity) => pill3("severity", severity);
+  var diffPill = (kind) => pill3("diff", kind, DIFF_LABEL[kind] || kind);
   function definition(rows) {
-    const kept = rows.filter((row) => !!row && row[1] !== null && row[1] !== void 0 && row[1] !== "");
-    return h("dl", { class: "kv" }, kept.map(([label2, value]) => [h("dt", {}, label2), h("dd", {}, typeof value === "object" ? value : String(value))]));
+    const kept = rows.filter((row2) => !!row2 && row2[1] !== null && row2[1] !== void 0 && row2[1] !== "");
+    return h("dl", { class: "kv" }, kept.map(([label2, value2]) => [h("dt", {}, label2), h("dd", {}, typeof value2 === "object" ? value2 : String(value2))]));
   }
   function table2(headers, rows, options) {
-    const head = h("tr", {}, headers.map((label2) => h("th", {}, label2)));
-    const body = rows.map((row) => {
-      const line2 = h(
+    const head2 = h("tr", {}, headers.map((label2) => h("th", {}, label2)));
+    const body = rows.map((row2) => {
+      const line = h(
         "tr",
-        { class: row.onclick ? "clickable" : null, onclick: row.onclick || null, tabindex: row.onclick ? 0 : null },
-        row.cells.map((cell2) => h("td", {}, cell2))
+        { class: row2.onclick ? "clickable" : null, onclick: row2.onclick || null, tabindex: row2.onclick ? 0 : null },
+        row2.cells.map((cell) => h("td", {}, cell))
       );
-      const onclick = row.onclick;
-      if (onclick) line2.addEventListener("keydown", (event) => {
+      const onclick = row2.onclick;
+      if (onclick) line.addEventListener("keydown", (event) => {
         if (event.key === "Enter") onclick();
       });
-      return line2;
+      return line;
     });
     const empty = rows.length ? null : h("tr", {}, h("td", { colspan: headers.length, class: "empty" }, options && options.empty || "rien à signaler"));
-    return h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, head), h("tbody", {}, body, empty)));
+    return h("div", { class: "table-wrap" }, h("table", {}, h("thead", {}, head2), h("tbody", {}, body, empty)));
   }
   function confirmable(label2, run2, options = {}) {
     const suffix = options.count === void 0 ? "" : " (" + options.count + ")";
@@ -3102,7 +3437,7 @@
     holder.appendChild(first());
     return holder;
   }
-  var widgets = { pill: pill2, sourcePill, statusPill, severityPill, diffPill, definition, table: table2, confirmable };
+  var widgets = { pill: pill3, sourcePill, statusPill, severityPill, diffPill, definition, table: table2, confirmable };
 
   // src/shell/tables.ts
   var CHECK_HEADERS = ["sévérité", "code", "vise", "détails", "règle"];
@@ -3150,9 +3485,9 @@
     const state = { severity: "", code: "", text: "" };
     const codes = Array.from(new Set(model2.checks.map((c) => c.code))).sort();
     const body = h("div", {});
-    const draw = () => {
-      const text = state.text.trim().toLowerCase();
-      const rows = model2.checks.filter((c) => (!state.severity || c.severity === state.severity) && (!state.code || c.code === state.code) && (!text || JSON.stringify([c.refs, c.details]).toLowerCase().includes(text))).sort(byRank);
+    const draw2 = () => {
+      const text2 = state.text.trim().toLowerCase();
+      const rows = model2.checks.filter((c) => (!state.severity || c.severity === state.severity) && (!state.code || c.code === state.code) && (!text2 || JSON.stringify([c.refs, c.details]).toLowerCase().includes(text2))).sort(byRank);
       clear(body).appendChild(h("p", { class: "muted" }, rows.length + " contrôle" + (rows.length > 1 ? "s" : "") + " sur " + model2.checks.length));
       body.appendChild(table2(CHECK_HEADERS, checkRows(model2, rows, onSelect), { empty: "aucun contrôle ne correspond" }));
     };
@@ -3162,7 +3497,7 @@
       label2,
       h("select", { id, onchange: (e) => {
         state[key2] = e.target.value;
-        draw();
+        draw2();
       } }, h("option", { value: "" }, "tous"), values.map((v) => h("option", { value: v }, v)))
     );
     clear(container).appendChild(h(
@@ -3177,18 +3512,18 @@
         select("f-code", "code", codes, "code"),
         h("label", { class: "field" }, "contient", h("input", { id: "f-text", type: "search", placeholder: "hostname, port…", oninput: (e) => {
           state.text = e.target.value;
-          draw();
+          draw2();
         } }))
       ),
       glossary(model2, codes),
       body
     ));
-    draw();
+    draw2();
     return { setSeverity: (severity) => {
       state.severity = severity;
       const field = document.getElementById("f-severity");
       if (field) field.value = severity;
-      draw();
+      draw2();
     } };
   }
   function glossary(model2, codes) {
@@ -3204,7 +3539,7 @@
     const topics = model2.coverage.length ? Object.keys(model2.coverage[0].topics) : [];
     return table2(["équipement", "collecte", ...topics], model2.coverage.map((c) => {
       const statuses = c.topics;
-      return { cells: [c.hostname, pill2("collection", c.status, c.status), ...topics.map((t) => pill2("topic", statuses[t], statuses[t]))] };
+      return { cells: [c.hostname, pill3("collection", c.status, c.status), ...topics.map((t) => pill3("topic", statuses[t], statuses[t]))] };
     }), { empty: "aucun équipement dans le périmètre" });
   }
   function findingsTable(model2) {
@@ -3254,17 +3589,17 @@
   function sourcesView(container, model2, onSelect) {
     const state = { combo: null, text: "" };
     const body = h("div", {});
-    const draw = () => {
-      const text = state.text.trim().toLowerCase();
+    const draw2 = () => {
+      const text2 = state.text.trim().toLowerCase();
       const combo = state.combo;
-      const rows = model2.links.filter((l) => (combo === null || l.combo === combo.combo && l.status === combo.status) && (!text || (endLabel(l.a) + " " + endLabel(l.b)).toLowerCase().includes(text)));
+      const rows = model2.links.filter((l) => (combo === null || l.combo === combo.combo && l.status === combo.status) && (!text2 || (endLabel(l.a) + " " + endLabel(l.b)).toLowerCase().includes(text2)));
       clear(body).appendChild(h(
         "p",
         { class: "muted" },
         rows.length + " câble" + (rows.length > 1 ? "s" : "") + (combo ? " · " + combo.combo + " · " : ""),
         combo ? h("button", { class: "linklike", type: "button", onclick: () => {
           state.combo = null;
-          draw();
+          draw2();
         } }, "tout afficher") : null
       ));
       body.appendChild(table2(["bout a", "bout b", "statut", "sources", "état", "contrôles"], rows.map((link) => ({
@@ -3280,7 +3615,7 @@
       table2(["sources", "statut", "câbles"], model2.combos.map((combo) => ({
         onclick: () => {
           state.combo = combo;
-          draw();
+          draw2();
         },
         cells: [combo.combo.split(" + ").map(sourcePill), statusPill(combo.status), String(combo.count)]
       })), { empty: "aucun câble" }),
@@ -3291,15 +3626,15 @@
         "équipement ou port",
         h("input", { id: "s-text", type: "search", placeholder: "hostname, port…", oninput: (e) => {
           state.text = e.target.value;
-          draw();
+          draw2();
         } })
       )),
       body
     ));
-    draw();
+    draw2();
   }
   function structuresView(container, model2, onSelect) {
-    const memberText2 = (aggregate) => aggregate.raw.members.map((m) => m.name + " (" + m.status + ")").join(", ");
+    const memberText = (aggregate) => aggregate.raw.members.map((m) => m.name + " (" + m.status + ")").join(", ");
     const mlagText3 = (aggregate) => {
       const raw = aggregate.raw;
       if (raw.mlag_peer_link) return "peer-link";
@@ -3312,9 +3647,9 @@
         aggregate.hostname,
         aggregate.name,
         aggregate.raw.protocol + (aggregate.raw.lacp_mode ? " " + aggregate.raw.lacp_mode : ""),
-        memberText2(aggregate),
+        memberText(aggregate),
         String(aggregate.cables.length),
-        pill2("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet"),
+        pill3("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet"),
         mlagText3(aggregate)
       ]
     }));
@@ -3331,7 +3666,7 @@
       onclick: () => onSelect({ kind: "cluster", id: cluster.id }),
       cells: [
         plain(cluster.raw.cluster_name),
-        pill2("mode", cluster.raw.mode, cluster.raw.mode),
+        pill3("mode", cluster.raw.mode, cluster.raw.mode),
         cluster.raw.members.map((m) => m.hostname + " (" + m.role + ", " + m.state + ")").join(", "),
         cluster.heartbeats.map((hb) => hb.hostname + " · " + hb.interface + (hb.link ? "" : " (sans câble)")).join(", ") || "—"
       ]
@@ -3359,18 +3694,18 @@
   };
   var mlagText = (domain) => "MLAG " + domain.mlag_id + " · " + domain.members.map((m) => m.hostname + " · " + m.aggregate).join(" + ");
   function diffNodeRows(model2, d, onSelect) {
-    const row = (kind, hostname, node, change) => ({
+    const row2 = (kind, hostname, node, change) => ({
       onclick: () => onSelect({ kind: "node", id: hostname }),
       cells: [diffPill(kind), hostname, node ? KIND_LABEL2[node.kind] : "", node ? plain(node.type) : "", change ? fieldsCell(change) : ""]
     });
     return [
-      ...d.nodes.added.map((n2) => row("added", n2.hostname, n2, null)),
-      ...d.nodes.removed.map((n2) => row("removed", n2.hostname, n2, null)),
-      ...d.nodes.changed.flatMap((c) => c.ref.kind === "node" ? [row("changed", c.ref.hostname, model2.nodeByHost.get(c.ref.hostname), c)] : [])
+      ...d.nodes.added.map((n2) => row2("added", n2.hostname, n2, null)),
+      ...d.nodes.removed.map((n2) => row2("removed", n2.hostname, n2, null)),
+      ...d.nodes.changed.flatMap((c) => c.ref.kind === "node" ? [row2("changed", c.ref.hostname, model2.nodeByHost.get(c.ref.hostname), c)] : [])
     ];
   }
   function diffLinkRows(model2, d, onSelect) {
-    const row = (kind, ref, change) => {
+    const row2 = (kind, ref, change) => {
       const id = linkId(ref), live = model2.linkById.get(id);
       return {
         onclick: () => onSelect({ kind: "link", id }),
@@ -3384,9 +3719,9 @@
       };
     };
     return [
-      ...d.links.added.map((l) => row("added", l, null)),
-      ...d.links.removed.map((l) => row("removed", l, null)),
-      ...d.links.changed.flatMap((c) => c.ref.kind === "link" ? [row("changed", c.ref, c)] : [])
+      ...d.links.added.map((l) => row2("added", l, null)),
+      ...d.links.removed.map((l) => row2("removed", l, null)),
+      ...d.links.changed.flatMap((c) => c.ref.kind === "link" ? [row2("changed", c.ref, c)] : [])
     ];
   }
   function diffStructureRows(d, onSelect) {
@@ -3422,7 +3757,7 @@
       if (ref.kind !== "node" && ref.kind !== "interface") return [];
       return [{
         onclick: openNode(ref.hostname),
-        cells: [pill2("event", e.kind, EVENT_LABEL[e.kind] || e.kind), ref.kind === "node" ? ref.hostname : ref.hostname + " · " + ref.name, plain(e.details)]
+        cells: [pill3("event", e.kind, EVENT_LABEL[e.kind] || e.kind), ref.kind === "node" ? ref.hostname : ref.hostname + " · " + ref.name, plain(e.details)]
       }];
     });
     clear(container).appendChild(h(
@@ -3481,7 +3816,7 @@
   function topicPill(model2, hostname, topic) {
     const coverage = model2.coverage.find((c) => c.hostname === hostname);
     const status = coverage ? coverage.topics[topic] : "absent";
-    return pill2("topic", status, "topic " + topic + " : " + status);
+    return pill3("topic", status, "topic " + topic + " : " + status);
   }
   function cableRows(links, onSelect) {
     return links.map((link) => ({
@@ -3496,7 +3831,7 @@
       const facing = links.map((link) => endLabel(link.a.hostname === aggregate.hostname && link.a.interface === member.name ? link.b : link.a));
       return {
         onclick: links.length === 1 ? () => onSelect({ kind: "link", id: links[0].id }) : null,
-        cells: [member.name, pill2("member", member.status, member.status), facing.length ? facing.join(", ") : "—"]
+        cells: [member.name, pill3("member", member.status, member.status), facing.length ? facing.join(", ") : "—"]
       };
     });
   }
@@ -3532,9 +3867,9 @@
         "div",
         { class: "panel-head" },
         h("span", { class: "eyebrow" }, "agrégat"),
-        pill2("degraded", String(raw.degraded), raw.degraded ? "dégradé" : "complet"),
-        pill2("oper", raw.oper_status, raw.oper_status),
-        raw.mlag_peer_link ? pill2("role", "peer-link", "peer-link") : null
+        pill3("degraded", String(raw.degraded), raw.degraded ? "dégradé" : "complet"),
+        pill3("oper", raw.oper_status, raw.oper_status),
+        raw.mlag_peer_link ? pill3("role", "peer-link", "peer-link") : null
       ),
       h("h3", { class: "ends" }, nodeButton(raw.hostname, onSelect), " · " + raw.name),
       h("p", { class: "why" }, aggregateWhy(model2, aggregate)),
@@ -3584,9 +3919,9 @@
         "div",
         { class: "panel-head" },
         h("span", { class: "eyebrow" }, "faisceau"),
-        beam.peerLink ? pill2("role", "peer-link", "peer-link") : null,
-        beam.mlags.map((domain) => pill2("role", "mlag", "MLAG " + domain.raw.mlag_id)),
-        beam.degraded ? pill2("degraded", "true", "un agrégat dégradé") : null
+        beam.peerLink ? pill3("role", "peer-link", "peer-link") : null,
+        beam.mlags.map((domain) => pill3("role", "mlag", "MLAG " + domain.raw.mlag_id)),
+        beam.degraded ? pill3("degraded", "true", "un agrégat dégradé") : null
       ),
       h("h3", { class: "ends" }, ends[0], h("span", { class: "arrow" }, " ⇄ "), ends[1]),
       h("p", { class: "why" }, beamWhy(beam)),
@@ -3598,7 +3933,7 @@
   }
   function memberTable(cluster, onSelect) {
     return table2(["membre", "rôle", "état", "priorité", "rapporté par"], cluster.raw.members.map((member) => ({
-      cells: [nodeButton(member.hostname, onSelect), member.role, pill2("state", member.state, member.state), plain(member.priority), member.reported_by.join(", ")]
+      cells: [nodeButton(member.hostname, onSelect), member.role, pill3("state", member.state, member.state), plain(member.priority), member.reported_by.join(", ")]
     })), { empty: "aucun membre" });
   }
   function heartbeatTable(cluster, onSelect) {
@@ -3627,7 +3962,7 @@
   function clusterPanel(model2, cluster, onSelect) {
     const raw = cluster.raw;
     return [
-      h("div", { class: "panel-head" }, h("span", { class: "eyebrow" }, "cluster HA"), pill2("mode", raw.mode, raw.mode)),
+      h("div", { class: "panel-head" }, h("span", { class: "eyebrow" }, "cluster HA"), pill3("mode", raw.mode, raw.mode)),
       h("h3", {}, raw.cluster_name || cluster.hosts.join(" + ")),
       h("p", { class: "why" }, clusterWhy(cluster)),
       h("h4", { class: "section" }, "Membres : " + cluster.hosts.length),
@@ -3658,7 +3993,7 @@
             aggregate.raw.protocol,
             aggregate.raw.members.filter((m) => m.status === "bundled").length + " / " + aggregate.raw.members.length + " bundled",
             String(aggregate.cables.length),
-            pill2("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet")
+            pill3("degraded", String(aggregate.raw.degraded), aggregate.raw.degraded ? "dégradé" : "complet")
           ]
         })), { empty: "aucun document aggregates pour cet équipement" })
       ]
@@ -3671,7 +4006,7 @@
     if (ghost) return { kind: "removed", fields: [] };
     return model2.changeOf ? model2.changeOf(kind, id) : null;
   }
-  function diffBlock(model2, change, what) {
+  function diffBlock2(model2, change, what) {
     if (!change || !model2.diff) return null;
     const before = model2.diff.before.collector_run_id;
     if (change.kind === "added") return h("p", { class: "diff-note diff-added" }, "Ajouté : ce " + what + " n'était pas dans la run " + before + ".");
@@ -3750,7 +4085,7 @@
         { class: "panel-head" },
         h("span", { class: "eyebrow" }, "câble"),
         statusPill(link.status),
-        raw.oper === "down" ? pill2("oper", "down", "down") : null,
+        raw.oper === "down" ? pill3("oper", "down", "down") : null,
         change ? diffPill(change.kind) : null
       ),
       h(
@@ -3763,7 +4098,7 @@
         " · " + raw.b.interface
       ),
       h("p", { class: "why" }, why),
-      diffBlock(model2, change, "câble"),
+      diffBlock2(model2, change, "câble"),
       definition([
         ["état", raw.oper],
         ["vitesse commune", raw.speed_mbps ? speedText(raw.speed_mbps) : "différente ou inconnue"],
@@ -3787,25 +4122,25 @@
   function coverageRow(model2, hostname) {
     const coverage = model2.coverage.find((c) => c.hostname === hostname);
     if (!coverage) return null;
-    return h("div", { class: "topic-row" }, Object.entries(coverage.topics).map(([topic, status]) => pill2("topic", status, topic + " : " + status)));
+    return h("div", { class: "topic-row" }, Object.entries(coverage.topics).map(([topic, status]) => pill3("topic", status, topic + " : " + status)));
   }
   var facingOf = (model2, itf) => (model2.linksByIface.get(ifaceKey(itf.hostname, itf.name)) || []).map((l) => endLabel(l.a.hostname === itf.hostname && l.a.interface === itf.name ? l.b : l.a) + (l.ghost ? " (retiré)" : "")).join(", ");
   function interfaceTable(model2, ifaces) {
     const holder = h("div", {});
     const cabled = (itf) => model2.linksByIface.get(ifaceKey(itf.hostname, itf.name)) || [];
     const lonely = ifaces.filter((itf) => (itf.type === "physical" || itf.type === "management") && itf.oper_status === "up" && !cabled(itf).some((l) => !l.ghost));
-    const draw = (only) => {
+    const draw2 = (only) => {
       const rows = (only ? lonely : ifaces).map((itf) => {
         const facing = facingOf(model2, itf);
         return { cells: [itf.name, itf.type, itf.oper_status, facing || "—", itf.description === null ? "" : h("code", { class: "wrap" }, itf.description)] };
       });
       clear(holder).appendChild(table2(["nom", "type", "état", "câble vers", "description"], rows, { empty: only ? "aucun port physique up sans câble" : "aucune interface collectée" }));
     };
-    draw(false);
+    draw2(false);
     return [h(
       "label",
       { class: "check-field" },
-      h("input", { type: "checkbox", onchange: (e) => draw(e.target.checked) }),
+      h("input", { type: "checkbox", onchange: (e) => draw2(e.target.checked) }),
       "seulement les ports physiques up sans câble (" + lonely.length + ")"
     ), holder];
   }
@@ -3825,11 +4160,11 @@
         "div",
         { class: "panel-head" },
         h("span", { class: "eyebrow" }, KIND_LABEL2[node.kind]),
-        node.collection ? pill2("collection", node.collection, "collecte : " + node.collection) : null,
+        node.collection ? pill3("collection", node.collection, "collecte : " + node.collection) : null,
         change ? diffPill(change.kind) : null
       ),
       h("h3", {}, node.hostname),
-      diffBlock(model2, change, "équipement"),
+      diffBlock2(model2, change, "équipement"),
       definition([
         ["type", node.type],
         ["constructeur · modèle", [node.vendor, node.model].filter(Boolean).join(" · ") || null],
@@ -4085,17 +4420,17 @@
           refresh();
         }
       });
-      const text = writer.author ? "Vos épingles s'enregistrent sous le nom « " + writer.author + " » : glisser un équipement l'épingle pour tout le monde. Dernier écrivain gagne, par épingle ; chaque écriture est journalisée." : "Sans nom, vos déplacements restent locaux. Donnez votre nom pour que vos épingles s'enregistrent :";
-      return h("p", { class: "intent-note" + (writer.author ? "" : " warn") }, text, " ", h("label", { class: "check-field" }, "nom ", field));
+      const text2 = writer.author ? "Vos épingles s'enregistrent sous le nom « " + writer.author + " » : glisser un équipement l'épingle pour tout le monde. Dernier écrivain gagne, par épingle ; chaque écriture est journalisée." : "Sans nom, vos déplacements restent locaux. Donnez votre nom pour que vos épingles s'enregistrent :";
+      return h("p", { class: "intent-note" + (writer.author ? "" : " warn") }, text2, " ", h("label", { class: "check-field" }, "nom ", field));
     }
     function pinRow(pin, orphan) {
       const target = orphan ? pin.hostname : h("button", { class: "linklike", type: "button", onclick: () => hooks.openInGraph({ kind: "node", id: pin.hostname }) }, pin.hostname);
-      const state = orphan ? pill2("pin", "orphan", "orpheline : équipement absent de cette run") : pill2("pin", "present", "présente");
+      const state = orphan ? pill3("pin", "orphan", "orpheline : équipement absent de cette run") : pill3("pin", "present", "présente");
       const remove = canWrite() ? h("button", { type: "button", onclick: (e) => removeOne(pin.hostname, e.target) }, "retirer") : "";
       return { cells: [target, String(pin.x), String(pin.y), pin.author, dateText(pin.at), state, remove] };
     }
     function colourRow(target, hue, author, at, orphan, remove) {
-      const state = orphan === null ? "" : orphan ? pill2("pin", "orphan", "orpheline : équipement absent de cette run") : pill2("pin", "present", "présente");
+      const state = orphan === null ? "" : orphan ? pill3("pin", "orphan", "orpheline : équipement absent de cette run") : pill3("pin", "present", "présente");
       const button = canWrite() ? h("button", { type: "button", onclick: (e) => {
         e.target.setAttribute("disabled", "");
         void send(remove(), [], "couleur retirée", true);
@@ -4132,7 +4467,7 @@
           return !node || !!node.ghost;
         });
         const present2 = group.members.length - orphans.length;
-        const state = present2 === 0 ? pill2("pin", "orphan", "orphelin : aucun membre dans cette run") : orphans.length ? pill2("pin", "orphan", orphans.length + " membre(s) absent(s)") : pill2("pin", "present", "présent");
+        const state = present2 === 0 ? pill3("pin", "orphan", "orphelin : aucun membre dans cette run") : orphans.length ? pill3("pin", "orphan", orphans.length + " membre(s) absent(s)") : pill3("pin", "present", "présent");
         const remove = canWrite() ? confirmable("supprimer", () => {
           void send([{ op: "group_delete", id: group.id }], [], "groupe " + group.label + " supprimé", true);
         }, { count: group.members.length }) : "";
@@ -4157,7 +4492,7 @@
       const orphans = new Set(model2.orphanAnnotations.map((a) => a.id));
       const rows = list.map((a) => {
         const where = a.anchor.kind === "free" ? "libre" : a.anchor.kind + " · " + a.anchor.ref;
-        const state = orphans.has(a.id) ? pill2("pin", "orphan", "orpheline : ancre absente de cette run") : pill2("pin", "present", "présente");
+        const state = orphans.has(a.id) ? pill3("pin", "orphan", "orpheline : ancre absente de cette run") : pill3("pin", "present", "présente");
         const remove = canWrite() ? confirmable("supprimer", () => {
           void send([{ op: "annotation_delete", id: a.id }], [], "annotation supprimée", true);
         }, { count: 1 }) : "";
@@ -4173,7 +4508,7 @@
       const list = model2.intent && model2.intent.connectors ? model2.intent.connectors : [];
       const orphans = new Set(model2.orphanConnectors.map((c) => c.id));
       const rows = list.map((c) => {
-        const state = orphans.has(c.id) ? pill2("pin", "orphan", "orphelin : un bout vise un élément absent de cette run") : pill2("pin", "present", "présent");
+        const state = orphans.has(c.id) ? pill3("pin", "orphan", "orphelin : un bout vise un élément absent de cette run") : pill3("pin", "present", "présent");
         const remove = canWrite() ? confirmable("supprimer", () => {
           void send([{ op: "connector_delete", id: c.id }], [], "connecteur supprimé", true);
         }, { count: 1 }) : "";
@@ -4426,37 +4761,37 @@
       onclick: () => toggleStatus(graph2, status, st)
     }, h("span", { class: "swatch" }), STATUS_LABEL[st]);
     const span = (cls) => h("span", { class: cls });
-    const note = (swatch, text, title) => h("span", { class: "legend-note", title: title || null }, swatch, text);
+    const note2 = (swatch, text2, title) => h("span", { class: "legend-note", title: title || null }, swatch, text2);
     const group = (name, ...items) => h("span", { class: "legend-group" }, h("span", { class: "group-name" }, name), items);
-    const icon = (type) => s("svg", { class: "legend-icon hue-" + hueOfType(model2, type), viewBox: "0 0 32 32", "aria-hidden": "true" }, s("path", { class: "icon-body", d: glyph(type).body }), s("path", { class: "icon-shade", d: glyph(type).shade }), s("path", { class: "icon-mark", d: glyph(type).mark }));
+    const icon2 = (type) => s("svg", { class: "legend-icon hue-" + hueOfType(model2, type), viewBox: "0 0 32 32", "aria-hidden": "true" }, s("path", { class: "icon-body", d: glyph(type).body }), s("path", { class: "icon-shade", d: glyph(type).shade }), s("path", { class: "icon-mark", d: glyph(type).mark }));
     clear(byId("graph-legend")).appendChild(h(
       "div",
       { class: "legend-row" },
-      group("câbles", STATUSES.map(item), note(span("swatch down"), "down (estompé)")),
-      group("contrôles", note(span("dot severity-warning"), "warning"), note(span("dot severity-error"), "error")),
+      group("câbles", STATUSES.map(item), note2(span("swatch down"), "down (estompé)")),
+      group("contrôles", note2(span("dot severity-warning"), "warning"), note2(span("dot severity-error"), "error")),
       group(
         "structures",
-        note(span("band"), "faisceau"),
-        note(span("band degraded"), "dégradé"),
-        note(span("frame"), "cluster HA"),
-        note(span("halo"), "heartbeat"),
-        note(span("role-swatch lead"), "forwarde", "rôle HA active, ou primary en active_passive"),
-        note(span("role-swatch follow"), "en attente", "rôle HA standby, ou secondary en active_passive")
+        note2(span("band"), "faisceau"),
+        note2(span("band degraded"), "dégradé"),
+        note2(span("frame"), "cluster HA"),
+        note2(span("halo"), "heartbeat"),
+        note2(span("role-swatch lead"), "forwarde", "rôle HA active, ou primary en active_passive"),
+        note2(span("role-swatch follow"), "en attente", "rôle HA standby, ou secondary en active_passive")
       ),
       group(
         "équipements",
-        note(span("box external"), "autre infra"),
-        note(span("box unreachable"), "injoignable"),
-        note(span("box partial"), "collecte partielle"),
-        note(span("box not_collected"), "non collecté"),
-        note(span("box stub"), "voisin inconnu")
+        note2(span("box external"), "autre infra"),
+        note2(span("box unreachable"), "injoignable"),
+        note2(span("box partial"), "collecte partielle"),
+        note2(span("box not_collected"), "non collecté"),
+        note2(span("box stub"), "voisin inconnu")
       ),
-      group("types", TYPES.map((type) => note(icon(type), LABEL[type]))),
+      group("types", TYPES.map((type) => note2(icon2(type), LABEL[type]))),
       model2.diff ? group(
         "changements",
-        note(span("swatch diff-added"), "ajouté"),
-        note(span("swatch diff-changed"), "changé"),
-        note(span("swatch diff-removed"), "retiré (fantôme)", "tel qu'il était dans la run d'avant")
+        note2(span("swatch diff-added"), "ajouté"),
+        note2(span("swatch diff-changed"), "changé"),
+        note2(span("swatch diff-removed"), "retiré (fantôme)", "tel qu'il était dans la run d'avant")
       ) : null
     ));
   }
@@ -4510,7 +4845,7 @@
     const placer = options.placer || null;
     let graph2 = null;
     let view = "graph";
-    let note = "";
+    let note2 = "";
     let checks = null;
     let disposed = false;
     const built = /* @__PURE__ */ new Set();
@@ -4561,8 +4896,8 @@
       graph: g,
       openInGraph,
       refreshPage,
-      note: (text) => {
-        note = text;
+      note: (text2) => {
+        note2 = text2;
         status();
       },
       mounted: () => built.has("intent"),
@@ -4595,7 +4930,7 @@
       if (g().state.hiddenStatuses.size) hidden.push("statuts masqués : " + Array.from(g().state.hiddenStatuses).map((st) => STATUS_LABEL[st]).join(", "));
       if (model2.diff && !g().state.showDiff) hidden.push("changements masqués");
       if (g().state.showDiff && model2.ghostNodes.length + model2.ghostLinks.length) hidden.push(ghostText(shown.ghosts));
-      byId("graph-status").textContent = shown.nodes + " nœuds sur " + total2.nodes + " et " + shown.links + " câbles sur " + total2.links + " affichés" + (hidden.length ? " · " + hidden.join(" · ") : "") + (note ? " · " + note : "");
+      byId("graph-status").textContent = shown.nodes + " nœuds sur " + total2.nodes + " et " + shown.links + " câbles sur " + total2.links + " affichés" + (hidden.length ? " · " + hidden.join(" · ") : "") + (note2 ? " · " + note2 : "");
       const box2 = document.getElementById("t-stubs");
       if (box2) box2.checked = g().state.showStubs;
       const diffBox = document.getElementById("t-diff");
@@ -4608,8 +4943,8 @@
       if (ports) ports.checked = g().state.showPorts;
       writeHash(view, g(), model2);
     };
-    const placements = createPlacementHost(model2, placer, { graph: g, note: (text) => {
-      note = text;
+    const placements = createPlacementHost(model2, placer, { graph: g, note: (text2) => {
+      note2 = text2;
       status();
     } });
     graph2 = create2(byId("canvas"), model2, onSelect, { onPin: intents.onPin, onPins: intents.onPins, onPlaced: placements.onPlaced });
@@ -4663,7 +4998,7 @@
   // src/shell/http.ts
   var TOKEN_KEY = "ld-api-token";
   var AUTHOR_KEY = "ld-author";
-  var ROUTES2 = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches", placement: "/api/placement", assets: "/api/intent/assets" };
+  var ROUTES2 = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches", placement: "/api/placement", assets: "/api/intent/assets", journal: "/api/intent/journal" };
   function storage() {
     try {
       return globalThis.sessionStorage || null;
@@ -4719,7 +5054,7 @@
     }
     return { status: response.status, body };
   }
-  var isRecord = (value) => !!value && typeof value === "object";
+  var isRecord = (value2) => !!value2 && typeof value2 === "object";
   function explain(status, body) {
     if (status === 401) return "jeton refusé par l'API";
     const detail = isRecord(body) && typeof body.detail === "string" ? body.detail : "";
@@ -4750,7 +5085,7 @@
     const go = (run2, fromId) => {
       if (run2 && !busy) host.open(run2.run_id, fromId);
     };
-    const stepButton = (text, run2, fromId, title) => h("button", { type: "button", class: "timeline-step", title, "aria-label": title, disabled: !run2 || busy || null, onclick: () => go(run2, fromId) }, text);
+    const stepButton = (text2, run2, fromId, title) => h("button", { type: "button", class: "timeline-step", title, "aria-label": title, disabled: !run2 || busy || null, onclick: () => go(run2, fromId) }, text2);
     const runButton = (run2) => h("button", {
       type: "button",
       class: "timeline-run run-" + run2.run_status + (run2.run_id === from ? " compared" : ""),
@@ -4816,11 +5151,11 @@
   function create3(root, data2) {
     const state = { token: readToken(), author: readAuthor(), infrastructure: query2("infrastructure"), runId: query2("run_id"), from: query2("from"), runs: null, message: null, busy: false, pending: null };
     const fields = {};
-    const input = (id, label2, type, value, placeholder, maxlength) => h(
+    const input = (id, label2, type, value2, placeholder, maxlength) => h(
       "label",
       { class: "field" },
       label2,
-      fields[id] = h("input", { id, type, value, placeholder: placeholder || null, autocomplete: type === "password" ? "off" : null, spellcheck: "false", maxlength: maxlength || null })
+      fields[id] = h("input", { id, type, value: value2, placeholder: placeholder || null, autocomplete: type === "password" ? "off" : null, spellcheck: "false", maxlength: maxlength || null })
     );
     function runsTable() {
       const runs = state.runs;
@@ -4841,7 +5176,7 @@
               state.from = "";
               state.pending = open();
             },
-            cells: [h("code", {}, run2.run_id), run2.run_start, pill2("run", run2.run_status, run2.run_status), run2.stored_at, compare(run2, index)]
+            cells: [h("code", {}, run2.run_id), run2.run_start, pill3("run", run2.run_status, run2.run_status), run2.stored_at, compare(run2, index)]
           })),
           { empty: "aucune run archivée pour cette infrastructure" }
         )
@@ -5058,7 +5393,7 @@
   var shell = { create: create3, explain, TOKEN_KEY, AUTHOR_KEY };
 
   // src/index.ts
-  var LD = Object.assign(apps, { model, layout, annotations, table, connectors, geometry, query, alignment, card, scene, pill, speed, tags, reveal: { reveal }, dom: { ...dom, ...format, ...widgets }, icons, hues, groups, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
+  var LD = Object.assign(apps, { model, neighbors, layout, annotations, table, connectors, geometry, query, alignment, card, scene, pill, speed, tags, reveal: { reveal }, dom: { ...dom, ...format, ...widgets }, icons, hues, groups, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
   globalThis.LD = LD;
   function embedded() {
     if (typeof document === "undefined") return null;

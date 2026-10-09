@@ -20,7 +20,7 @@ import { createToile } from "../canvas/toile";
 import { createUndo } from "../canvas/undo";
 import { dropLocal } from "../state/history";
 import type { Toile } from "../canvas/toile";
-import { useStore } from "../state/store";
+import { useEditable, useStore } from "../state/store";
 import type { ViewState } from "../state/types";
 
 // Ce que la page pose sur la toile : la barre en haut, la bande des runs en bas, le panneau à droite quand une fiche
@@ -33,16 +33,20 @@ const sameHosts = (a: Iterable<string>, b: string[]): boolean => { const x = Arr
 // Ce que la recherche éclaire : les équipements trouvés, propriétaires des ports, membres des groupes ; rien sans texte.
 const highlight = (model: Model, text: string): string => (text.trim() ? exactRule(searchCached(model, text).hosts) : "");
 
-// Pousse la vue dans la toile ; rend vrai si quelque chose a changé qui demande un nouveau placement.
+// Pousse la vue dans la toile ; rend vrai si quelque chose a changé qui demande un nouveau placement. Les statuts
+// masqués ne s'appliquent qu'en vue Contrôle (en Diagramme, tous les câbles se dessinent, neutres).
 function pushView(toile: Toile, view: ViewState): boolean {
   const f = toile.state.filters;
+  const control = view.mode === "control";
   const hide = view.hide.map(parseRule), only = view.only ? parseRule(view.only) : null;
-  const changed = f.showStubs !== view.showStubs || f.showDiff !== view.showDiff || toile.state.layers.notes !== view.showNotes
+  const masked = control ? view.hiddenStatuses.slice().sort() : [];
+  const changed = f.showStubs !== view.showStubs || f.showDiff !== view.showDiff || toile.state.layers.notes !== view.showNotes || toile.state.control !== control
     || f.hide.map((r) => r.text).join("\n") !== view.hide.join("\n") || (f.only ? f.only.text : "") !== view.only
-    || Array.from(f.hiddenStatuses).sort().join(",") !== view.hiddenStatuses.slice().sort().join(",");
-  f.showStubs = view.showStubs; f.showDiff = view.showDiff; f.hide = hide; f.only = only; f.hiddenStatuses = new Set(view.hiddenStatuses);
+    || Array.from(f.hiddenStatuses).sort().join(",") !== masked.join(",");
+  f.showStubs = view.showStubs; f.showDiff = view.showDiff; f.hide = hide; f.only = only; f.hiddenStatuses = new Set(masked);
   toile.state.showPorts = view.showPorts;
-  toile.state.layers = { speeds: view.showSpeeds, beams: view.showBeams, pins: view.showPins, notes: view.showNotes };
+  toile.state.control = control;
+  toile.state.layers = { speeds: view.showSpeeds, beams: view.showBeams, pins: view.showPins, notes: view.showNotes, oper: view.showOper };
   return changed;
 }
 
@@ -95,7 +99,7 @@ export function Canvas() {
 
   // La vue (bascules, règles, statuts masqués) : un nouveau placement, cadrage gardé ; les noms des ports : un repeint.
   useEffect(() => {
-    if (!handle) return;
+    if (!handle || state.view.mode === "journal") return; // le Journal cache la toile : elle garde sa vue telle quelle
     if (pushView(handle.toile, state.view)) handle.toile.render(true); else handle.toile.repaint();
   }, [handle, state.view]);
 
@@ -113,15 +117,21 @@ export function Canvas() {
     const t = handle.toile;
     t.state.insets = { ...INSETS, right: state.selection || state.hosts.length >= 2 ? PANEL_W : 0 };
     if (state.wanted) {
+      // une sélection pour une autre infrastructure (le Journal montre un objet d'ailleurs) attend la toile de celle-ci
+      if (model.source.infrastructure !== state.address.infrastructure) return;
       const found = selectionFromToken(model, state.wanted.kind, state.wanted.token);
-      if (found) t.reveal(found); else dispatch({ type: "want", wanted: null });
+      if (found) t.reveal(found);
+      else { // un objet demandé (adresse, journal) qui n'est pas dans cette run : on le dit, la vue reste où elle est
+        dispatch({ type: "want", wanted: null });
+        dispatch({ type: "note", text: "introuvable dans cette run : " + state.wanted.token, at: Date.now() });
+      }
       return;
     }
     if (sameSelection(t.state.selection, state.selection) && sameHosts(t.state.selected, state.hosts)) return;
     if (state.hosts.length >= 2) t.selectHosts(state.hosts);
     else if (state.selection) t.reveal(state.selection);
     else t.select(null);
-  }, [handle, model, state.wanted, state.selection, state.hosts, dispatch]);
+  }, [handle, model, state.wanted, state.selection, state.hosts, state.address.infrastructure, dispatch]);
 
   // Une annotation glissée, redimensionnée ou éditée en place (texte, tableau) : une écriture, sous le nom (docs/10 §6, A3, A4).
   const onAnnotation = useCallback((id: string, patch: { x?: number; y?: number; w?: number; h?: number; text?: string; content?: TableContent }): void => {
@@ -133,6 +143,6 @@ export function Canvas() {
   const onConnector = useCallback((id: string, patch: ConnectorPatch): void => commands.connectorUpdate(id, patch), [commands]);
   const onConnectorCreate = useCallback((fields: { start: End; end: End }): void => commands.connectorCreate(fields), [commands]);
   const onContext = useCallback((request: ContextRequest): void => commands.openContext(request), [commands]);
-  const editable = !!handle && handle.intents.canWrite();
+  const editable = useEditable();
   return toile ? <Flow key={runKey} toile={toile} prefs={state.prefs} editable={editable} onAnnotation={onAnnotation} onConnector={onConnector} onConnectorCreate={onConnectorCreate} onContext={onContext} editRequest={state.editRequest} /> : null;
 }

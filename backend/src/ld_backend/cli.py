@@ -1,11 +1,12 @@
-"""CLI : `ld ingest`, `ld runs`, `ld correlate`, `ld diff`, `ld render`, `ld intent`, `ld placement`, `ld serve` — même
-code que l'API."""
+"""CLI : `ld ingest`, `ld runs`, `ld correlate`, `ld diff`, `ld render`, `ld intent`, `ld placement`,
+`ld journal prune`, `ld serve` — même code que l'API."""
 
 import argparse
 import json
 import logging
 import os
 import sys
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from ld_contracts.diff.serialize import canonical_json as diff_json
@@ -19,6 +20,8 @@ from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import SnapshotUnavailableError, archived_pair, snapshot_from_data, summary_lines
 from ld_backend.ingest import error_payload, ingest_bundle, result_payload
 from ld_backend.intent import IntentCorruptError, IntentStore
+from ld_backend.journal import CATEGORIES
+from ld_backend.journal_prune import JournalNotFoundError, JournalPruneError, prune
 from ld_backend.placement import PlacementCorruptError, PlacementStore
 from ld_backend.render import PageOutcome, page_from_archive, page_from_bundle
 from ld_backend.schemas import CorrelationSummary, utc_z
@@ -145,6 +148,47 @@ def _cmd_placement(args: argparse.Namespace) -> int:
         print(f"{place.hostname}\t{place.x}\t{place.y}")
     if not doc.places:
         print("aucun équipement placé pour cette infrastructure")
+    return EXIT_OK
+
+
+def _moment_arg(text: str) -> datetime:
+    """`--before` : une date seule (minuit UTC) ou une date et heure avec fuseau."""
+    try:
+        if len(text) == 10:
+            return datetime.combine(date.fromisoformat(text), datetime.min.time(), tzinfo=UTC)
+        moment = datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("date attendue : AAAA-MM-JJ, ou AAAA-MM-JJTHH:MM:SS+00:00") from exc
+    if moment.tzinfo is None:
+        raise argparse.ArgumentTypeError("une date et heure porte son fuseau (Z ou +02:00)")
+    return moment
+
+
+def _cmd_journal_prune(args: argparse.Namespace) -> int:
+    """Retire du journal d'intention les lignes antérieures à une date (`journal_prune.py`) ; archive, trace."""
+    categories = tuple(dict.fromkeys(args.category or ()))
+    try:
+        result = prune(
+            Path(args.archive),
+            args.infrastructure,
+            before=args.before,
+            categories=categories,
+            author=args.author,
+            dry_run=args.dry_run,
+        )
+    except JournalPruneError as exc:
+        print(f"purge refusée : {exc}")
+        return EXIT_USAGE
+    except JournalNotFoundError:
+        print("aucun journal pour cette infrastructure")
+        return EXIT_INVALID
+    scope = ", ".join(categories) if categories else "toutes catégories"
+    if result.dry_run:
+        print(f"essai à blanc : {result.removed} entrée(s) partiraient ({scope}), {result.kept} resteraient")
+    elif not result.removed:
+        print(f"rien à retirer ({scope}) : le journal est inchangé")
+    else:
+        print(f"{result.removed} entrée(s) retirée(s) ({scope}), {result.kept} gardée(s) ; archive : {result.archive}")
     return EXIT_OK
 
 
@@ -407,6 +451,30 @@ def _add_ingest_and_runs(sub, archive_default: str) -> None:
     p_placement.set_defaults(func=_cmd_placement)
 
 
+def _add_journal(sub, archive_default: str) -> None:
+    p_journal = sub.add_parser("journal", help="administre le journal des modifications de l'intention")
+    actions = p_journal.add_subparsers(dest="action", required=True)
+    p_prune = actions.add_parser(
+        "prune",
+        help="retire les entrées antérieures à une date (d'une ou plusieurs catégories) vers une archive compressée ; "
+        "une ligne de trace le dit dans le journal",
+    )
+    p_prune.add_argument("--infrastructure", required=True)
+    p_prune.add_argument(
+        "--before", required=True, type=_moment_arg, help="AAAA-MM-JJ (minuit UTC), ou date et heure avec fuseau"
+    )
+    p_prune.add_argument(
+        "--category",
+        action="append",
+        choices=CATEGORIES,
+        help="répétable ; une entrée ne part que si toutes ses catégories sont listées (défaut : toutes)",
+    )
+    p_prune.add_argument("--author", required=True, help="qui purge : écrit dans la ligne de trace")
+    p_prune.add_argument("--dry-run", action="store_true", help="compte sans rien écrire")
+    p_prune.add_argument("--archive", default=archive_default)
+    p_prune.set_defaults(func=_cmd_journal_prune)
+
+
 def _add_correlate(sub, archive_default: str) -> None:
     p_correlate = sub.add_parser(
         "correlate", help="recalcule le snapshot (B1) d'une run archivée et le remplace, ou l'écrit depuis un fichier"
@@ -476,7 +544,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ld", description="Living Diagram — backend")
     sub = parser.add_subparsers(dest="command", required=True)
     archive_default = os.environ.get("LD_ARCHIVE_DIR", DEFAULT_ARCHIVE_DIR)
-    for add in (_add_ingest_and_runs, _add_correlate, _add_diff, _add_render, _add_serve):
+    for add in (_add_ingest_and_runs, _add_journal, _add_correlate, _add_diff, _add_render, _add_serve):
         add(sub, archive_default)
     return parser
 

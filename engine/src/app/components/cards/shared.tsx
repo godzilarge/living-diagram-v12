@@ -10,7 +10,7 @@ import type { HueName } from "../../../canvas/hues";
 import { glyph, LABEL as ICON_LABEL } from "../../../canvas/icons";
 import { endLabel, haRoleGroup } from "../../../canvas/model";
 import type { CheckEntry, Model, ModelLink } from "../../../canvas/types";
-import { useStore, useWriteLock } from "../../state/store";
+import { useControl, useStore, useWriteLock } from "../../state/store";
 import { Badge, DiffBadge, plural } from "../../ui";
 import { Hint, HueField, List, ListRow, MoreLink, Section, Select } from "../../ui/inspector";
 
@@ -122,7 +122,15 @@ export function ChecksSection({ checks, model }: { checks: CheckEntry[]; model: 
   );
 }
 
-/** Les câbles d'un équipement : port local → l'autre bout, statut en point ; un câble retiré est dit tel. */
+/** Le point au bout d'une ligne de câble : son statut en vue Contrôle ; en vue Diagramme, rien, sauf « down » (ce qu'un
+ *  port dit, pas un verdict). */
+export function LinkDot({ link }: { link: Pick<ModelLink, "status" | "raw"> }) {
+  const control = useControl();
+  if (control) return <span className={"insp-dot " + link.status + (link.raw.oper === "down" ? " down" : "")} aria-label={link.status} />;
+  return link.raw.oper === "down" ? <Badge kind="oper" value="down" label="down" /> : null;
+}
+
+/** Les câbles d'un équipement : port local → l'autre bout, statut en point (vue Contrôle) ; un câble retiré est dit tel. */
 export function Cables({ hostname, links }: { hostname: string; links: ModelLink[] }) {
   const { commands } = useStore();
   const [all, setAll] = useState(false);
@@ -138,7 +146,7 @@ export function Cables({ hostname, links }: { hostname: string; links: ModelLink
             <li key={link.id}>
               <button type="button" className="insp-list-row link" onClick={() => commands.reveal({ kind: "link", id: link.id })} title={endLabel(local) + " ↔ " + endLabel(remote)}>
                 <span className="insp-list-main cable"><span className="mono insp-port-local">{shortPort(local.interface)}</span><span className="insp-remote"><span className="mono">{remote.hostname}</span>{remote.interface ? <span className="mono faint">{shortPort(remote.interface)}</span> : null}</span></span>
-                <span className="insp-list-end">{link.ghost ? <DiffBadge kind="removed" /> : null}<span className={"insp-dot " + link.status + (link.raw.oper === "down" ? " down" : "")} aria-label={link.status} /></span>
+                <span className="insp-list-end">{link.ghost ? <DiffBadge kind="removed" /> : null}<LinkDot link={link} /></span>
               </button>
             </li>
           );

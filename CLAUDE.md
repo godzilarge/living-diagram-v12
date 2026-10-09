@@ -1270,6 +1270,182 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   préférence rangée, double-clic), une attente au lieu d'un constat dans le test clavier (course sur le compte des
   câbles), backend complet vert, `npm run check` propre. Captures : `.impeccable/planche-inspecteur/typo/` (dont
   `dark-node-wide`, `dark-link-wide`). Pas de revue indépendante (visuel).
+- **Deux vues dans l'application : Diagramme et Contrôle** (2026-10-09, remarque de fond d'Orhan sur l'inspecteur :
+  « complètement illisible, tout est mélangé », édition, contrôles de B1 et faits bruts des équipements dans une même
+  fiche ; il veut « une vue en mode diagramme pur et une autre plus en mode admin » ; avis rendu, trois points validés :
+  tout ce qui s'édite reste en Diagramme, l'état des ports est une couche, la vue Diagramme masque la source et la
+  bascule porte le nombre d'erreurs ; session autonome). **Le critère de rangement est « qui le dit »** : un fait du
+  device (identité, interfaces, voisins LLDP / CDP annoncés, HA, stack, agrégats, `oper_status`) se lit en Diagramme ;
+  un verdict de B1 (statut observé / documenté / confirmé, sources, contrôles, état de collecte) ne se lit qu'en
+  Contrôle ; le diff se lit dans les deux. Les trois familles sont les couches C0 / C1 / C2 de l'architecture : la
+  donnée avait la séparation, l'interface ne la respectait pas. **Diagramme** (défaut, absent de l'adresse) : câbles à
+  l'encre sans tiret ni teinte de source, aucun point de gravité ni cerne de collecte, pastilles de faisceau et de
+  vitesse sans ton de verdict ; barre sans statuts ni sévérités (la bascule « Contrôle » porte le nombre d'erreurs
+  ouvertes, sinon d'avertissements) ; fiche d'un équipement = `NodeFacts` (identité : matériel, système, site, série,
+  nom annoncé, uptime, stack ; câbles ; cluster HA ; agrégats ; **table des interfaces** : port, état, vitesse, média,
+  en face et description quand le panneau est large ; **voisins LLDP / CDP** tels que le device les annonce, brut,
+  `canvas/neighbors.ts` pur depuis les évidences dont il est le témoin ; apparence repliée en dernier) ; fiche d'un
+  câble = `LinkFacts` (bouts, lien, ports avec leur mode L2) ; bulle sans statut ni contrôle (`tip.ts`, option
+  `control`, `/view` inchangée). **Contrôle** (`#mode=control`) : la toile et la barre d'avant, les fiches d'avant sans
+  apparence, **lecture seule** (rien ne se glisse, s'insère, se colore ni s'annule ; cadres, annotations et connecteurs
+  dessinés mais inertes ; barre d'outils réduite à cadrer et centrer) ; les masques de statut (`mask=`) ne s'appliquent
+  qu'ici ; quitter le Contrôle finit un parcours de défauts ; `notable()` ignore les sévérités en Diagramme. **Couche
+  « câbles down »** (`oper=1`, panneau Affichage) dans les deux vues : pointillé court, un fait du port. **Aucun
+  changement de backend ni de contrat** : le snapshot portait déjà tout. `useEditable()` / `useControl()` dans le
+  store, une seule porte pour l'écriture. Tests : Node (adresse, bulle par vue, voisins, `durationText`), parcours
+  Chromium `test_the_application_two_views_in_a_browser` (encre identique, aucun verdict, fiche de faits, bascule,
+  adresse, lecture seule, couche), suite backend complète verte ; captures `.impeccable/planche-deux-vues/` (toile et
+  fiches dans les deux vues, `demo-dc`) remises à Orhan. Parqué : un raccourci clavier pour la bascule ; la vue
+  Contrôle pourra absorber `/view` plus tard.
+- **La bulle au survol refaite : une grammaire de blocs, un tableau aligné** (2026-10-09, retour d'Orhan sur capture : « pas
+  moderne, les données mal présentées, aucun alignement : un mode tableau pour des éléments symétriques » ; skills Impeccable et
+  frontend-design à sa demande, session autonome, une passe sur captures). `engine/src/canvas/tip.ts` ne dit plus que **quoi**
+  (des blocs : en-tête, bouts, ligne de tableau, pastilles, note, contrôles, filet ; pur) et `canvas/bubble.ts`, nouveau, dessine
+  **où** : en-tête en Inter 600 13 avec ses pastilles (type de l'équipement, « voisin inconnu » / « autre infra » en pointillé,
+  « HA » et mode, peer-link, MLAG), un filet, un **tableau « libellé | valeur »** (libellés en Inter discret, valeurs en mono,
+  colonnes alignées sur la largeur **estimée** des textes comme la carte, jamais mesurée : même bulle sous le faux DOM et dans
+  Chromium), un pied séparé par un filet pour le verdict. Câble et faisceau : **un bout par colonne**, le port sous le nom, une
+  ligne par fait (vitesse, duplex, média, état avec un point vert / rouge et la raison en complément), « — » pour un bout absent et
+  la note « absent de interfaces[] » ; en Contrôle : pastille de statut (confirmé en vert, observé, documenté en sable),
+  sources, « lien up / down », pastille du diff (ajouté / changé / retiré, les chemins en mono), contrôles un par ligne avec point
+  de sévérité et « ×n ». Équipement : icône de type à sa teinte, nom, sous-titre matériel · système, puis câbles, stack, cluster
+  HA et rôle ; collecte et contrôles en Contrôle. Cluster : un membre par ligne. **Plus de flèche en texte** (« ↔ » et « ⇄ »
+  tombaient en glyphe de secours : la police embarquée ne les a pas), un câble dessiné. `/view` suit (module partagé,
+  `viewer.css` complétée : correctif). `tip.text(blocks)` donne la bulle en mots pour les tests Node ; tests adaptés, suite
+  backend complète verte, `npm run check` propre. Détecteur Impeccable : rien sur les fichiers touchés (les cinq avertissements
+  anciens de `viewer.css` gelée restent). **Seconde passe le même jour** (Orhan sur capture : « c'est mieux mais encore gros
+  bloc, lourd, condensé, entassé, ça manque de structure, d'aération » ; `/impeccable layout, typeset, delight, animate`) :
+  trois rôles de texte seulement (identité Inter 600 13,5 ; donnée mono 12,5 en graisse 450 sur le sombre, 400 sur le
+  clair ; méta Inter 11,5 discret), un rythme (lignes de 23, marges 16 × 14, libellé à 20, colonnes à 28), **la blancheur
+  sépare l'en-tête du tableau** (bloc `space`), le filet inset ne reste qu'avant le verdict, bordure `--line` au lieu de la
+  forte, coins 10 ; une touche : **les deux points du câble dessiné prennent la teinte des deux équipements** (switch bleu,
+  routeur orange, comme leurs cartes) ; un mouvement : l'arrivée de la bulle (180 ms, 6 px, opacité, `cubic-bezier(0.16, 1,
+  0.3, 1)`) jouée au passage de caché à visible seulement, jamais d'un câble à son voisin, sortie immédiate, fondu seul sous
+  `prefers-reduced-motion` ; le groupe extérieur porte la place (attribut `transform`), le corps `.tip-body` l'animation (un
+  attribut et une propriété CSS `transform` ne cohabitent pas). Captures avant / étape 1 / après, sombre, clair et `/view` :
+  `.impeccable/planche-bulles/`. **Critique et audit Impeccable à trois agents isolés le même jour** (demande d'Orhan :
+  revue de design 19 / 32 sur huit heuristiques, audit 12 / 20 avant correctifs, 14 / 20 après ; rapport dans
+  `.impeccable/critique/`). **Cinq défauts purs corrigés dans la foulée, remesurés en Chromium** : `.tip text { fill }`
+  (0,1,1) écrasait les rôles en (0,1,0), tout sortait en encre pleine (les feuilles ne posent plus de couleur sur
+  `.tip text`) ; la couche de la bulle n'avait pas `text-rendering: geometricPrecision`, la mono y rendait 8,0 px par
+  caractère contre 7,75 estimés (règle sur `.tip text`, marge droite 19 au lieu de 12,8) ; l'Inter 600 du titre est ~5 %
+  plus large que l'estimation (facteur `BOLD`, la pastille ne touche plus le nom) ; `place()` calait sur l'hôte entier et
+  passait sous la bande, la barre et le panneau (la zone visible vient des insets de la toile : `Area` avec origine) ;
+  `/view` clair : pastilles du diff sous AA (texte tiré à 40 % vers l'encre, ≥ 4,78). Au passage : carte
+  `.tip-end-dot.hue-*` dupliquée retirée, clé de survol avec la vue. **Ouverts, à trancher avec Orhan** : registre
+  (« lien up », `success`, `ACTIVE_PASSIVE` en mots), désaccord de vitesse marqué sur la rangée, borne de largeur et noms
+  longs, temporisation et bulle posée plutôt que suivant le pointeur, chemin clavier dans l'application (ou « la fiche
+  suffit » écrit), gravité par la couleur seule, tests du dessin, redondances (icône + pastille de type, HA + mode).
+  **Tranché par Orhan en fin de session (2026-10-09)** : (1) les deux P1 d'abord (registre en mots partagés avec
+  l'inspecteur via `format.ts`, puis la rangée en désaccord teintée en Contrôle avec le point de sévérité devant son
+  libellé) ; (2) **délai puis posée** : 80 à 120 ms avant la première apparition, immobile tant que l'élément ne change
+  pas, Échap la cache (la minuterie vit dans la page, jamais dans un module `.ts` du moteur) ; (3) **clavier : « la fiche
+  suffit »**, décision à écrire dans `engine/README.md`, pas de parité avec `/view` ; (4) **périmètre : tout, P3 compris**
+  (bornes de largeur et noms longs, redondances, tests du dessin, gravité en mot ou forme, échelle 12 / 13 / 15, icônes du
+  faisceau et du cluster, jetons de durée, `dispose()`, `PILL_MAX`, nombres de base nommés, ménage). Scripts de capture
+  et de mesure gardés dans `.impeccable/planche-bulles/scripts/`.
+- **La passe de correction de la bulle, « tout, P3 compris », faite** (2026-10-10, « reprends » d'Orhan ; session autonome
+  sur ses quatre décisions). **Registre** : les énumérations se disent avec les mots de l'inspecteur, dictionnaires
+  partagés dans `canvas/format.ts` (`COLLECTION_LABEL` avec `success` = « réussie », déplacé de `NodeCard.tsx` ;
+  `HA_MODE_LABEL` actif-passif / actif-actif / autonome ; `SEVERITY_LABEL` erreur / avertissement / info ;
+  `TYPE_SHORT_LABEL`, `wireless_controller` = « WLC », sous `PILL_MAX`) ; « lien up » disparaît (les deux états du tableau
+  le disent), un lien `down` selon B1 reste une pastille rouge à côté du statut ; `vendor` capitalisé. **Désaccord
+  marqué** (Contrôle seulement) : `link_speed_mismatch` → rangée vitesse, `link_oper_mismatch` → état,
+  `link_duplex_mismatch` → duplex : point de gravité devant le libellé, les deux valeurs teintées (`Value.tone`,
+  `Block row.dot`). **Gravité en mot** : chaque contrôle s'écrit « ● avertissement  code  ×n ». **Bornes** : un nom
+  au-delà de 36 caractères se raccourcit au milieu (`clipName`, nom complet dans la fiche), un texte libre (chemins du
+  diff, capacités, description) au-delà de 72. **Redondances** : la note « absent de interfaces[] » passe sous le port
+  dans sa colonne (`End.note`), la nature d'un faisceau (PEER-LINK, MLAG n) sur la ligne des noms (`ends.pills`), le
+  cluster = nom + pastille `HA` + mode en sous-titre, un membre par ligne (rôle, état avec son point, priorité) ; sur un
+  équipement, rôle et état HA sont deux rangées (le point ne colore plus le rôle). **La bulle attend puis se pose**
+  (`Flow.tsx` : 100 ms avant la première apparition, le dernier point du pointeur retenu ; immédiate d'un élément à l'autre
+  sous 250 ms ; Échap la cache, WCAG 1.4.13 ; `bubble.ts` ne replace qu'au changement de clé ; `dispose()` au démontage ;
+  la minuterie vit dans la page, jamais dans le moteur). **Clavier : « la fiche suffit »**, écrit dans `engine/README.md`
+  avec le tactile. **Échelle 13 / 12 / 11** (identité Inter 600 13, donnée mono 12, méta 11 ; libellés 12), lignes de base
+  nommées, icônes du faisceau (deux câbles) et du cluster (deux cadres liés) redessinées, durées en jetons (`--t-tip`,
+  `--t-tip-reduced`, le fondu survit au mouvement réduit), carte `.tip-end-dot.hue-*` retirée, exports morts retirés.
+  **Tests** : un test Node du dessin (`draw` : colonnes sur deux x, rythme 23, points et mots de gravité, teintes des
+  bouts, calage dans une zone décalée, bulle posée, `dispose`, parité `text()` ↔ dessin, `clipName`) ; textes attendus
+  mis à jour ; vérifié en Chromium : délai, posée, passage immédiat, Échap, calage au coin bas-droit hors bande et
+  panneau. Détecteur Impeccable sans constat sur les six fichiers touchés. Snapshot de critique fermé. Captures dans
+  `.impeccable/planche-bulles/`. **Gardé tel quel, motivé** : la pastille de type à côté de l'icône (la teinte d'une
+  carte peut venir d'une intention, le mot reste le seul type écrit) ; les « — » d'un bout absent (« pas de valeur »
+  n'invente rien) ; les rangées « câbles 2 » (grammaire libellé | valeur du tableau) ; deux feuilles pour deux palettes.
+- **La vue Journal : qui a modifié quoi dans l'intention, quand, sur quelle infrastructure** (2026-10-09, demande
+  d'Orhan : « afficher proprement, avec recherche et catégories, les modifications faites par les utilisateurs et par
+  infrastructure » ; plan annoncé, « Go »). Le journal existait (`journal.jsonl`, une ligne par requête acceptée depuis
+  B4) mais aucune route ne le relisait. **Backend** : `backend/src/ld_backend/journal.py` (lecture seule) et
+  `GET /api/intent/journal` (jeton requis) : `infrastructure` facultatif (absent = toutes, nommées par leur
+  `intent.json`), `author` / `category` répétables, `q` (chaque mot, sans la casse, sur l'auteur, l'infra, les noms et le
+  contenu des opérations), `since` / `until` avec fuseau, pagination par **curseur** `(date, infra, révision)` ;
+  réponse typée `JournalPage` (OpenAPI) avec facettes comptées **sans leur propre filtre** ; catégories déduites du nom
+  de l'opération (`positions`, `colors`, `groups`, `annotations`, `connectors`, `other` : jamais revalidées contre le
+  contrat du jour) ; **sujets rejoués** (groupe, annotation, connecteur avec leur nom à cette révision, et la sorte d'une
+  annotation) ; ligne illisible sautée et comptée, ligne partielle ignorée ; cache par fichier (taille, date).
+  **Application** : troisième bouton de la bascule, `#mode=journal` ; page pleine à la place de la toile (montée
+  dessous, `inert`) ; facettes à gauche, recherche (`/`) et période en haut, entrées par jour, une phrase par entrée,
+  rafale résumée et dépliable, objet cité cliquable vers le Diagramme ; filtres dans l'adresse en mode Journal
+  seulement (`jq`, `jau`, `jcat`, `jinfra`, `jp`). **Limites dites** : le journal ne garde que la valeur nouvelle ; un
+  Ctrl+Z s'y lit comme une modification ; placement mémorisé et images hors journal ; pas de commande `ld journal`.
+  **Revue indépendante consignée et traitée le même jour** (`docs/revues/2026-10-09-vue-journal.md` : 0 critique, 0 haut,
+  3 moyens, 5 bas) : un objet d'une **autre infrastructure** se sélectionne dans sa toile, pas dans celle d'ici (M1,
+  testé par mutation) ; un dossier au nom sûr se nomme par lui-même, un document illisible ne cache plus son journal
+  (M2) ; la période se compte depuis la première page (M3) ; dates comparées en dates (B2) ; 401 → accueil, a11y,
+  dialogues, anciens connecteurs nommés. Tests : 14 store + 4 API, 2 Node, un parcours Chromium à deux
+  infrastructures ; backend 522 tests, `journal.py` à 96 %. Captures sombre et clair vérifiées. Guides :
+  `backend/README.md` § Le journal des modifications, `engine/README.md` § L'application.
+- **Vue Journal : critique et audit Impeccable, puis passe complète** (2026-10-09, « audit critique » puis « Go avec
+  tout » d'Orhan, qui signalait des facettes qui bougent). Deux évaluations isolées : design **24/40**, audit **13/20**,
+  détecteur 0 constat (snapshot `.impeccable/critique/`). Choix d'Orhan : l'aller-retour d'abord, positions estompées,
+  tout traiter P3 compris. Fait : **facettes stables** (le serveur rend toutes les valeurs, par nom, zéro compris ;
+  mesuré : 0 px sur dix clics) ; **aller-retour** (« montrer » pousse une entrée d'historique, Retour ramène au
+  Journal ; pages, dépliés et défilement dans le store ; pastille « retour au journal » ; objets disparus dits
+  « supprimé » ; note « introuvable dans cette run ») ; **bruit** (suites repliées « ×N », rafale par verbe et
+  catégorie majoritaire, faits en mots, positions estompées, noms lisibles côté serveur : en-tête d'un tableau, texte
+  alternatif, bouts d'un connecteur) ; **clavier** (une étape de tabulation, ↑↓, « o », lien d'évitement, focus gardé,
+  chargement annoncé, titres dans l'ordre) ; **textes** (recherche sans le nom de l'infra et surlignée, fuseau, limites
+  du journal dites, erreur avec ton) ; **adapt / optimize** (bascule des vues sous 900 px, lignes mémoïsées,
+  `content-visibility`) ; **polish** (`.app` en `overflow: clip`, cibles 24 px, choix exclusifs en relief, barre sans
+  pastille de run en Journal). Store sous 600 lignes (commandes sorties dans `journal-commands.ts`). Backend 523 tests,
+  14 tests Node, parcours Chromium étendu (clavier, Retour, contexte, pastille). Pas de revue indépendante (visuel).
+- **Vue Journal : reprise visuelle** (2026-10-10, retours d'Orhan sur captures : « le produit fait pas fini, AI slop » ;
+  infrastructures mal alignées, overlay de catégorie violent, lignes sur deux lignes, lecture lourde, polices
+  disparates ; puis filet entre sections, en-tête de tableau, « gros encadrement » du choix d'infrastructure). Skills
+  frontend-design et Impeccable. Fait : registre à colonnes sous un en-tête figé, une ligne par entrée, une seule famille
+  (Inter tabulaire, chasse fixe pour le brut seulement), icônes sans tuile, champs en gris, « supprimé » discret et omis
+  quand le verbe le dit, « trouvé : <nom> » (`hiddenHit`) ; « Toutes » d'abord, infrastructures au même retrait, fond
+  plein qui glisse sous le choix (`useThumb`), période glissante aussi ; bascules = coche + teinte à 11 % au lieu du cyan cerné
+  (classe `j-toggle` : `.toggle` est déjà celle des bascules de la barre). Mesuré : curseur 64 → 0 px en
+  ~150 ms sans tâche longue. Backend 523 tests, 14 sous Node. Pas de revue (visuel).
+- **Vue Journal : tableau d'un seul tenant, export CSV ; l'effacement attend une décision** (2026-10-10, retours
+  d'Orhan : jour entre l'en-tête et le tableau, catégories serrées, artefacts du Diagramme, export CSV, effacer les logs
+  « par volumétrie », par catégorie). Fait : les jours sont des bandes figées dans le tableau, plus d'air entre facettes,
+  bouton « CSV » (`state/journal-csv.ts`, `exportJournal`). Artefacts non reproduits (clics, souris réelle, glissés,
+  nœud sélectionné avant la bascule) : capture demandée. **Effacement : avis rendu, rien codé** (remarque de modèle) :
+  mesuré ~300 octets par ligne ; le journal est la trace d'audit et l'auteur est déclaratif, un bouton « effacer » dans
+  la page laisserait tout porteur du jeton effacer ses traces ; proposé : rotation et rétention côté serveur
+  (`ld journal prune`, archive compressée, ligne de trace), compactage des positions, jamais une suppression silencieuse.
+- **La purge du journal : `ld journal prune`** (2026-10-10, « Go avec le 1 » d'Orhan : commande d'administrateur, pas
+  de bouton, pas de compactage des positions pour l'instant). `backend/src/ld_backend/journal_prune.py` : une entrée
+  part si elle est antérieure à `--before` et si **toutes** ses catégories sont parmi les `--category` (une rafale mixte
+  reste entière) ; archive gzip **octet pour octet** dans `_intent/<infra>/journal-archive/`, écrite avant la réécriture ;
+  **ligne de trace** `journal_prune` en tête (combien, avant quand, catégories, archive, `--author`), jamais purgée, lue
+  dans la vue Journal (« a purgé le journal : … ») ; la trace emporte des **deltas de noms** (`seed`, attachés à la
+  révision de l'entrée gardée où ils s'appliquent, calculés en rejouant côte à côte le journal d'origine et le journal
+  purgé par `journal.Replayer`) : chaque entrée gardée nomme ses groupes, annotations et connecteurs exactement comme
+  avant ; lignes illisibles gardées, ligne interrompue terminée ; réécriture atomique sous un verrou par dossier
+  (`files.folder_lock`), mode et propriétaire conservés, dossiers synchronisés ; `--dry-run`. Jamais par l'API. Mesuré :
+  301 positions → 4,5 Ko. **Revue indépendante consignée et traitée le même jour**
+  (`docs/revues/2026-10-10-purge-journal.md` : 0 critique, 1 haut, 4 moyens, 9 bas, tout traité) : le lecteur coupait une
+  ligne sur U+2028 (antérieur à la purge) ; graine positionnelle exacte (purge par catégorie) ; rang dans la clé et le
+  curseur ; mode du fichier ; empreinte et révisions dans la trace. Backend 550 tests, `journal_prune.py` à 100 %.
+- **Vue Journal : plus rien du Diagramme ni du chargement ne transparaît** (2026-10-10, deux retours d'Orhan : le diagramme
+  vu une fraction de seconde au rechargement, une ligne au-dessus de l'en-tête en changeant d'infrastructure). Le Journal
+  s'affiche dès le chargement de la run (il ne l'attend plus), la toile dessous est `visibility: hidden` (montée, jamais
+  peinte), le fond du Journal est opaque dès la première image (seul le contenu arrive en fondu) ; la barre de chargement
+  de 2 px est retirée, le tableau ne s'estompe qu'au-delà de 200 ms de lecture, le sous-titre garde le compte d'avant.
+  Mesuré image par image dans Chromium (sonde injectée avant la page) : 3 à 4 images fautives par rechargement avant, 0
+  après ; aucune ligne ni estompage sur quatre bascules d'infrastructure. Garde dans le parcours Chromium.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -1330,7 +1506,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
   2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`,
   `2026-10-02-pages-demo-bulles-role-ha.md` ; 2026-10-03 : `2026-10-03-generateur-synthetique.md` ; 2026-10-04 :
-  `2026-10-04-b3-diff.md`, `2026-10-04-toile-engine-ts.md`, `2026-10-04-b4-intention.md`) et leurs sondes rejouables
+  `2026-10-04-b3-diff.md`, `2026-10-04-toile-engine-ts.md`, `2026-10-04-b4-intention.md` ; 2026-10-09 : `2026-10-09-vue-journal.md` ; 2026-10-10 : `2026-10-10-purge-journal.md`) et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
 - `prompts.md` — échanges bruts du propriétaire (historique)

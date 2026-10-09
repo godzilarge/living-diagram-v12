@@ -6,6 +6,7 @@ import type { Snapshot } from "../../contracts/snapshot";
 import type { CatalogueEntry, IngestData, Intent, PageData, Placement } from "../../canvas/types";
 import type { RunEntry } from "../../shell/apps";
 import { call, explain, isRecord, ROUTES, withParams } from "../../shell/http";
+import type { JournalPage } from "../state/journal";
 export { explain, readAuthor, readToken, writeAuthor, writeToken } from "../../shell/http";
 
 export interface Session { token: string; infrastructure: string }
@@ -83,4 +84,19 @@ export async function readAsset(session: Session, asset: string): Promise<string
   const response = await fetch(withParams(ROUTES.assets, { infrastructure: session.infrastructure, asset }), { headers: { Authorization: "Bearer " + session.token }, credentials: "omit" });
   if (response.status !== 200) return "";
   return URL.createObjectURL(await response.blob());
+}
+
+export type JournalResult = { ok: true; page: JournalPage } | { ok: false; status: number; message: string };
+
+/** Une page du journal des modifications (`GET /api/intent/journal`) ; `params` répétables (`author`, `category`). */
+export async function fetchJournal(token: string, params: [string, string][]): Promise<JournalResult> {
+  try {
+    const response = await fetch(ROUTES.journal + "?" + new URLSearchParams(params).toString(), { headers: { Authorization: "Bearer " + token }, credentials: "omit" });
+    let body: unknown = null;
+    try { body = await response.json(); } catch (error) { body = null; }
+    if (response.status === 200 && isRecord(body) && Array.isArray(body.entries)) return { ok: true, page: body as unknown as JournalPage };
+    return { ok: false, status: response.status, message: explain(response.status, body) };
+  } catch (error) {
+    return { ok: false, status: 0, message: "l'API ne répond pas" };
+  }
 }

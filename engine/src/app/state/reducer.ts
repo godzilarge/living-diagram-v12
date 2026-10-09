@@ -8,7 +8,7 @@ export const initialState = (): AppState => ({
   token: "", author: "", address: { infrastructure: "", runId: "", from: "" }, runs: null, runsMessage: null, listing: false,
   run: { kind: "idle" }, view: defaultView(), prefs: defaultPrefs(), selection: null, hosts: [], wanted: null, palette: { open: false, text: "" },
   expanded: false, menuOpen: false, connectOpen: false, colorsOpen: false, note: null, history: { undo: null, redo: null }, revision: 0, walk: null,
-  context: null, editRequest: null,
+  context: null, editRequest: null, journal: { kind: "idle" }, journalUi: { open: [], scroll: 0, back: false },
 });
 
 const sameHosts = (a: string[], b: string[]): boolean => a.length === b.length && a.every((host, i) => host === b[i]);
@@ -70,6 +70,10 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, context: action.menu, menuOpen: action.menu ? false : state.menuOpen };
     case "editRequest":
       return { ...state, editRequest: action.request };
+    case "journal":
+      return { ...state, journal: action.journal };
+    case "journalUi":
+      return { ...state, journalUi: { ...state.journalUi, ...action.patch } };
     default:
       return state;
   }

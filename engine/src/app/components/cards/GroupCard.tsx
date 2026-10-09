@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { BOUNDS, FONTS, LABEL_COLORS, PLACEMENTS, POSITIONS, SHAPES, STROKES, STYLE_LABEL, WEIGHTS, orphanMembers, presentMembers } from "../../../canvas/groups";
 import { hueLabel } from "../../../canvas/hues";
 import type { Group, GroupStyle, Model } from "../../../canvas/types";
-import { useStore } from "../../state/store";
+import { useEditable, useStore } from "../../state/store";
 import { plural } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, List, ListRow, Menu, NumberField, PositionField, Row, Section, Segmented, TextArea, Title, TitleInput } from "../../ui/inspector";
 import { HostLink, HueSetting, WriteHint, signed } from "./shared";
@@ -43,8 +43,8 @@ function StyleSections({ s, onStyle }: { s: GroupStyle; onStyle: (patch: StylePa
 }
 
 export function GroupCard({ model, group }: { model: Model; group: Group }) {
-  const { commands, handle } = useStore();
-  const canWrite = !!handle && handle.intents.canWrite();
+  const { commands } = useStore();
+  const canWrite = useEditable();
   const present = presentMembers(model, group), orphans = orphanMembers(model, group);
   const s = group.style;
   const [confirm, setConfirm] = useState(false);

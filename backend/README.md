@@ -426,6 +426,58 @@ jamais par `_`, un nom haché porte un suffixe). Une épingle dont l'équipement
 **orpheline** : la page la liste et la dit telle, jamais effacée en silence ; si l'équipement revient, elle s'applique à
 nouveau. Depuis le 2026-10-06, les équipements non épinglés sont stables aussi : voir le placement mémorisé ci-dessous.
 
+### Le journal des modifications : `GET /api/intent/journal` (2026-10-09)
+
+En une phrase : **qui a modifié quoi dans l'intention, quand, sur quelle infrastructure, filtré et paginé.** Lecture
+seule de `journal.jsonl` (`journal.py`), jamais écrit ici ; la vue **Journal** de l'application le lit.
+
+| Entrée | Sortie |
+|---|---|
+| `GET /api/intent/journal` (jeton requis) ; `infrastructure` facultatif (absent = toutes) ; `author` et `category` répétables (`positions`, `colors`, `groups`, `annotations`, `connectors`, `other`) ; `q` (chaque mot, sans la casse, sur l'auteur, l'infrastructure, les noms et le contenu des opérations) ; `since` inclus / `until` exclu (dates avec fuseau) ; `limit` 1 à 500 (100) ; `before` = le `next` de la page précédente | `JournalPage` : `entries` (la plus récente d'abord : `infrastructure`, `revision`, `at`, `author`, `categories`, `created` = identités attribuées, `subjects` = groupes / annotations / connecteurs cités avec leur nom **à cette révision** et la sorte d'une annotation, `ops` telles que reçues), `total`, `next`, facettes `authors` / `categories` / `infrastructures` (chacune comptée **sans son propre filtre**), `unreadable` ; 422 sans écho (catégorie inconnue, date sans fuseau, curseur illisible) |
+
+Facettes : **toujours les mêmes valeurs, dans le même ordre** (par nom ; auteurs et catégories de l'infrastructure
+choisie), un compte à 0 compris : une facette ne disparaît ni ne change de place quand on filtre. Recherche : sur
+l'auteur, les noms et le contenu des opérations, **jamais le nom de l'infrastructure** (elle a sa facette). Noms des
+sujets : un tableau par ses premières cellules, une image par son texte alternatif, un connecteur sans étiquette par
+ses deux bouts (« fw-edge-01 → Cœur »).
+
+Règles : une catégorie se déduit du nom de l'opération, une opération inconnue est `other` (les opérations ne sont pas
+revalidées contre le contrat du jour : le journal garde l'histoire telle qu'acceptée) ; une ligne illisible est sautée et
+comptée, une dernière ligne sans fin de ligne (écriture en cours) n'est ni lue ni comptée ; un dossier dont
+`intent.json` ne se lit pas ne peut pas être nommé : ses lignes sont comptées illisibles, sauf si on demande cette
+infrastructure par son nom ; le curseur est la clé `(date, infrastructure, révision)` de la dernière entrée servie, une
+ligne ajoutée entre deux pages ne décale rien. **Limites** : le journal ne garde que la valeur nouvelle (« déplacé »,
+jamais « de A vers B ») ; un Ctrl+Z s'y lit comme une modification ordinaire ; le placement mémorisé et les images
+envoyées n'y sont pas. Coût linéaire dans la taille des journaux, chaque fichier n'est relu que s'il a changé (mesuré :
+1 097 lignes, 35 ms à froid, 3 ms ensuite).
+
+#### Purger le journal : `ld journal prune` (2026-10-10)
+
+En une phrase : **les entrées antérieures à une date, d'une ou plusieurs catégories, quittent le journal pour une archive
+compressée, et une ligne de trace le dit.** Une commande d'administrateur, sur la machine, jamais une route de l'API :
+le journal est la trace d'audit de l'intention et l'auteur n'y est que déclaré (un bouton laisserait tout porteur du
+jeton effacer ses traces). Mesuré : ~300 octets par ligne ; 301 positions archivées en 4,5 Ko.
+
+```bash
+uv run ld journal prune --infrastructure X --before 2026-01-01 --author orhan --dry-run       # compte, n'écrit rien
+uv run ld journal prune --infrastructure X --before 2026-01-01 --category positions --author orhan
+```
+
+Règles (`journal_prune.py`) : une entrée part si elle est **strictement antérieure** à `--before` (une date seule =
+minuit UTC ; sinon date et heure avec fuseau, jamais dans le futur) et si **toutes** ses catégories sont parmi les
+`--category` (répétable ; absent = toutes) : une rafale mixte reste entière. Les lignes retirées sont écrites **octet
+pour octet** dans `_intent/<infra>/journal-archive/journal-pruned-<date>-<id>.jsonl.gz`, synchronisée sur disque
+**avant** la réécriture du journal (une réécriture échouée laisse un doublon dans l'archive, jamais une perte). Une ligne
+de trace (`journal_prune` : combien, `first_revision` / `last_revision`, avant quand, catégories, archive et son
+`sha256`, `--author`) est posée en tête ; elle se lit dans la vue Journal (« a purgé le journal : 301 entrées
+antérieures au 9 octobre 2026 (positions) », catégorie Autres) et ne se purge jamais. Les noms des groupes, annotations
+et connecteurs se rejouent depuis le début du journal : la trace emporte des **deltas** (`seed`), chacun attaché à la
+révision de l'entrée gardée où il s'applique, calculés en rejouant côte à côte le journal d'origine et le journal purgé :
+chaque entrée gardée se lit exactement comme avant. Lignes illisibles gardées ; une dernière ligne interrompue est gardée
+et terminée. Réécriture atomique sous le verrou du store, mode du fichier conservé (et propriétaire sous `sudo`) : une
+requête acceptée pendant la purge attend, puis s'ajoute. Relire une archive : `zcat …/journal-archive/*.jsonl.gz`.
+Revue : `docs/revues/2026-10-10-purge-journal.md`.
+
 ## Le placement mémorisé : `ld placement`, `GET` et `POST /api/placement` (2026-10-06)
 
 En une phrase : **chaque infrastructure retient la place de chaque équipement déjà dessiné, et une nouvelle run ne place
@@ -484,6 +536,23 @@ constructeur, modèle, OS, collecte, câbles, stack, tous ses clusters HA, contr
 interfaces[] ») ; un `null` s'écrit « — » ou « aucune valeur », jamais « non lu » (`null` n'est pas une raison). La
 bulle est un **groupe SVG en coordonnées d'écran**, jamais un `div` positionné par un style en ligne : la CSP par
 empreinte n'admet aucun style en ligne, et le faux DOM des tests la voit ; elle reste dans le canevas des quatre côtés.
+**Refonte du 2026-10-09** (retour d'Orhan : « pas moderne, mal présenté, aucun alignement ») : la bulle est une grammaire de
+blocs (`tip.ts` dit quoi, `bubble.ts` dessine où) : un en-tête en Inter avec ses pastilles (type, « voisin inconnu », « HA »,
+peer-link, MLAG), un filet, un **tableau** « libellé | valeur | valeur » aux colonnes alignées sur la largeur estimée des
+textes (un bout par colonne pour un câble ou un faisceau, le port sous le nom ; point d'état vert / rouge devant « up » /
+« down », la raison en complément), puis un pied séparé pour le verdict (pastille de statut, sources, « lien up », pastille
+du diff, contrôles un par ligne avec leur point de sévérité et leur nombre). Plus aucune flèche en texte (« ↔ » tombait en
+glyphe de secours : la police embarquée ne l'a pas), un câble dessiné à la place. Même module pour `/view` (`viewer.css`
+complétée) ; `tip.text(blocks)` donne la bulle en mots pour les tests. Seconde passe le même jour (« encore lourd, entassé ») :
+trois rôles de texte (identité 13,5, donnée mono 12,5, méta 11,5), lignes de 23 et marges 16 × 14, la blancheur sépare
+l'en-tête du tableau et le filet ne reste qu'avant le verdict, les deux points du câble dessiné prennent la teinte des deux
+équipements, et la bulle arrive en 180 ms (glissé de 6 px, opacité ; fondu seul sous `prefers-reduced-motion`), jamais rejoué
+d'un câble à son voisin. Critique et audit Impeccable le même jour (`.impeccable/critique/`) : cinq défauts purs corrigés
+(spécificité qui effaçait les gris, précision géométrique de la couche, largeur de l'Inter 600, calage dans la zone visible
+hors barres et panneau, contraste des pastilles du diff en `/view` clair). Passe de correction du 2026-10-10 : les
+énumérations en mots (`format.ts`), la rangée visée par un contrôle teintée avec son point de gravité (Contrôle), la gravité
+écrite, noms longs raccourcis au milieu, note « absent de interfaces[] » sous le port, la bulle attend 100 ms puis reste posée,
+Échap la cache, échelle 13 / 12 / 11. Captures : `.impeccable/planche-bulles/`.
 Les `<title>` natifs sont remplacés par `aria-label` (une seule bulle) ; les nœuds sont des `role="button"`, la bulle un
 `role="tooltip"` rattaché par `aria-describedby` au nœud qui a le focus. Un membre de cluster HA porte son **rôle tel
 qu'enregistré** (`primary`, `secondary`, `active`, `standby`, `member`) sous son étiquette de type ; le fond ne dit
@@ -585,7 +654,8 @@ des données, sources, contrôles, comptabilité des intentions, « replacer »)
 - **`GET /`** : la page, servie sans jeton et sans donnée, comme `/view` et `/docs`. Elle embarque le catalogue des
   codes de contrôle (sens, règle), charge `/assets/app/app.js` et `/assets/app/app.css` depuis sa propre origine, et
   lit la run par l'API avec le jeton saisi dans la page (gardé dans `sessionStorage`, jamais dans l'adresse).
-  Adresse partageable : `/?infrastructure=<infra>&run_id=<run>&from=<run d'avant>#node=<hostname>` ; sans `run_id`,
+  Adresse partageable : `/?infrastructure=<infra>&run_id=<run>&from=<run d'avant>#node=<hostname>` (`#mode=control`
+  pour la vue Contrôle, 2026-10-09 ; sans mode, la vue Diagramme) ; sans `run_id`,
   la dernière run s'ouvre comparée à la précédente.
 - **CSP** (en-tête) : `default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self';
   base-uri 'none'; form-action 'none'` : aucun CDN, aucune ressource externe, aucun style en ligne. React, React Flow

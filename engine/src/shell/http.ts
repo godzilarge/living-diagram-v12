@@ -4,7 +4,7 @@
 // (une commodité, pas un secret). Aucun DOM ici.
 export const TOKEN_KEY = "ld-api-token";
 export const AUTHOR_KEY = "ld-author";
-export const ROUTES = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches", placement: "/api/placement", assets: "/api/intent/assets" };
+export const ROUTES = { runs: "/api/ingest/bundles", snapshot: "/api/snapshot", report: "/api/ingest/report", diff: "/api/diff", intent: "/api/intent", patches: "/api/intent/patches", placement: "/api/placement", assets: "/api/intent/assets", journal: "/api/intent/journal" };
 export interface Answer { status: number; body: unknown }
 
 function storage(): Storage | null {

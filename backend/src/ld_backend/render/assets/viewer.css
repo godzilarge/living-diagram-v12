@@ -33,7 +33,7 @@ code.wrap { white-space: pre-wrap; word-break: break-word; }
 button, input, select { font: inherit; color: inherit; }
 ::placeholder { color: var(--muted); opacity: 1; }
 ::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); }
-table, .chips, dl.kv, .tip-line, .port-label, .node-label { font-variant-numeric: tabular-nums; }
+table, .chips, dl.kv, .port-label, .node-label { font-variant-numeric: tabular-nums; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 button { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 3px 10px; cursor: pointer; }
 button:hover { border-color: var(--accent); }
@@ -187,7 +187,7 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .show-ports .link:not(.crowded) .port-label, .link.selected .port-label { display: block; }
 /* paliers de zoom (classe posée sur le svg par applyView) : de loin, seuls les noms et les formes restent */
 .zoom-far .port-label, .zoom-far .beam-tag, .zoom-far .node-role, .zoom-far .node-stack { display: none; }
-.node, .legend-icon, .hue-dot { --type: var(--hue-slate); }
+.node, .legend-icon, .hue-dot, .tip-icon, .tip-end-dot { --type: var(--hue-slate); }
 .node { cursor: pointer; }
 .hue-blue { --type: var(--hue-blue); }
 .hue-sky { --type: var(--hue-sky); }
@@ -279,18 +279,54 @@ td .pill { font-size: 11px; padding: 0 6px; }
 .legend-note .swatch.diff-removed { border-top: 2px dashed var(--removed); }
 .legend-icon { width: 16px; height: 16px; }
 
-/* la bulle au survol : un groupe SVG en coordonnées d'écran, jamais un style en ligne */
+/* la bulle au survol (tip.ts dit quoi, bubble.ts dessine : en-tête, air, tableau aligné, pastilles, filet, verdict) */
 .tip { pointer-events: none; }
-.tip-box { fill: var(--surface); stroke: var(--line); stroke-width: 1; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2)); }
-.tip-line { font: 12px var(--mono); fill: var(--ink); }
-.tip-title { font-weight: 650; }
+.tip-box { fill: var(--surface); stroke: var(--line); stroke-width: 1; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.22)); }
+.tip text { font-variant-numeric: tabular-nums; text-rendering: geometricPrecision; } /* pas de couleur ici : (0,1,1) battrait les rôles */
+.tip-title { font: 600 13px var(--sans); fill: var(--ink); }
+.tip-label { font: 400 12px var(--sans); fill: var(--muted); }
+.tip-subtitle, .tip-note, .tip-sev, .tip-end-note { font: 400 11px var(--sans); fill: var(--muted); }
+.tip-port { font: 400 11px var(--mono); fill: var(--muted); }
+.tip-value { font: 400 12px var(--mono); fill: var(--ink); }
+.tip-value.sev-warning { fill: var(--warning); }
+.tip-value.sev-error { fill: var(--error); }
+.tip-sub { font: 400 11px var(--sans); fill: var(--muted); }
+.tip-note.tone-warning { fill: var(--warning); }
+.tip-note.tone-danger { fill: var(--error); }
+.tip-code { font: 400 12px var(--mono); fill: var(--ink); }
 .tip-muted { fill: var(--muted); }
-.tip-line.severity-error { fill: var(--error); }
-.tip-line.severity-warning { fill: var(--warning); }
-.tip-line.severity-info { fill: var(--muted); }
-.tip-line.tip-diff-added { fill: var(--added); }
-.tip-line.tip-diff-changed { fill: var(--changed); }
-.tip-line.tip-diff-removed { fill: var(--removed); }
+.tip-rule { stroke: var(--line); stroke-width: 1; }
+.tip-dot { stroke: none; }
+.tip-dot.dot-ok { fill: var(--confirmed); }
+.tip-dot.dot-danger, .tip-dot.severity-error { fill: var(--error); }
+.tip-dot.dot-warning, .tip-dot.severity-warning { fill: var(--warning); }
+.tip-dot.dot-muted, .tip-dot.severity-info { fill: var(--muted); }
+.tip-icon { fill: none; stroke: var(--muted); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.tip-icon-beam, .tip-icon-cluster { stroke: var(--structure); }
+.tip-icon-beam circle { fill: var(--structure); stroke: none; }
+.tip-icon.type-icon { stroke: none; }
+.tip-end-dot { fill: var(--type); stroke: none; }
+.tip-body { transform-box: fill-box; transform-origin: 50% 0; }
+.tip.on .tip-body { animation: tip-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes tip-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tip.on .tip-body { animation: tip-fade 120ms linear both; } }
+/* la pastille SVG de la bulle (pill.ts) : une capsule de 20, mono 600 11 en capitales, colorée par son ton */
+.tip .pill-svg { --tone: var(--muted); --pill-fg: color-mix(in srgb, var(--tone) 60%, var(--ink)); --pill-bg: color-mix(in srgb, var(--tone) 14%, var(--surface)); --pill-line: color-mix(in srgb, var(--tone) 45%, var(--surface)); } /* texte tiré vers l'encre : ≥ 4,5:1 sur le fond teinté, clair compris */
+.tip .tone-neutral, .tip .tone-info { --pill-fg: var(--muted); --pill-bg: var(--raised); --pill-line: var(--line); }
+.tip .tone-muted { --pill-fg: var(--muted); --pill-bg: var(--surface); --pill-line: var(--line); }
+.tip .tone-ok { --tone: var(--confirmed); }
+.tip .tone-danger { --tone: var(--error); }
+.tip .tone-warning { --tone: var(--warning); }
+.tip .tone-structure { --tone: var(--structure); }
+.tip .tone-observed { --tone: var(--observed); }
+.tip .tone-documented { --tone: var(--documented); }
+.tip .tone-added { --tone: var(--added); }
+.tip .tone-changed { --tone: var(--changed); }
+.tip .tone-removed { --tone: var(--removed); }
+.tip .pill-box { fill: var(--pill-bg); stroke: var(--pill-line); stroke-width: 1; }
+.tip .pill-svg text { font: 600 11px var(--mono); letter-spacing: 0.02em; fill: var(--pill-fg); }
+.tip .pill-svg.dashed .pill-box { stroke-dasharray: 2 2; }
 
 .legend-item { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; border-radius: 4px; padding: 0 2px; font-size: 11.5px; color: var(--ink); }
 .legend-item:hover { text-decoration: underline; text-underline-offset: 3px; }

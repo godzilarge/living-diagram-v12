@@ -5,6 +5,14 @@ import { endLabel } from "./model";
 export const SOURCE_LABEL: Record<string, string> = { lldp: "LLDP", cdp: "CDP", description: "Description" };
 export const STATUS_LABEL: Record<string, string> = { confirmed: "confirmé", observed_only: "observé seul", documented_only: "documenté seul" };
 export const KIND_LABEL: Record<string, string> = { device: "équipement collecté", external: "équipement d'une autre infra", stub: "voisin inconnu" };
+/** L'état de collecte d'un équipement, en mots (la fiche et la bulle disent la même chose). */
+export const COLLECTION_LABEL: Record<string, string> = { success: "réussie", unreachable: "injoignable", failed: "en échec", partial: "partielle", not_collected: "non collecté" };
+/** Le mode d'un cluster HA, en mots. */
+export const HA_MODE_LABEL: Record<string, string> = { active_passive: "actif-passif", active_active: "actif-actif", standalone: "autonome", other: "autre" };
+/** La gravité d'un contrôle, en mots (le point coloré ne suffit pas : WCAG 1.4.1). */
+export const SEVERITY_LABEL: Record<string, string> = { error: "erreur", warning: "avertissement", info: "info" };
+/** Le type d'un équipement en pastille : un mot court (`PILL_MAX`), le libellé complet est dans icons.ts. */
+export const TYPE_SHORT_LABEL: Record<string, string> = { switch: "switch", router: "routeur", firewall: "firewall", load_balancer: "répartiteur", wireless_controller: "WLC", server: "serveur", other: "autre" };
 export const RESOLUTION_LABEL: Record<string, string> = {
   hostname: "nom exact", hostname_casefold: "nom, à la casse près", reported_hostname: "nom annoncé par l'équipement",
   address: "adresse (IP ou MAC)", stub: "non résolu : voisin inconnu",
@@ -69,6 +77,15 @@ export function elapsedText(seconds: number): string {
   return amount + (seconds < 0 ? " plus tôt" : " plus tard");
 }
 
+// Une durée lue en secondes (l'uptime d'un équipement), en deux unités au plus : « 12 j 4 h », « 3 h 20 min », « 45 min », « 30 s ».
+export function durationText(seconds: number | null | undefined): string | null {
+  if (seconds === null || seconds === undefined || seconds < 0) return null;
+  const d = Math.floor(seconds / 86400), h = Math.floor((seconds % 86400) / 3600), m = Math.floor((seconds % 3600) / 60);
+  if (d) return d + " j" + (h ? " " + h + " h" : "");
+  if (h) return h + " h" + (m ? " " + m + " min" : "");
+  return m ? m + " min" : Math.floor(seconds) + " s";
+}
+
 // Une vitesse lue en Mbit/s, écrite comme on la lit : « 10 Gb/s », « 2,5 Gb/s », « 100 Mb/s » ; non lue, elle reste null.
 export function speedText(mbps: number | null | undefined): string | null {
   if (mbps === null || mbps === undefined) return null;
@@ -95,4 +112,4 @@ export function whyText(link: SourcedLink, ports = true): string {
   return parts.join(" ");
 }
 
-export const format = { plain, brief, shortPort, speedText, elapsedText, whyText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL };
+export const format = { plain, brief, shortPort, speedText, durationText, elapsedText, whyText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL, COLLECTION_LABEL, HA_MODE_LABEL, SEVERITY_LABEL, TYPE_SHORT_LABEL };

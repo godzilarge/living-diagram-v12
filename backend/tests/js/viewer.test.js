@@ -535,8 +535,6 @@ test("une forme HA non résolue se lit dans la qualité des données, avec sa ra
 
 const STUB_LINK = ["srv-hyp-07", "3c:ec:ef:12:34:56", "sw-core-02", "Ethernet1/3"].join("\u0000");
 const WAN_LINK = ["rt-wan-01", "GigabitEthernet0/0/0", "sw-core-01", "Ethernet1/4"].join("\u0000");
-const joined = (lines) => lines.map((cells) => cells.map((cell) => cell.text).join(" ")).join("\n");
-
 test("une vitesse s'écrit en Gb/s ou en Mb/s ; non lue, elle ne s'écrit pas", () => {
   const { LD } = load(page);
   assert.deepEqual(clone([10000, 2500, 1000, 100, 20000, null].map(LD.dom.speedText)), ["10 Gb/s", "2,5 Gb/s", "1 Gb/s", "100 Mb/s", "20 Gb/s", null]);
@@ -547,14 +545,48 @@ test("une vitesse s'écrit en Gb/s ou en Mb/s ; non lue, elle ne s'écrit pas", 
 test("la bulle d'un câble donne, par bout, vitesse, duplex, média et état, tels que lus", () => {
   const { LD } = load(page, page.data);
   const model = LD.app.model;
-  const core = joined(LD.tip.linkLines(model, model.linkById.get(CORE_LINK)));
-  assert.match(core, /^sw-core-01 · Ethernet1\/2 ↔ sw-core-02 · Ethernet1\/2\nconfirmé · LLDP \+ Description · down\n/);
+  const core = LD.tip.text(LD.tip.linkLines(model, model.linkById.get(CORE_LINK)));
+  assert.match(core, /^sw-core-01 · Ethernet1\/2 \| sw-core-02 · Ethernet1\/2\nvitesse /, "un bout par colonne, puis le tableau");
+  assert.match(core, /\nconfirmé · down · LLDP \+ Description\n/, "le verdict en pied : statut, lien down en pastille, sources");
   assert.match(core, /\nvitesse 10 Gb\/s 10 Gb\/s\nduplex full full\nmédia 10Gbase-SR 10Gbase-SR\nétat up down · suspended by LACP\n/);
   assert.match(core, /\nwarning · aggregate_member_not_bundled\nwarning · description_disagrees_with_observed\nwarning · link_oper_mismatch$/, "un contrôle par ligne, les plus graves d'abord");
-  const stub = joined(LD.tip.linkLines(model, model.linkById.get(STUB_LINK)));
+  const stub = LD.tip.text(LD.tip.linkLines(model, model.linkById.get(STUB_LINK)));
   assert.match(stub, /\nvitesse — 10 Gb\/s\n/, "un bout absent de interfaces[] n'a pas de valeur : un tiret, jamais une valeur inventée");
   assert.match(stub, /\nmédia — 10Gbase-SR\n/);
   assert.match(stub, /\nsrv-hyp-07 · 3c:ec:ef:12:34:56 : absent de interfaces\[\]\n/, "un bout absent est nommé comme tel, le tiret n'affirme rien");
+});
+
+test("en vue Diagramme (control: false), la bulle ne dit que ce que les équipements disent : ni statut, ni source, ni contrôle", () => {
+  const { LD } = load(page, page.data);
+  const model = LD.app.model;
+  const link = model.linkById.get(CORE_LINK);
+  const facts = LD.tip.text(LD.tip.linkLines(model, link, { control: false }));
+  assert.match(facts, /^sw-core-01 · Ethernet1\/2 \| sw-core-02 · Ethernet1\/2\nvitesse 10 Gb\/s 10 Gb\/s\n/, "les bouts, puis le tableau : aucun verdict");
+  assert.doesNotMatch(facts, /confirmé|LLDP|Description/, "aucun statut ni source");
+  assert.doesNotMatch(facts, /warning|aggregate_member_not_bundled/, "aucun contrôle");
+  assert.match(facts, /\nvitesse 10 Gb\/s 10 Gb\/s\n/, "les faits des ports restent");
+  assert.match(facts, /\nétat up down · suspended by LACP$/, "l'état d'un port est un fait, il reste");
+  assert.equal(LD.tip.text(LD.tip.linkLines(model, link)), LD.tip.text(LD.tip.linkLines(model, link, { control: true })), "sans option, tout se dit : `/view` ne change pas");
+  const node = model.nodeByHost.get("sw-core-02");
+  const nodeFacts = LD.tip.text(LD.tip.nodeLines(model, node, { control: false }));
+  assert.doesNotMatch(nodeFacts, /collecte|warning|error/, "ni état de collecte ni contrôle en vue Diagramme");
+  assert.notEqual(LD.tip.text(LD.tip.nodeLines(model, node)), nodeFacts, "en vue Contrôle, les contrôles se lisent");
+  const cluster = model.clusters[0];
+  if (cluster && cluster.checks.length) assert.ok(LD.tip.clusterLines(cluster, { control: false }).length < LD.tip.clusterLines(cluster).length);
+});
+
+test("la table LLDP / CDP d'un équipement (neighbors.ts) : ce qu'il annonce, brut, une ligne par (port, voisin, port), protocoles réunis, dans l'ordre de ses interfaces", () => {
+  const { LD } = load(page, page.data);
+  const model = LD.app.model;
+  const rows = clone(LD.neighbors.neighborsOf(model, "sw-core-01"));
+  assert.deepEqual(rows.map((r) => [r.port, r.neighbor, r.neighborPort, r.sources.join("+"), r.resolved]), [
+    ["Ethernet1/1", "sw-core-02", "Ethernet1/1", "cdp+lldp", "sw-core-02"],
+    ["Ethernet1/2", "sw-core-02", "Ethernet1/2", "lldp", "sw-core-02"],
+    ["Ethernet1/4", "rt-wan-01", "Gi0/0/0", "lldp", "rt-wan-01"],
+    ["Ethernet1/4", "rt-wan-01", "GigabitEthernet0/0/0", "cdp", "rt-wan-01"],
+  ], "LLDP annonce la forme courte, CDP la longue : deux lignes, brutes, jamais normalisées ici");
+  assert.deepEqual(clone(LD.neighbors.neighborsOf(model, "srv-hyp-07")), [], "un voisin inconnu n'annonce rien : il n'est pas collecté");
+  assert.deepEqual(clone([0, 59, 60, 3600, 3660, 86400, 90000 + 7200, null].map(LD.dom.durationText)), ["0 s", "59 s", "1 min", "1 h", "1 h 1 min", "1 j", "1 j 3 h", null]);
 });
 
 test("un câble dont aucun bout n'a de caractéristique le dit sans inventer de raison", () => {
@@ -562,7 +594,7 @@ test("un câble dont aucun bout n'a de caractéristique le dit sans inventer de 
   Object.assign(data.snapshot.interfaces.find((i) => i.hostname === "sw-core-01" && i.name === "Ethernet1/4"), { speed_mbps: null, duplex: null, media: null });
   const { LD } = load(page, data);
   const model = LD.app.model;
-  const text = joined(LD.tip.linkLines(model, model.linkById.get(WAN_LINK)));
+  const text = LD.tip.text(LD.tip.linkLines(model, model.linkById.get(WAN_LINK)));
   assert.match(text, /vitesse, duplex, média : aucune valeur/);
   assert.doesNotMatch(text, /non lu/, "null n'est pas une raison");
   assert.doesNotMatch(text, /\nvitesse /);
@@ -586,8 +618,8 @@ test("survoler un tracé affiche la bulle, quitter la cache ; un appui la cache 
   assert.equal(tip.getAttribute("visibility"), "hidden");
   const shape = canvas.withClass("node").find((g) => g.getAttribute("data-node") === "fw-edge-01").withClass("node-shape")[0];
   canvas.fire("pointermove", { target: shape, clientX: 10, clientY: 10 });
-  assert.match(tip.textContent, /fw-edge-01 · équipement collecté · firewall/);
-  assert.match(tip.textContent, /HA · EDGE-CLUSTER · active_passive · primary · up · priorité 200/);
+  assert.match(tip.textContent, /fw-edge-01FIREWALL/, "le nom, puis la pastille du type");
+  assert.match(tip.textContent, /EDGE-CLUSTER.*primary.*priorité 200/);
   canvas.fire("pointerdown", { target: canvas });
   assert.equal(tip.getAttribute("visibility"), "hidden");
   canvas.fire("pointerup", {});
@@ -615,13 +647,13 @@ test("un membre de cluster HA porte son rôle sur le graphe, tel qu'enregistré"
 test("la bulle d'un faisceau nomme ses deux équipements ; celle d'un cluster liste ses membres", () => {
   const { LD } = load(page, page.data);
   const model = LD.app.model;
-  const titles = model.beams.map((beam) => LD.tip.beamLines(beam)[0][0].text);
+  const titles = model.beams.map((beam) => LD.tip.text(LD.tip.beamLines(beam)).split("\n")[0]);
   assert.equal(new Set(titles).size, model.beams.length, "deux faisceaux d'un même agrégat vers deux voisins ont deux bulles distinctes (revue, M2)");
-  const peer = joined(LD.tip.beamLines(model.beams.find((b) => b.peerLink)));
-  assert.match(peer, /^faisceau sw-core-01 · port-channel10 ⇄ sw-core-02 · port-channel10 · peer-link\n2 câbles · .*un agrégat dégradé\n/);
+  const peer = LD.tip.text(LD.tip.beamLines(model.beams.find((b) => b.peerLink)));
+  assert.match(peer, /^sw-core-01 · port-channel10 \| sw-core-02 · port-channel10 · peer-link\ncâbles 2\n[\s\S]*?un agrégat dégradé\n/);
   assert.match(peer, /aggregate_member_not_bundled/);
-  const cluster = joined(LD.tip.clusterLines(model.clusterById.get(CLUSTER_ID)));
-  assert.match(cluster, /^HA · EDGE-CLUSTER · active_passive\nfw-edge-01 primary · up · priorité 200\nfw-edge-02 secondary · down · priorité 100\nerror · ha_member_down\n/);
+  const cluster = LD.tip.text(LD.tip.clusterLines(model.clusterById.get(CLUSTER_ID)));
+  assert.match(cluster, /^EDGE-CLUSTER · HA\nactif-passif\nfw-edge-01 primary up priorité 200\nfw-edge-02 secondary down priorité 100\nerror · ha_member_down(\n|$)/);
 });
 
 test("les contrôles d'une bulle portent leur nombre par code ; le reste est compté en contrôles (revue, M3)", () => {
@@ -629,7 +661,7 @@ test("les contrôles d'une bulle portent leur nombre par code ; le reste est com
   const checks = Array.from({ length: 9 }, () => ({ severity: "warning", code: "neighbor_unknown" }))
     .concat([{ severity: "error", code: "link_oper_mismatch" }], Array.from({ length: 7 }, (_, i) => ({ severity: "info", code: "info_" + i })));
   const beam = { a: { hostname: "a", aggregate: "po1" }, b: { hostname: "b", aggregate: "po2" }, known: [], links: [1, 2], degraded: false, peerLink: false, mlags: [], checks };
-  assert.match(joined(LD.tip.beamLines(beam)), /\nerror · link_oper_mismatch\nwarning · neighbor_unknown ×9\ninfo · info_0\ninfo · info_1\ninfo · info_2\ninfo · info_3\n… et 3 autres contrôles$/);
+  assert.match(LD.tip.text(LD.tip.beamLines(beam)), /\nerror · link_oper_mismatch\nwarning · neighbor_unknown ×9\ninfo · info_0\ninfo · info_1\ninfo · info_2\ninfo · info_3\n… et 3 autres contrôles$/);
 });
 
 test("un appui annulé libère le glissé : le nœud ne suit plus la souris, la bulle revit (revue, H1)", () => {
@@ -673,7 +705,7 @@ test("glisser puis relâcher rend le survol ; le focus montre la bulle et la rat
   canvas.fire("pointerleave", {});
   node.fire("focus", {});
   assert.equal(tip.getAttribute("visibility"), "visible");
-  assert.match(tip.textContent, /sw-core-01 · équipement collecté · switch/);
+  assert.match(tip.textContent, /sw-core-01SWITCH/);
   assert.equal(node.getAttribute("aria-describedby"), "ld-tip");
   assert.equal(node.getAttribute("role"), "button");
   assert.equal(tip.getAttribute("role"), "tooltip");
@@ -699,8 +731,8 @@ test("un équipement dans deux clusters porte le rôle du premier, l'état down 
   const node = document.getElementById("canvas").withClass("node").find((g) => g.getAttribute("data-node") === "fw-edge-01");
   assert.equal(node.classList.contains("ha-lead"), true, "rôle du premier cluster, dans l'ordre canonique");
   assert.equal(node.classList.contains("ha-state-down"), true, "down dans le second cluster : visible sur le nœud");
-  assert.match(joined(LD.tip.nodeLines(LD.app.model, LD.app.model.nodeByHost.get("fw-edge-01"))),
-    /HA · EDGE-CLUSTER · active_passive · primary · up · priorité 200\nHA · ODD · active_active · standby · down\n/);
+  assert.match(LD.tip.text(LD.tip.nodeLines(LD.app.model, LD.app.model.nodeByHost.get("fw-edge-01"))),
+    /cluster HA EDGE-CLUSTER · actif-passif\nrôle primary · priorité 200\nétat up\ncluster HA ODD · actif-actif\nrôle standby\nétat down(\n|$)/);
 });
 
 
@@ -873,11 +905,11 @@ test("l'onglet Diff liste tout, et une ligne ouvre l'élément dans le graphe, r
 test("la bulle dit le changement, en une ligne", { skip: !diffPage }, () => {
   const { LD } = load(diffPage, diffPage.data);
   const model = LD.app.model;
-  assert.match(joined(LD.tip.linkLines(model, model.linkById.get(CORE1_LINK))), /\nchangé : oper\n/);
-  assert.match(joined(LD.tip.linkLines(model, model.linkById.get(STUB_LINK))), /\nretiré depuis la run d'avant\n/);
-  assert.match(joined(LD.tip.nodeLines(model, model.nodeByHost.get("srv-hyp-07"))), /\nretiré depuis la run d'avant\n/);
-  assert.match(joined(LD.tip.nodeLines(model, model.nodeByHost.get("sw-core-02"))), /3 câbles · 1 câble retiré/, "les fantômes ne comptent pas dans les câbles");
-  assert.doesNotMatch(joined(LD.tip.linkLines(model, model.linkById.get(WAN_LINK))), /ajouté|retiré|changé/);
+  assert.match(LD.tip.text(LD.tip.linkLines(model, model.linkById.get(CORE1_LINK))), /\nchangé · oper(\n|$)/);
+  assert.match(LD.tip.text(LD.tip.linkLines(model, model.linkById.get(STUB_LINK))), /\nretiré · depuis la run d'avant(\n|$)/);
+  assert.match(LD.tip.text(LD.tip.nodeLines(model, model.nodeByHost.get("srv-hyp-07"))), /\nretiré · depuis la run d'avant(\n|$)/);
+  assert.match(LD.tip.text(LD.tip.nodeLines(model, model.nodeByHost.get("sw-core-02"))), /\ncâbles 3 · 1 retiré\n/, "les fantômes ne comptent pas dans les câbles");
+  assert.doesNotMatch(LD.tip.text(LD.tip.linkLines(model, model.linkById.get(WAN_LINK))), /ajouté|retiré|changé/);
 });
 
 const TWO_RUNS = { status: 200, body: { infrastructure: "infra-lab", runs: [
@@ -931,7 +963,7 @@ test("un équipement injoignable ne montre jamais les faits de la run d'avant co
   assert.equal(LD.model.interfaceAt(model, "fw-edge-01", "x1", false), null, "un élément vivant ne les lit pas");
   assert.equal(LD.model.interfaceAt(model, "fw-edge-01", "x1", true).ghost, true, "un élément retiré les lit, en le disant");
   const link = model.links.find((l) => (l.a.hostname === "fw-edge-01" || l.b.hostname === "fw-edge-01") && !l.ghost);
-  const bubble = joined(LD.tip.linkLines(model, link));
+  const bubble = LD.tip.text(LD.tip.linkLines(model, link));
   assert.match(bubble, /fw-edge-01 · x\d : absent de interfaces\[\]/, "la bulle du câble vivant dit l'absence");
   assert.doesNotMatch(bubble, /run d'avant/);
   LD.app.graph.select({ kind: "node", id: "fw-edge-01" });
@@ -2211,8 +2243,8 @@ test("le modèle indexe les annotations et dit lesquelles sont orphelines ; la s
   assert.deepEqual(clone(LD.model.selectionFromToken(model, "annotation", "a2-1")), { kind: "annotation", id: "a2-1" });
   assert.equal(LD.model.selectionFromToken(model, "annotation", "a9-9"), null);
   const lines = LD.tip.annotationLines(model.annotationById.get("a2-2"));
-  assert.match(joined(lines), /tableau · attachée à sw-core-01/);
-  assert.match(joined(lines), /annotation de alice/);
+  assert.match(LD.tip.text(lines), /tableau · attachée à sw-core-01/);
+  assert.match(LD.tip.text(lines), /annotation de alice/);
   // Les connecteurs (1.4.0) : indexés par bout, orphelin quand un bout vise un absent, dessinés avec leurs bouts, éclairés avec eux.
   assert.deepEqual(clone(Array.from(model.connectorById.keys())), ["c2-1", "c2-2"]);
   assert.deepEqual(clone((model.connectorsByRef.get("device\u0000sw-core-01") || []).map((c) => c.id)), ["c2-1"]);
@@ -2226,7 +2258,53 @@ test("le modèle indexe les annotations et dit lesquelles sont orphelines ; la s
   assert.deepEqual(clone(LD.model.tokenOf(model, { kind: "connector", id: "c2-1" })), ["connector", "c2-1"]);
   assert.deepEqual(clone(LD.model.selectionFromToken(model, "connector", "c2-1")), { kind: "connector", id: "c2-1" });
   assert.deepEqual(clone(LD.model.hostsOf(model, { kind: "connector", id: "c2-2" })), [], "l'équipement absent ne compte pas");
-  assert.match(joined(LD.tip.connectorLines(model.connectorById.get("c2-1"))), /flèche · annotation a2-1 → équipement sw-core-01 \(gauche\) · voir.*courbe.*connecteur de orhan/s);
+  assert.match(LD.tip.text(LD.tip.connectorLines(model.connectorById.get("c2-1"))), /flèche · annotation a2-1 → équipement sw-core-01 \(gauche\) · voir.*courbe.*connecteur de orhan/s);
   const tab = LD.app.model.intent.annotations.length;
   assert.equal(tab, 3);
+});
+
+// ---------------------------------------------------------------- le dessin de la bulle (critique du 2026-10-09, P2-7)
+
+test("le dessin de la bulle (bubble.ts) : colonnes alignées, rythme, points et mots de gravité, taille, calage dans la zone visible, posée, dispose", () => {
+  const { LD } = load(page, page.data);
+  const model = LD.app.model;
+  const svg = LD.dom.s("svg");
+  const tip = LD.tip.create(svg);
+  const blocks = LD.tip.linkLines(model, model.linkById.get(CORE_LINK));
+  tip.show("k", () => blocks, 10, 10, { width: 1000, height: 700 });
+  assert.equal(tip.group.getAttribute("class"), "tip on", "l'arrivée se joue à l'apparition");
+  const box = tip.group.withClass("tip-box")[0];
+  const w = Number(box.getAttribute("width")), h = Number(box.getAttribute("height"));
+  assert.ok(w > 200 && h > 100, "une boîte mesurée");
+  const labels = tip.group.withClass("tip-label");
+  assert.deepEqual(clone(labels.map((t) => t.textContent)), ["vitesse", "duplex", "média", "état"]);
+  const ys = labels.map((t) => Number(t.getAttribute("y")));
+  assert.deepEqual(clone(ys.slice(1).map((y, i) => y - ys[i])), [23, 23, 23], "un rythme : 23 entre deux rangées");
+  const plain = tip.group.withClass("tip-value").filter((t) => !["—", "up", "down"].includes(t.textContent)); // les états sont décalés par leur point
+  assert.equal(new Set(plain.map((t) => Number(t.getAttribute("x")))).size, 2, "deux colonnes de valeurs, alignées sur deux x");
+  assert.ok(tip.group.withClass("dot-ok").length >= 1 && tip.group.withClass("dot-danger").length >= 1, "l'état en point");
+  assert.ok(tip.group.withClass("sev-warning").length >= 2, "la rangée visée par link_oper_mismatch teinte ses deux valeurs");
+  assert.ok(tip.group.withClass("tip-sev").some((t) => t.textContent === "avertissement"), "la gravité d'un contrôle s'écrit");
+  assert.ok(tip.group.withClass("tip-end-dot").length === 2 && tip.group.withClass("tip-end-dot").every((c) => /hue-/.test(c.getAttribute("class"))), "les deux points du câble ont une teinte");
+  // le calage : en bas à droite d'une zone qui commence en (0,56), la bulle reste dedans
+  tip.show("k2", () => blocks, 990, 690, { x: 0, y: 56, width: 1000, height: 644 });
+  const [tx, ty] = tip.group.getAttribute("transform").match(/-?\d+/g).map(Number);
+  assert.ok(tx >= 0 && tx + w <= 1000 && ty >= 56 && ty + h <= 700, "jamais hors de la zone visible : " + tip.group.getAttribute("transform"));
+  // posée : le même élément, un autre point du pointeur, la bulle ne bouge pas
+  tip.show("k2", () => blocks, 300, 300, { x: 0, y: 56, width: 1000, height: 644 });
+  assert.equal(tip.group.getAttribute("transform"), `translate(${tx},${ty})`, "elle reste posée tant que l'élément ne change pas");
+  tip.hide();
+  assert.equal(tip.group.getAttribute("class"), "tip");
+  tip.dispose();
+  assert.equal(svg.childNodes.length, 0, "dispose retire la bulle du document");
+  // la parité texte ↔ dessin : le premier mot de chaque ligne de `text()` est dessiné
+  const tip2 = LD.tip.create(LD.dom.s("svg"));
+  const nodeBlocks = LD.tip.nodeLines(model, model.nodeByHost.get("fw-edge-01"));
+  tip2.show("n", () => nodeBlocks, 0, 0, { width: 1000, height: 700 });
+  const drawn = tip2.group.all((n) => n.tagName === "text").map((t) => t.textContent.toLowerCase());
+  LD.tip.text(nodeBlocks).split("\n").forEach((line) => { // `text()` écrit la gravité brute (`error`), le dessin son mot : on sonde le second jeton
+    const probe = (line.includes(" · ") ? line.split(" · ")[1] : line).split(" ")[0].toLowerCase();
+    assert.ok(drawn.some((t) => t.includes(probe)), "ligne dessinée : " + line);
+  });
+  assert.equal(LD.tip.clipName("a".repeat(40)).length, 36, "un nom trop long se raccourcit au milieu");
 });

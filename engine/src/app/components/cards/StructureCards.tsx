@@ -1,16 +1,22 @@
 // Les fiches des structures (R4), dans la grammaire de l'inspecteur : un faisceau (deux agrégats, leurs câbles), un
 // cluster HA (ses membres, ses heartbeats), un agrégat (ses membres, ses câbles, son domaine MLAG). Tout est lu dans
-// le snapshot.
+// le snapshot ; les mêmes fiches dans les deux vues, les contrôles de B1 en vue Contrôle seulement (2026-10-09).
 import { Boxes, Crosshair, Layers, Network, ShieldCheck, SquareDashedMousePointer } from "lucide-react";
 import { shortPort } from "../../../canvas/format";
 import { beamLabel, clusterLabel } from "../../../canvas/geometry";
 import { endLabel, haRoleGroup } from "../../../canvas/model";
 import type { Aggregate, Beam, Cluster, Model } from "../../../canvas/types";
-import { useStore } from "../../state/store";
+import { useControl, useStore } from "../../state/store";
 import { Badge, DiffBadge, plural } from "../../ui";
 import { Facts, IconButton, Inspector, InspectorHead, List, ListRow, Section, Title } from "../../ui/inspector";
-import { ChecksSection, HostLink } from "./shared";
+import { ChecksSection, HostLink, LinkDot } from "./shared";
 import { Ends } from "./LinkCard";
+
+/** Les contrôles d'une structure, en vue Contrôle ; rien en vue Diagramme. */
+function Checks({ model, checks }: { model: Model; checks: Beam["checks"] }) {
+  const control = useControl();
+  return control ? <ChecksSection model={model} checks={checks} /> : null;
+}
 
 /** Les câbles d'une structure, un par ligne (ouvre le câble). */
 function CableList({ links }: { links: Beam["links"] }) {
@@ -20,7 +26,7 @@ function CableList({ links }: { links: Beam["links"] }) {
       {links.map((link) => (
         <li key={link.id}><button type="button" className="insp-list-row link" onClick={() => commands.reveal({ kind: "link", id: link.id })}>
           <span className="insp-list-main" title={link.a.hostname + " · " + link.a.interface + " ↔ " + link.b.hostname + " · " + link.b.interface}><span className="mono">{shortPort(link.a.interface)}</span><span className="faint">↔</span><span className="mono">{shortPort(link.b.interface)}</span></span>
-          <span className="insp-list-end"><span className={"insp-dot " + link.status} aria-label={link.status} /></span>
+          <span className="insp-list-end"><LinkDot link={link} /></span>
         </button></li>
       ))}
     </List>
@@ -53,7 +59,7 @@ export function BeamCard({ model, beam }: { model: Model; beam: Beam }) {
         ) : null}
       </Section>
       <Section title="Câbles" count={beam.links.length}><CableList links={beam.links} /></Section>
-      <ChecksSection model={model} checks={beam.checks} />
+      <Checks model={model} checks={beam.checks} />
     </Inspector>
   );
 }
@@ -91,7 +97,7 @@ export function ClusterCard({ model, cluster }: { model: Model; cluster: Cluster
           </List>
         </Section>
       ) : null}
-      <ChecksSection model={model} checks={cluster.checks} />
+      <Checks model={model} checks={cluster.checks} />
     </Inspector>
   );
 }
@@ -128,7 +134,7 @@ export function AggregateCard({ model, aggregate }: { model: Model; aggregate: A
         </Section>
       ) : null}
       <Section title="Câbles" count={aggregate.cables.length}><CableList links={aggregate.cables} /></Section>
-      <ChecksSection model={model} checks={aggregate.checks} />
+      <Checks model={model} checks={aggregate.checks} />
     </Inspector>
   );
 }

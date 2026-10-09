@@ -131,6 +131,9 @@ curl -s -X POST "http://127.0.0.1:8000/api/intent/patches?infrastructure=<infra>
 #     {"op": "annotation_create", "content": {"kind": "image", "asset": "<sha256 rendu>", "alt": ""}} ; un connecteur (docs/10 §6.6) :
 #     {"op": "connector_create", "start": {"kind": "device", "ref": "<hostname>", "side": "auto"}, "end": {"kind": "free", "x": 300, "y": -40}}
 #     (`side` = l'ancre d'un bout attaché : auto, n, e, s ou w ; sur la toile, tirer depuis un point d'ancrage d'une carte)
+# 2 ter bis. le journal des modifications de l'intention : qui, quand, quoi (filtres combinables, la plus récente d'abord)
+curl -s -G http://127.0.0.1:8000/api/intent/journal -H "$H" --data-urlencode "infrastructure=<infra>" \
+     --data-urlencode "author=<nom>" --data-urlencode "category=groups" --data-urlencode "q=<texte>"   # sans infrastructure : toutes ; page suivante : before=<next>
 # 2 quater. le placement mémorisé (docs/09) : lu et écrit par la page /view elle-même ; lisible ici
 curl -s -G http://127.0.0.1:8000/api/placement      -H "$H" --data-urlencode "infrastructure=<infra>"
 # 3. dessiner la run archivée (même dossier d'archive que le serveur) ; --from <run d'avant> pour y peindre les changements
@@ -194,6 +197,9 @@ backend : Python n'a jamais besoin de Node pour fonctionner.
 | épingler un équipement (B4) | glisser dans `/view` avec un nom saisi ; ou `POST /api/intent/patches?infrastructure=X` `{"author","ops":[{"op":"pin","hostname","x","y"}]}` |
 | lire les épingles, couleurs, groupes, annotations | `ld intent --infrastructure X`, `GET /api/intent?infrastructure=X`, onglet **Intentions** |
 | annoter le diagramme (note, forme, tableau, image, connecteur ; `docs/10` §6) | dans l'application (`/`), bloc **Insérer** de la barre d'outils ou le clic droit, avec un nom ; Ctrl+V colle une image ou un texte ; un tableau s'édite sur la toile (double-clic, frontières, clic droit) ; ou `POST /api/intent/patches` (`annotation_create`, `connector_create`), images par `POST /api/intent/assets` |
+| lire le diagramme sans les verdicts de B1, ou vérifier comment il a été dessiné | dans l'application (`/`), la bascule **Diagramme / Contrôle** de la barre (2026-10-09) : Diagramme = câbles neutres, fiches de faits (identité, interfaces, voisins LLDP / CDP), édition ; Contrôle = statuts, sources, contrôles, lecture seule ; `#mode=control` dans l'adresse |
+| voir qui a modifié quoi (épingles, couleurs, groupes, annotations, connecteurs), par infrastructure et par auteur | dans l'application (`/`), la bascule **Journal** de la barre (recherche, catégories, auteurs, période) ; ou `GET /api/intent/journal?infrastructure=X` |
+| alléger le journal (volumétrie) : retirer les entrées anciennes, par catégorie, vers une archive | `uv run ld journal prune --infrastructure X --before AAAA-MM-JJ [--category positions] --author <nom> [--dry-run]` (administrateur, jamais par l'API ; une trace reste dans le journal) |
 | lire ou oublier le placement mémorisé (`docs/09`) | `ld placement --infrastructure X [--forget]`, `GET /api/placement?infrastructure=X` ; « replacer » dans `/view` |
 | dessiner une run archivée | `ld render --infrastructure X --run-id Y --out page.html` |
 | la lire dans le navigateur, serveur lancé | `http://127.0.0.1:8000/view?infrastructure=X&run_id=Y` (jeton saisi dans la page) |

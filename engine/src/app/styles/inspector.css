@@ -291,6 +291,15 @@ input.ctl:focus-visible, select.ctl:focus-visible { border-color: var(--accent);
 .insp-table { width: 100%; border-collapse: collapse; font: 400 12px/18px var(--mono); }
 .insp-table th { text-align: left; font: 500 11px/16px var(--sans); color: var(--ink-3); padding: 4px 6px 4px 0; border-bottom: 1px solid var(--line); }
 .insp-table td { padding: 4px 6px 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); overflow-wrap: anywhere; vertical-align: top; }
+/* la table des interfaces de la vue Diagramme (NodeFacts) : port, état, vitesse, média ; en face et description quand le
+   panneau est large ; une cellule longue se coupe (le texte entier en infobulle) ; un port qui n'est pas up s'efface */
+.facts-table { table-layout: fixed; }
+.facts-table th, .facts-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.facts-table .clip { max-width: 0; }
+.facts-table .wide { display: none; }
+.facts-table tr.faint td { color: var(--ink-3); }
+.facts-table tr.faint td.mono { color: var(--ink-2); }
+@container (min-width: 560px) { .facts-table .wide { display: table-cell; } }
 .insp-table tr.lonely td { color: var(--warning); }
 .insp-file { position: relative; cursor: pointer; }
 .insp-cells { width: 100%; border-collapse: separate; border-spacing: 2px; table-layout: fixed; margin: -2px; }

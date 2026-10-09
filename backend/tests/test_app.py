@@ -228,10 +228,25 @@ def _button(tab, text: str, within: str = "body") -> None:
     assert tab.js(script), text
 
 
+def _open_section(tab, title: str) -> None:
+    """Déplie une section repliée de la fiche (« Apparence » ferme la fiche d'un équipement, repliée : les faits
+    d'abord)."""
+    wanted = json.dumps(title)
+    script = (
+        "(() => { const b = Array.from(document.querySelectorAll('.panel .insp-section-toggle'))"
+        f".find((b) => b.textContent.includes({wanted})); if (!b) return 'absent';"
+        " if (b.getAttribute('aria-expanded') === 'false') b.click(); return 'ok'; })()"
+    )
+    assert tab.js(script) == "ok", title
+
+
 def _pick_hue(tab, name: str) -> None:
     """Choisit une teinte dans la fiche : le champ ouvre la grille des douze, un clic choisit."""
     from tests.test_view import _wait
 
+    if tab.js("!document.querySelector('.panel .hue-trigger')"):
+        _open_section(tab, "Apparence")
+        _wait(tab, "!!document.querySelector('.panel .hue-trigger')")
     tab.js("document.querySelector('.panel .hue-trigger').click()")
     _wait(tab, "!!document.querySelector('.panel .hue-pop')")
     tab.js(f"document.querySelector('.panel .hue-swatch[aria-label={json.dumps(name)}]').click()")
@@ -528,14 +543,19 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             # élargir le panneau par son bord gauche : la largeur suit le glissé et se range dans les préférences
             tab.js("LDApp.debug.handle().toile.select({ kind: 'node', id: 'sw-core-01' })")
             _wait(tab, "!!document.querySelector('.panel .panel-resize')")
-            box = json.loads(tab.js("JSON.stringify(document.querySelector('.panel .panel-resize').getBoundingClientRect())"))
+            box = json.loads(
+                tab.js("JSON.stringify(document.querySelector('.panel .panel-resize').getBoundingClientRect())")
+            )
             before = tab.js("document.querySelector('.panel').getBoundingClientRect().width")
             tab.drag((box["x"] + 3, box["y"] + 200), (box["x"] - 117, box["y"] + 200))
             _wait(tab, f"document.querySelector('.panel').getBoundingClientRect().width > {before} + 100")
             prefs = json.loads(tab.js("localStorage.getItem('ld-prefs')"))
             assert 460 <= prefs.pop("panelWidth") <= 470, "la largeur glissée est rangée à la relâche"
             assert prefs == {"theme": "light", "grid": True, "snap": False, "minimap": True}
-            tab.js("document.querySelector('.panel .panel-resize').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))")
+            tab.js(
+                "document.querySelector('.panel .panel-resize')"
+                ".dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))"
+            )
             _wait(tab, "JSON.parse(localStorage.getItem('ld-prefs')).panelWidth === 348")
             assert "theme" not in tab.js("location.href") and "grid" not in tab.js("location.href")
             assert TOKEN not in tab.js("location.href")
@@ -582,7 +602,8 @@ def test_the_application_keyboard_and_what_it_could_not_read(settings, bundle_di
             tab.js(f"sessionStorage.setItem('ld-api-token', {json.dumps(TOKEN)})")
             tab.navigate(f"{base}/?infrastructure=infra-lab")
             _wait(tab, READY)
-            _wait(tab, "document.querySelectorAll('.react-flow__edge').length > 0")  # les câbles suivent la mesure des nœuds
+            # les câbles suivent la mesure des nœuds
+            _wait(tab, "document.querySelectorAll('.react-flow__edge').length > 0")
             assert tab.js("document.querySelectorAll('.react-flow__edge[tabindex]').length") == 0
             _wait(
                 tab, f"{FOCUSED}.classList.contains('app')"
@@ -991,3 +1012,245 @@ def test_the_application_annotations_in_a_browser(settings, bundle_dict, tmp_pat
     finally:
         server.should_exit = True
         thread.join(timeout=10)
+
+
+STROKE = (
+    "(() => {{ const el = document.querySelector({0}); return el ? getComputedStyle(el).stroke"
+    " + ' ' + getComputedStyle(el).strokeDasharray : null; }})()"
+)
+SECTIONS = (
+    "Array.from(document.querySelectorAll('.panel .insp-section-title')).map((el) => el.textContent).join('|')"
+)
+
+
+@pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
+def test_the_application_two_views_in_a_browser(settings, bundle_dict):
+    """Les deux vues (Orhan, 2026-10-09). Diagramme, par défaut : les câbles ont tous la même encre, sans tiret, aucun
+    point de gravité ; la barre n'a ni statut ni sévérité, la bascule « Contrôle » porte le nombre d'erreurs ; la fiche
+    d'un équipement donne ses faits (identité, interfaces, voisins LLDP / CDP, apparence repliée), jamais un contrôle.
+    Contrôle : `mode=control` dans l'adresse, la toile et la barre d'aujourd'hui, la fiche avec ses contrôles et sans
+    apparence, la barre d'outils réduite à cadrer et centrer, rien ne se glisse ni ne s'annule. L'adresse modifiée à
+    la main ramène la vue ; la couche « câbles down » se lit dans les deux."""
+    import httpx
+
+    from tests.browser import Chrome
+    from tests.conftest import TOKEN
+    from tests.diff.conftest import LATER_RUN_ID, cable_down_later
+    from tests.test_view import _serve, _wait
+
+    server, thread, base = _serve(settings)
+    try:
+        auth = {"Authorization": f"Bearer {TOKEN}"}
+        for bundle in (bundle_dict, cable_down_later(bundle_dict)):
+            assert httpx.post(f"{base}/api/ingest/bundles", json=bundle, headers=auth, timeout=60).status_code == 201
+        with Chrome(CHROMIUM) as chrome:
+            tab = chrome.open(f"{base}/")
+            _wait(tab, "!!document.querySelector('.sheet input[type=password]')")
+            tab.js(f"sessionStorage.setItem('ld-api-token', {json.dumps(TOKEN)})")
+            tab.js("localStorage.setItem('ld-author', 'orhan')")
+            tab.navigate(f"{base}/?infrastructure=infra-lab&run_id={LATER_RUN_ID}")
+            _wait(tab, READY)
+            _wait(tab, "document.querySelectorAll('.react-flow__edge').length > 0")
+            confirmed = STROKE.format("'.link.status-confirmed .link-line'")
+            documented = STROKE.format("'.link.status-documented_only .link-line'")
+            # Diagramme : la vue par défaut, absente de l'adresse ; câbles neutres, aucun verdict dans la barre
+            assert tab.js("LDApp.debug.state().view.mode") == "diagram"
+            assert "mode=" not in tab.js("location.hash")
+            assert tab.js("!!document.querySelector('.flow.mode-diagram')")
+            assert tab.js(confirmed) == tab.js(documented), "même encre, même trait pour tous les câbles"
+            assert tab.js(documented).endswith(" none"), "aucun tiret en vue Diagramme"
+            verdicts = (
+                "document.querySelectorAll('.count.sev-error, .count.sev-warning, .count.status-confirmed').length"
+            )
+            assert tab.js(verdicts) == 0, "ni sévérité ni statut dans la barre"
+            mark = "getComputedStyle(document.querySelector('.link-mark')).display"
+            assert tab.js(mark) == "none", "aucun point de gravité"
+            errors = tab.js("LDApp.debug.state().run.model.severityCounts.get('error') || 0")
+            assert errors > 0, "la fixture « câble tombé » a des erreurs"
+            pill = "document.querySelector('.mode-switch .mode-item:nth-child(2) .pill').textContent"
+            assert tab.js(pill) == str(errors), "la bascule dit combien d'erreurs sont ouvertes"
+            # la fiche d'un équipement : des faits, dans l'ordre où on les lit ; aucun contrôle ; l'apparence repliée
+            at = _settled(tab, "sw-core-02")
+            _click(tab, at["x"], at["y"])
+            _wait(tab, "!!document.querySelector('.panel')")
+            sections = tab.js(SECTIONS)
+            assert sections.startswith("Identité|"), sections
+            assert "Interfaces" in sections and "Voisins LLDP / CDP" in sections and "Apparence" in sections, sections
+            assert "Contrôles" not in sections and "Vu par" not in sections, sections
+            assert "série" in tab.js("document.querySelector('.panel .insp-facts').textContent")
+            assert tab.js("document.querySelectorAll('.panel .facts-table tbody tr').length") > 0
+            assert tab.js("!document.querySelector('.panel .hue-trigger')"), "apparence repliée : les faits d'abord"
+            neighbours = tab.js("document.querySelectorAll('.panel [aria-label=\"voisins annoncés\"] li').length")
+            assert neighbours > 0, "ce que sw-core-02 annonce en LLDP / CDP"
+            # Contrôle : la bascule, l'adresse, la toile d'aujourd'hui, la fiche avec ses contrôles, rien ne s'édite
+            _button(tab, "Contrôle", ".mode-switch")
+            _wait(tab, "LDApp.debug.state().view.mode === 'control' && !!document.querySelector('.flow.mode-control')")
+            assert "mode=control" in tab.js("location.hash") and "node=sw-core-02" in tab.js("location.hash")
+            assert tab.js(confirmed) != tab.js(documented), "en Contrôle, le statut colore le câble"
+            assert tab.js("document.querySelectorAll('.count.sev-error').length") == 1
+            statuses = "document.querySelectorAll('.count.status-confirmed, .count.status-documented_only').length"
+            assert tab.js(statuses) == 2
+            assert tab.js("!document.querySelector('.mode-switch .pill')"), "le compte ne se répète pas quand on y est"
+            _wait(tab, f"/Contrôles/.test({SECTIONS})")
+            sections = tab.js(SECTIONS)
+            assert "Apparence" not in sections and "Identité" in sections, sections
+            assert tab.js("document.querySelectorAll('.toolbar button').length") == 2, "cadrer et centrer seulement"
+            assert tab.js("document.querySelectorAll('.react-flow__node.draggable').length") == 0, "rien ne se glisse"
+            assert tab.js("!document.querySelector('.panel .hue-trigger')")
+            # un parcours commencé en Contrôle finit en repassant en Diagramme
+            tab.js("document.querySelector('.count.sev-error').click()")
+            _wait(tab, "!!document.querySelector('.walk')")
+            _button(tab, "Diagramme", ".mode-switch")
+            _wait(tab, "LDApp.debug.state().view.mode === 'diagram' && !document.querySelector('.walk')")
+            # l'adresse modifiée à la main : la vue suit ; la couche « câbles down » se lit dans les deux vues
+            tab.js("location.hash = '#mode=control&oper=1&node=sw-core-02'")
+            _wait(tab, "LDApp.debug.state().view.mode === 'control' && !!document.querySelector('.flow.show-oper')")
+            tab.js("location.hash = '#oper=1&node=sw-core-02'")
+            back = (
+                "LDApp.debug.state().view.mode === 'diagram'"
+                " && !!document.querySelector('.flow.mode-diagram.show-oper')"
+            )
+            _wait(tab, back)
+            down = STROKE.format("'.link.oper-down .link-line'")
+            assert tab.js(down) is not None and not tab.js(down).endswith(" none"), "un câble down se tire en pointillé"
+            layers = "document.querySelectorAll('.display-toggle .display-count').length"
+            assert tab.js(layers) == 1, "une couche hors défaut"
+        noise = [entry for entry in chrome.console if "Refused" in json.dumps(entry)]
+        assert not noise, noise
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
+@pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
+def _key(tab, key: str, code: int) -> None:
+    for kind in ("keyDown", "keyUp"):
+        tab.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": code})
+
+
+def test_the_application_journal_in_a_browser(settings, bundle_dict):
+    """La vue Journal (2026-10-09) : la troisième bascule de la barre remplace la toile (inerte dessous, sans outils) ;
+    chaque requête acceptée est une ligne (heure, auteur, phrase) ; une catégorie et la recherche filtrent, dans
+    l'adresse ; une rafale se déplie en une phrase par opération ; un équipement cité ouvre le Diagramme sur lui ; un
+    groupe d'une autre infrastructure, d'une identité inconnue ici, ouvre l'autre et le sélectionne là (revue, M1 : la
+    toile d'ici le cherchait chez elle, l'oubliait, et l'autre s'ouvrait sur l'ancienne sélection)."""
+    import httpx
+
+    from tests.browser import Chrome
+    from tests.conftest import TOKEN
+    from tests.test_review_e2e import _relabel
+    from tests.test_view import _serve, _wait
+
+    pins = [{"op": "pin", "hostname": host, "x": 0, "y": 0} for host in ("sw-core-01", "fw-edge-01")]
+    requests = (
+        ("alice", pins),
+        ("bob", [{"op": "color", "hostname": "sw-core-02", "hue": "red"}]),
+        ("bob", [{"op": "group_create", "label": "Cœur", "members": ["sw-core-01", "sw-core-02"]}]),
+    )
+    rows = "document.querySelectorAll('.j-row')"
+    texts = (
+        "Array.from(document.querySelectorAll('.j-row')).map(e => "
+        "(e.querySelector('.j-who').textContent + e.querySelector('.j-text').textContent).replace(/\\s+/g, ' '))"
+    )
+    facet = "Array.from(document.querySelectorAll('.j-facet')).find(b => b.textContent.startsWith({}))"
+    typed = (
+        "(() => {{ const i = document.querySelector('.j-search input'); Object.getOwnPropertyDescriptor("
+        "HTMLInputElement.prototype, 'value').set.call(i, {}); "
+        "i.dispatchEvent(new Event('input', {{bubbles: true}})); }})()"
+    )
+    server, thread, base = _serve(settings)
+    try:
+        auth = {"Authorization": f"Bearer {TOKEN}"}
+        assert httpx.post(f"{base}/api/ingest/bundles", json=bundle_dict, headers=auth, timeout=60).status_code == 201
+        patches = f"{base}/api/intent/patches?infrastructure=infra-lab"
+        for author, ops in requests:
+            assert httpx.post(patches, json={"author": author, "ops": ops}, headers=auth, timeout=30).status_code == 200
+        other = _relabel(bundle_dict, "infra-b", "run-b")
+        assert httpx.post(f"{base}/api/ingest/bundles", json=other, headers=auth, timeout=60).status_code == 201
+        border = [{"op": "group_create", "label": "Bord", "members": ["fw-edge-01"]}]
+        for ops in (border,):  # g1-1 : aucun groupe de ce nom dans infra-lab
+            body = {"author": "carol", "ops": ops}
+            assert httpx.post(patches.replace("infra-lab", "infra-b"), json=body, headers=auth).status_code == 200
+        with Chrome(CHROMIUM) as chrome:
+            tab = chrome.open(f"{base}/")
+            _wait(tab, "!!document.querySelector('.sheet input[type=password]')")
+            tab.js(f"sessionStorage.setItem('ld-api-token', {json.dumps(TOKEN)})")
+            tab.navigate(f"{base}/?infrastructure=infra-lab")
+            _wait(tab, READY)
+            tab.js("document.querySelector('.mode-switch .mode-item:nth-child(3)').click()")
+            _wait(tab, f"{rows}.length === 3")
+            assert "mode=journal" in tab.js("location.hash")
+            assert tab.js(texts) == [
+                "bob a créé le groupe Cœur (2 membres)",
+                "bob a coloré sw-core-02 en rouge",
+                "alice a placé 2 équipements",
+            ]
+            assert tab.js("document.querySelector('.stage').inert") is True, "la toile reste montée, inerte"
+            stage = "getComputedStyle(document.querySelector('.stage')).visibility"
+            assert tab.js(stage) == "hidden", "jamais peinte sous le Journal (au rechargement, elle transparaissait)"
+            assert tab.js("document.querySelectorAll('.search, .toolbar, .band, .panel').length") == 0, "ni outils"
+            assert tab.js("document.querySelector('.j-title p').textContent").startswith("3 modifications")
+            # l'export CSV : toutes les entrées des filtres, lues page après page, dites dans la zone live
+            tab.js("document.querySelector('.j-export').click()")
+            _wait(tab, "document.querySelector('.j-tools [aria-live]').textContent === '3 entrées exportées'")
+            # une catégorie : dans l'adresse ; les autres catégories gardent leur compte (facette sans son filtre)
+            tab.js(facet.format("'Couleurs'") + ".click()")
+            _wait(tab, f"{rows}.length === 1")
+            assert "jcat=colors" in tab.js("location.hash")
+            assert tab.js(facet.format("'Positions'") + ".textContent") == "Positions : 1", "un séparateur lu"
+            tab.js(facet.format("'Couleurs'") + ".click()")
+            _wait(tab, f"{rows}.length === 3")
+            # la recherche : `/` lui donne le focus ; elle part quand on s'arrête d'écrire, sans la casse
+            tab.js("document.body.dispatchEvent(new KeyboardEvent('keydown', {key: '/', bubbles: true}))")
+            assert tab.js("document.activeElement === document.querySelector('.j-search input')")
+            tab.js(typed.format(json.dumps("CŒUR")))
+            _wait(tab, f"{rows}.length === 1")
+            assert "jq=C%C5%92UR" in tab.js("location.hash")
+            tab.js("document.querySelector('.j-clear').click()")
+            _wait(tab, f"{rows}.length === 3")
+            # le fil au clavier : une seule étape de tabulation, ↓ passe à la ligne suivante
+            assert tab.js("document.querySelectorAll('.j-row-head[tabindex=\"0\"]').length") == 1
+            tab.js(f"{rows}[0].querySelector('.j-row-head').focus()")
+            _key(tab, "ArrowDown", 40)
+            assert tab.js(f"document.activeElement === {rows}[1].querySelector('.j-row-head')")
+            # une rafale se déplie : le verbe une fois, les équipements en puces, et les opérations reçues
+            tab.js(f"{rows}[2].querySelector('.j-row-head').click()")
+            _wait(tab, "!!document.querySelector('.j-row.open .j-ops')")
+            first = "e => e.firstChild.textContent"
+            ops = f"Array.from(document.querySelectorAll('.j-row.open .j-ops > li > div')).map({first})"
+            assert tab.js(ops) == ["a placé 2 équipements"]
+            hosts = f"Array.from(document.querySelectorAll('.j-row.open .j-hosts .j-ref')).map({first})"
+            assert tab.js(hosts) == ["sw-core-01", "fw-edge-01"]
+            assert tab.js("document.querySelector('.j-row.open .j-row-head').getAttribute('aria-expanded')") == "true"
+            # un équipement cité : le Diagramme s'ouvre sur lui, une pastille propose le retour
+            tab.js("document.querySelector('.j-row.open .j-hosts .j-ref').click()")
+            _wait(tab, "LDApp.debug.state().view.mode === 'diagram' && !!LDApp.debug.state().selection")
+            assert tab.js("LDApp.debug.state().selection.id") == "sw-core-01"
+            assert "node=sw-core-01" in tab.js("location.hash") and "jq" not in tab.js("location.hash")
+            assert tab.js("document.querySelector('.stage').inert") is False
+            assert not tab.js("!!document.querySelector('.journal')")
+            assert tab.js("!!document.querySelector('.journal-back')"), "retour au journal proposé"
+            # Retour du navigateur : le Journal revient, la ligne dépliée l'est encore
+            tab.js("history.back()")
+            _wait(tab, f"LDApp.debug.state().view.mode === 'journal' && {rows}.length === 3")
+            assert tab.js("document.querySelectorAll('.j-row.open').length") == 1, "le contexte survit à l'aller-retour"
+            tab.js("document.querySelector('.mode-switch .mode-item:nth-child(1)').click()")
+            _wait(tab, "LDApp.debug.state().view.mode === 'diagram'")
+            # toutes les infrastructures : le groupe « Bord » d'infra-b s'ouvre là-bas, sélectionné
+            tab.js("document.querySelector('.mode-switch .mode-item:nth-child(3)').click()")
+            _wait(tab, f"{rows}.length === 3")
+            assert not tab.js("!!document.querySelector('.journal-back')"), "revenu au Journal, la pastille s'en va"
+            tab.js(facet.format("'Toutes'") + ".click()")
+            _wait(tab, f"{rows}.length === 4")
+            tab.js("Array.from(document.querySelectorAll('.j-ref')).find(b => b.textContent === 'Bord').click()")
+            wanted = (
+                "LDApp.debug.state().run.kind === 'ready' && LDApp.debug.state().run.model.source.infrastructure"
+                " === 'infra-b' && !!LDApp.debug.state().selection"
+            )
+            _wait(tab, wanted)
+            assert tab.js("[LDApp.debug.state().selection.kind, LDApp.debug.state().selection.id]") == ["group", "g1-1"]
+            assert tab.js("LDApp.debug.state().run.model.groupById.get('g1-1').label") == "Bord"
+            assert "infrastructure=infra-b" in tab.js("location.search")
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)

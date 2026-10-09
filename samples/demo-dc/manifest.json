@@ -1,0 +1,147 @@
+{
+  "generator": {
+    "name": "ld-contracts synth",
+    "version": "1.0.0",
+    "contract_version": "1.0.0"
+  },
+  "spec": {
+    "seed": "42",
+    "devices": 30,
+    "runs": 3,
+    "infrastructure": "demo-dc",
+    "start": "2026-01-05T02:00:00Z",
+    "mutations_per_run": 3,
+    "scenario": []
+  },
+  "runs": [
+    {
+      "index": 0,
+      "file": "run-01.json",
+      "collector_run_id": "b835eac0a9329f863a3317a9",
+      "start_datetime": "2026-01-05T02:00:00Z",
+      "mutations": [],
+      "counts": {
+        "devices": 30,
+        "sites": 2,
+        "cables": 62,
+        "stubs": 33,
+        "stubs_by_kind": {
+          "ap": 10,
+          "phone": 8,
+          "server": 15
+        },
+        "interfaces": 1188,
+        "lldp": 135,
+        "cdp": 120,
+        "aggregates": 76,
+        "ha": 4,
+        "unreachable": 0
+      }
+    },
+    {
+      "index": 1,
+      "file": "run-02.json",
+      "collector_run_id": "701f3378d37c9c13acd8b104",
+      "start_datetime": "2026-01-12T02:00:00Z",
+      "mutations": [
+        {
+          "kind": "speed_degraded",
+          "subject": "dc01-acc-07",
+          "details": {
+            "a": [
+              "dc01-acc-07",
+              "TenGigabitEthernet1/1/1"
+            ],
+            "b": [
+              "dc01-core-01",
+              "Ethernet1/7"
+            ],
+            "speed_mbps": 1000
+          }
+        },
+        {
+          "kind": "device_unreachable",
+          "subject": "dc01-acc-07",
+          "details": {}
+        },
+        {
+          "kind": "ha_member_down",
+          "subject": "DC02-EDGE",
+          "details": {
+            "member": "dc02-fw-02",
+            "role": "secondary"
+          }
+        }
+      ],
+      "counts": {
+        "devices": 30,
+        "sites": 2,
+        "cables": 62,
+        "stubs": 33,
+        "stubs_by_kind": {
+          "ap": 10,
+          "phone": 8,
+          "server": 15
+        },
+        "interfaces": 1147,
+        "lldp": 132,
+        "cdp": 118,
+        "aggregates": 74,
+        "ha": 3,
+        "unreachable": 2
+      }
+    },
+    {
+      "index": 2,
+      "file": "run-03.json",
+      "collector_run_id": "805d6f2e191320f663ba39b6",
+      "start_datetime": "2026-01-19T02:00:00Z",
+      "mutations": [
+        {
+          "kind": "stub_added",
+          "subject": "srv-dc01-34",
+          "details": {
+            "port": [
+              "dc01-acc-02",
+              "GigabitEthernet1/0/10"
+            ],
+            "kind": "server"
+          }
+        },
+        {
+          "kind": "ha_member_down",
+          "subject": "DC01-EDGE",
+          "details": {
+            "member": "dc01-fw-02",
+            "role": "secondary"
+          }
+        },
+        {
+          "kind": "ha_member_down",
+          "subject": "DC01-EDGE",
+          "details": {
+            "member": "dc01-fw-01",
+            "role": "primary"
+          }
+        }
+      ],
+      "counts": {
+        "devices": 30,
+        "sites": 2,
+        "cables": 62,
+        "stubs": 34,
+        "stubs_by_kind": {
+          "ap": 10,
+          "phone": 8,
+          "server": 16
+        },
+        "interfaces": 1166,
+        "lldp": 136,
+        "cdp": 120,
+        "aggregates": 74,
+        "ha": 2,
+        "unreachable": 2
+      }
+    }
+  ]
+}

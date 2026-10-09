@@ -56,7 +56,10 @@ engine/
     │   ├── pointer.ts                le pointeur : panoramique, glissé d'un équipement ou de la sélection d'un bloc (→ épingles), Maj + clic, rectangle (Maj + glissé)
     │   ├── query.ts                  les règles `[champ:]regex` : recherche, masquage, isolement (pur)
     │   ├── align.ts                  aligner, répartir une sélection (pur, positions entières)
-    │   ├── tip.ts                    la bulle au survol
+    │   ├── tip.ts                    la bulle au survol : ce qu'un câble, un équipement, un faisceau, un cluster, un groupe, une annotation, un connecteur ont à dire, en blocs (pur)
+    │   ├── bubble.ts                 le dessin de la bulle (2026-10-09) : en-tête en Inter et pastilles, filet, tableau « libellé | valeur » aux colonnes alignées, pied ; largeurs estimées, jamais mesurées
+    │   │                             Dans l'application, la bulle n'existe qu'à la souris : au clavier, Entrée ouvre la fiche, qui dit plus qu'elle (décision d'Orhan, 2026-10-10 : « la fiche suffit ») ;
+    │   │                             au toucher, pas de survol, le tap ouvre la fiche. `/view` la montre au focus (`aria-describedby`). Échap la cache. Elle attend 100 ms avant d'apparaître, puis reste posée.
     │   ├── icons.ts                  icônes de type : glyphes pleins 32 × 32 en trois couches (silhouette, bandeau, symbole)
     │   ├── hues.ts                   les douze teintes nommées (docs/10) : défauts par type, résolution équipement > type > moteur ; pur
     │   ├── groups.ts                 les groupes (docs/10 §5) : énumérations du style, défauts, enveloppe depuis les membres, ancre de l'étiquette ; pur
@@ -125,8 +128,54 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   `components/` rend l'état et appelle des commandes, ne fait jamais d'appel réseau, ne touche jamais la toile.
   Seul `Canvas` monte la toile (une fois par run, React Flow remonté avec la run), lui pousse l'état de vue et lit ce
   qu'elle dit. Les hôtes d'intention et de placement de `/view` sont réutilisés sans leur DOM.
+- **Deux vues, une bascule dans la barre** (2026-10-09, Orhan : « une vue en mode diagramme pur et une autre plus en
+  mode admin »). Le critère : **qui le dit**. **Diagramme** (défaut) : le réseau tel que les équipements le disent,
+  câbles à l'encre sans statut, aucun point de gravité ni cerne de collecte ; la fiche d'un équipement est
+  `cards/NodeFacts.tsx` (identité, câbles, cluster HA, agrégats, table des interfaces, voisins LLDP / CDP annoncés
+  depuis `canvas/neighbors.ts`, apparence repliée en dernier), celle d'un câble `cards/LinkFacts.tsx` ; tout ce qui
+  s'édite (épingles, teintes, groupes, annotations, connecteurs) vit ici. **Contrôle** (`#mode=control`) : comment B1 a
+  dessiné (statuts, sources, contrôles, état de collecte ; `NodeCard`, `LinkCard`), en lecture seule : rien ne se
+  glisse, ne s'insère, ne se colore ni ne s'annule, les cadres, annotations et connecteurs restent dessinés mais
+  inertes, la barre d'outils se réduit à cadrer et centrer ; les masques de statut ne s'appliquent qu'ici. Le diff se
+  lit dans les deux. `useEditable()` et `useControl()` (store) sont la seule porte ; la toile porte `mode-diagram` /
+  `mode-control` (canvas.css). La couche « câbles down » (`oper=1`) montre `oper_status` dans les deux vues.
+- **La vue Journal** (2026-10-09, `#mode=journal`, troisième bouton de la bascule) : qui a modifié quoi dans l'intention,
+  quand, sur quelle infrastructure (`GET /api/intent/journal`). Une page pleine à la place de la toile, qui reste
+  montée dessous (`inert`, sans outils ni bande ; sa vue n'est pas poussée tant que le Journal est ouvert). À gauche les
+  facettes (infrastructure : celle qu'on regarde, toutes, ou une autre ; catégories ; auteurs, comptées par le serveur),
+  en haut la recherche (`/` ou Ctrl+K, envoyée 250 ms après la dernière frappe) et la période ; les entrées par jour
+  (heure locale), une phrase par entrée, une rafale résumée (« a placé 4 équipements »), dépliable en une phrase par
+  opération et en opérations reçues. Un objet cité (équipement, groupe, annotation, connecteur) ouvre le Diagramme
+  dessus, d'une autre infrastructure au besoin. Les filtres sont dans l'adresse en mode Journal seulement (`jq`, `jau`
+  répétable, `jcat`, `jinfra` = `*` pour toutes, `jp` = `24h` / `7d` / `30d`). **Passe Impeccable du 2026-10-09** : les
+  facettes ne bougent jamais (mêmes valeurs, même ordre, zéro grisé) ; les suites d'un même geste se replient (« ×8 »,
+  moins de dix minutes, même auteur, même objet) ; une rafale prend sa catégorie majoritaire et se déplie par verbe, les
+  équipements en puces ; une opération seule se déplie en faits (position, teinte, membres…), le JSON derrière « brut » ;
+  les positions sont estompées ; un objet disparu de la run ouverte est dit « supprimé » / « absent de la run » au lieu
+  d'un lien mort ; la recherche est surlignée (« trouvé dans le détail » sinon) et ne lit plus le nom de
+  l'infrastructure ; « montrer » pousse une entrée d'historique (Retour ramène au Journal), pages lues, lignes dépliées
+  et défilement survivent à l'aller-retour, une pastille « retour au journal » flotte dans le Diagramme ; au clavier, une
+  seule étape de tabulation pour le fil, ↑↓ Origine Fin, Entrée, « o », lien d'évitement, focus gardé après « entrées
+  plus anciennes » ; fuseau dans l'en-tête, limites du journal dites en bas ; bascule des vues gardée sous 900 px.
+  Fichiers : phrases `state/journal-text.ts`, filtres / temps / suites `state/journal.ts` (purs, testés sous Node),
+  commandes `state/journal-commands.ts` (une relecture redemande autant d'entrées qu'on en voyait, 500 au plus), vue
+  `components/Journal.tsx` et `components/journal/` (`Facets`, `Tools`, `Row` mémoïsée, `shared`), `styles/journal.css`
+  (`content-visibility` sur les lignes). **Reprise visuelle du 2026-10-10** : le fil est un registre à colonnes alignées
+  (heure, catégorie, auteur, modification, infrastructure, révision) sous un en-tête figé, une ligne de haut (phrase
+  complète en infobulle et dans le détail), une seule famille (Inter, chiffres tabulaires ; chasse fixe pour le JSON brut
+  seulement), icône de catégorie sans tuile, champs modifiés en gris, « supprimé » en mot discret ; une recherche trouvée
+  hors de la phrase dit le nom (`hiddenHit`, « trouvé : dc01-core-02 ») ; facettes : « Toutes » d'abord puis chaque
+  infrastructure par son nom (un point pour celle qui est ouverte), un fond plein qui glisse sous le choix (`useThumb`
+  dans `journal/shared.tsx` : place en variables CSS, dessin en `::before`), même curseur relevé sous la période ;
+  catégorie ou auteur allumés = coche et fond à 11 % de leur teinte ; un filet entre les sections, « effacer » par section.
+  Un seul tableau : l'en-tête des colonnes figé en haut, chaque jour une bande figée dessous (`overflow: clip`, pas
+  `hidden`, qui casserait les en-têtes figés). **Export CSV** (bouton « CSV ») : toutes les entrées des filtres posés,
+  lues page après page par le store (`exportJournal`, 100 000 au plus, le fichier le dit au-delà), écrites par
+  `state/journal-csv.ts` (pur, testé sous Node) : « ; », UTF-8 avec marque, CRLF, une entrée par ligne (jamais repliée),
+  date UTC, infrastructure, révision, auteur, catégorie, phrase, objets, opérations en JSON ; une cellule qui commence par
+  = + - @ est précédée d'une apostrophe (injection de formule).
 - **L'adresse est l'état de vue** : `?infrastructure=&run_id=&from=` (la run, comme `/view`) et
-  `#node=…&stubs=1&ports=1&speeds=1&beams=1&pins=0&diff=0&hide=…&only=…&mask=…` (la vue : les couches du panneau Affichage en font partie) ; jamais le jeton (dans `sessionStorage`), le nom
+  `#mode=control|journal&node=…&stubs=1&ports=1&speeds=1&beams=1&pins=0&notes=0&oper=1&diff=0&hide=…&only=…&mask=…` (la vue : le mode et les couches du panneau Affichage en font partie) ; jamais le jeton (dans `sessionStorage`), le nom
   dans `localStorage`. En arrivant sans `run_id`, la dernière run s'ouvre comparée à la précédente.
 - **La toile pour l'application** : Maj + clic ajoute à la sélection multiple, Maj + glissé sur le fond dessine un
   rectangle de sélection, glisser un équipement sélectionné déplace toute la sélection d'un bloc ; les règles

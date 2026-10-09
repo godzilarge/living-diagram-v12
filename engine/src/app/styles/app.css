@@ -2,9 +2,10 @@
    en bas, un panneau qui glisse à la sélection, une palette de recherche, une ligne d'état. Verre dépoli sur les
    surfaces flottantes ; mouvements courts (150 à 220 ms) qui expliquent ; aucun dégradé décoratif, pas d'ombre
    sans raison. */
-.app { position: relative; height: 100%; overflow: hidden; }
+.app { position: relative; height: 100%; overflow: clip; } /* clip : un `scrollIntoView` ne peut pas faire défiler la page (revue Impeccable : 39 px, la barre disparaissait) */
 .app:focus { outline: none; } /* reçoit le focus à la fermeture de l'accueil, sans anneau */
 .stage { position: absolute; inset: 0; }
+.stage.under { visibility: hidden; }
 .glass { background: var(--bg-glass); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); border: 1px solid var(--line); }
 
 /* ---------- la barre ---------- */
@@ -17,6 +18,15 @@
 .mark-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); }
 .crumb { color: var(--ink-3); }
 .infra { font-family: var(--mono); font-size: var(--fs-sm); color: var(--ink); white-space: nowrap; }
+/* La bascule des vues (2026-10-09) : un choix, pas une bascule allumée ; l'actif se lit par un fond relevé, jamais en
+   cyan (grammaire de l'inspecteur). En Diagramme, « Contrôle » porte le nombre d'erreurs ouvertes. */
+.mode-switch { display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 2px; margin-right: var(--sp-2); border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg-elev); }
+.mode-item { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 4px; color: var(--ink-2); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
+.mode-item svg { width: 14px; height: 14px; stroke-width: 1.9; }
+.mode-item:hover { color: var(--ink); }
+.mode-item[aria-pressed="true"] { background: var(--bg-elev-2); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--line-strong); }
+:root[data-theme="light"] .mode-item[aria-pressed="true"] { background: #ffffff; box-shadow: 0 1px 2px rgba(20, 27, 36, 0.16), 0 0 0 1px var(--line-strong); }
+.mode-item .pill { height: 16px; padding: 0 5px; font-size: 10px; }
 /* Les comptes : des pastilles colorées et des nombres, le mot en infobulle ; les statuts sont des bascules. */
 .counts { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
 .count { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--ink-2); white-space: nowrap; border: 1px solid transparent; }
@@ -213,11 +223,14 @@ button.count.sev-error[aria-pressed="true"], button.count.sev-warning[aria-press
 
 @media (max-width: 1100px) {
   .count .word { display: none; }
+  .mode-item .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   /* les bascules de droite gardent leur icône, le mot reste pour le lecteur d'écran : la place va aux comptes */
   .bar-right .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @media (max-width: 900px) {
-  .bar-center { display: none; }
+  /* la bascule des vues reste (en icônes) : sans elle, le Journal n'a plus de sortie ; les comptes et la run cèdent la place */
+  .bar-center .counts, .bar-left .run-pill { display: none; }
+  .mode-switch { margin-right: 0; }
   .panel { width: auto; left: var(--sp-3); top: auto; max-height: 55%; bottom: 76px; }
 }
 /* La barre d'outils de la toile (Toolbar) : en haut au centre, sous la barre ; au repos quatre icônes, les
@@ -283,3 +296,9 @@ button.count.sev-error[aria-pressed="true"], button.count.sev-warning[aria-press
 .display-count { height: 16px; padding: 0 5px; margin-left: 2px; font-size: 10px; }
 @media (prefers-reduced-motion: reduce) { .display { animation: none; } }
 .bar:has(.display) { z-index: var(--z-palette); } /* le panneau Affichage vit dans la barre : il passe au-dessus de la fiche ouverte */
+
+/* Le retour au Journal : après « montrer » depuis une entrée, une pastille sous la recherche ramène au fil, à sa place. */
+.journal-back { position: absolute; top: calc(var(--bar-h) + 64px); left: var(--sp-3); z-index: var(--z-band); display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 8px;
+  border-radius: var(--r-sm); box-shadow: var(--shadow); color: var(--ink); font-size: var(--fs-sm); font-weight: 500; animation: rise-up var(--t-fast) var(--ease) both; }
+.journal-back svg { width: 15px; height: 15px; }
+.journal-back:hover { color: var(--accent); }

@@ -38,6 +38,7 @@
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
   --r-sm: 6px; --r: 10px; --r-lg: 14px; --r-pill: 999px;
   --t-fast: 150ms; --t: 220ms; --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-tip: 180ms; --t-tip-reduced: 120ms; /* l'arrivée de la bulle ; sous mouvement réduit, un fondu court qui garde le changement d'état visible */
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
   --shadow-tip: 0 8px 18px rgba(0, 0, 0, 0.5);
   --bar-h: 44px;

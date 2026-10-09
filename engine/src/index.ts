@@ -15,6 +15,7 @@ import { hues } from "./canvas/hues";
 import { icons } from "./canvas/icons";
 import { layout } from "./canvas/layout";
 import { model } from "./canvas/model";
+import { neighbors } from "./canvas/neighbors";
 import { pill } from "./canvas/pill";
 import { query } from "./canvas/query";
 import { reveal } from "./canvas/reveal";
@@ -36,7 +37,7 @@ import { tables } from "./shell/tables";
 import { timeline } from "./shell/timeline";
 import { widgets } from "./shell/widgets";
 
-const LD = Object.assign(apps, { model, layout, annotations, table, connectors, geometry, query, alignment, card, scene, pill, speed, tags, reveal: { reveal }, dom: { ...dom, ...format, ...widgets }, icons, hues, groups, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
+const LD = Object.assign(apps, { model, neighbors, layout, annotations, table, connectors, geometry, query, alignment, card, scene, pill, speed, tags, reveal: { reveal }, dom: { ...dom, ...format, ...widgets }, icons, hues, groups, tip, graph, inspect, intent, placement, structures, tables, timeline, boot, shell });
 export type LD = typeof LD;
 (globalThis as unknown as { LD: LD }).LD = LD;
 

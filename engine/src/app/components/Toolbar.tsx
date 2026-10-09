@@ -7,7 +7,7 @@ import { AlignHorizontalJustifyCenter, AlignHorizontalSpaceAround, AlignVertical
 import { useRef } from "react";
 import { ALIGN_LABEL } from "../../canvas/align";
 import type { AlignMode } from "../../canvas/align";
-import { useStore } from "../state/store";
+import { useControl, useEditable, useStore } from "../state/store";
 import type { ReactNode } from "react";
 import { Button } from "../ui";
 
@@ -32,16 +32,19 @@ function Tool({ label, keys, disabled, onClick, children }: { label: string; key
 export function Toolbar() {
   const { state, commands, handle } = useStore();
   const { undo, redo } = state.history;
-  const editable = !!handle && handle.intents.canWrite();
+  const editable = useEditable();
+  const control = useControl(); // la vue Contrôle se lit : ni annuler, ni insérer, ni aligner (2026-10-09)
   const file = useRef<HTMLInputElement>(null);
   const count = state.hosts.length;
   const selected = !!state.selection || count > 0;
-  const modes: AlignMode[] = count >= 3 ? ["horizontal", "vertical", "distribute-horizontal", "distribute-vertical"] : count === 2 ? ["horizontal", "vertical"] : [];
+  const modes: AlignMode[] = control ? [] : count >= 3 ? ["horizontal", "vertical", "distribute-horizontal", "distribute-vertical"] : count === 2 ? ["horizontal", "vertical"] : [];
   return (
     <div className="toolbar glass" role="toolbar" aria-label="actions sur la toile">
-      <Tool label={undo ? "annuler : " + undo : "rien à annuler"} keys={undo ? "Ctrl+Z" : undefined} disabled={!undo} onClick={commands.undo}><Undo2 /></Tool>
-      <Tool label={redo ? "rétablir : " + redo : "rien à rétablir"} keys={redo ? "Ctrl+Y" : undefined} disabled={!redo} onClick={commands.redo}><Redo2 /></Tool>
-      <span className="toolbar-sep" aria-hidden="true" />
+      {control ? null : <>
+        <Tool label={undo ? "annuler : " + undo : "rien à annuler"} keys={undo ? "Ctrl+Z" : undefined} disabled={!undo} onClick={commands.undo}><Undo2 /></Tool>
+        <Tool label={redo ? "rétablir : " + redo : "rien à rétablir"} keys={redo ? "Ctrl+Y" : undefined} disabled={!redo} onClick={commands.redo}><Redo2 /></Tool>
+        <span className="toolbar-sep" aria-hidden="true" />
+      </>}
       <Tool label="cadrer tout" onClick={commands.fit}><Maximize /></Tool>
       <Tool label={selected ? "centrer sur la sélection" : "rien de sélectionné"} disabled={!selected} onClick={commands.center}><Crosshair /></Tool>
       {editable ? (
@@ -53,11 +56,11 @@ export function Toolbar() {
             onChange={(event) => { const chosen = event.target.files && event.target.files[0]; if (chosen) commands.annotationImage(chosen); event.target.value = ""; }} />
         </div>
       ) : null}
-      {modes.length ? (
-        <div className="toolbar-group" role="group" aria-label="aligner la sélection">
+      {modes.length || (control && count >= 2) ? (
+        <div className="toolbar-group" role="group" aria-label={modes.length ? "aligner la sélection" : "la sélection"}>
           <span className="toolbar-sep" aria-hidden="true" />
           {modes.map((mode) => { const Icon = ALIGN_ICON[mode]; return <Tool key={mode} label={ALIGN_LABEL[mode]} onClick={() => commands.align(mode)}><Icon /></Tool>; })}
-          <span className="toolbar-sep" aria-hidden="true" />
+          {modes.length ? <span className="toolbar-sep" aria-hidden="true" /> : null}
           <span className="pill tone-accent toolbar-count" title={count + " équipements sélectionnés"}>{count}</span>
           <Tool label="vider la sélection" keys="Échap" onClick={commands.clearSelection}><X /></Tool>
         </div>

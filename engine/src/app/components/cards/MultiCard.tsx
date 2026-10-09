@@ -8,7 +8,7 @@ import type { FormEvent } from "react";
 import { hueOfNode } from "../../../canvas/hues";
 import type { HueName } from "../../../canvas/hues";
 import type { Model } from "../../../canvas/types";
-import { useStore } from "../../state/store";
+import { useEditable, useStore } from "../../state/store";
 import { plural } from "../../ui";
 import { IconButton, Inspector, InspectorHead, List, MoreLink, Row, Section, TextButton, Title } from "../../ui/inspector";
 import { GroupPicker, HueSetting, WriteHint } from "./shared";
@@ -23,11 +23,12 @@ function common(model: Model, hosts: string[]): { own: string | null; effective:
 const LIMIT = 12;
 
 export function MultiCard({ model, hosts }: { model: Model; hosts: string[] }) {
-  const { commands, handle } = useStore();
+  const { commands, state } = useStore();
   const [all, setAll] = useState(false);
   const sorted = hosts.slice().sort();
   const devices = hosts.filter((host) => { const node = model.nodeByHost.get(host); return !!node && node.kind !== "stub"; });
-  const canWrite = !!handle && handle.intents.canWrite();
+  const canWrite = useEditable();
+  const control = state.view.mode === "control"; // en vue Contrôle, la sélection se lit : ni teinte ni groupe
   const colour = common(model, devices);
   const [name, setName] = useState("");
   const create = (event: FormEvent): void => { event.preventDefault(); if (devices.length) commands.groupCreate(name.trim() || "Groupe", devices); setName(""); };
@@ -40,7 +41,7 @@ export function MultiCard({ model, hosts }: { model: Model; hosts: string[] }) {
           <IconButton label="isoler avec leurs voisins" onClick={() => commands.isolateHosts(hosts)}><Focus /></IconButton>
         </>}
         title={<Title>{plural(hosts.length, "équipement")}</Title>}>
-        {canWrite ? null : <WriteHint action="colorer ou grouper la sélection" />}
+        {canWrite || control ? null : <WriteHint action="colorer ou grouper la sélection" />}
       </InspectorHead>
       {devices.length && canWrite ? (
         <Section title="Apparence">

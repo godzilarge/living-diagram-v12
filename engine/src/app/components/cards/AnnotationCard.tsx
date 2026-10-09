@@ -11,7 +11,7 @@ import type { TableContent } from "../../../contracts/intent";
 import { FONTS, LABEL_COLORS, STROKES, WEIGHTS } from "../../../canvas/groups";
 import { hueLabel } from "../../../canvas/hues";
 import type { Annotation, AnnotationStyle, Model } from "../../../canvas/types";
-import { useStore } from "../../state/store";
+import { useEditable, useStore } from "../../state/store";
 import { Badge } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, Menu, NumberField, Pair, Row, Section, Segmented, Select, Stepper, Switch, TextArea, TextInput, Title } from "../../ui/inspector";
 import { HostLink, HueSetting, WriteHint, signed } from "./shared";
@@ -132,8 +132,8 @@ function StyleSections({ a, onStyle }: { a: Annotation; onStyle: (patch: Partial
 }
 
 export function AnnotationCard({ model, a }: { model: Model; a: Annotation }) {
-  const { commands, handle } = useStore();
-  const canWrite = !!handle && handle.intents.canWrite();
+  const { commands } = useStore();
+  const canWrite = useEditable();
   const [confirm, setConfirm] = useState(false);
   useEffect(() => { setConfirm(false); }, [a.id]);
   const s = a.style, c = a.content;

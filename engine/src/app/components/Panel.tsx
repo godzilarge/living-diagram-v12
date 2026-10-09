@@ -1,6 +1,9 @@
 // Le panneau : la fiche de ce qui est sélectionné, qui glisse depuis la droite ; rien quand rien n'est sélectionné
 // (le diagramme est la page). Une chose à lire à la fois. Son bord gauche se glisse pour l'élargir (une préférence du
 // navigateur, comme le thème) : les ports, les câbles et les contrôles se lisent alors en entier.
+// Deux vues, deux fiches (2026-10-09) : en Diagramme, les faits que l'équipement donne de lui-même (NodeFacts,
+// LinkFacts) et tout ce qui s'édite ; en Contrôle, les verdicts de B1 (NodeCard, LinkCard) en lecture seule ; les
+// structures ont la même fiche, sans contrôles en Diagramme ; groupes, annotations et connecteurs ne s'ouvrent qu'en Diagramme.
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
@@ -12,8 +15,10 @@ import { AnnotationCard } from "./cards/AnnotationCard";
 import { ConnectorCard } from "./cards/ConnectorCard";
 import { GroupCard } from "./cards/GroupCard";
 import { LinkCard } from "./cards/LinkCard";
+import { LinkFacts } from "./cards/LinkFacts";
 import { MultiCard } from "./cards/MultiCard";
 import { NodeCard } from "./cards/NodeCard";
+import { NodeFacts } from "./cards/NodeFacts";
 import { AggregateCard, BeamCard, ClusterCard } from "./cards/StructureCards";
 
 // la largeur vit dans une variable de la racine (CSSOM, que la CSP admet) : la feuille de style la lit, rien en ligne
@@ -62,24 +67,25 @@ export function Panel() {
   const model = useModel();
   if (!model) return null;
   const { selection, hosts } = state;
+  const control = state.view.mode === "control";
   let card = null;
   if (hosts.length >= 2) card = <MultiCard model={model} hosts={hosts} />;
   else if (selection) {
     const node = nodeOf(model, selection), link = linkOf(model, selection), beam = beamOf(model, selection), cluster = clusterOf(model, selection), aggregate = aggregateOf(model, selection);
-    const group = groupOf(model, selection);
-    const annotation = selection.kind === "annotation" ? model.annotationById.get(selection.id) : undefined;
-    const connector = selection.kind === "connector" ? model.connectorById.get(selection.id) : undefined;
-    if (node) card = <NodeCard model={model} node={node} />;
+    const group = control ? undefined : groupOf(model, selection);
+    const annotation = !control && selection.kind === "annotation" ? model.annotationById.get(selection.id) : undefined;
+    const connector = !control && selection.kind === "connector" ? model.connectorById.get(selection.id) : undefined;
+    if (node) card = control ? <NodeCard model={model} node={node} /> : <NodeFacts model={model} node={node} />;
     else if (annotation) card = <AnnotationCard model={model} a={annotation} />;
     else if (connector) card = <ConnectorCard model={model} c={connector} />;
     else if (group) card = <GroupCard model={model} group={group} />;
-    else if (link) card = <LinkCard model={model} link={link} />;
+    else if (link) card = control ? <LinkCard model={model} link={link} /> : <LinkFacts model={model} link={link} />;
     else if (beam) card = <BeamCard model={model} beam={beam} />;
     else if (cluster) card = <ClusterCard model={model} cluster={cluster} />;
     else if (aggregate) card = <AggregateCard model={model} aggregate={aggregate} />;
   }
   if (!card) return null;
-  const key = hosts.length >= 2 ? "multi" : selection ? selection.kind + ":" + selection.id : "";
+  const key = (hosts.length >= 2 ? "multi" : selection ? selection.kind + ":" + selection.id : "") + (control ? "#control" : "");
   return (
     <aside className="panel glass" key={key} aria-label="fiche de l'élément sélectionné">
       <Resizer />

@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "context", "debug", "history", "initialState", "opening", "prefs", "query", "reducer", "searching", "snap", "walking"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "context", "debug", "history", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "searching", "snap", "walking"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -31,10 +31,17 @@ test("l'adresse est l'état de vue : run dans la recherche, vue et sélection da
   assert.equal(address.formatSearch({ infrastructure: "infra lab", runId: "r2", from: "r1" }), "?infrastructure=infra+lab&run_id=r2&from=r1");
   assert.equal(address.formatSearch({ infrastructure: "", runId: "r2", from: "" }), "", "sans infrastructure, pas de run");
   assert.equal(address.formatSearch({ infrastructure: "x", runId: "", from: "" }), "?infrastructure=x");
-  const view = { showStubs: true, showPorts: true, showSpeeds: true, showBeams: true, showPins: false, showNotes: false, showDiff: false, hide: ["fw-", "^(a|b)$"], only: "core", hiddenStatuses: ["documented_only"] };
+  const view = { mode: "control", showStubs: true, showPorts: true, showSpeeds: true, showBeams: true, showPins: false, showNotes: false, showOper: true, showDiff: false, hide: ["fw-", "^(a|b)$"], only: "core", hiddenStatuses: ["documented_only"], journal: clone(address.defaultView()).journal };
   const selection = { kind: "link", token: JSON.stringify(["a", "e1", "b", "e2"]) };
   const hash = address.formatHash(view, selection);
-  assert.match(hash, /^#stubs=1&ports=1&speeds=1&beams=1&pins=0&notes=0&diff=0&hide=fw-&hide=%5E\(a%7Cb\)%24&only=core&mask=documented_only&link=/);
+  assert.match(hash, /^#mode=control&stubs=1&ports=1&speeds=1&beams=1&pins=0&notes=0&oper=1&diff=0&hide=fw-&hide=%5E\(a%7Cb\)%24&only=core&mask=documented_only&link=/);
+  // les deux vues (2026-10-09) : Diagramme par défaut, absente de l'adresse ; `mode=control` seul s'écrit ; une valeur inconnue = Diagramme
+  assert.equal(clone(address.defaultView()).mode, "diagram");
+  assert.equal(clone(address.parseHash("#mode=control").view).mode, "control");
+  assert.equal(clone(address.parseHash("#mode=admin").view).mode, "diagram", "une vue inconnue est la vue par défaut");
+  assert.equal(address.formatHash({ ...address.defaultView(), mode: "diagram" }, null), "");
+  assert.equal(address.formatHash({ ...address.defaultView(), mode: "control" }, null), "#mode=control");
+  assert.equal(clone(address.parseHash("#oper=1").view).showOper, true, "la couche « câbles down » (panneau Affichage)");
   assert.equal(clone(address.defaultView()).showNotes, true, "les annotations se voient par défaut ; seul notes=0 les cache");
   assert.deepEqual(clone(address.parseHash("#annotation=a3-1").selection), { kind: "annotation", token: "a3-1" });
   assert.deepEqual(clone(address.parseHash("#connector=c3-1").selection), { kind: "connector", token: "c3-1" });
@@ -47,6 +54,93 @@ test("l'adresse est l'état de vue : run dans la recherche, vue et sélection da
   const tolerant = address.parseHash("#stubs=1&bad&node=sw-core-01&link=%E0%A4%A&mask=foo,confirmed&=x&only=");
   assert.deepEqual(clone(tolerant), { view: { ...clone(address.defaultView()), showStubs: true, hiddenStatuses: ["confirmed"] }, selection: { kind: "node", token: "sw-core-01" } },
     "un %XX tronqué est ignoré, un statut inconnu aussi, la première sélection gagne");
+});
+
+test("la vue Journal : mode et filtres dans l'adresse, écrits en mode Journal seulement", () => {
+  const { address } = loadApp();
+  const filters = { q: "cœur dc02", authors: ["Orhan TOSUN", "alice"], categories: ["groups", "positions"], infrastructure: "*", period: "7d" };
+  const view = { ...clone(address.defaultView()), mode: "journal", journal: filters };
+  const hash = address.formatHash(view, null);
+  assert.equal(hash, "#mode=journal&jq=c%C5%93ur%20dc02&jau=Orhan%20TOSUN&jau=alice&jcat=groups,positions&jinfra=*&jp=7d");
+  assert.deepEqual(clone(address.parseHash(hash).view), view, "aller et retour");
+  assert.equal(address.formatHash({ ...view, mode: "diagram" }, null), "", "hors du Journal, ses filtres ne s'écrivent pas");
+  const tolerant = clone(address.parseHash("#mode=journal&jcat=groups,teleport&jp=1y&jau=&jau=bob&jau=bob").view.journal);
+  assert.deepEqual(tolerant, { q: "", authors: ["bob"], categories: ["groups"], infrastructure: "", period: "all" }, "catégorie et période inconnues ignorées, auteur vide ou répété aussi");
+});
+
+test("le journal : requête, phrases, rafales, jours", () => {
+  const { journal } = loadApp();
+  const f = { ...clone(journal.defaultFilters()), q: " cœur ", authors: ["a", "b"], categories: ["groups"], period: "24h" };
+  const now = Date.parse("2026-10-09T12:00:00Z");
+  assert.deepEqual(clone(journal.queryOf(f, "lab", now, "CUR")), [["infrastructure", "lab"], ["author", "a"], ["author", "b"], ["category", "groups"], ["q", "cœur"], ["since", "2026-10-08T12:00:00Z"], ["before", "CUR"]]);
+  assert.deepEqual(clone(journal.queryOf({ ...f, infrastructure: "*", period: "all", q: "", authors: [], categories: [] }, "lab", now)), [], "toutes les infrastructures : pas de paramètre");
+  assert.equal(journal.filtered(journal.defaultFilters()), false);
+  const entry = (ops, extra = {}) => ({ infrastructure: "lab", revision: 7, at: "2026-10-09T10:00:00Z", author: "orhan", categories: [], created: [], subjects: [], ops, ...extra });
+  const say = (e) => journal.textOf(journal.headline(e));
+  assert.equal(say(entry([{ op: "pin", hostname: "sw-1", x: 1, y: 2 }])), "a placé sw-1");
+  assert.equal(say(entry([{ op: "color", hostname: "sw-1", hue: "red" }])), "a coloré sw-1 en rouge");
+  assert.equal(say(entry([{ op: "color_type", type: "router", hue: "amber" }])), "a coloré le type routeur en ambre");
+  assert.equal(say(entry([{ op: "pin", hostname: "a", x: 0, y: 0 }, { op: "pin", hostname: "b", x: 0, y: 0 }])), "a placé 2 équipements", "une rafale en une phrase");
+  const mixed = entry([{ op: "color", hostname: "a", hue: "red" }, { op: "pin", hostname: "b", x: 0, y: 0 }, { op: "pin", hostname: "c", x: 0, y: 0 }]);
+  assert.equal(say(mixed), "a placé 2 équipements et 1 autre modification", "le groupe le plus nombreux porte la phrase");
+  assert.equal(journal.headline(mixed).category, "positions", "et la catégorie majoritaire, pas celle de la première opération");
+  const created = entry([{ op: "group_create", label: "Cœur", members: ["a", "b"] }], { created: ["g7-1"], subjects: [{ id: "g7-1", kind: "group", label: "Cœur", form: "" }] });
+  assert.equal(say(created), "a créé le groupe Cœur (2 membres)");
+  const piece = clone(journal.headline(created).pieces[1]);
+  assert.deepEqual(piece, { ref: "group", id: "g7-1", text: "Cœur" }, "le groupe cité se montre dans le diagramme");
+  const update = entry([{ op: "annotation_update", id: "a3-1", x: 4, y: null, w: 10, h: null, content: null, style: null }], { subjects: [{ id: "a3-1", kind: "annotation", label: "", form: "" }] });
+  assert.equal(say(update), "a modifié l'annotation a3-1 : position, taille", "les clés nulles ne sont pas des changements");
+  const note = entry([{ op: "annotation_create", content: { kind: "table", rows: [["x"]] } }], { created: ["a7-1"], subjects: [{ id: "a7-1", kind: "annotation", label: "1 × 1", form: "table" }] });
+  assert.equal(say(note), "a ajouté un tableau 1 × 1");
+  assert.equal(say(entry([{ op: "annotation_delete", id: "a7-1" }], { subjects: [{ id: "a7-1", kind: "annotation", label: "Salle B", form: "note" }] })), "a supprimé la note Salle B");
+  assert.equal(say(entry([{ op: "connector_create", start: {}, end: {} }])), "a tracé le connecteur c7-1", "sans nom ni sujet connu : l'identité qu'il a reçue");
+  assert.equal(say(entry([{ op: "teleport" }])), "opération inconnue « teleport »");
+  assert.equal(journal.headline(entry([{ op: "teleport" }])).category, "other");
+  const items = (list) => journal.fold(list);
+  const days = clone(journal.byDay(items([entry([], { at: "2026-10-09T10:00:00Z" }), entry([], { at: "2026-10-09T08:00:00Z", revision: 6 }), entry([], { at: "2026-10-08T10:00:00Z", revision: 5 }), entry([], { at: "2026-10-01T10:00:00Z", revision: 4 })]), now));
+  assert.deepEqual(days.map((d) => [d.day, d.items.length]).slice(0, 2), [["aujourd'hui", 2], ["hier", 1]]);
+  assert.match(days[2].day, /1 octobre 2026/);
+});
+
+test("le journal : suites repliées, détail par verbe, faits en mots, surlignage, fuseau", () => {
+  const LDApp = loadApp();
+  const { journal } = LDApp;
+  const at = (m) => "2026-10-09T10:" + String(m).padStart(2, "0") + ":00Z";
+  const e = (rev, m, op, extra = {}) => ({ infrastructure: "lab", revision: rev, at: at(m), author: "orhan", categories: [], created: [], subjects: [], ops: [op], ...extra });
+  const style = (n) => ({ op: "annotation_update", id: "a1-1", x: null, style: n ? { hue: "red" } : null, w: n ? null : 40, h: n ? null : 20 });
+  const list = [e(9, 9, style(1)), e(8, 8, style(0)), e(7, 7, style(1)), e(6, 3, { op: "pin", hostname: "sw", x: 1, y: 2 }), e(5, 2, { op: "pin", hostname: "sw", x: 3, y: -4 }), e(4, 1, { op: "pin", hostname: "fw", x: 0, y: 0 })];
+  const folded = clone(journal.fold(list));
+  assert.deepEqual(folded.map((i) => [i.kind, i.kind === "fold" ? i.entries.map((x) => x.revision) : i.entry.revision]), [["fold", [9, 8, 7]], ["fold", [6, 5]], ["entry", 4]],
+    "le même geste sur le même objet, à moins de dix minutes, se replie ; un autre objet non");
+  assert.deepEqual(clone(journal.changedFields(journal.mergedOp(list.slice(0, 3)))), ["style", "taille"], "la suite dit tout ce qu'elle a changé");
+  assert.equal(journal.fold([e(2, 30, style(1)), e(1, 1, style(1))]).length, 2, "au-delà de la fenêtre, deux lignes");
+  const burst = { ...e(3, 0, null), ops: [{ op: "pin", hostname: "a", x: 0, y: 0 }, { op: "color", hostname: "b", hue: "red" }, { op: "pin", hostname: "a", x: 1, y: 1 }, { op: "pin", hostname: "c", x: 0, y: 0 }] };
+  const groups = clone(journal.detailGroups(burst)).map((g) => [journal.textOf(g.sentence), g.hosts]);
+  assert.deepEqual(groups, [["a placé 3 équipements", ["a", "c"]], ["a coloré b en rouge", []]], "regroupé par verbe, les noms dédoublonnés");
+  const facts = clone(journal.factsOf({ op: "annotation_update", id: "a1-1", x: 584, y: -961, w: null, h: null, style: { hue: "teal", opacity: 80, radius: null }, z: "back" }));
+  assert.deepEqual(facts, [{ label: "position", value: "584, −961" }, { label: "plan", value: "dessous" }, { label: "style", value: "teinte turquoise, opacité 80 %" }]);
+  assert.deepEqual(clone(journal.factsOf({ op: "group_add", id: "g1-1", members: ["a", "b"] })), [{ label: "2 membres", value: "", list: ["a", "b"] }]);
+  assert.deepEqual(clone(journal.marks("dc01-CORE-02 et core", ["core"])), [{ text: "dc01-", hit: false }, { text: "CORE", hit: true }, { text: "-02 et ", hit: false }, { text: "core", hit: true }]);
+  assert.equal(journal.visibleMatch(journal.headline(list[3]), "orhan", ["sw"]), true);
+  assert.equal(journal.visibleMatch(journal.headline(list[3]), "orhan", ["584"]), false, "trouvé dans le détail seulement");
+  assert.equal(journal.hiddenHit(burst, ["C"]), "c", "le nom trouvé hors de la phrase");
+  assert.equal(journal.hiddenHit(burst, ["zz"]), null);
+  const purge = e(9, 0, { op: "journal_prune", removed: 3, before: "2026-10-07T00:00:00Z", categories: ["positions", "colors"], archive: "journal-archive/x.jsonl.gz" });
+  assert.equal(journal.textOf(journal.headline(purge)), "a purgé le journal : 3 entrées antérieures au 7 octobre 2026 (positions, couleurs)",
+    "une date seule est minuit UTC : jamais la veille en heure locale");
+  assert.deepEqual(clone(journal.factsOf(purge.ops[0])).map((f) => f.label), ["retirées", "avant le", "catégories", "archive"]);
+  const csv = LDApp.journalCsv;
+  assert.equal(csv.cell("=SUM(A1)"), "'=SUM(A1)", "une formule est désamorcée");
+  assert.equal(csv.cell('a;"b"'), '"a;""b"""', "séparateur et guillemets protégés");
+  assert.equal(csv.cell("-12"), "'-12");
+  const text = csv.csvOf([list[3]]);
+  assert.ok(text.startsWith("\uFEFFdate (UTC);infrastructure;"), "marque UTF-8 et en-tête");
+  const line = text.split("\r\n")[1].split(";");
+  assert.deepEqual(line.slice(0, 6), [list[3].at, "lab", "6", "orhan", "Positions", "placé sw"], "une entrée, sa phrase sans le « a »");
+  assert.match(csv.csvName("demo dc", new Date(2026, 9, 10, 9, 5)), /^journal-demo_dc-20261010-0905\.csv$/);
+  assert.match(journal.zoneLabel(Date.now()), /^UTC([+−]\d+(:\d\d)?)?$/);
+  assert.deepEqual(clone(journal.queryOf(journal.defaultFilters(), "lab", 0, null, 300)), [["infrastructure", "lab"], ["limit", "300"]], "une relecture redemande autant d'entrées");
+  assert.equal(journal.newer(list[0], list[1]), true);
 });
 
 test("le réducteur est pur et ne mute jamais", () => {

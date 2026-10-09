@@ -26,7 +26,7 @@ import { changeOf, relatedTo, relatedToHosts } from "../../canvas/scene";
 import { speedGroups } from "../../canvas/speed";
 import type { TagSlot } from "../../canvas/tags";
 import { beamLines, clusterLines, create as createTip, groupLines, linkLines, nodeLines } from "../../canvas/tip";
-import type { Line, Tip } from "../../canvas/tip";
+import type { Block, Tip } from "../../canvas/tip";
 import { anchorRect, frameOf as annotationFrame, isOrphan, leaderOf, summary as annotationSummary } from "../../canvas/annotations";
 import type { AnchorPoint, Frame as AFrame } from "../../canvas/annotations";
 import { annotationLines, connectorLines } from "../../canvas/tip";
@@ -73,8 +73,10 @@ const isHost = (node: FlowNode): boolean => node.type === "card" || node.type ==
 interface Built { nodes: FlowNode[]; edges: FlowEdge[]; key: string; hasSelection: boolean; frames: Map<string, AFrame>; ends: Map<string, { a: Point; b: Point }> }
 /** Ce que la page règle pour les annotations : peut-on écrire (sinon rien ne se glisse), et une boîte posée localement
  *  en attendant la réponse de l'API (un glissé ou un redimensionnement relâché ne saute pas en arrière). */
-export interface AnnotationLocal { editable: boolean; pending: Map<string, Partial<AFrame>> }
+/** `control` : la vue Contrôle (2026-10-09), où cadres, annotations et connecteurs restent dessinés mais inertes. */
+export interface AnnotationLocal { editable: boolean; control: boolean; pending: Map<string, Partial<AFrame>> }
 const flags = (selected: boolean, related: boolean, match = false): string => (selected ? " selected" : "") + (related ? " related" : "") + (match ? " match" : "");
+const TIP_DELAY_MS = 100, TIP_REARM_MS = 250; // la bulle : attente avant la première apparition, délai sous lequel on passe d'un élément à l'autre sans attendre
 const selectionKey = (nodes: { id: string }[], edges: { id: string }[]): string => nodes.map((n) => n.id).sort().join("|") + "#" + edges.map((e) => e.id).sort().join("|");
 
 // Ce que React Flow doit dessiner, lu dans la toile : une carte ou un disque par équipement visible (position = coin
@@ -166,7 +168,7 @@ function build(toile: Toile, local: AnnotationLocal): Built {
     const frame = frameOf(present.map((host) => state.positions.get(host) as Point), present.map(boxOf), group.style);
     if (!frame) return;
     const selected = is("group", group.id);
-    frames.push({ id: "group:" + group.id, type: "frame", position: { x: frame.x, y: frame.y }, selected, draggable: true, ariaLabel: "groupe " + group.label,
+    frames.push({ id: "group:" + group.id, type: "frame", position: { x: frame.x, y: frame.y }, selected, draggable: !local.control, selectable: !local.control, focusable: !local.control, ariaLabel: "groupe " + group.label,
       data: { id: group.id, label: group.label, w: frame.w, h: frame.h, style: group.style, slot: labelSlot(frame, group.style), dash: dashArray(group.style), present: present.length,
         classes: flags(selected, related.groups.has(group.id)).trim(), editable: local.editable } });
   });
@@ -191,7 +193,7 @@ function build(toile: Toile, local: AnnotationLocal): Built {
     const selected = is("annotation", a.id);
     const parent = anchor ? (anchor.kind === "device" ? { parentId: a.anchor.ref || "", position: { x: anchor.box.w / 2 + a.x, y: anchor.box.h / 2 + a.y } } : { parentId: "group:" + a.anchor.ref, position: { x: a.x, y: a.y } }) : { position: { x: frame.x, y: frame.y } };
     const leader = a.leader && anchor ? leaderOf(frame, anchorRect(anchor)) : null;
-    notes.push({ id: "annotation:" + a.id, type: "annotation", ...parent, selected, draggable: local.editable && !a.locked, zIndex: a.z === "back" ? Z_BACK : Z_FRONT,
+    notes.push({ id: "annotation:" + a.id, type: "annotation", ...parent, selected, draggable: local.editable && !a.locked, selectable: !local.control, focusable: !local.control, zIndex: a.z === "back" ? Z_BACK : Z_FRONT,
       ariaLabel: "annotation · " + annotationSummary(a), data: { a, frame, leader, editable: local.editable, label: annotationSummary(a), classes: flags(selected, related.annotations.has(a.id)).trim() } });
   });
   // Les connecteurs (docs/10 §6, 1.4.0) : un nœud posé au coin de leur boîte, qui dessine ses bouts depuis la place
@@ -220,7 +222,7 @@ function build(toile: Toile, local: AnnotationLocal): Built {
     ends.set(c.id, { a: path.a, b: path.b });
     const origin = bbox([path.a, path.b, path.mid]);
     const selected = is("connector", c.id);
-    lines.push({ id: "connector:" + c.id, type: "connector", position: { x: origin.x, y: origin.y }, selected, draggable: false, zIndex: c.z === "back" ? Z_BACK - 1 : Z_FRONT + 1,
+    lines.push({ id: "connector:" + c.id, type: "connector", position: { x: origin.x, y: origin.y }, selected, draggable: false, selectable: !local.control, focusable: !local.control, zIndex: c.z === "back" ? Z_BACK - 1 : Z_FRONT + 1,
       ariaLabel: "connecteur · " + (c.label || c.id), data: { c, places: { start, end }, origin: { x: origin.x, y: origin.y }, editable: local.editable, label: c.label, classes: flags(selected, related.connectors.has(c.id)).trim() } });
   });
   const all = (frames as FlowNode[]).concat(clusters, nodes, notes, lines);
@@ -261,12 +263,20 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onConnectorC
   const pending = useRef(new Map<string, Partial<AFrame>>());
   const built = useMemo(() => {
     pending.current.forEach((patch, id) => { const a = toile.model.annotationById.get(id); if (!a || Object.entries(patch).every(([k, v]) => (a as unknown as Record<string, unknown>)[k] === v)) pending.current.delete(id); });
-    const out = build(toile, { editable, pending: pending.current });
+    const out = build(toile, { editable, control: toile.state.control, pending: pending.current });
     toile.frames = out.frames;
     toile.ends = out.ends;
     return out;
   }, [toile, version, editable]);
-  const hideTip = useCallback((): void => { if (tipRef.current) tipRef.current.hide(); }, []);
+  // La bulle attend 100 ms avant sa première apparition (balayer la toile ne fait plus « pop-corn »), mais passe d'un
+  // élément à l'autre sans attendre (cachée depuis moins de 250 ms) ; pendant l'attente, le dernier point du pointeur
+  // est retenu, jamais le premier (critique du 2026-10-09). La minuterie vit ici, dans la page, jamais dans le moteur.
+  const tipTimer = useRef<number | null>(null), tipHiddenAt = useRef(0);
+  const tipPending = useRef<{ key: string; lines: () => Block[]; x: number; y: number } | null>(null);
+  const hideTip = useCallback((): void => {
+    if (tipTimer.current !== null) { window.clearTimeout(tipTimer.current); tipTimer.current = null; tipPending.current = null; }
+    if (tipRef.current && tipRef.current.group.getAttribute("visibility") === "visible") { tipRef.current.hide(); tipHiddenAt.current = performance.now(); }
+  }, []);
   // Un nœud React Flow attachable, vu comme candidat d'accrochage : sa boîte absolue (une annotation attachée est un
   // enfant), son contour (coins d'une carte, disque, forme, cadre).
   const candidateOf = useCallback((node: FlowNode): Candidate | null => {
@@ -346,9 +356,12 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onConnectorC
   useEffect(() => {
     const svg = tipSvg.current;
     if (!svg) return;
-    tipRef.current = createTip(svg);
-    return () => { tipRef.current = null; };
-  }, []);
+    const tip = createTip(svg);
+    tipRef.current = tip;
+    const onKey = (event: KeyboardEvent): void => { if (event.key === "Escape") hideTip(); }; // WCAG 1.4.13 : la bulle se rejette
+    window.addEventListener("keydown", onKey, true);
+    return () => { window.removeEventListener("keydown", onKey, true); hideTip(); tip.dispose(); tipRef.current = null; };
+  }, [hideTip]);
 
   // Ce que l'utilisateur sélectionne dans React Flow (clic, Maj + clic, rectangle, clic sur le fond : des changements
   // `select`, jamais émis pour ce que la toile demande elle-même) devient la sélection de la toile, une fois les
@@ -404,12 +417,27 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onConnectorC
     if (changes.some((c) => c.type === "select")) queueMicrotask(syncSelection);
   }, [syncSelection]);
 
-  const showTip = useCallback((key: string, lines: () => Line[], event: ReactMouseEvent): void => {
+  const placeTip = useCallback((key: string, lines: () => Block[], x: number, y: number): void => {
     const tip = tipRef.current, el = container.current;
     if (!tip || !el || dragging.current) return;
-    const rect = el.getBoundingClientRect();
-    tip.show(key, lines, event.clientX - rect.left, event.clientY - rect.top, rect);
-  }, []);
+    const rect = el.getBoundingClientRect(), i = toile.state.insets;
+    const area = { x: i.left, y: i.top, width: Math.max(rect.width - i.left - i.right, 100), height: Math.max(rect.height - i.top - i.bottom, 100) };
+    tip.show(key + (toile.state.control ? ":control" : ""), lines, x - rect.left, y - rect.top, area);
+  }, [toile]);
+  const showTip = useCallback((key: string, lines: () => Block[], event: ReactMouseEvent): void => {
+    const tip = tipRef.current;
+    if (!tip || dragging.current) return;
+    const visible = tip.group.getAttribute("visibility") === "visible";
+    if (visible || performance.now() - tipHiddenAt.current < TIP_REARM_MS) { placeTip(key, lines, event.clientX, event.clientY); return; }
+    tipPending.current = { key, lines, x: event.clientX, y: event.clientY };
+    if (tipTimer.current === null) {
+      tipTimer.current = window.setTimeout(() => {
+        tipTimer.current = null;
+        const p = tipPending.current; tipPending.current = null;
+        if (p) placeTip(p.key, p.lines, p.x, p.y);
+      }, TIP_DELAY_MS);
+    }
+  }, [placeTip]);
   // Glisser un cadre de groupe déplace ses membres présents de la même translation (G2) : leurs cartes suivent pendant
   // le glissé, et à la relâche ils reprennent leur centre dans la toile, un seul paquet d'épingles.
   const frameDrag = useRef<{ id: string; start: Point; members: Map<string, Point> } | null>(null);
@@ -468,7 +496,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onConnectorC
     const model = toile.model;
     if (node.type === "cluster") {
       const cluster = model.clusters.find((c) => c.id === (node as ClusterNodeType).data.id);
-      if (cluster) showTip("cluster:" + cluster.id, () => clusterLines(cluster), event);
+      if (cluster) showTip("cluster:" + cluster.id, () => clusterLines(cluster, { control: toile.state.control }), event);
       return;
     }
     if (node.type === "frame") {
@@ -479,12 +507,12 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onConnectorC
     if (node.type === "annotation") { const a = (node as AnnotationNodeType).data.a; showTip("annotation:" + a.id, () => annotationLines(a), event); return; }
     if (node.type === "connector") { const c = (node as ConnectorNodeType).data.c; showTip("connector:" + c.id, () => connectorLines(c), event); return; }
     const found = model.nodeByHost.get(node.id);
-    if (found) showTip("node:" + node.id, () => nodeLines(model, found), event);
+    if (found) showTip("node:" + node.id, () => nodeLines(model, found, { control: toile.state.control }), event);
   }, [toile, showTip]);
   const onEdgeMouseMove = useCallback((event: ReactMouseEvent, edge: FlowEdge): void => {
     const model = toile.model;
-    if (edge.type === "cable") { const link = (edge.data as CableData).link; showTip("link:" + link.id, () => linkLines(model, link), event); }
-    else if (edge.type !== "speed") { const beam = (edge.data as BeamData).beam; showTip("beam:" + beam.id, () => beamLines(beam), event); }
+    if (edge.type === "cable") { const link = (edge.data as CableData).link; showTip("link:" + link.id, () => linkLines(model, link, { control: toile.state.control }), event); }
+    else if (edge.type !== "speed") { const beam = (edge.data as BeamData).beam; showTip("beam:" + beam.id, () => beamLines(beam, { control: toile.state.control }), event); }
   }, [toile, showTip]);
   const onMove = useCallback((_event: unknown, view: Viewport): void => setZoom(view.zoom), []);
   // Le clic droit (Orhan, 2026-10-09) : un menu contextuel selon ce qu'il vise ; les annotations et les connecteurs
@@ -509,7 +537,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onConnectorC
   useEffect(() => { const el = container.current; if (el) el.style.setProperty("--unzoom", String(1 / Math.max(zoom, MIN_ZOOM))); }, [zoom]);
   const onInit = useCallback((): void => toile.open(), [toile]);
 
-  const rootClass = ["flow", built.hasSelection ? "has-selection" : "", toile.state.showPorts ? "show-ports" : "", toile.state.layers.beams ? "show-beams" : "", toile.state.layers.pins ? "" : "hide-pins", toile.state.query ? "searching" : "", zoom < ZOOM_FAR ? "zoom-far" : zoom >= ZOOM_NEAR ? "zoom-near" : ""].filter(Boolean).join(" ");
+  const rootClass = ["flow", toile.state.control ? "mode-control" : "mode-diagram", built.hasSelection ? "has-selection" : "", toile.state.showPorts ? "show-ports" : "", toile.state.layers.beams ? "show-beams" : "", toile.state.layers.pins ? "" : "hide-pins", toile.state.layers.oper ? "show-oper" : "", toile.state.query ? "searching" : "", zoom < ZOOM_FAR ? "zoom-far" : zoom >= ZOOM_NEAR ? "zoom-near" : ""].filter(Boolean).join(" ");
   return (
     <div ref={container} className="flow-host">
       <AnnotationContext.Provider value={annotationActions}>
@@ -522,7 +550,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onConnectorC
         onSelectionStart={onSelectionStart} onSelectionEnd={onSelectionEnd}
         minZoom={MIN_ZOOM} maxZoom={MAX_ZOOM} nodeDragThreshold={DRAG_THRESHOLD} selectionKeyCode="Shift" multiSelectionKeyCode="Shift"
         selectionMode={SelectionMode.Partial} nodesConnectable={false} elevateEdgesOnSelect={false} elevateNodesOnSelect={false}
-        zoomOnDoubleClick={false} deleteKeyCode={null} proOptions={{ hideAttribution: true }} fitView={false}
+        zoomOnDoubleClick={false} deleteKeyCode={null} proOptions={{ hideAttribution: true }} fitView={false} nodesDraggable={!toile.state.control}
         edgesFocusable={false} colorMode={prefs.theme} ariaLabelConfig={ARIA_LABELS}
         snapToGrid={prefs.snap} snapGrid={[GRID, GRID]}>
         {prefs.grid ? <Background variant={BackgroundVariant.Lines} gap={GRID} lineWidth={1} /> : null}

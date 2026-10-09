@@ -9,6 +9,8 @@ import { App } from "./App";
 import { address } from "./state/address";
 import { context } from "./state/context";
 import { history } from "./state/history";
+import { journal } from "./state/journal";
+import { cell, csvName, csvOf } from "./state/journal-csv";
 import { searching } from "./state/search";
 import { walking } from "./state/walk";
 import { READ_ZOOM, openingView } from "./canvas/opening";
@@ -20,7 +22,7 @@ import "@xyflow/react/dist/base.css";
 import "./styles/index.css";
 import "./styles/flow.css";
 
-export const LDApp = { address, history, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, reducer, initialState, query, alignment, debug, prefs: { parsePrefs, defaultPrefs } };
+export const LDApp = { address, history, journal, journalCsv: { cell, csvName, csvOf }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, reducer, initialState, query, alignment, debug, prefs: { parsePrefs, defaultPrefs } };
 (globalThis as unknown as { LDApp: typeof LDApp }).LDApp = LDApp;
 
 function readCatalogue(): Record<string, CatalogueEntry> {

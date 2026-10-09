@@ -19,7 +19,6 @@ remplacer comme `BundleArchive`. Règles :
 import json
 import logging
 import os
-import threading
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -51,7 +50,7 @@ from ld_contracts.intent.serialize import canonical_json
 from pydantic import ValidationError
 
 from ld_backend.archive import _segment
-from ld_backend.files import locked, write_atomically
+from ld_backend.files import folder_lock, locked, write_atomically
 from ld_backend.schemas import (
     AnnotationCreateOp,
     AnnotationStylePatch,
@@ -101,7 +100,6 @@ AssetCheck = Callable[[str, str], bool]
 class IntentStore:
     def __init__(self, root: Path, asset_exists: AssetCheck | None = None) -> None:
         self.root = Path(root)
-        self._local = threading.Lock()  # entre fils d'un même processus, en plus du verrou de fichier entre processus
         # Une image ne se cite que si son fichier est dans le magasin de l'infrastructure (`unknown_asset`) ; sans
         # magasin branché (tests du store seul), toute empreinte est admise.
         self._asset_exists = asset_exists
@@ -137,7 +135,7 @@ class IntentStore:
         plein, coupure) : le document serait appliqué sans sa ligne ; la révision manquante dans le journal le dirait.
         """
         folder = self._folder(infrastructure)
-        with locked(folder, self._local):
+        with locked(folder, folder_lock(folder)):
             current = self.load(infrastructure)
             updated = _applied(current, request, now, self._asset_exists)
             line = {

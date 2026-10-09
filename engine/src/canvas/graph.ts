@@ -27,7 +27,7 @@ import type { ScreenRect, View } from "./pointer";
 import { keepByRules, matches, parseRule } from "./query";
 import type { Rule } from "./query";
 import { beamLines, clusterLines, create as createTip, linkLines, nodeLines } from "./tip";
-import type { Line } from "./tip";
+import type { Block } from "./tip";
 import type { Beam, Cluster, Model, ModelLink, ModelNode, Selection } from "./types";
 
 const ZOOM_FAR = 0.7, ZOOM_NEAR = 1.2;
@@ -372,7 +372,7 @@ export function create(svg: SVGSVGElement, model: Model, onSelect: (selection: S
     return null;
   }
 
-  function tipLines(selection: Selection): Line[] {
+  function tipLines(selection: Selection): Block[] {
     if (selection.kind === "link") return linkLines(model, linkOf(model, selection) as ModelLink);
     if (selection.kind === "node") return nodeLines(model, nodeOf(model, selection) as ModelNode);
     if (selection.kind === "beam") return beamLines(beamOf(model, selection) as Beam);

@@ -1,0 +1,78 @@
+{
+  "generator": {
+    "name": "ld-contracts synth",
+    "version": "1.0.0",
+    "contract_version": "1.0.0"
+  },
+  "spec": {
+    "seed": "42",
+    "devices": 8,
+    "runs": 2,
+    "infrastructure": "test-single-core",
+    "start": "2026-01-05T02:00:00Z",
+    "mutations_per_run": 3,
+    "scenario": [
+      "ha_failover"
+    ],
+    "firewall_uplinks": "single-core"
+  },
+  "runs": [
+    {
+      "index": 0,
+      "file": "run-01.json",
+      "collector_run_id": "b835eac0a9329f863a3317a9",
+      "start_datetime": "2026-01-05T02:00:00Z",
+      "mutations": [],
+      "counts": {
+        "devices": 8,
+        "sites": 1,
+        "cables": 20,
+        "stubs": 6,
+        "stubs_by_kind": {
+          "ap": 1,
+          "phone": 3,
+          "server": 2
+        },
+        "interfaces": 278,
+        "lldp": 27,
+        "cdp": 25,
+        "aggregates": 19,
+        "ha": 2,
+        "unreachable": 0
+      }
+    },
+    {
+      "index": 1,
+      "file": "run-02.json",
+      "collector_run_id": "701f3378d37c9c13acd8b104",
+      "start_datetime": "2026-01-12T02:00:00Z",
+      "mutations": [
+        {
+          "kind": "ha_failover",
+          "subject": "DC01-EDGE",
+          "details": {
+            "primary_before": "dc01-fw-01",
+            "primary_after": "dc01-fw-02"
+          }
+        }
+      ],
+      "counts": {
+        "devices": 8,
+        "sites": 1,
+        "cables": 20,
+        "stubs": 6,
+        "stubs_by_kind": {
+          "ap": 1,
+          "phone": 3,
+          "server": 2
+        },
+        "interfaces": 278,
+        "lldp": 27,
+        "cdp": 25,
+        "aggregates": 19,
+        "ha": 2,
+        "unreachable": 0
+      }
+    }
+  ]
+}

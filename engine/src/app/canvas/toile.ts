@@ -29,11 +29,13 @@ export interface ToileHooks {
   /** Rappelle `run` dans `ms` millisecondes, rend de quoi annuler : la minuterie vient de la page (la toile n'en a pas). */
   later?: (run: () => void, ms: number) => () => void;
 }
-export interface Layers { speeds: boolean; beams: boolean; pins: boolean; notes: boolean }
+export interface Layers { speeds: boolean; beams: boolean; pins: boolean; notes: boolean; oper: boolean }
 export interface ToileState {
   filters: Filters; showPorts: boolean; query: string; insets: Insets;
-  /** Les couches du panneau Affichage : vitesses, port-channels et vPC, épingles. */
+  /** Les couches du panneau Affichage : vitesses, port-channels et vPC, épingles, annotations, câbles down. */
   layers: Layers;
+  /** La vue Contrôle (2026-10-09) : statuts, contrôles et état de collecte dessinés ; sinon la vue Diagramme, neutre. */
+  control: boolean;
   pinned: Map<string, Point>; placed: Map<string, Point>; positions: Map<string, Point>;
   selection: Selection | null; selected: Set<string>;
 }
@@ -102,7 +104,7 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     .map(([host, pin]) => [host, { x: pin.x, y: pin.y }] as const));
   const savedPlaces = (): Map<string, Point> => new Map(Array.from(model.placeByHost, ([host, place]) => [host, { x: place.x, y: place.y }]));
   const state: ToileState = {
-    filters: { showStubs: false, showDiff: true, hiddenStatuses: new Set(), hide: [], only: null }, showPorts: false, query: "", layers: { speeds: false, beams: false, pins: true, notes: true },
+    filters: { showStubs: false, showDiff: true, hiddenStatuses: new Set(), hide: [], only: null }, showPorts: false, query: "", layers: { speeds: false, beams: false, pins: true, notes: true, oper: false }, control: false,
     insets: { top: 0, right: 0, bottom: 0, left: 0 }, pinned: savedPins(), placed: savedPlaces(), positions: new Map(), selection: null, selected: new Set(),
   };
   let version = 0;
@@ -147,11 +149,12 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     view.set({ zoom: k, x: area.x + area.width / 2 - x * k, y: area.y + area.height / 2 - y * k }, true);
   }
   const frame = (): void => { if (state.selection || state.selected.size) centerOn(state.selection || { kind: "node", id: Array.from(state.selected)[0] }); else fit(); };
+  // En vue Diagramme, les contrôles ne comptent pas : seuls les changements orientent l'ouverture.
   function notable(): string[] {
     const sc = current || visible(model, state.filters), found = new Set<string>();
     sc.nodes.forEach((node) => {
       if (node.kind === "stub" || !at(node.hostname)) return;
-      const severity = worst(model.checksByNode.get(node.hostname) || []);
+      const severity = state.control ? worst(model.checksByNode.get(node.hostname) || []) : null;
       if (severity === "error" || severity === "warning" || changeOf(model, state.filters.showDiff, "node", node, node.hostname)) found.add(node.hostname);
     });
     sc.links.forEach((link) => {
