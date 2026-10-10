@@ -58,3 +58,4 @@ docs/revues/sondes-*/tmp*/
 .vscode/
 
 # Note : `uv.lock` est versionné volontairement (déterminisme des dépendances).
+.impeccable/planche-*/archive*/

@@ -110,7 +110,7 @@ export function Shell() {
       {/* sous le Journal, la toile reste montée (sa vue, ses mesures) mais n'est jamais peinte : au rechargement, elle
           se dessinait le temps que le Journal arrive (Orhan, 2026-10-10) */}
       <div className={"stage" + (journal ? " under" : "")} inert={journal}><Canvas /></div>
-      {loading ? <div className="loading-line" aria-hidden="true" /> : null}
+      {loading && !journal ? <div className="loading-line" aria-hidden="true" /> : null /* le Journal a son propre état de lecture */}
       {ready && state.colorsOpen ? <TypePalette /> : null}
       {ready && state.context ? <ContextMenu /> : null}
       <Toast />

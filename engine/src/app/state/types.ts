@@ -34,7 +34,10 @@ export type JournalState =
 
 /** Ce que la vue Journal garde d'une visite à l'autre (hors adresse) : les entrées dépliées (clé d'élément), le
  *  défilement, et si l'on est parti du Journal pour montrer un objet (le Diagramme propose alors d'y revenir). */
-export interface JournalUi { open: string[]; scroll: number; back: boolean }
+/** Ce que la vue Journal garde d'une visite à l'autre : les lignes dépliées, le défilement, la ligne active (la seule
+ *  étape de tabulation du fil) ; `back` = un objet a été montré dans le Diagramme (la pastille de retour) ; `refocus` =
+ *  au retour, le focus revient sur la ligne active (revue Impeccable du 2026-10-10 : il tombait sur la page). */
+export interface JournalUi { open: string[]; scroll: number; back: boolean; active: string | null; refocus: boolean }
 
 export type RunState =
   | { kind: "idle" }

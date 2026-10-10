@@ -173,7 +173,34 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   lues page après page par le store (`exportJournal`, 100 000 au plus, le fichier le dit au-delà), écrites par
   `state/journal-csv.ts` (pur, testé sous Node) : « ; », UTF-8 avec marque, CRLF, une entrée par ligne (jamais repliée),
   date UTC, infrastructure, révision, auteur, catégorie, phrase, objets, opérations en JSON ; une cellule qui commence par
-  = + - @ est précédée d'une apostrophe (injection de formule).
+  = + - @ est précédée d'une apostrophe (injection de formule). **Passe « tout, P3 compris » du 2026-10-10** (critique 26/40,
+  audit 17/20) : un objet qui n'est plus là garde un nom lisible et la ligne le dit en fin de cellule (« n'existe plus »,
+  jamais au milieu de la phrase) ; une phrase qui retire a son verbe en rouge (`j-verb`, `destroy`) ; un sujet sans nom
+  se dit par sa sorte (« la forme sans titre »), un ancrage ou un bout par le nom que le serveur cite ; une suite de
+  positions d'un même auteur et d'une même infrastructure (trous ≤ 15 min, 3 entrées au moins) devient une **session**
+  (« a placé 48 équipements, 312 requêtes depuis 10:13 », dépliable : équipements, requêtes, brut) ; **sessions et
+  répétitions (« ×8 ») sont calculées par le serveur sur le journal entier** (`group` de l'entrée), jamais sur la liste
+  filtrée : une ligne ne change plus de forme avec un filtre, une partie cachée se dit (« 2 des 6 requêtes ») ; la période gagne **Plage**
+  (`jp=range&jfrom=&jto=`, jours compris, heure locale, volet de deux dates) ; l'en-tête (recherche, période, CSV) reste
+  figé au défilement (`--head-h` posé par la page) ; pages de 200, la suite se lit en arrivant au bas du fil ; le
+  résultat de l'export se dit sous le bouton ; un volet « ? » donne raccourcis et limites (auteur déclaré, pas
+  authentifié) ; infrastructure et période en `radiogroup` (flèches, une étape de tabulation ; « Plage » s'ouvre à
+  Entrée) ; au retour du Diagramme, le focus revient sur la ligne active (`journalUi.active`, `refocus`) ; « o » sur un
+  objet disparu le dit ; l'état vide rappelle les filtres ; colonne Infrastructure masquée dès 1000 px ; facettes sans
+  décalage en rangée ; pas de trait de chargement sous le Journal. **Recritique du même jour** (design 29/40, audit
+  16/20), quatre défauts réels corrigés : la recherche trouve les mots affichés (« supprimé », « rouge », sans accents ;
+  serveur) ; la colonne Infrastructure reste à toutes les largeurs (elle se resserre) ; les regroupements viennent du
+  serveur ; le défilement est gardé au retour du Diagramme (tenu à chaque défilement, `.j-main` étant détaché au
+  démontage) et la ligne focalisée ramenée en vue. Avec eux : statut d'export toujours rendu (région live fiable),
+  erreur de plage reliée au champ (`aria-invalid`, `role="alert"`, bouton éteint neutre), icônes des positions ≥ 3:1 en
+  clair, aide refermée quand on la quitte au clavier, « Plage » qui se referme, fuseau hors de la région live, note de
+  bas de page avec la page seulement, barre d'outils qui passe à la ligne. **Action, lien, historique** (même jour) :
+  facette **Action** (Créé, Modifié, Supprimé ; `jact=` ; une purge compte comme supprimée) ; au pied du détail, **Copier
+  le lien** (`?infrastructure=X#mode=journal&jinfra=X&jrev=N`, `entryLink` : la page commence à cette révision, la ligne
+  surlignée et focalisée, « Voir les plus récentes » ; une révision disparue le dit) et **Historique de** ses objets ;
+  dans le Diagramme, chaque fiche (équipement, groupe, annotation, connecteur) a son bouton « historique au journal »
+  (`openHistory`, `jobj=`, Retour ramène au Diagramme) ; l'historique se lit dans une pastille retirable sous l'en-tête.
+  Un autre filtre posé quitte le lien (`rev` remis à `null`).
 - **L'adresse est l'état de vue** : `?infrastructure=&run_id=&from=` (la run, comme `/view`) et
   `#mode=control|journal&node=…&stubs=1&ports=1&speeds=1&beams=1&pins=0&notes=0&oper=1&diff=0&hide=…&only=…&mask=…` (la vue : le mode et les couches du panneau Affichage en font partie) ; jamais le jeton (dans `sessionStorage`), le nom
   dans `localStorage`. En arrivant sans `run_id`, la dernière run s'ouvre comparée à la précédente.

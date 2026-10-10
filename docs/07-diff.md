@@ -31,8 +31,8 @@ Références : modèle du snapshot `docs/05` §2 et `contracts/CONTRAT.md` parti
 7. **Le diff se calcule à la demande, jamais stocké** : dérivé, déterministe ; le stocker créerait un second produit à
    invalider. `GET /api/diff?infrastructure=&from=&to=`, `ld diff`, `ld render --from`. **Coût mesuré à la jauge**
    (revue M5 : 500 devices, 1 310 nœuds, 21 000 interfaces, 23 Mo par snapshot) : la comparaison tient en ~1 s, mais
-   relire et **revalider** les deux snapshots archivés coûte ~2,2 s à chaque appel, soit ~3,2 s par `GET /api/diff` ;
-   la timeline enchaînant des diffs N-1, la décision est ouverte (Q6).
+   relire et **revalider** les deux snapshots archivés coûte ~2,2 s à chaque appel, soit ~3,2 s par `GET /api/diff`.
+   **Q6 tranchée le 2026-10-09** : jamais stocké sur disque, mais gardé en mémoire par l'API (voir Q6).
 8. **Ordre canonique refusé par le type**, comme le Snapshot : les listes sont triées par les mêmes clés que R6, les
    comptes du résumé doivent correspondre aux sections.
 
@@ -234,7 +234,12 @@ lisent dans les sections (descriptions, contrôles). Les comptes du résumé son
   chaque stub devenu device se lira « retiré + ajouté » avec ses câbles au lieu de « changé ». Alternative : replier la
   casse dans l'identité (nœud, bouts, interfaces, couverture, membres), la référence du `changed` prenant l'écriture
   d'`after`. Comportement courant figé par un test (`test_identity_is_byte_exact…`), à trancher au premier rendu réel.
-- **Q6 — Revalider à chaque appel** (revue M5) : `GET /api/diff` relit et revalide les deux snapshots (~2,2 s à la
+- **Q6 — Revalider à chaque appel** (revue M5). **Tranchée le 2026-10-09 (audit de l'API, « Go » d'Orhan)** : l'API
+  garde les derniers diffs servis en mémoire (`diffs.DiffCache`, 64 Mo, le plus ancien sort d'abord), clé = les deux
+  runs et l'identité des deux fichiers snapshot (inode, taille, date) : un `ld correlate` qui en remplace un rend
+  l'entrée inatteignable. Le premier appel paie ~3,2 s à la jauge, les suivants rien ; l'existence des deux runs est
+  revérifiée à chaque appel (une archive abîmée n'est jamais masquée par le cache). Rien sur disque : la décision 7
+  tient. Texte d'origine : : `GET /api/diff` relit et revalide les deux snapshots (~2,2 s à la
   jauge) avant de comparer (~1 s) ; `GET /api/snapshot` sert l'archive sans la revalider. Options : construire les
   modèles sans la passe d'intégrité (octets vérifiés à l'écriture), garder en mémoire le dernier snapshot lu par run
   (l'archive est immuable), ou stocker le diff N-1 à côté du snapshot comme produit dérivé remplaçable (ce que la

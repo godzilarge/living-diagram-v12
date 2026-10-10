@@ -1446,6 +1446,60 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   de 2 px est retirée, le tableau ne s'estompe qu'au-delà de 200 ms de lecture, le sous-titre garde le compte d'avant.
   Mesuré image par image dans Chromium (sonde injectée avant la page) : 3 à 4 images fautives par rechargement avant, 0
   après ; aucune ligne ni estompage sur quatre bascules d'infrastructure. Garde dans le parcours Chromium.
+- **Vue Journal : critique et audit Impeccable, puis passe « tout, P3 compris »** (2026-10-10, « Go » d'Orhan sur le plan
+  annoncé ; deux évaluations isolées : design 24 → **26/40**, audit 13 → **17/20**, détecteur 0 constat ; rapport dans
+  `.impeccable/critique/`). Choix d'Orhan : la lecture d'abord, positions repliées par session, tout traiter. Fait :
+  « n'existe plus » sorti de la phrase (fin de cellule), verbe d'une suppression en rouge ; **noms lisibles** (un sujet sans
+  nom dit par sa sorte, côté page ; côté serveur, `journal.py` cite les groupes et annotations désignés par un ancrage ou un
+  bout, et nomme un bout sans nom par sa sorte) ; **sessions de positions** (même auteur, même infrastructure, trous
+  ≤ 15 min, ≥ 3 entrées ; le CSV reste à une ligne par entrée) ; **plage de dates** (`jp=range&jfrom=&jto=`) ; en-tête
+  figé ; pages de 200 et lecture au bas du fil ; résultat de l'export visible ; volet d'aide (raccourcis, limites, auteur
+  déclaré) ; `radiogroup` ; focus rendu au retour du Diagramme ; trait de chargement retiré sous le Journal ; facettes
+  ≤ 860 px, colonne Infrastructure dès 1000 px ; P3 (cible 24 px, `aria-keyshortcuts`, état vide qui rappelle les filtres,
+  jetons d'ombre, casse). Tests : 15 sous Node, parcours Chromium étendu (export visible, aide, plage, radios au clavier,
+  focus au retour), store backend (sujets cités, sortes). Pas de revue indépendante (visuel ; le changement serveur est
+  de quelques lignes, testé). Captures dans le scratchpad de la session. **Recritique le même jour** (design 29/40, audit
+  16/20) et question d'Orhan : « pourquoi le score est-il encore si bas si tu connais les règles ? ». Réponse consignée :
+  la méthode exige 3 à 5 problèmes par passage (barre relative, pas une liste qui se vide) ; mais aussi, de ma faute, des
+  recommandations appliquées sans les confronter au produit (colonne Infrastructure masquée à 1000 px : proposée par un
+  audit, P1 pour le suivant ; sessions calculées sur la liste filtrée) et un vrai bug jamais testé (la recherche ne
+  trouvait pas les mots affichés, « supprimé » → 0). **Règle tirée : une recommandation de revue est une hypothèse, à
+  confronter à l'usage (un registre d'audit) avant de la coder ; tester une recherche avec les mots que l'écran montre.**
+  Corrigé : recherche sur le vocabulaire de la page sans accents (`journal_words.py`, test de dérive sur les verbes de
+  `journal-text.ts`), regroupements calculés par le serveur sur le journal entier (`journal_groups.py`, champ `group`),
+  colonne Infrastructure à toutes les largeurs, défilement gardé au retour (parcours Chromium à 80 entrées), et les P2 de
+  l'audit. Boucle critique / correction arrêtée là : le reste est du goût ou de la fonction, au choix d'Orhan (facette
+  Action, lien vers une entrée, historique d'un objet, poids de l'auteur, chasse fixe des hostnames).
+- **Journal : filtre par action, lien vers une entrée, historique d'un objet** (2026-10-10, « Go » d'Orhan sur le plan
+  annoncé). Rangement validé : `*_create` = créé ; `*_delete` **et la purge** = supprimé (un auditeur qui cherche ce qui a
+  disparu doit voir qu'on a purgé des traces) ; le reste = modifié (retirer une épingle ou une couleur ne supprime rien).
+  Serveur : `journal_index.py` (actions, objets cités), paramètres `action`, `object`, `start` (exige `infrastructure`),
+  facette `actions`, `start_missing` ; `journal.py` redescend à ~520 lignes (rejeu des noms sorti dans
+  `journal_replay.py`, classe `NameReplay`). Page : facette Action, `jact` / `jobj` / `jrev`, Copier le lien et
+  Historique de… au pied du détail, bouton « historique au journal » dans les cinq fiches du Diagramme (le pont entre la
+  toile et le Journal), ligne ciblée surlignée et focalisée. Tests : store, API, Node, parcours Chromium (lien copié puis
+  rouvert, facette Action, historique depuis la fiche, Retour). **Revue indépendante consignée et traitée le même jour**
+  (`docs/revues/2026-10-10-journal-actions-liens-historique.md` : 0 critique, 1 haut, 5 moyens, 10 bas ; sondes
+  rejouables) : historique ouvert dans l'infrastructure de l'objet (H1) ; lien vers une révision purgée qui part de la
+  purge, jamais d'une trace prise pour l'entrée ni d'une page vide (M1, M2) ; `object` exige `infrastructure` (M3) ;
+  pluriels et mots de la purge cherchables, **décision révisée** : la trace se trouve par ses catégories affichées (M4) ;
+  export sans le lien (M5) ; accents repliés dans la page, identité de regroupement par révision, lien sous sous-chemin.
+  B5 assumé (texte des bouts figé dans les deltas d'une purge).
+- **Audit de l'API et du Swagger : organisé, fidèle, plus rapide** (2026-10-09, Orhan : « le swagger, un peu le bazar,
+  aucune organisation » ; audit rendu, « Go pour A, B et C »). **A, le document** : huit groupes dans l'ordre du
+  pipeline (Ingestion, Runs, Diff, Intention, Images, Placement, Journal, Système), identifiants courts, titre « Living
+  Diagram API » et description à jour, pages `/` et `/view` hors du document ; **toute erreur a la forme `Problem`**
+  (`detail`, `errors` sur un 422), sauf quatre refus qui portent un document (rapport d'ingestion, placement courant) ;
+  401 et 422 déclarés sur toutes les routes protégées (routeur protégé), schémas 200 complétés, 413 « corps trop
+  volumineux », erreur imprévue en `Problem` neutre. `api.py` ne garde que les routes ; `openapi.py` et `bodies.py`
+  nouveaux ; `tests/test_openapi.py` garde les règles. **B, défauts** : `POST /api/intent/patches` appliquait verrou,
+  `fsync` et journal dans la boucle d'événements (un `ld journal prune` figeait l'API ; corrigé pour le placement le
+  2026-10-06, pas ici) ; garde « une run archivée » par `has_runs` au lieu de `list_runs` ; retrait d'image sous le
+  verrou de l'intention (`release_asset`) ; un seul lecteur de corps. **C, `docs/07` Q6 tranchée** : `DiffCache` en
+  mémoire (64 Mo, LRU), clé = deux runs + identité des deux fichiers snapshot, existence des runs revérifiée à chaque
+  appel ; rien sur disque. **Chemins inchangés** (renommage écarté : exportateur et front cassés pour un gain de
+  forme ; au gel du contrat si Orhan y tient). Rapport : `docs/revues/2026-10-09-audit-api-swagger.md`. Backend 573
+  tests, 98 %.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -1506,7 +1560,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
   2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`,
   `2026-10-02-pages-demo-bulles-role-ha.md` ; 2026-10-03 : `2026-10-03-generateur-synthetique.md` ; 2026-10-04 :
-  `2026-10-04-b3-diff.md`, `2026-10-04-toile-engine-ts.md`, `2026-10-04-b4-intention.md` ; 2026-10-09 : `2026-10-09-vue-journal.md` ; 2026-10-10 : `2026-10-10-purge-journal.md`) et leurs sondes rejouables
+  `2026-10-04-b3-diff.md`, `2026-10-04-toile-engine-ts.md`, `2026-10-04-b4-intention.md` ; 2026-10-09 : `2026-10-09-vue-journal.md`, `2026-10-09-audit-api-swagger.md` ; 2026-10-10 : `2026-10-10-purge-journal.md`, `2026-10-10-journal-actions-liens-historique.md`) et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
 - `prompts.md` — échanges bruts du propriétaire (historique)

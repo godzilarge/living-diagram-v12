@@ -10,7 +10,7 @@ import type { Group, GroupStyle, Model } from "../../../canvas/types";
 import { useEditable, useStore } from "../../state/store";
 import { plural } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, List, ListRow, Menu, NumberField, PositionField, Row, Section, Segmented, TextArea, Title, TitleInput } from "../../ui/inspector";
-import { HostLink, HueSetting, WriteHint, signed } from "./shared";
+import { HistoryButton, HostLink, HueSetting, WriteHint, signed } from "./shared";
 import { StrokeRow, TextRows, options } from "./style";
 
 type StylePatch = Partial<GroupStyle>;
@@ -55,6 +55,7 @@ export function GroupCard({ model, group }: { model: Model; group: Group }) {
       <InspectorHead icon={<GroupIcon />} kind="Groupe"
         actions={<>
           <IconButton label="centrer la toile sur le groupe" onClick={() => commands.reveal({ kind: "group", id: group.id })}><Crosshair /></IconButton>
+          <HistoryButton object={group.id} />
           <IconButton label="sélectionner les membres" disabled={!present.length} onClick={() => commands.selectHosts(present)}><SquareDashedMousePointer /></IconButton>
           <Menu label="plus d'actions" items={[
             { label: "masquer les membres", icon: <EyeOff />, disabled: !present.length, onSelect: () => commands.hideHosts(present) },

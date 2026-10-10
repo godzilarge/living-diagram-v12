@@ -126,10 +126,7 @@ def test_openapi_types_the_responses(client: TestClient):
         schemas
     )
     intent = {"/api/intent", "/api/intent/patches", "/api/intent/assets", "/api/intent/journal", "/api/placement"}
-    assert (
-        set(doc["paths"])
-        == {"/api/health", URL, BUNDLE_URL, REPORT_URL, "/api/snapshot", "/api/diff", "/view", "/"} | intent
-    )
+    assert set(doc["paths"]) == {"/api/health", URL, BUNDLE_URL, REPORT_URL, "/api/snapshot", "/api/diff"} | intent
     listed = doc["paths"][URL]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert listed == {"$ref": "#/components/schemas/RunList"}
 

@@ -41,6 +41,7 @@
   --t-tip: 180ms; --t-tip-reduced: 120ms; /* l'arrivée de la bulle ; sous mouvement réduit, un fondu court qui garde le changement d'état visible */
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
   --shadow-tip: 0 8px 18px rgba(0, 0, 0, 0.5);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35); /* un relief à peine : le curseur d'un choix exclusif */
   --bar-h: 44px;
   --panel-w: 348px;
   --z-bar: 20; --z-band: 25; --z-panel: 30; --z-palette: 40; --z-toast: 50; --z-sheet: 60;
@@ -74,6 +75,7 @@
   --scrim: rgba(20, 27, 36, 0.25);
   --shadow: 0 14px 40px rgba(20, 27, 36, 0.16), 0 0 0 1px rgba(20, 27, 36, 0.05);
   --shadow-tip: 0 8px 18px rgba(20, 27, 36, 0.18);
+  --shadow-xs: 0 1px 2px rgba(20, 27, 36, 0.14);
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --t-fast: 0ms; --t: 0ms; }

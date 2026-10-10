@@ -1,17 +1,19 @@
-// Les facettes de la vue Journal : l'infrastructure (un choix exclusif : « Toutes » puis chacune par son nom, un fond
-// relevé qui glisse sous le choix), les catégories et les auteurs (des bascules cumulables : une coche et un fond léger
+// Les facettes de la vue Journal : l'infrastructure (un choix exclusif, `radiogroup` : « Toutes » puis chacune par son
+// nom, un fond relevé qui glisse sous le choix, celle du Diagramme dite « ouverte »), les catégories et les auteurs (des bascules cumulables : une coche et un fond léger
 // de la teinte de la catégorie, jamais le cyan plein). Elles ne bougent jamais (Orhan,
 // 2026-10-09 : « les sous-menus bougent selon ce qui est sélectionné ») : le serveur rend toujours les mêmes valeurs
 // dans le même ordre (par nom), un compte tombé à 0 est grisé à sa place ; « Autres » est là dès qu'il existe dans le
 // journal ; pendant une lecture ou après un échec, les dernières facettes lues restent affichées.
-import { Check } from "lucide-react";
+import { Check, CirclePlus, Pencil, Trash2 } from "lucide-react";
 import { useRef } from "react";
 import type { ReactNode } from "react";
-import { CATEGORIES, CATEGORY_LABEL } from "../../state/journal";
-import type { JournalFacet, JournalPage } from "../../state/journal";
+import { ACTION_LABEL, ACTIONS, CATEGORIES, CATEGORY_LABEL } from "../../state/journal";
+import type { JournalAction, JournalFacet, JournalPage } from "../../state/journal";
 import { useStore } from "../../state/store";
-import { ICON, useThumb } from "./shared";
+import { ICON, radioKeys, useThumb } from "./shared";
 
+// l'action : « supprimé » en rouge comme le verbe de la ligne, les deux autres discrets
+const ACTION_ICON: Record<JournalAction, ReactNode> = { created: <CirclePlus aria-hidden="true" />, modified: <Pencil aria-hidden="true" />, deleted: <Trash2 aria-hidden="true" /> };
 const countOf = (facets: JournalFacet[], value: string): number => (facets.find((f) => f.value === value) || { count: 0 }).count;
 const byName = (a: string, b: string): number => a.localeCompare(b, "fr", { sensitivity: "base" });
 
@@ -19,7 +21,7 @@ const byName = (a: string, b: string): number => a.localeCompare(b, "fr", { sens
 function Head({ title, onClear }: { title: string; onClear: (() => void) | null }) {
   return (
     <div className="j-side-head"><h2>{title}</h2>
-      {onClear ? <button type="button" className="j-reset" onClick={onClear} aria-label={"effacer le filtre " + title.toLowerCase()}>effacer</button> : null}
+      {onClear ? <button type="button" className="j-reset" onClick={onClear} aria-label={"effacer le filtre " + title.toLowerCase()}>Effacer</button> : null}
     </div>
   );
 }
@@ -38,8 +40,10 @@ export function Facets() {
   const names = Array.from(new Set(infras.map((i) => i.value).concat(current ? [current] : []))).sort(byName);
   const thumb = useThumb<HTMLUListElement>(scope + "|" + names.join("\n"));
   const toggleIn = <T extends string>(list: T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : list.concat(value));
+  // une bascule dit `aria-pressed` ; un choix exclusif est un `radio` (une seule étape de tabulation, les flèches)
   const facetButton = (pressed: boolean, label: ReactNode, count: number | null, onClick: () => void, key: string, extra = "", title?: string): ReactNode => (
-    <li key={key}><button type="button" className={"j-facet " + extra + (count === 0 && !pressed ? " zero" : "")} aria-pressed={pressed ? "true" : "false"} onClick={onClick} title={title}>
+    <li key={key} role={extra === "choice" ? "none" : undefined}><button type="button" className={"j-facet " + extra + (count === 0 && !pressed ? " zero" : "")} onClick={onClick} title={title}
+      {...(extra === "choice" ? { role: "radio", "aria-checked": pressed ? "true" : "false", tabIndex: pressed ? 0 : -1 } as const : { "aria-pressed": pressed ? "true" : "false" } as const)}>
       <span className="j-facet-label">{label}</span>{extra.includes("j-toggle") ? <Check className="j-check" aria-hidden="true" /> : null}
       <span className="sr-only"> : </span><span className="j-facet-count">{count === null ? "" : count}</span>
     </button></li>
@@ -49,12 +53,12 @@ export function Facets() {
   const missing = f.authors.filter((a) => !authors.some((x) => x.value === a)); // un auteur de l'adresse inconnu ici reste retirable
   const shown = CATEGORIES.filter((c) => c !== "other" || (page && page.categories.some((x) => x.value === c)) || f.categories.includes(c));
   const infraLabel = (value: string): ReactNode => (value === current
-    ? <>{name(value)}<span className="j-here" title="ouverte dans le Diagramme" /><span className="sr-only"> (ouverte)</span></> : name(value));
+    ? <>{name(value)}<span className="j-here" title="l'infrastructure ouverte dans le Diagramme"><span className="sr-only"> (</span>ouverte<span className="sr-only">)</span></span></> : name(value));
   return (
     <aside className="j-side" aria-label="filtres du journal">
       <section>
         <Head title="Infrastructure" onClear={null} />
-        <ul className="j-choices" ref={thumb}>
+        <ul className="j-choices" ref={thumb} role="radiogroup" aria-label="infrastructure" onKeyDown={radioKeys}>
           {facetButton(scope === "*", name("Toutes"), page ? infras.reduce((n, i) => n + i.count, 0) : null, () => commands.setJournal({ infrastructure: "*" }), "all", "choice")}
           {names.map((value) => facetButton(scope === value, infraLabel(value), page ? countOf(infras, value) : null,
             () => commands.setJournal({ infrastructure: value === current ? "" : value }), "i-" + value, "choice", value))}
@@ -65,6 +69,12 @@ export function Facets() {
         <ul>{shown.map((c) => facetButton(
           f.categories.includes(c), <><span className={"j-cat cat-" + c}>{ICON[c]}</span>{name(CATEGORY_LABEL[c])}</>, page ? countOf(page.categories, c) : null,
           () => commands.setJournal({ categories: toggleIn(f.categories, c) }), c, "j-toggle cat-" + c))}</ul>
+      </section>
+      <section>
+        <Head title="Action" onClear={f.actions.length ? () => commands.setJournal({ actions: [] }) : null} />
+        <ul>{ACTIONS.map((a) => facetButton(
+          f.actions.includes(a), <><span className={"j-cat act-" + a}>{ACTION_ICON[a]}</span>{name(ACTION_LABEL[a])}</>, page ? countOf(page.actions || [], a) : null,
+          () => commands.setJournal({ actions: toggleIn(f.actions, a) }), "act-" + a, "j-toggle act-" + a))}</ul>
       </section>
       <section>
         <Head title="Auteurs" onClear={f.authors.length ? () => commands.setJournal({ authors: [] }) : null} />

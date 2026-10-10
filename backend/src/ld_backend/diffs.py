@@ -1,11 +1,14 @@
 """Branchement de B3 : comparer deux snapshots, archivés ou lus dans des fichiers, à la demande.
 
-Le diff n'est jamais stocké (`docs/07` décision 7) : dérivé, déterministe ; le stocker créerait un second produit à
-invalider. Coût mesuré à la jauge (500 devices, 21 000 interfaces, revue M5) : relire et revalider les deux snapshots
-≈ 2,2 s, comparer ≈ 1 s ; la revalidation à chaque appel est une question ouverte (`docs/07` Q6). Ce module ne fait
-que trouver les deux snapshots ; `ld_backend.diff` compare.
+Le diff n'est jamais stocké sur disque (`docs/07` décision 7) : dérivé, déterministe ; le stocker créerait un second
+produit à invalider. Coût mesuré à la jauge (500 devices, 21 000 interfaces, revue M5) : relire et revalider les deux
+snapshots ≈ 2,2 s, comparer ≈ 1 s. **Q6 tranchée le 2026-10-09** : l'API garde en mémoire les derniers diffs servis
+(`DiffCache`), valides tant que les deux fichiers snapshot n'ont pas changé ; le premier appel paie, les suivants non.
+Ce module trouve les deux snapshots et range les diffs ; `ld_backend.diff` compare.
 """
 
+import threading
+from collections import OrderedDict
 from typing import Literal
 
 from ld_contracts.diff import Diff
@@ -15,6 +18,11 @@ from pydantic import ValidationError
 
 from ld_backend.archive import BundleArchive, StoredRun
 from ld_backend.snapshots import correlate_data
+
+# Assez pour les allers-retours d'une bande des runs à la jauge ; un diff plus gros que la borne n'est pas gardé.
+DIFF_CACHE_BYTES = 64 * 1024 * 1024
+Stamp = tuple[int, int, int]
+CacheKey = tuple[str, str, str, Stamp, Stamp]
 
 Reason = Literal["unknown", "missing", "invalid", "too_few", "no_previous"]
 
@@ -109,3 +117,44 @@ def summary_lines(diff: Diff) -> list[str]:
     lines.append(f"{'events':<13}rebooted {s.events.rebooted} · flapped {s.events.flapped}")
     lines.append(f"{'volatile':<13}{s.volatile_changes}")
     return lines
+
+
+class DiffCache:
+    """Les derniers diffs servis, en octets, du plus ancien au plus récent ; borné en octets, sûr entre fils.
+
+    La clé porte l'identité des deux fichiers snapshot (`BundleArchive.snapshot_stamp`) : un `ld correlate` qui
+    remplace l'un d'eux rend l'entrée inatteignable, elle sort à son tour. Deux appels simultanés pour la même paire
+    calculent deux fois ; le second remplace le premier, mêmes octets.
+    """
+
+    def __init__(self, max_bytes: int = DIFF_CACHE_BYTES) -> None:
+        self.max_bytes = max_bytes
+        self._entries: OrderedDict[CacheKey, bytes] = OrderedDict()
+        self._size = 0
+        self._lock = threading.Lock()
+
+    def get(self, key: CacheKey) -> bytes | None:
+        with self._lock:
+            found = self._entries.get(key)
+            if found is not None:
+                self._entries.move_to_end(key)
+            return found
+
+    def put(self, key: CacheKey, payload: bytes) -> None:
+        if len(payload) > self.max_bytes:
+            return
+        with self._lock:
+            previous = self._entries.pop(key, None)
+            self._size -= len(previous) if previous is not None else 0
+            while self._entries and self._size + len(payload) > self.max_bytes:
+                _, evicted = self._entries.popitem(last=False)
+                self._size -= len(evicted)
+            self._entries[key] = payload
+            self._size += len(payload)
+
+    @property
+    def size(self) -> int:
+        return self._size
+
+    def __len__(self) -> int:
+        return len(self._entries)

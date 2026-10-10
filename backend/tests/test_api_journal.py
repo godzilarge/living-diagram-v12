@@ -24,7 +24,9 @@ def test_the_journal_needs_the_token_and_reads_empty_before_any_write(client: Te
         "authors": [],
         "categories": [],
         "infrastructures": [],
+        "actions": [{"value": a, "count": 0} for a in ("created", "modified", "deleted")],
         "unreadable": 0,
+        "start_missing": False,
     }
 
 
@@ -73,3 +75,20 @@ def test_the_journal_route_is_typed_in_openapi(client: TestClient):
     response = schema["paths"][JOURNAL_URL]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert response == {"$ref": "#/components/schemas/JournalPage"}
     assert "JournalEntry" in schema["components"]["schemas"]
+
+
+def test_start_needs_an_infrastructure_and_action_and_object_filter(client: TestClient, auth, bundle_dict):
+    assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
+    _patch(client, auth, "orhan", [{"op": "group_create", "label": "Cœur", "members": ["sw-core-01"]}])
+    _patch(client, auth, "orhan", [{"op": "pin", "hostname": "fw-edge-01", "x": 1, "y": 1}])
+    res = client.get(JOURNAL_URL, params={"start": 1}, headers=auth)
+    assert res.status_code == 422 and res.json()["errors"][0]["path"] == "start"
+    page = client.get(JOURNAL_URL, params={"infrastructure": "infra-lab", "start": 1}, headers=auth).json()
+    assert [e["revision"] for e in page["entries"]] == [1]
+    created = client.get(JOURNAL_URL, params={"action": "created"}, headers=auth).json()
+    assert [e["revision"] for e in created["entries"]] == [1]
+    assert client.get(JOURNAL_URL, params={"action": "renamed"}, headers=auth).status_code == 422
+    lone = client.get(JOURNAL_URL, params={"object": "g1-1"}, headers=auth)
+    assert lone.status_code == 422 and lone.json()["errors"][0]["path"] == "object", "identité par infrastructure"
+    history = client.get(JOURNAL_URL, params={"object": "sw-core-01", **LAB}, headers=auth).json()
+    assert [e["revision"] for e in history["entries"]] == [1], "membre du groupe créé"

@@ -1193,6 +1193,38 @@ def test_the_application_journal_in_a_browser(settings, bundle_dict):
             # l'export CSV : toutes les entrées des filtres, lues page après page, dites dans la zone live
             tab.js("document.querySelector('.j-export').click()")
             _wait(tab, "document.querySelector('.j-tools [aria-live]').textContent === '3 entrées exportées'")
+            seen = "document.querySelector('.j-said').offsetWidth > 0"
+            assert tab.js(seen), "le résultat se voit (revue : il n'était dit qu'au lecteur d'écran)"
+            # l'aide : raccourcis et limites, Échap referme et rend le focus au bouton
+            tab.js("document.querySelector('.j-help-open').click()")
+            _wait(tab, "!!document.querySelector('.j-help')")
+            assert "déclaré, pas authentifié" in tab.js("document.querySelector('.j-help').textContent")
+            _key(tab, "Escape", 27)
+            _wait(tab, "!document.querySelector('.j-help')")
+            assert tab.js("document.activeElement === document.querySelector('.j-help-open')")
+            # la plage de dates : deux jours, dans l'adresse ; « Tout » la retire (un choix exclusif, au clavier)
+            day = (
+                "(() => { const d = new Date(), p = (n) => String(n).padStart(2, '0'); "
+                "return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); })()"
+            )
+            tab.js("document.querySelector('.j-range-open').click()")
+            _wait(tab, "!!document.querySelector('.j-range')")
+            for i in (0, 1):
+                tab.js(
+                    f"(() => {{ const i = document.querySelectorAll('.j-range input')[{i}]; "
+                    f"Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, {day}); "
+                    "i.dispatchEvent(new Event('input', {bubbles: true})); })()"
+                )
+            tab.js("document.querySelector('.j-range button[type=submit]').click()")
+            _wait(tab, "location.hash.includes('jp=range&jfrom=') && !document.querySelector('.j-range')")
+            _wait(tab, f"{rows}.length === 3")
+            assert tab.js("document.querySelector('.j-range-open').getAttribute('aria-checked')") == "true"
+            radios = "Array.from(document.querySelectorAll('.j-period [role=radio]'))"
+            tab.js(f"{radios}[3].focus()")
+            _key(tab, "ArrowRight", 39)
+            _key(tab, "ArrowLeft", 37)
+            _wait(tab, "!location.hash.includes('jp=')")
+            assert tab.js(f"{radios}.map(b => b.tabIndex)") == [-1, -1, -1, 0, -1], "une seule étape de tabulation"
             # une catégorie : dans l'adresse ; les autres catégories gardent leur compte (facette sans son filtre)
             tab.js(facet.format("'Couleurs'") + ".click()")
             _wait(tab, f"{rows}.length === 1")
@@ -1234,6 +1266,10 @@ def test_the_application_journal_in_a_browser(settings, bundle_dict):
             tab.js("history.back()")
             _wait(tab, f"LDApp.debug.state().view.mode === 'journal' && {rows}.length === 3")
             assert tab.js("document.querySelectorAll('.j-row.open').length") == 1, "le contexte survit à l'aller-retour"
+            back = "document.activeElement.classList.contains('j-row-head') && document.activeElement.tabIndex === 0"
+            assert tab.js(back), "le focus revient sur la ligne active, pas sur la page"
+            reached = f"document.activeElement === {rows}[1].querySelector('.j-row-head')"
+            assert tab.js(reached), "celle que ↓ avait atteinte"
             tab.js("document.querySelector('.mode-switch .mode-item:nth-child(1)').click()")
             _wait(tab, "LDApp.debug.state().view.mode === 'diagram'")
             # toutes les infrastructures : le groupe « Bord » d'infra-b s'ouvre là-bas, sélectionné
@@ -1242,6 +1278,17 @@ def test_the_application_journal_in_a_browser(settings, bundle_dict):
             assert not tab.js("!!document.querySelector('.journal-back')"), "revenu au Journal, la pastille s'en va"
             tab.js(facet.format("'Toutes'") + ".click()")
             _wait(tab, f"{rows}.length === 4")
+            # l'historique d'un objet d'une autre infrastructure s'ouvre dans la sienne (revue, H1 : `g1-1` existe aussi
+            # ici, celui d'infra-lab, « Cœur » ; c'est « Bord » d'infra-b qu'on veut) ; Retour ramène à « Toutes »
+            bord = "Array.from(document.querySelectorAll('.j-row')).find(r => r.textContent.includes('Bord'))"
+            tab.js(f"{bord}.querySelector('.j-row-head').click()")
+            _wait(tab, f"!!{bord}.querySelector('.j-act + .j-act')")
+            tab.js(f"{bord}.querySelector('.j-act + .j-act').click()")
+            other = "location.hash.includes('jobj=g1-1') && location.hash.includes('jinfra=infra-b')"
+            _wait(tab, f"{other} && {rows}.length === 1 && LDApp.debug.state().journal.kind === 'ready'")
+            assert "Historique de Bord" in tab.js("document.querySelector('.j-chip').textContent")
+            tab.js("history.back()")
+            _wait(tab, f"location.hash.includes('jinfra=*') && !location.hash.includes('jobj') && {rows}.length === 4")
             tab.js("Array.from(document.querySelectorAll('.j-ref')).find(b => b.textContent === 'Bord').click()")
             wanted = (
                 "LDApp.debug.state().run.kind === 'ready' && LDApp.debug.state().run.model.source.infrastructure"
@@ -1251,6 +1298,90 @@ def test_the_application_journal_in_a_browser(settings, bundle_dict):
             assert tab.js("[LDApp.debug.state().selection.kind, LDApp.debug.state().selection.id]") == ["group", "g1-1"]
             assert tab.js("LDApp.debug.state().run.model.groupById.get('g1-1').label") == "Bord"
             assert "infrastructure=infra-b" in tab.js("location.search")
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)
+
+
+def test_the_application_journal_keeps_its_place_in_a_browser(settings, bundle_dict):
+    """Revue Impeccable du 2026-10-10 : au retour du Diagramme, le défilement était perdu (relu sur un nœud déjà
+    détaché) et le focus tombait 2 800 px plus bas ; la recherche ne trouvait pas les mots affichés."""
+    import httpx
+
+    from tests.browser import Chrome
+    from tests.conftest import TOKEN
+    from tests.test_view import _serve, _wait
+
+    facet = "Array.from(document.querySelectorAll('.j-facet')).find(b => b.textContent.startsWith({}))"
+    hosts, hues = ("sw-core-01", "sw-core-02", "fw-edge-01", "fw-edge-02", "rt-wan-01"), ("red", "teal", "amber")
+    server, thread, base = _serve(settings)
+    try:
+        auth = {"Authorization": f"Bearer {TOKEN}"}
+        assert httpx.post(f"{base}/api/ingest/bundles", json=bundle_dict, headers=auth, timeout=60).status_code == 201
+        patches = f"{base}/api/intent/patches?infrastructure=infra-lab"
+        for i in range(80):  # un autre équipement à chaque fois : aucune répétition, une ligne par requête
+            op = {"op": "color", "hostname": hosts[i % len(hosts)], "hue": hues[i % len(hues)]}
+            reply = httpx.post(patches, json={"author": "alice", "ops": [op]}, headers=auth, timeout=30)
+            assert reply.status_code == 200
+        with Chrome(CHROMIUM) as chrome:
+            tab = chrome.open(f"{base}/")
+            _wait(tab, "!!document.querySelector('.sheet input[type=password]')")
+            tab.js(f"sessionStorage.setItem('ld-api-token', {json.dumps(TOKEN)})")
+            tab.navigate(f"{base}/?infrastructure=infra-lab#mode=journal")
+            _wait(tab, "document.querySelectorAll('.j-row').length === 80")
+            tab.js("document.querySelector('.j-main').scrollTop = 1600")
+            row = (
+                "(() => { const box = document.querySelector('.j-main').getBoundingClientRect(); "
+                "return Array.from(document.querySelectorAll('.j-row-head'))"
+                ".find(h => h.getBoundingClientRect().top > box.top + 200); })()"
+            )
+            tab.js(f"{row}.focus()")
+            item = tab.js("document.activeElement.dataset.item")
+            _key(tab, "o", 79)
+            _wait(tab, "LDApp.debug.state().view.mode === 'diagram' && !!LDApp.debug.state().selection")
+            tab.js("history.back()")
+            back = "LDApp.debug.state().view.mode === 'journal' && document.querySelectorAll('.j-row').length === 80"
+            _wait(tab, back)
+            assert tab.js("document.querySelector('.j-main').scrollTop") > 1200, "le Journal revient à sa place"
+            assert tab.js("document.activeElement.dataset.item") == item, "sur la ligne quittée"
+            seen = (
+                "(() => { const box = document.querySelector('.j-main').getBoundingClientRect(), "
+                "at = document.activeElement.getBoundingClientRect(); "
+                "return at.top >= box.top && at.bottom <= box.bottom; })()"
+            )
+            assert tab.js(seen), "et le focus se voit"
+            # la recherche lit les mots de la page : « rouge » trouve les couleurs mises en rouge
+            tab.js(
+                "(() => { const i = document.querySelector('.j-search input'); Object.getOwnPropertyDescriptor("
+                "HTMLInputElement.prototype, 'value').set.call(i, 'rouge'); "
+                "i.dispatchEvent(new Event('input', {bubbles: true})); })()"
+            )
+            _wait(tab, "document.querySelectorAll('.j-row').length === 27 && location.hash.includes('jq=rouge')")
+            # le lien vers une entrée : copié depuis le détail, rouvert, la page commence à elle, surlignée et focalisée
+            tab.js("document.querySelectorAll('.j-row-head')[20].click()")
+            _wait(tab, "!!document.querySelector('.j-row.open .j-act')")
+            link = tab.js("document.querySelector('.j-row.open .j-act').dataset.link")
+            revision = int(link.rsplit("jrev=", 1)[1])
+            tab.navigate(link)
+            focused = "!!document.querySelector('.j-row.target') && !!document.activeElement.closest('.j-row.target')"
+            _wait(tab, focused)
+            assert tab.js("document.querySelector('.j-row.target .j-rev').textContent").endswith(f"r{revision}")
+            first = tab.js("document.querySelector('.j-row .j-rev').textContent")
+            assert first.endswith(f"r{revision}"), "la page commence à elle"
+            tab.js("document.querySelector('.j-link-btn').click()")
+            _wait(tab, "!location.hash.includes('jrev') && document.querySelectorAll('.j-row').length === 80")
+            # l'action : « Créé » ne garde rien ici (que des couleurs), et l'état vide le rappelle
+            tab.js(facet.format("'Créé'") + ".click()")
+            _wait(tab, "location.hash.includes('jact=created') && document.querySelector('.j-state-detail') !== null")
+            assert "Créé" in tab.js("document.querySelector('.j-state-detail').textContent")
+            # l'historique d'un objet, depuis sa fiche du Diagramme ; Retour ramène au Diagramme
+            tab.navigate(f"{base}/?infrastructure=infra-lab#node=sw-core-01")
+            _wait(tab, "!!document.querySelector('.ibtn[aria-label=\"historique au journal\"]')")
+            tab.js("document.querySelector('.ibtn[aria-label=\"historique au journal\"]').click()")
+            _wait(tab, "location.hash.includes('jobj=sw-core-01') && document.querySelectorAll('.j-row').length == 16")
+            assert "Historique de sw-core-01" in tab.js("document.querySelector('.j-chip').textContent")
+            tab.js("history.back()")
+            _wait(tab, "LDApp.debug.state().view.mode === 'diagram'")
     finally:
         server.should_exit = True
         thread.join(timeout=5)

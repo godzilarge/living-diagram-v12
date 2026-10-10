@@ -13,13 +13,13 @@
 .j-main, .j-side { animation: fade var(--t-fast) var(--ease) both; }
 .journal {
   --cat: var(--ink-3);
-  --thumb-bg: var(--bg-elev-2); --thumb-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 0 0 1px var(--line-strong);
+  --thumb-bg: var(--bg-elev-2); --thumb-shadow: var(--shadow-xs), inset 0 0 0 1px var(--line-strong);
   --t-slide: 280ms; --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --row-line: color-mix(in srgb, var(--line) 62%, transparent);
   /* les colonnes du registre */
   --c-pad: 14px; --c-gap: 12px; --c-time: 58px; --c-cat: 16px; --c-who: 128px; --c-infra: 150px; --c-rev: 72px; --c-chev: 14px;
 }
-:root[data-theme="light"] .journal { --thumb-bg: var(--bg-elev); --thumb-shadow: 0 1px 2px rgba(20, 27, 36, 0.14), inset 0 0 0 1px var(--line-strong); }
+:root[data-theme="light"] .journal { --thumb-bg: var(--bg-elev); }
 .journal ::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 .cat-positions { --cat: var(--hue-blue); }
 .cat-colors { --cat: var(--hue-pink); }
@@ -27,6 +27,10 @@
 .cat-annotations { --cat: var(--hue-amber); }
 .cat-connectors { --cat: var(--hue-teal); }
 .cat-other { --cat: var(--ink-3); }
+/* l'action : « supprimé » en rouge comme le verbe d'une ligne qui retire, les deux autres discrets */
+.act-created { --cat: var(--added); }
+.act-modified { --cat: var(--ink-3); }
+.act-deleted { --cat: var(--error); }
 .j-main { grid-column: 2; grid-row: 1; position: relative; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 
 /* ---------- l'icône d'une catégorie : le trait de sa teinte, sans tuile ---------- */
@@ -37,9 +41,9 @@
 .j-side { grid-column: 1; grid-row: 1; overflow-y: auto; padding: 20px 12px 24px 14px; border-right: 1px solid var(--line); background: var(--bg-elev); scrollbar-width: thin;
   display: flex; flex-direction: column; gap: 0; }
 .j-side > section + section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--row-line); }
-.j-side-head { display: flex; align-items: center; justify-content: space-between; height: 22px; margin: 0 0 4px 8px; }
+.j-side-head { display: flex; align-items: center; justify-content: space-between; height: 24px; margin: 0 0 4px 8px; }
 .j-side h2 { margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
-.j-reset { height: 22px; padding: 0 6px; border-radius: 4px; color: var(--ink-3); font-size: var(--fs-sm); transition: color var(--t-fast), background var(--t-fast); }
+.j-reset { height: 24px; padding: 0 6px; border-radius: 4px; color: var(--ink-3); font-size: var(--fs-sm); transition: color var(--t-fast), background var(--t-fast); }
 .j-reset:hover { color: var(--ink); background: var(--bg-elev-2); }
 .j-side ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .j-facet { position: relative; z-index: 1; display: flex; align-items: center; gap: var(--sp-2); width: 100%; height: 32px; padding: 0 8px; border-radius: var(--r-sm); color: var(--ink-2);
@@ -58,8 +62,9 @@
 .j-facet.j-toggle[aria-pressed="true"]:hover { background: color-mix(in srgb, var(--cat) 16%, transparent); }
 .j-facet.j-toggle[aria-pressed="true"] .j-check { opacity: 1; transform: none; }
 .j-facet.j-toggle[aria-pressed="true"] .j-facet-count { color: var(--ink-2); }
-/* l'infrastructure ouverte dans le Diagramme : un point, pas une place à part */
-.j-here { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+/* l'infrastructure ouverte dans le Diagramme : un mot discret après le nom, pas une place à part (un point seul ne se
+   comprenait que par son infobulle) */
+.j-here { flex: none; font-size: var(--fs-xs); font-weight: 400; color: var(--ink-3); }
 .j-empty-facet { margin: 0 0 0 8px; color: var(--ink-3); font-size: var(--fs-sm); }
 
 /* ---------- un choix exclusif : le fond relevé glisse sous le choix (useThumb pose sa place) ---------- */
@@ -67,23 +72,47 @@
 .j-choices::before { content: ""; position: absolute; left: 0; top: 0; width: var(--thumb-w, 0); height: var(--thumb-h, 0); transform: translate(var(--thumb-x, 0), var(--thumb-y, 0));
   opacity: var(--thumb-o, 0); border-radius: var(--r-sm); background: var(--thumb-bg); box-shadow: var(--thumb-shadow); pointer-events: none; }
 .j-choices.thumb-ready::before { transition: transform var(--t-slide) var(--ease-out), width var(--t-slide) var(--ease-out), height var(--t-slide) var(--ease-out), opacity var(--t-fast); }
-.j-facet.choice[aria-pressed="true"], .j-facet.choice[aria-pressed="true"]:hover { color: var(--ink); background: transparent; font-weight: 550; }
+.j-facet.choice[aria-checked="true"], .j-facet.choice[aria-checked="true"]:hover { color: var(--ink); background: transparent; font-weight: 550; }
 /* dans les facettes, le curseur est un fond plein et discret, sans cadre ni ombre (le cadre relevé reste à la période) */
 .j-side .j-choices::before { background: color-mix(in srgb, var(--ink) 8%, transparent); box-shadow: none; }
-.j-facet.choice[aria-pressed="true"] .j-facet-count { color: var(--ink-2); }
+.j-facet.choice[aria-checked="true"] .j-facet-count { color: var(--ink-2); }
 
 /* ---------- l'en-tête ---------- */
 .j-head, .j-list, .j-state, .j-warn, .j-note { max-width: 1400px; margin-left: auto; margin-right: auto; padding-left: 32px; padding-right: 32px; }
-.j-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--sp-3) var(--sp-5); padding-top: 26px; padding-bottom: 18px; }
+/* l'en-tête reste en haut au défilement (recherche, période et export toujours à portée) ; sa hauteur, posée par la
+   page (`--head-h`), place les en-têtes figés du tableau dessous */
+.j-head { position: sticky; top: 0; z-index: 4; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--sp-3) var(--sp-5);
+  padding-top: 22px; padding-bottom: 20px; background: var(--bg); }
 .j-title { min-width: 0; }
+.j-title-row { position: relative; display: flex; align-items: center; gap: 6px; }
+.j-help-open { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 5px; color: var(--ink-3); transition: color var(--t-fast), background var(--t-fast); }
+.j-help-open:hover, .j-help-open[aria-expanded="true"] { color: var(--ink); background: var(--bg-elev-2); }
+.j-help-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.j-help-open svg { width: 15px; height: 15px; }
+.j-help { position: absolute; left: 0; top: calc(100% + 8px); z-index: 6; width: 380px; max-width: calc(100vw - 48px); padding: 14px 16px 16px; border-radius: var(--r); border: 1px solid var(--line-strong);
+  background: var(--bg-elev); box-shadow: var(--shadow); animation: fade var(--t-fast) var(--ease) both; }
+.j-help:focus { outline: none; }
+.j-help-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.j-help h2 { margin: 0; font-size: var(--fs); font-weight: 600; color: var(--ink); }
+.j-help-close { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 5px; color: var(--ink-3); }
+.j-help-close:hover { color: var(--ink); background: var(--bg-elev-2); }
+.j-help-close svg { width: 14px; height: 14px; }
+.j-keys { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 14px; margin: 0; font-size: var(--fs-sm); }
+.j-keys > div { display: contents; }
+.j-keys dt { display: flex; gap: 4px; }
+.j-keys dd { margin: 0; color: var(--ink-2); align-self: center; }
+.journal kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line-strong);
+  background: var(--bg-elev-2); color: var(--ink-2); font: 500 var(--fs-xs)/1 var(--sans); }
+.j-help-notes { margin: 14px 0 0; padding: 12px 0 0 16px; border-top: 1px solid var(--row-line); display: flex; flex-direction: column; gap: 6px; color: var(--ink-2); font-size: var(--fs-sm); line-height: 1.5; }
 .j-title h1 { margin: 0; font-size: var(--fs-xl); font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; color: var(--ink); }
 .j-title p { margin: 5px 0 0; font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.j-tools { display: flex; align-items: center; gap: var(--sp-2); justify-content: flex-end; min-width: 0; }
+.j-tools { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); justify-content: flex-end; min-width: 0; }
 .j-search { position: relative; display: flex; align-items: center; flex: 0 1 auto; width: 320px; min-width: 200px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg-elev);
   transition: border-color var(--t-fast), box-shadow var(--t-fast); }
 .j-search:hover { border-color: var(--line-strong); }
 .j-search:focus-within { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 3px var(--accent-soft); }
 .j-search > svg { position: absolute; left: 11px; width: 15px; height: 15px; color: var(--ink-3); pointer-events: none; }
+.j-kbd { position: absolute; right: 8px; pointer-events: none; }
 .j-search input { flex: 1 1 auto; min-width: 0; height: 100%; padding: 0 34px 0 34px; border: 0; background: transparent; color: var(--ink); font-size: var(--fs); outline: none; text-overflow: ellipsis; caret-color: var(--accent); }
 .j-search input::-webkit-search-cancel-button { display: none; }
 .j-search input::placeholder { color: var(--ink-3); }
@@ -95,22 +124,61 @@
 .j-period button { position: relative; z-index: 1; height: 28px; padding: 0 11px; border-radius: 4px; color: var(--ink-2); font-size: var(--fs-sm); white-space: nowrap; font-variant-numeric: tabular-nums; transition: color var(--t-fast); }
 .j-period button:hover { color: var(--ink); }
 .j-period button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.j-period button[aria-pressed="true"] { color: var(--ink); font-weight: 500; }
+.j-period button[aria-checked="true"] { color: var(--ink); font-weight: 500; }
+.j-range-open { display: inline-flex; align-items: center; gap: 6px; }
+.j-range-open svg { width: 13px; height: 13px; flex: none; }
+.j-period-box { position: relative; flex: none; }
+.j-range { position: absolute; right: 0; top: calc(100% + 8px); z-index: 6; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; width: 320px; padding: 14px;
+  border-radius: var(--r); border: 1px solid var(--line-strong); background: var(--bg-elev); box-shadow: var(--shadow); animation: fade var(--t-fast) var(--ease) both; }
+.j-range label { display: flex; flex-direction: column; gap: 5px; font-size: var(--fs-sm); color: var(--ink-2); }
+.j-range input { height: 32px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: var(--fs);
+  font-variant-numeric: tabular-nums; }
+.j-range input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.j-range-note { grid-column: 1 / -1; margin: 0; font-size: var(--fs-sm); color: var(--ink-3); }
+.j-range-note.bad { color: var(--error); }
+.j-range input[aria-invalid="true"] { border-color: var(--error); }
+.j-range-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: var(--sp-2); }
+/* « Appliquer » sans plage lisible : un bouton neutre et éteint, jamais l'aplat cyan qui a l'air actif */
+.j-range-actions .btn[aria-disabled="true"], .j-range-actions .btn[aria-disabled="true"]:hover { background: var(--bg-elev-2); color: var(--ink-3); border-color: var(--line); cursor: not-allowed; }
 .j-export { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 34px; padding: 0 12px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg-elev);
   color: var(--ink-2); font-size: var(--fs-sm); font-weight: 500; transition: color var(--t-fast), border-color var(--t-fast); }
 .j-export:hover { color: var(--ink); border-color: var(--line-strong); }
 .j-export:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .j-export[aria-disabled="true"] { cursor: progress; color: var(--ink-3); }
 .j-export svg { width: 14px; height: 14px; }
+/* le résultat d'un export, sous le bouton (dans la marge de l'en-tête : rien ne se décale quand il paraît) : réussi en
+   vert puis effacé, tronqué en avertissement, raté en erreur */
+.j-said { position: absolute; right: 0; top: calc(100% + 3px); display: inline-flex; align-items: center; gap: 5px; max-width: 420px; font-size: var(--fs-sm); line-height: 14px;
+  color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: fade var(--t-fast) var(--ease) both; }
+/* toujours rendu (une région live vide reste dans l'arbre d'accessibilité : l'annonce part), jamais vu vide */
+.j-said svg { width: 14px; height: 14px; flex: none; }
+.j-said.tone-ok { color: var(--confirmed); }
+.j-said.tone-warn { color: var(--warning); }
+.j-said.tone-error { color: var(--error); }
+/* sous l'en-tête : l'historique d'un objet (une pastille retirable) et le lien vers une entrée */
+.j-context { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); margin-top: -4px; }
+.j-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 4px 0 10px; border-radius: var(--r-sm); border: 1px solid var(--line-strong);
+  background: var(--bg-elev); color: var(--ink-2); font-size: var(--fs-sm); }
+.j-chip b { font-weight: 600; color: var(--ink); }
+.j-chip svg { width: 14px; height: 14px; color: var(--accent); }
+.j-chip-x { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 4px; color: var(--ink-3); }
+.j-chip-x:hover { background: var(--bg-elev-2); color: var(--ink); }
+.j-chip-x svg { width: 13px; height: 13px; color: currentColor; }
+.j-chip-x:focus-visible, .j-link-btn:focus-visible, .j-act:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.j-linked { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: var(--fs-sm); }
+.j-linked svg { width: 14px; height: 14px; color: var(--accent); flex: none; }
+.j-link-btn { height: 24px; padding: 0 8px; border-radius: 4px; color: var(--accent); font-size: var(--fs-sm); font-weight: 500; }
+.j-link-btn:hover { background: var(--accent-soft); }
 /* « aller aux entrées » : invisible jusqu'au focus clavier */
-.j-skip { position: absolute; left: 32px; top: 6px; z-index: 3; padding: 4px 10px; border-radius: var(--r-sm); background: var(--accent); color: var(--accent-ink); font-size: var(--fs-sm); font-weight: 600;
+.j-skip { position: absolute; left: 32px; top: 6px; z-index: 7; padding: 4px 10px; border-radius: var(--r-sm); background: var(--accent); color: var(--accent-ink); font-size: var(--fs-sm); font-weight: 600;
   transform: translateY(-160%); opacity: 0; pointer-events: none; }
 .j-skip:focus-visible { transform: none; opacity: 1; pointer-events: auto; }
 
 /* ---------- états ---------- */
 .j-warn { display: flex; align-items: center; gap: 6px; margin-top: 0; margin-bottom: var(--sp-3); color: var(--warning); font-size: var(--fs-sm); }
 .j-warn svg { width: 14px; height: 14px; }
-.j-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); padding-top: var(--sp-5); color: var(--ink-2); font-size: var(--fs); }
+.j-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); padding-top: var(--sp-5); padding-bottom: var(--sp-5); color: var(--ink-2); font-size: var(--fs); }
+.j-state + .j-note { padding-top: var(--sp-4); border-top: 1px solid var(--row-line); }
 .j-state p { margin: 0; max-width: 60ch; line-height: 1.5; }
 .j-state.error .j-state-title { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--error); font-weight: 600; }
 .j-state.error .j-state-title svg { width: 16px; height: 16px; }
@@ -124,11 +192,11 @@
 /* un seul tableau : l'en-tête des colonnes en haut, figé ; chaque jour est une bande dans le tableau, figée dessous
    (`overflow: clip` et non `hidden` : un ancêtre qui défile casserait les en-têtes figés) */
 .j-table { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-elev); overflow: clip; }
-.j-cols { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: var(--c-time) var(--c-cat) var(--c-who) minmax(0, 1fr) var(--c-rev) var(--c-chev); column-gap: var(--c-gap);
+.j-cols { position: sticky; top: var(--head-h, 0px); z-index: 2; display: grid; grid-template-columns: var(--c-time) var(--c-cat) var(--c-who) minmax(0, 1fr) var(--c-rev) var(--c-chev); column-gap: var(--c-gap);
   align-items: center; height: 34px; padding: 0 var(--c-pad); background: var(--bg-elev); border-bottom: 1px solid var(--line); font-size: var(--fs-xs); font-weight: 500; color: var(--ink-3); }
 .j-list.with-infra .j-cols { grid-template-columns: var(--c-time) var(--c-cat) var(--c-who) minmax(0, 1fr) var(--c-infra) var(--c-rev) var(--c-chev); }
 .j-cols .j-col-rev { text-align: right; }
-.j-day > h2 { position: sticky; top: 34px; z-index: 1; height: 30px; line-height: 29px; margin: 0; padding: 0 var(--c-pad);
+.j-day > h2 { position: sticky; top: calc(var(--head-h, 0px) + 34px); z-index: 1; height: 30px; line-height: 29px; margin: 0; padding: 0 var(--c-pad);
   background: color-mix(in srgb, var(--bg-elev-2) 55%, var(--bg-elev)); border-bottom: 1px solid var(--row-line); font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); }
 .j-day + .j-day > h2 { border-top: 1px solid var(--line); }
 .j-day > h2::first-letter { text-transform: uppercase; }
@@ -138,26 +206,35 @@
 .j-row + .j-row { border-top: 1px solid var(--row-line); }
 .j-row-head { display: grid; grid-template-columns: var(--c-time) var(--c-cat) var(--c-who) minmax(0, 1fr) var(--c-rev) var(--c-chev); align-items: center; column-gap: var(--c-gap);
   width: 100%; height: 38px; padding: 0 var(--c-pad); border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
-  scroll-margin-top: 68px; scroll-margin-bottom: 16px; transition: background var(--t-fast); }
+  scroll-margin-top: calc(var(--head-h, 0px) + 68px); scroll-margin-bottom: 16px; transition: background var(--t-fast); }
 .j-list.with-infra .j-row-head { grid-template-columns: var(--c-time) var(--c-cat) var(--c-who) minmax(0, 1fr) var(--c-infra) var(--c-rev) var(--c-chev); }
 .j-row-head:hover { background: color-mix(in srgb, var(--bg-elev-2) 55%, transparent); }
 .j-row.open .j-row-head { background: color-mix(in srgb, var(--bg-elev-2) 75%, transparent); }
+/* l'entrée qu'un lien vise : un fond à peine teinté d'accent et un cadre fin tout autour (jamais un trait de côté) */
+.j-row.target .j-row-head { background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
 .j-row-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .j-time { font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 .j-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs); font-weight: 500; color: var(--ink); }
 .j-text { min-width: 0; display: flex; align-items: baseline; gap: 8px; font-size: var(--fs); color: var(--ink-2); }
 .j-say { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .j-fields { color: var(--ink-3); }
+/* le verbe en encre pleine ; une phrase qui retire, en rouge (le geste le plus grave d'un audit doit se voir) */
+.j-verb { color: var(--ink); }
+.j-row.destroy .j-verb { color: var(--error); font-weight: 500; }
 /* les positions font l'essentiel du journal : estompées, pour que créations et suppressions ressortent */
 .j-row.quiet .j-who { color: var(--ink-2); font-weight: 400; }
-.j-row.quiet .j-text, .j-row.quiet .j-ref { color: var(--ink-3); }
+.j-row.quiet .j-text, .j-row.quiet .j-ref, .j-row.quiet .j-verb { color: var(--ink-3); }
 .j-row.quiet .j-cat { opacity: 0.7; }
+:root[data-theme="light"] .j-row.quiet .j-who { color: var(--ink-3); }
+:root[data-theme="light"] .j-row.quiet .j-cat { opacity: 0.85; } /* ≥ 3:1 : l'icône est le seul repère de la catégorie */
 .j-ref { display: inline; padding: 0; border: 0; background: none; font: inherit; font-weight: 500; color: var(--ink); cursor: pointer; text-decoration: underline 1px transparent; text-underline-offset: 3px;
   transition: color var(--t-fast), text-decoration-color var(--t-fast); }
 .j-ref:hover { color: var(--accent); text-decoration-color: currentColor; }
 .j-ref:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
-.j-ref.gone { cursor: default; font-weight: 400; color: var(--ink-3); }
-.j-gone { margin-left: 5px; font-size: var(--fs-xs); color: var(--ink-3); }
+/* un objet qui n'est plus là garde un nom lisible ; ce qu'il est devenu se dit une fois, en fin de cellule */
+.j-ref.gone { cursor: default; color: var(--ink-2); text-decoration: none; }
+.j-gone { flex: none; font-size: var(--fs-sm); font-style: italic; color: var(--ink-3); }
+.j-since { flex: none; font-size: var(--fs-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .j-times { flex: none; display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 4px; background: var(--bg-elev-2); color: var(--ink-2); font-size: var(--fs-xs); font-weight: 500; font-variant-numeric: tabular-nums; }
 .j-why { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); font-size: var(--fs-sm); }
 .j-why .j-hit { color: var(--ink-2); }
@@ -193,24 +270,37 @@
 .j-raw summary:hover { color: var(--ink); }
 .j-raw summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .j-raw summary svg { width: 13px; height: 13px; }
-.j-raw pre { margin: var(--sp-2) 0 0; max-height: 320px; overflow: auto; padding: var(--sp-3); border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg); font: 400 11.5px/1.55 var(--mono); color: var(--ink-2); scrollbar-width: thin; }
+.j-raw pre { margin: var(--sp-2) 0 0; max-height: 320px; overflow: auto; padding: var(--sp-3); border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg); font: 400 var(--fs-xs)/1.6 var(--mono); color: var(--ink-2); scrollbar-width: thin; }
 
+/* le pied du détail : le lien vers l'entrée, l'historique de ses objets */
+.j-entry-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-top: var(--sp-2); border-top: 1px solid var(--row-line); }
+.j-act { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg-elev);
+  color: var(--ink-2); font-size: var(--fs-sm); transition: border-color var(--t-fast), color var(--t-fast); }
+.j-act:hover { color: var(--ink); border-color: var(--line-strong); }
+.j-act b { font-weight: 500; color: var(--ink); max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.j-act svg { width: 13px; height: 13px; flex: none; }
+.j-act-said { font-size: var(--fs-sm); color: var(--confirmed); }
 .j-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding-top: var(--sp-4); color: var(--ink-3); font-size: var(--fs-sm); }
 .j-foot .btn[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
 .j-shown { font-variant-numeric: tabular-nums; }
 
 /* ---------- étroit : la recherche sous le titre, puis les facettes au-dessus du fil ---------- */
 @media (max-width: 1180px) { .j-head { grid-template-columns: minmax(0, 1fr); } .j-tools { justify-content: flex-start; } .j-search { flex: 1 1 auto; width: auto; max-width: 440px; } }
-@media (max-width: 1000px) { .journal { --c-who: 104px; --c-infra: 110px; } .j-head, .j-list, .j-state, .j-warn, .j-note { padding-left: 20px; padding-right: 20px; } }
+/* la colonne Infrastructure reste à toutes les largeurs (avec « Toutes », c'est le « où » d'un audit : revue Impeccable
+   du 2026-10-10) ; l'auteur et elle se resserrent */
+@media (max-width: 1000px) {
+  .journal { --c-who: 96px; --c-infra: 104px; }
+  .j-head, .j-list, .j-state, .j-warn, .j-note { padding-left: 20px; padding-right: 20px; }
+  .j-skip { left: 20px; }
+}
 @media (max-width: 860px) {
-  .journal { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); --c-pad: 10px; --c-gap: 8px; --c-time: 54px; }
+  .journal { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); --c-pad: 10px; --c-gap: 8px; --c-time: 54px; --c-who: 84px; --c-infra: 88px; }
   .j-side { grid-column: 1; grid-row: 1; flex-direction: row; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); max-height: 38vh; padding: var(--sp-3) var(--sp-4); border-right: 0; border-bottom: 1px solid var(--line); }
   .j-main { grid-column: 1; grid-row: 2; }
   .j-side section { min-width: 180px; }
+  /* en rangée, les sections se suivent côte à côte : ni retrait ni filet au-dessus (ils les décalaient de 33 px) */
+  .j-side > section + section { margin-top: 0; padding-top: 0; border-top: 0; }
   .j-detail { padding-left: var(--sp-4); }
-  .j-list.with-infra .j-row-head { grid-template-columns: var(--c-time) var(--c-cat) var(--c-who) minmax(0, 1fr) var(--c-rev) var(--c-chev); }
-  .j-list.with-infra .j-infra, .j-list.with-infra .j-col-infra { display: none; }
-  .j-list.with-infra .j-cols { grid-template-columns: var(--c-time) var(--c-cat) var(--c-who) minmax(0, 1fr) var(--c-rev) var(--c-chev); }
 }
 @media (prefers-reduced-motion: reduce) {
   .journal { --t-slide: 0ms; }

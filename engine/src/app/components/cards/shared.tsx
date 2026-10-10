@@ -1,7 +1,7 @@
 // Ce que les fiches partagent, dans la grammaire de l'inspecteur (ui/inspector.tsx) : un nom cliquable (ouvre
 // l'équipement), l'icône de type, les câbles d'un équipement, les contrôles (comptés par sévérité, puis en liste
 // courte), l'appartenance HA, le choix d'une teinte, la ligne « donnez votre nom ». Tout est lu dans le modèle.
-import { Lock, User } from "lucide-react";
+import { History, Lock, User } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { KIND_LABEL, shortPort } from "../../../canvas/format";
@@ -12,7 +12,7 @@ import { endLabel, haRoleGroup } from "../../../canvas/model";
 import type { CheckEntry, Model, ModelLink } from "../../../canvas/types";
 import { useControl, useStore, useWriteLock } from "../../state/store";
 import { Badge, DiffBadge, plural } from "../../ui";
-import { Hint, HueField, List, ListRow, MoreLink, Section, Select } from "../../ui/inspector";
+import { Hint, HueField, IconButton, List, ListRow, MoreLink, Section, Select } from "../../ui/inspector";
 
 /** Ce qu'il manque pour écrire : un nom, ou une intention lisible (si elle n'a pas pu être lue avec la run, l'écriture
  *  est coupée pour ne rien écraser). Une ligne grise : un fait sur la page, pas un défaut des données. */
@@ -178,3 +178,9 @@ export function HaRows({ model, hostname }: { model: Model; hostname: string }) 
 /** Une ligne « avant → après » d'un champ changé (diff). */
 const shown = (value: unknown): string => (value === null || value === undefined || value === "" ? "—" : String(value));
 export const changeText = (before: unknown, after: unknown): string => shown(before) + " → " + shown(after);
+
+/** L'historique d'un objet au Journal (2026-10-10) : tout ce qui l'a touché ou cité, qui, quand ; Retour ramène ici. */
+export function HistoryButton({ object }: { object: string }) {
+  const { commands } = useStore();
+  return <IconButton label="historique au journal" onClick={() => commands.openHistory(object)}><History /></IconButton>;
+}

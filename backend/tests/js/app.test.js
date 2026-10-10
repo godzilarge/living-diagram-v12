@@ -58,14 +58,14 @@ test("l'adresse est l'état de vue : run dans la recherche, vue et sélection da
 
 test("la vue Journal : mode et filtres dans l'adresse, écrits en mode Journal seulement", () => {
   const { address } = loadApp();
-  const filters = { q: "cœur dc02", authors: ["Orhan TOSUN", "alice"], categories: ["groups", "positions"], infrastructure: "*", period: "7d" };
+  const filters = { q: "cœur dc02", authors: ["Orhan TOSUN", "alice"], categories: ["groups", "positions"], actions: [], infrastructure: "*", period: "7d", from: "", to: "", object: "", rev: null };
   const view = { ...clone(address.defaultView()), mode: "journal", journal: filters };
   const hash = address.formatHash(view, null);
   assert.equal(hash, "#mode=journal&jq=c%C5%93ur%20dc02&jau=Orhan%20TOSUN&jau=alice&jcat=groups,positions&jinfra=*&jp=7d");
   assert.deepEqual(clone(address.parseHash(hash).view), view, "aller et retour");
   assert.equal(address.formatHash({ ...view, mode: "diagram" }, null), "", "hors du Journal, ses filtres ne s'écrivent pas");
   const tolerant = clone(address.parseHash("#mode=journal&jcat=groups,teleport&jp=1y&jau=&jau=bob&jau=bob").view.journal);
-  assert.deepEqual(tolerant, { q: "", authors: ["bob"], categories: ["groups"], infrastructure: "", period: "all" }, "catégorie et période inconnues ignorées, auteur vide ou répété aussi");
+  assert.deepEqual(tolerant, { q: "", authors: ["bob"], categories: ["groups"], actions: [], infrastructure: "", period: "all", from: "", to: "", object: "", rev: null }, "catégorie et période inconnues ignorées, auteur vide ou répété aussi");
 });
 
 test("le journal : requête, phrases, rafales, jours", () => {
@@ -89,11 +89,11 @@ test("le journal : requête, phrases, rafales, jours", () => {
   const piece = clone(journal.headline(created).pieces[1]);
   assert.deepEqual(piece, { ref: "group", id: "g7-1", text: "Cœur" }, "le groupe cité se montre dans le diagramme");
   const update = entry([{ op: "annotation_update", id: "a3-1", x: 4, y: null, w: 10, h: null, content: null, style: null }], { subjects: [{ id: "a3-1", kind: "annotation", label: "", form: "" }] });
-  assert.equal(say(update), "a modifié l'annotation a3-1 : position, taille", "les clés nulles ne sont pas des changements");
+  assert.equal(say(update), "a modifié l'annotation sans titre : position, taille", "les clés nulles ne sont pas des changements ; sans nom, la sorte, jamais l'identité");
   const note = entry([{ op: "annotation_create", content: { kind: "table", rows: [["x"]] } }], { created: ["a7-1"], subjects: [{ id: "a7-1", kind: "annotation", label: "1 × 1", form: "table" }] });
   assert.equal(say(note), "a ajouté un tableau 1 × 1");
   assert.equal(say(entry([{ op: "annotation_delete", id: "a7-1" }], { subjects: [{ id: "a7-1", kind: "annotation", label: "Salle B", form: "note" }] })), "a supprimé la note Salle B");
-  assert.equal(say(entry([{ op: "connector_create", start: {}, end: {} }])), "a tracé le connecteur c7-1", "sans nom ni sujet connu : l'identité qu'il a reçue");
+  assert.equal(say(entry([{ op: "connector_create", start: {}, end: {} }])), "a tracé le connecteur sans nom", "sans nom ni sujet connu : jamais l'identité reçue");
   assert.equal(say(entry([{ op: "teleport" }])), "opération inconnue « teleport »");
   assert.equal(journal.headline(entry([{ op: "teleport" }])).category, "other");
   const items = (list) => journal.fold(list);
@@ -108,12 +108,14 @@ test("le journal : suites repliées, détail par verbe, faits en mots, surlignag
   const at = (m) => "2026-10-09T10:" + String(m).padStart(2, "0") + ":00Z";
   const e = (rev, m, op, extra = {}) => ({ infrastructure: "lab", revision: rev, at: at(m), author: "orhan", categories: [], created: [], subjects: [], ops: [op], ...extra });
   const style = (n) => ({ op: "annotation_update", id: "a1-1", x: null, style: n ? { hue: "red" } : null, w: n ? null : 40, h: n ? null : 20 });
-  const list = [e(9, 9, style(1)), e(8, 8, style(0)), e(7, 7, style(1)), e(6, 3, { op: "pin", hostname: "sw", x: 1, y: 2 }), e(5, 2, { op: "pin", hostname: "sw", x: 3, y: -4 }), e(4, 1, { op: "pin", hostname: "fw", x: 0, y: 0 })];
+  const r = (id, size) => ({ group: { id, kind: "repeat", size } }); // le regroupement vient du serveur (journal_groups.py)
+  const list = [e(9, 9, style(1), r("r7", 3)), e(8, 8, style(0), r("r7", 3)), e(7, 7, style(1), r("r7", 3)), e(6, 3, { op: "pin", hostname: "sw", x: 1, y: 2 }, r("r5", 2)),
+    e(5, 2, { op: "pin", hostname: "sw", x: 3, y: -4 }, r("r5", 2)), e(4, 1, { op: "pin", hostname: "fw", x: 0, y: 0 })];
   const folded = clone(journal.fold(list));
   assert.deepEqual(folded.map((i) => [i.kind, i.kind === "fold" ? i.entries.map((x) => x.revision) : i.entry.revision]), [["fold", [9, 8, 7]], ["fold", [6, 5]], ["entry", 4]],
-    "le même geste sur le même objet, à moins de dix minutes, se replie ; un autre objet non");
+    "les entrées voisines d'un même regroupement se replient ; une entrée sans regroupement reste seule");
   assert.deepEqual(clone(journal.changedFields(journal.mergedOp(list.slice(0, 3)))), ["style", "taille"], "la suite dit tout ce qu'elle a changé");
-  assert.equal(journal.fold([e(2, 30, style(1)), e(1, 1, style(1))]).length, 2, "au-delà de la fenêtre, deux lignes");
+  assert.equal(journal.fold([e(2, 30, style(1)), e(1, 1, style(1))]).length, 2, "sans regroupement du serveur, deux lignes");
   const burst = { ...e(3, 0, null), ops: [{ op: "pin", hostname: "a", x: 0, y: 0 }, { op: "color", hostname: "b", hue: "red" }, { op: "pin", hostname: "a", x: 1, y: 1 }, { op: "pin", hostname: "c", x: 0, y: 0 }] };
   const groups = clone(journal.detailGroups(burst)).map((g) => [journal.textOf(g.sentence), g.hosts]);
   assert.deepEqual(groups, [["a placé 3 équipements", ["a", "c"]], ["a coloré b en rouge", []]], "regroupé par verbe, les noms dédoublonnés");
@@ -141,6 +143,62 @@ test("le journal : suites repliées, détail par verbe, faits en mots, surlignag
   assert.match(journal.zoneLabel(Date.now()), /^UTC([+−]\d+(:\d\d)?)?$/);
   assert.deepEqual(clone(journal.queryOf(journal.defaultFilters(), "lab", 0, null, 300)), [["infrastructure", "lab"], ["limit", "300"]], "une relecture redemande autant d'entrées");
   assert.equal(journal.newer(list[0], list[1]), true);
+});
+
+test("le journal : sessions de positions, plage de dates, noms des sujets cités, suppressions", () => {
+  const LDApp = loadApp();
+  const { journal, address } = LDApp;
+  const at = (h, m) => "2026-10-09T" + String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":00Z";
+  const session = (id, size) => ({ group: { id, kind: "session", size } });
+  const pin = (rev, h, m, host, extra = session("s1", 5)) => ({ infrastructure: "lab", revision: rev, at: at(h, m), author: "orhan", categories: ["positions"], created: [], subjects: [],
+    ops: [{ op: "pin", hostname: host, x: 0, y: 0 }], ...extra });
+  const group = { infrastructure: "lab", revision: 20, at: at(11, 0), author: "orhan", categories: ["groups"], created: [], subjects: [{ id: "g1-1", kind: "group", label: "Cœur", form: "" }],
+    ops: [{ op: "group_delete", id: "g1-1" }] };
+  const list = [group, pin(19, 10, 50, "a"), pin(18, 10, 40, "b"), pin(17, 10, 30, "a"), pin(16, 10, 20, "c"), pin(15, 9, 0, "d", session("s0", 3)), pin(14, 8, 59, "e", {})];
+  const items = clone(journal.fold(list));
+  assert.deepEqual(items.map((i) => [i.kind, i.kind === "entry" ? i.entry.revision : i.entries.map((e) => e.revision)]),
+    [["entry", 20], ["session", [19, 18, 17, 16]], ["entry", 15], ["entry", 14]],
+    "les entrées voisines d'une même session : une ligne ; seule de la sienne à l'écran, une entrée reste une ligne");
+  assert.equal(items[1].size, 5, "la session entière compte 5 entrées : la page dit « 4 des 5 »");
+  assert.deepEqual(clone(journal.sessionHosts(items[1].entries)), { placed: ["a", "b", "c"], unpinned: [] });
+  const other = { ...pin(18, 10, 40, "b"), infrastructure: "edge" };
+  assert.equal(journal.fold([pin(19, 10, 50, "a"), other, pin(17, 10, 30, "a")]).length, 3, "une autre infrastructure entre deux : jamais fusionnées par-dessus");
+  // la plage : du premier jour à minuit au lendemain du dernier, en heure locale, dans l'adresse
+  const f = { ...clone(journal.defaultFilters()), period: "range", from: "2026-09-01", to: "2026-09-15" };
+  const q = Object.fromEntries(clone(journal.queryOf(f, "lab", 0)));
+  assert.equal(Date.parse(q.since), new Date(2026, 8, 1).getTime());
+  assert.equal(Date.parse(q.until), new Date(2026, 8, 16).getTime(), "le dernier jour compris (`until` est exclusif)");
+  const view = { ...clone(address.defaultView()), mode: "journal", journal: f };
+  assert.equal(address.formatHash(view, null), "#mode=journal&jp=range&jfrom=2026-09-01&jto=2026-09-15");
+  assert.deepEqual(clone(address.parseHash("#mode=journal&jp=range&jfrom=2026-09-01&jto=2026-09-15").view.journal), f);
+  assert.equal(clone(address.parseHash("#mode=journal&jp=range&jfrom=2026-02-30").view.journal).period, "all", "une plage sans borne lisible n'est pas une plage");
+  assert.equal(journal.rangeLabel("2026-09-01", "2026-09-15", Date.parse("2026-10-09")), "1 sept. – 15 sept.");
+  assert.equal(journal.rangeLabel("2026-09-01", "", Date.parse("2026-10-09")), "depuis le 1 sept.");
+  // un ancrage et un bout de connecteur nommés par le sujet que le serveur cite, jamais par leur identité
+  const anchored = { ...group, ops: [{ op: "annotation_update", id: "a2-1", anchor: { kind: "group", ref: "g1-1" }, start: { kind: "annotation", ref: "a9-9", side: "n" } }],
+    subjects: [{ id: "a2-1", kind: "annotation", label: "", form: "shape" }, { id: "g1-1", kind: "group", label: "Cœur", form: "" }, { id: "a9-9", kind: "annotation", label: "", form: "image" }] };
+  assert.equal(journal.textOf(journal.headline(anchored)), "a modifié la forme sans titre : ancrage, bouts");
+  const facts = Object.fromEntries(clone(journal.factsOf(anchored.ops[0], anchored)).map((x) => [x.label, x.value]));
+  assert.equal(facts["ancrage"], "groupe Cœur");
+  assert.equal(facts["départ"], "image sans titre, côté haut");
+  assert.equal(journal.destroys(journal.headline(group)), true, "une phrase qui retire ressort");
+  assert.equal(journal.destroys(journal.headline(list[1])), false);
+  // l'action, l'historique d'un objet, le lien vers une entrée : dans l'adresse et dans la requête
+  const linked = { ...clone(journal.defaultFilters()), actions: ["deleted"], object: "g1-1", infrastructure: "lab", rev: 986 };
+  const hash = address.formatHash({ ...clone(address.defaultView()), mode: "journal", journal: linked }, null);
+  assert.equal(hash, "#mode=journal&jact=deleted&jobj=g1-1&jinfra=lab&jrev=986");
+  assert.deepEqual(clone(address.parseHash(hash).view.journal), linked, "aller et retour");
+  assert.equal(clone(address.parseHash("#mode=journal&jrev=12a&jact=deleted,renamed").view.journal).rev, null, "une révision illisible est ignorée");
+  assert.deepEqual(clone(journal.queryOf(linked, "lab", 0)), [["infrastructure", "lab"], ["action", "deleted"], ["object", "g1-1"], ["start", "986"]]);
+  assert.deepEqual(clone(journal.queryOf(linked, "lab", 0, "CUR")).slice(-1), [["before", "CUR"]], "la suite part du curseur, plus de la révision");
+  assert.deepEqual(clone(journal.queryOf({ ...linked, infrastructure: "*" }, "lab", 0)).map((p) => p[0]), ["action"], "toutes les infrastructures : ni révision ni identité (uniques dans la leur seulement)");
+  assert.deepEqual(clone(address.parseHash("#mode=journal&jinfra=*&jobj=g1-1&jrev=4").view.journal).object, "", "« toutes » quitte l'historique et le lien");
+  assert.equal(journal.entryLink("https://ld.example/ld/", { ...group, infrastructure: "dc 1" }), "https://ld.example/ld/?infrastructure=dc%201#mode=journal&jinfra=dc%201&jrev=20", "sous un sous-chemin aussi");
+  // les accents se replient comme sur le serveur : « supprime » se voit, surligné, dans « a supprimé »
+  assert.equal(journal.visibleMatch(journal.headline(group), "orhan", ["supprime"]), true);
+  assert.deepEqual(clone(journal.marks("a supprimé Cœur", ["SUPPRIME"])), [{ text: "a ", hit: false }, { text: "supprimé", hit: true }, { text: " Cœur", hit: false }]);
+  assert.equal(journal.filtered({ ...clone(journal.defaultFilters()), rev: 4 }), false, "un lien n'est pas un filtre");
+  assert.equal(journal.filtered({ ...clone(journal.defaultFilters()), object: "sw" }), true);
 });
 
 test("le réducteur est pur et ne mute jamais", () => {

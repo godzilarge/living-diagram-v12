@@ -97,6 +97,10 @@ class IntentGroupError(ValueError):
 AssetCheck = Callable[[str, str], bool]
 
 
+class AssetInUseError(Exception):
+    """Une annotation cite encore l'image : elle ne se retire pas."""
+
+
 class IntentStore:
     def __init__(self, root: Path, asset_exists: AssetCheck | None = None) -> None:
         self.root = Path(root)
@@ -150,6 +154,16 @@ class IntentStore:
                 journal.flush()
                 os.fsync(journal.fileno())
         return updated
+
+    def release_asset(self, infrastructure: str, asset: str, remove: Callable[[], None]) -> None:
+        """Retire une image que plus aucune annotation ne cite, sous le verrou de `apply` : une annotation qui la cite
+        ne peut pas s'écrire entre la vérification et le retrait (audit de l'API, 2026-10-09)."""
+        folder = self._folder(infrastructure)
+        with locked(folder, folder_lock(folder)):
+            intent = self.load(infrastructure)
+            if any(a.content.kind == "image" and a.content.asset == asset for a in intent.annotations):
+                raise AssetInUseError(asset)
+            remove()
 
 
 def _applied(current: Intent, request: IntentOps, now: datetime, asset_exists: AssetCheck | None = None) -> Intent:

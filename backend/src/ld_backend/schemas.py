@@ -420,3 +420,19 @@ class RunEntry(ApiModel):
 class RunList(ApiModel):
     infrastructure: str
     runs: list[RunEntry] = Field(description="Triées par début de collecte, puis par `run_id`.")
+
+
+class ProblemField(ApiModel):
+    path: str = Field(description="Chemin du paramètre ou du champ fautif, en identifiants pointés (`ops.0.x`).")
+    message: str = Field(description="La règle enfreinte, jamais la valeur reçue.")
+
+
+class Problem(ApiModel):
+    """Le corps de toute erreur de l'API : un détail lisible, et pour un 422 la liste des champs fautifs."""
+
+    detail: str = Field(description="Ce qui ne va pas, en une phrase, sans valeur reçue.")
+    errors: list[ProblemField] | None = Field(default=None, description="Présent sur un 422 seulement.")
+
+
+class Health(ApiModel):
+    status: Literal["ok"]

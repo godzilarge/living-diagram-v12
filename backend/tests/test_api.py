@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-from ld_backend import api
+from ld_backend import openapi
 from ld_backend.api import create_app
 from tests.conftest import TOKEN, modified
 
@@ -177,7 +177,7 @@ def test_openapi_uses_a_bearer_security_scheme_not_a_header_parameter(client: Te
         for method, operation in item.items():
             names = [p["name"].lower() for p in operation.get("parameters", [])]
             assert "authorization" not in names, (path, method)
-            if path in ("/api/health", "/view", "/"):  # sans jeton : ni la coquille ni l'application n'ont de donnée
+            if path == "/api/health":  # sans jeton ; les pages (`/`, `/view`) sont hors du document
                 assert "security" not in operation, (path, method)
             else:
                 assert operation["security"] == [{name: []}], (path, method)
@@ -258,7 +258,7 @@ def test_openapi_document_is_built_once(settings):
 
 
 def test_contract_schema_name_collision_is_an_error(settings, monkeypatch):
-    monkeypatch.setattr(api, "_contract_schemas", lambda: {"HTTPValidationError": {"type": "string"}})
+    monkeypatch.setattr(openapi, "contract_schemas", lambda: {"RunList": {"type": "string"}})
     with pytest.raises(RuntimeError, match="collision"):
         create_app(settings).openapi()
 

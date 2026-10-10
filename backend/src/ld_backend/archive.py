@@ -241,6 +241,34 @@ class BundleArchive:
         raw = self.load_snapshot_bytes(infrastructure, run_id)
         return None if raw is None else self._parse(raw, infrastructure, run_id)
 
+    def has_runs(self, infrastructure: str) -> bool:
+        """Au moins une run lisible, sans lire ni trier les autres : la garde des écritures (intention, placement,
+        images) ne paie plus le coût de `list_runs` à chaque requête."""
+        infra_dir = self.root / _segment(infrastructure)
+        if not infra_dir.is_dir():
+            return False
+        for entry in infra_dir.iterdir():
+            if not entry.is_dir() or entry.name.startswith(TMP_PREFIX):
+                continue
+            try:
+                if self._read_meta(entry) is not None:
+                    return True
+            except ArchiveCorruptError:
+                continue
+        return False
+
+    def snapshot_stamp(self, infrastructure: str, run_id: str) -> tuple[int, int, int] | None:
+        """L'identité du fichier snapshot (inode, taille, date en ns), sans le lire ; `None` s'il n'y en a pas.
+
+        Le snapshot est le seul fichier remplaçable de l'archive (`ld correlate` l'écrit par renommage) : un nouveau
+        fichier change d'inode. C'est la clé de validité du cache des diffs.
+        """
+        try:
+            stat = (self._run_dir(infrastructure, run_id) / SNAPSHOT_FILE).stat()
+        except FileNotFoundError:
+            return None
+        return stat.st_ino, stat.st_size, stat.st_mtime_ns
+
     def list_runs(self, infrastructure: str) -> list[StoredRun]:
         infra_dir = self.root / _segment(infrastructure)
         if not infra_dir.is_dir():

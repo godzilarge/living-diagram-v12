@@ -53,10 +53,13 @@ archivée était listée mais illisible (404, test de bout en bout du 2026-09-19
 | `GET /api/ingest/bundle?infrastructure=…&run_id=…` | le bundle archivé, forme canonique, octets vérifiés par empreinte |
 | `GET /api/ingest/report?infrastructure=…&run_id=…` | `IngestReport` de la première ingestion (`correlation` y est toujours `null` : il décrit l'ingestion) |
 | `GET /api/snapshot?infrastructure=…&run_id=…` | le `Snapshot` v1 de la run (`contracts/CONTRAT.md` partie B), octets archivés. 404 « run inconnue » ou 404 « run archivée sans snapshot : lancer `ld correlate` » |
-| `GET /api/diff?infrastructure=…&from=…&to=…` | le `Diff` v1 entre les snapshots des deux runs (`contracts/CONTRAT.md` partie C, `docs/07`), **calculé à la demande, jamais archivé**, mêmes octets à chaque appel. 404 qui nomme le côté (« run `from` : run inconnue… », « run `to` : run archivée sans snapshot… »), 500 neutre si un snapshot archivé est hors contrat (`ld correlate`) |
+| `GET /api/diff?infrastructure=…&from=…&to=…` | le `Diff` v1 entre les snapshots des deux runs (`contracts/CONTRAT.md` partie C, `docs/07`), **calculé à la demande, jamais archivé**, gardé en mémoire tant que les deux snapshots ne changent pas (`DiffCache`, 64 Mo ; `docs/07` Q6), mêmes octets à chaque appel. 404 qui nomme le côté (« run `from` : run inconnue… », « run `to` : run archivée sans snapshot… »), 500 neutre si un snapshot archivé est hors contrat (`ld correlate`) |
 
 Paramètre manquant ou vide : 422 `{"detail": "paramètres de requête invalides", "errors": [{path, message}]}`,
-sans écho de la valeur reçue. Run inconnue : 404. Entrée d'archive corrompue : 500 neutre.
+sans écho de la valeur reçue. Run inconnue : 404. Entrée d'archive corrompue : 500 neutre. **Toute erreur a la forme
+`Problem`** (`detail`, et `errors` sur un 422), erreur imprévue comprise (500 « erreur interne », cause au journal du
+serveur seulement) ; seuls quatre refus portent un document : le rapport d'ingestion (409, 422, 500 du `POST`) et le
+placement courant (409 de `POST /api/placement`).
 
 ## Démarrer
 
@@ -125,6 +128,13 @@ options écartées, à reprendre si la zone l'exige :
 2. *Désactiver `/docs` et `/redoc`* (`docs_url=None, redoc_url=None`) et ne garder que `/openapi.json`, à
    ouvrir avec l'outil de son choix (Bruno, Insomnia, Swagger Editor hors ligne).
 
+**Organisation du document (audit du 2026-10-09).** Les routes y sont rangées en huit groupes, dans l'ordre du
+pipeline : Ingestion, Runs, Diff, Intention, Images, Placement, Journal, Système. Chaque opération a un identifiant
+court (`ingest_bundle`, `list_runs`, `get_diff`, `apply_intent_ops`…), chaque réponse son schéma (`Problem` pour les
+refus, 401 et 422 déclarés sur toutes les routes protégées). Les pages `/` et `/view` n'y figurent plus : ce ne sont
+pas des opérations. `tests/test_openapi.py` garde ces règles (route sans groupe, erreur sans schéma, opération
+d'intention oubliée dans la description : le test échoue). Les chemins n'ont pas changé.
+
 Le jeton se saisit une fois pour toutes
 les routes par le bouton **Authorize** (cadenas) : coller la valeur de `LD_API_TOKEN` seule, sans le mot
 `Bearer`. Le `POST` y présente un éditeur de corps dérivé du contrat : coller le contenu d'un bundle,
@@ -169,15 +179,18 @@ backend/
 │   │                         idempotence, ArchiveConflictError, noms de dossiers sûrs
 │   ├── ingest.py             ingest_bundle : valider → archiver → corréler → IngestResult ; result_payload (JSON) ; une ligne de journal
 │   ├── snapshots.py          branchement de B1 : correlate_if_missing (ingestion), recorrelate (ld correlate) ; un échec est journalisé, jamais propagé
-│   ├── diffs.py              branchement de B3 : deux snapshots archivés (par défaut les deux dernières runs) ou deux fichiers, résumé texte ; jamais stocké
+│   ├── diffs.py              branchement de B3 : deux snapshots archivés (par défaut les deux dernières runs) ou deux fichiers, résumé texte ;
+│   │                         jamais stocké sur disque, DiffCache en mémoire pour l'API
 │   ├── files.py              écriture atomique et verrou (fichier + fil) partagés par les stores d'intention et de placement
 │   ├── intent.py             B4 (2026-10-04, docs/08) : IntentStore, un document Intent par infrastructure sous <archive>/_intent/, écrit par
 │   │                         opérations (pin, unpin, color, uncolor, color_type, uncolor_type, group_create / update / add / remove / delete), verrou, écriture atomique, journal d'audit ; IntentCorruptError
 │   ├── placement.py          le placement mémorisé (2026-10-06, docs/09) : Place, Placement, PlacementWrite (formes typées, OpenAPI),
 │   │                         PlacementStore sous <archive>/_placement/ (load, record : première place gagnante, forget) ; PlacementCorruptError
-│   ├── schemas.py            formes de réponse et de requête typées (IngestReport, RunList, IntentOps : PinOp | UnpinOp) et `utc_z` : une seule forme de date
-│   ├── api.py                create_app : schéma de sécurité Bearer, OpenAPI porté par les quatre contrats, POST bundles, GET bundles / bundle / report /
-│   │                         snapshot / diff / intent / placement, POST intent/patches et placement (par paramètres de requête), /api/health
+│   ├── schemas.py            formes de réponse et de requête typées (IngestReport, RunList, IntentOps, Problem, Health) et `utc_z` : une seule forme de date
+│   ├── api.py                create_app : les routes, un routeur protégé par le jeton Bearer, regroupées par famille ; écritures hors de la
+│   │                         boucle d'événements
+│   ├── openapi.py            le document OpenAPI : groupes, réponses déclarées (Problem), schémas des contrats, corps lus à la main
+│   ├── bodies.py             corps lus en flux et bornés (JSON, image), refus à la forme Problem sans valeur reçue
 │   ├── cli.py                ld ingest | runs | correlate | diff | intent | placement | render | serve
 │   ├── render/               pages HTML de lecture d'un snapshot (2026-09-20), un fichier autonome par run
 │   │   ├── page.py           assemblage : gabarit + style + la toile + données ; JSON échappé, CSP par empreinte
@@ -439,7 +452,27 @@ Facettes : **toujours les mêmes valeurs, dans le même ordre** (par nom ; auteu
 choisie), un compte à 0 compris : une facette ne disparaît ni ne change de place quand on filtre. Recherche : sur
 l'auteur, les noms et le contenu des opérations, **jamais le nom de l'infrastructure** (elle a sa facette). Noms des
 sujets : un tableau par ses premières cellules, une image par son texte alternatif, un connecteur sans étiquette par
-ses deux bouts (« fw-edge-01 → Cœur »).
+ses deux bouts (« fw-edge-01 → Cœur ») ; un bout sans nom se dit par sa sorte (« forme sans titre », « image sans
+titre », jamais `a848-1`). Les groupes et annotations qu'une opération désigne par son ancrage ou ses bouts sont cités
+aussi dans `subjects`, avec leur nom : la page écrit « ancrage : groupe Cœur » (revue Impeccable du 2026-10-10).
+
+**La recherche lit les mots de la page** (`journal_words.py`, 2026-10-10) : en plus des opérations reçues, le verbe et
+la sorte de chaque phrase (« supprimé », « placé », « tableau »), la teinte et le type en français (« rouge »,
+« routeur »), les champs modifiés (« position ») et le nom d'un sujet sans nom (« forme sans titre ») ; sans la casse ni
+les accents (« supprime » trouve « supprimé »). Un test fait échouer la suite si un verbe de `journal-text.ts` n'y est
+pas. **Regroupements** (`journal_groups.py`) : chaque entrée porte `group` (`{id, kind, size}` ou `null`), calculé sur le
+journal entier de son infrastructure, jamais sur un filtre : `session` (positions voisines d'un même auteur, trous
+≤ 15 min, dès 3 entrées) ou `repeat` (même opération sur le même objet, même auteur, à moins de 10 min, dès 2) ; la page
+replie les entrées voisines d'un même regroupement.
+
+**Action, historique d'un objet, lien vers une entrée** (2026-10-10, `journal_index.py`) : chaque entrée porte `actions`
+(`created` = `*_create` ; `deleted` = `*_delete` et la trace d'une purge ; `modified` = le reste, retirer une épingle ou
+une couleur compris), filtrées par `action` (répétable) et comptées en facette `actions` (ordre fixe, sans leur filtre).
+`object=<hostname ou identité>` garde les entrées qui citent l'objet : ses opérations, sa création, un groupe qui le
+compte parmi ses membres, un ancrage ou un bout de connecteur sur lui. `start=<révision>` (avec `infrastructure`, sinon
+422 : une révision n'est unique que dans son infrastructure ; de même pour `object`) fait commencer la première page à
+l'entrée de cette révision ; absente, la page part de la trace de la purge qui l'a retirée, sinon de la plus proche plus
+ancienne, sinon du début, et `start_missing` vaut `true`. Une trace n'est jamais prise pour l'entrée de sa révision.
 
 Règles : une catégorie se déduit du nom de l'opération, une opération inconnue est `other` (les opérations ne sont pas
 revalidées contre le contrat du jour : le journal garde l'histoire telle qu'acceptée) ; une ligne illisible est sautée et

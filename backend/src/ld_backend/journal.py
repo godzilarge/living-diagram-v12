@@ -26,7 +26,7 @@ import logging
 import threading
 from collections import Counter
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -35,6 +35,10 @@ from pydantic import Field
 
 from ld_backend.archive import _segment
 from ld_backend.intent import INTENT_DIR, INTENT_FILE, JOURNAL_FILE
+from ld_backend.journal_groups import Item, JournalGroup, groups_of
+from ld_backend.journal_index import ACTIONS, Action, actions_of, refs_of
+from ld_backend.journal_replay import NameReplay
+from ld_backend.journal_words import KIND_WORDS, MANY_WORDS, fold, op_words
 from ld_backend.schemas import ApiModel
 
 log = logging.getLogger(__name__)
@@ -53,7 +57,6 @@ _BY_PREFIX: dict[str, Category] = {"group_": "groups", "annotation_": "annotatio
 _CREATED = {"group_create": "g", "annotation_create": "a", "connector_create": "c"}
 _SUBJECT_KIND = {"g": "group", "a": "annotation", "c": "connector"}
 PRUNE_OP = "journal_prune"  # la trace d'une purge (`journal_prune.py`)
-LABEL_MAX = 60
 DEFAULT_LIMIT, MAX_LIMIT = 100, 500
 
 
@@ -86,11 +89,15 @@ class JournalEntry(ApiModel):
     at: str = Field(description="Date d'application, UTC (`Z`).")
     author: str = Field(description="Nom déclaré dans la page (pas un compte).")
     categories: list[Category]
+    actions: list[Action] = Field(description="Créé, modifié, supprimé (`journal_index.py`), ordre fixe, sans doublon.")
     created: list[str] = Field(description="Les identités attribuées par cette requête, dans l'ordre des créations.")
     subjects: list[JournalSubject] = Field(
         description="Groupes, annotations, connecteurs cités, avec leur nom d'alors."
     )
     ops: list[dict[str, Any]] = Field(description="Les opérations telles que reçues, dans l'ordre (non revalidées).")
+    group: JournalGroup | None = Field(
+        default=None, description="Session de positions ou répétition d'un même geste (`journal_groups.py`)."
+    )
 
 
 class JournalFacet(ApiModel):
@@ -111,7 +118,19 @@ class JournalPage(ApiModel):
     infrastructures: list[JournalFacet] = Field(
         description="Toutes les infrastructures qui ont un journal, par nom ; comptées sans leur filtre (0 compris)."
     )
+    actions: list[JournalFacet] = Field(
+        description="Les trois actions (`created`, `modified`, `deleted`), ordre fixe ; comptées sans leur filtre."
+    )
+    start_missing: bool = Field(
+        default=False,
+        description="`start` demandé mais aucune entrée de cette révision (purgée, ou filtrée) : la page commence à la "
+        "plus proche plus ancienne.",
+    )
     unreadable: int = Field(description="Lignes sautées (illisibles, ou d'un dossier dont le nom ne se lit pas).")
+
+
+class JournalScopeError(ValueError):
+    """`object` ou `start` sans `infrastructure` : une identité `g…`, une révision ne sont uniques que dans la leur."""
 
 
 class JournalCursorError(ValueError):
@@ -128,6 +147,9 @@ class JournalQuery:
     until: datetime | None = None
     before: str | None = None
     limit: int = DEFAULT_LIMIT
+    actions: tuple[str, ...] = ()
+    object: str | None = None  # l'historique d'un objet : hostname ou identité (`g…`, `a…`, `c…`)
+    start: int | None = None  # le lien vers une entrée : la page commence à cette révision (ignoré avec `before`)
 
 
 @dataclass(frozen=True)
@@ -137,6 +159,7 @@ class _Line:
     # `10:00:00Z` en texte) ; le rang départage une trace de purge et l'entrée de même révision (revue de la purge, M3)
     key: tuple[datetime, str, int, int]
     haystack: str = field(repr=False)
+    refs: frozenset[str] = field(default=frozenset(), repr=False)  # les objets cités (`journal_index.py`)
 
 
 @dataclass(frozen=True)
@@ -157,103 +180,6 @@ def texts_of(value: Any) -> Iterator[str]:
     elif isinstance(value, list):
         for item in value:
             yield from texts_of(item)
-
-
-def _short(text: str) -> str:
-    line = text.strip().split("\n", 1)[0].strip()
-    return line if len(line) <= LABEL_MAX else line[: LABEL_MAX - 1] + "…"
-
-
-def _annotation_label(content: Any) -> str:
-    """Le nom d'une annotation : la première ligne d'une note, l'étiquette d'une forme, les premières cellules d'un
-    tableau (son en-tête, le plus souvent), le texte alternatif d'une image ; vide s'il n'y a rien à dire."""
-    if not isinstance(content, dict):
-        return ""
-    kind = content.get("kind")
-    if kind == "note":
-        return _short(str(content.get("text", "")))
-    if kind == "shape":
-        return _short(str(content.get("label", "") or ""))
-    if kind == "table":
-        rows = content.get("rows") if isinstance(content.get("rows"), list) else []
-        first = rows[0] if rows and isinstance(rows[0], list) else []
-        cells = [str(c).strip() for c in first if isinstance(c, str) and c.strip()][:2]
-        if cells:
-            return _short(" · ".join(cells))
-        cols = max((len(r) for r in rows if isinstance(r, list)), default=0)
-        return f"{len(rows)} × {cols}"
-    if kind == "image":
-        return _short(str(content.get("alt", "") or ""))
-    return ""
-
-
-@dataclass
-class _Replay:
-    """Le rejeu d'un journal, ligne après ligne : le nom de chaque sujet, la sorte de chaque annotation, l'étiquette et
-    les deux bouts de chaque connecteur (un connecteur sans étiquette se nomme par ses bouts)."""
-
-    names: dict[str, str] = field(default_factory=dict)
-    forms: dict[str, str] = field(default_factory=dict)
-    ends: dict[str, list[str]] = field(default_factory=dict)
-
-    def end_text(self, end: Any) -> str:
-        if not isinstance(end, dict) or end.get("kind") == "free" or not isinstance(end.get("ref"), str):
-            return "point libre"
-        ref = end["ref"]
-        return self.names.get(ref) or ref if end.get("kind") in ("group", "annotation") else ref
-
-    def note(self, subject: str, op: dict[str, Any]) -> None:
-        """Ce que l'opération dit de son sujet (le journal écrit aussi les clés nulles : `None` ne dit rien)."""
-        kind = subject[0]
-        if kind == "g" and isinstance(op.get("label"), str):
-            self.names[subject] = _short(op["label"])
-        elif kind == "a" and isinstance(op.get("content"), dict):
-            self.names[subject] = _annotation_label(op["content"])
-            if isinstance(op["content"].get("kind"), str):
-                self.forms[subject] = op["content"]["kind"]
-        elif kind == "c":
-            legacy = "a" + subject[1:]
-            if subject not in self.names and subject not in self.ends and legacy in self.names:
-                self.names[subject] = self.names[legacy]  # un connecteur relu d'un 1.3.x : une ligne ou flèche `a…`
-            if isinstance(op.get("label"), str):
-                self.names[subject] = _short(op["label"])
-            ends = self.ends.setdefault(subject, ["point libre", "point libre"])
-            for side, key in ((0, "start"), (1, "end")):
-                if op.get(key) is not None:
-                    ends[side] = self.end_text(op[key])
-
-    def apply(self, delta: dict[str, Any]) -> None:
-        """Un delta de purge (`journal_prune.py`) : ce que le rejeu complet savait à cet endroit et que le journal purgé
-        ne sait plus ; une valeur nulle retire."""
-        for key, target in (("names", self.names), ("forms", self.forms), ("ends", self.ends)):
-            values = delta.get(key)
-            if not isinstance(values, dict):
-                continue
-            for subject, value in values.items():
-                if value is None:
-                    target.pop(subject, None)
-                elif (
-                    key == "ends"
-                    and isinstance(value, list)
-                    and len(value) == 2
-                    and all(isinstance(e, str) for e in value)
-                ):
-                    target[subject] = list(value)
-                elif key != "ends" and isinstance(value, str):
-                    target[subject] = value
-
-    def state(self) -> dict[str, dict[str, Any]]:
-        return {
-            "names": dict(self.names),
-            "forms": dict(self.forms),
-            "ends": {k: list(v) for k, v in self.ends.items()},
-        }
-
-    def label(self, subject: str) -> str:
-        name = self.names.get(subject, "")
-        if name or subject[0] != "c" or subject not in self.ends:
-            return name
-        return _short(" → ".join(self.ends[subject]))
 
 
 def moment_of(value: Any) -> datetime | None:
@@ -293,7 +219,20 @@ def created_ids(raw: dict[str, Any]) -> list[str]:
     return out
 
 
-def _entry(infrastructure: str, raw: dict[str, Any], replay: _Replay, rank: int = 0) -> _Line:
+def _referenced(op: dict[str, Any]) -> Iterator[str]:
+    """Les groupes et annotations qu'une opération cite par son ancrage ou ses bouts, pour les nommer dans la page."""
+    for key in ("anchor", "start", "end"):
+        target = op.get(key)
+        if (
+            isinstance(target, dict)
+            and target.get("kind") in ("group", "annotation")
+            and isinstance(target.get("ref"), str)
+            and target["ref"][:1] in _SUBJECT_KIND
+        ):
+            yield target["ref"]
+
+
+def _entry(infrastructure: str, raw: dict[str, Any], replay: NameReplay, rank: int = 0) -> _Line:
     """Une ligne lue ; `replay` rejoue le journal jusqu'ici et est mis à jour par cette ligne ; `rank` = son rang dans
     le fichier."""
     ops: list[dict[str, Any]] = raw["ops"]
@@ -314,6 +253,10 @@ def _entry(infrastructure: str, raw: dict[str, Any], replay: _Replay, rank: int 
         replay.note(subject, op)
         if subject not in cited:
             cited.append(subject)
+    for op in ops:  # les sujets que l'opération désigne sans les modifier : un ancrage, un bout de connecteur
+        for ref in _referenced(op):
+            if ref not in cited:
+                cited.append(ref)
     subjects = [
         JournalSubject(id=s, kind=_SUBJECT_KIND[s[0]], label=replay.label(s), form=replay.forms.get(s, ""))  # type: ignore[arg-type]
         for s in cited
@@ -324,6 +267,7 @@ def _entry(infrastructure: str, raw: dict[str, Any], replay: _Replay, rank: int 
         at=raw["at"],
         author=raw["author"],
         categories=categories_of(ops),
+        actions=actions_of(ops),
         created=created,
         subjects=subjects,
         ops=ops,
@@ -331,13 +275,14 @@ def _entry(infrastructure: str, raw: dict[str, Any], replay: _Replay, rank: int 
     # l'infrastructure n'est pas dans le texte cherché : elle a sa facette, et « core » trouvait tout
     # `test-single-core` ; une trace de purge ne se trouve que par son auteur et son mot (pas par son archive)
     trace = is_trace(raw)
-    words = (
-        [raw["author"], "purge du journal"]
-        if trace
-        else [raw["author"], *created, *(s.label for s in subjects), *texts_of(ops)]
-    )
+    # les mots de la page aussi (« supprimé », « rouge », « forme sans titre ») : la recherche trouve ce qui s'affiche
+    named = [s.label or replay.unnamed(s.id) for s in subjects]
+    kinds = [KIND_WORDS[s.form] for s in subjects if s.form in KIND_WORDS]
+    shown = [word for op in ops for word in op_words(op)] + (list(MANY_WORDS) if len(ops) > 1 else [])
+    words = [raw["author"], *shown] if trace else [raw["author"], *created, *named, *kinds, *shown, *texts_of(ops)]
     key = (moment_of(raw["at"]), infrastructure, raw["revision"], rank)
-    return _Line(entry=entry, key=key, haystack="\n".join(words).casefold())  # type: ignore[arg-type]
+    refs = refs_of(ops, created)
+    return _Line(entry=entry, key=key, haystack=fold("\n".join(words)), refs=refs)  # type: ignore[arg-type]
 
 
 def _deltas(raws: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -362,7 +307,7 @@ class Replayer:
 
     def __init__(self, infrastructure: str, deltas: list[dict[str, Any]]) -> None:
         self.infrastructure = infrastructure
-        self.replay = _Replay()
+        self.replay = NameReplay()
         self._pending = list(deltas)
 
     def prepare(self, raw: dict[str, Any]) -> None:
@@ -400,10 +345,29 @@ def _parse(path: Path, infrastructure: str, signature: tuple[int, ...]) -> _Pars
             continue
         raws.append((rank, raw))
     replayer = Replayer(infrastructure, _deltas([raw for _, raw in raws]))
-    lines = [replayer.line(raw, rank) for rank, raw in raws]
+    lines = _grouped([replayer.line(raw, rank) for rank, raw in raws])
     if unreadable:
         log.warning("journal d'intention : %d ligne(s) illisible(s) sautée(s) dans %r", unreadable, str(path))
     return _Parsed(infrastructure=infrastructure, signature=signature, lines=tuple(lines), unreadable=unreadable)
+
+
+def _grouped(lines: list[_Line]) -> list[_Line]:
+    """Les lignes d'un fichier, chacune avec son regroupement, calculé sur le fichier entier (`journal_groups.py`)."""
+    items = [
+        Item(
+            at=line.key[0],
+            author=line.entry.author,
+            ops=line.entry.ops,
+            positions=line.entry.categories == ["positions"] and bool(line.entry.ops),
+            revision=line.key[2],
+            trace=any(op.get("op") == PRUNE_OP for op in line.entry.ops),
+        )
+        for line in lines
+    ]
+    return [
+        line if group is None else replace(line, entry=line.entry.model_copy(update={"group": group}))
+        for line, group in zip(lines, groups_of(items), strict=True)
+    ]
 
 
 def _encode(key: tuple[datetime, str, int, int]) -> str:
@@ -423,6 +387,28 @@ def _decode(cursor: str) -> tuple[datetime, str, int, int]:
     if moment is None or not isinstance(infra, str) or type(revision) is not int or type(rank) is not int:
         raise JournalCursorError("curseur illisible : reprendre depuis la première page")
     return moment, infra, revision, rank
+
+
+def _trace_op(line: _Line) -> dict[str, Any] | None:
+    return next((op for op in line.entry.ops if op.get("op") == PRUNE_OP), None)
+
+
+def _start(matching: list[_Line], revision: int) -> tuple[tuple[datetime, str, int, int] | None, bool]:
+    """La clé où commence la page d'un lien vers la révision `revision` (la plus récente d'abord), et `True` si
+    l'entrée de cette révision manque. L'entrée elle-même, jamais la trace de purge qui partage sa révision (revue,
+    M1) ; sinon la trace de la purge qui l'a retirée (elle explique la disparition) ; sinon la plus proche plus
+    ancienne ; sinon tout le journal (une page vide qui dirait « aucune modification » serait fausse : revue, M2). Une
+    révision n'est unique que dans son infrastructure : `start` exige `infrastructure`."""
+    exact = next((line for line in matching if line.key[2] == revision and _trace_op(line) is None), None)
+    if exact:
+        return exact.key, False
+    for line in matching:
+        op = _trace_op(line)
+        first, last = (op or {}).get("first_revision"), (op or {}).get("last_revision")
+        if isinstance(first, int) and isinstance(last, int) and first <= revision <= last:
+            return line.key, True
+    older = next((line for line in matching if line.key[2] < revision and _trace_op(line) is None), None)
+    return (older.key if older else None), True
 
 
 class JournalReader:
@@ -498,11 +484,13 @@ class JournalReader:
         return lines, unreadable
 
     def page(self, query: JournalQuery) -> JournalPage:
+        if query.infrastructure is None and (query.object is not None or query.start is not None):
+            raise JournalScopeError("object et start demandent une infrastructure")  # revue, M3 : jamais mêlés
         cursor = _decode(query.before) if query.before else None
         lines, unreadable = self._all(query.infrastructure)
         since = query.since.astimezone(UTC) if query.since else None
         until = query.until.astimezone(UTC) if query.until else None
-        words = query.q.casefold().split()
+        words = fold(query.q).split()
 
         def keep(line: _Line, skip: str) -> bool:
             e = line.entry
@@ -510,18 +498,24 @@ class JournalReader:
                 (skip == "infrastructure" or query.infrastructure is None or e.infrastructure == query.infrastructure)
                 and (skip == "author" or not query.authors or e.author in query.authors)
                 and (skip == "category" or not query.categories or any(c in query.categories for c in e.categories))
+                and (skip == "action" or not query.actions or any(a in query.actions for a in e.actions))
+                and (query.object is None or query.object in line.refs)
                 and (since is None or line.key[0] >= since)
                 and (until is None or line.key[0] < until)
                 and all(word in line.haystack for word in words)
             )
 
         matching = sorted((line for line in lines if keep(line, "")), key=lambda line: line.key, reverse=True)
-        after = [line for line in matching if cursor is None or line.key < cursor]
+        start, missing = (None, False) if cursor is not None or query.start is None else _start(matching, query.start)
+        after = [
+            line for line in matching if (cursor is None or line.key < cursor) and (start is None or line.key <= start)
+        ]
         limit = max(1, min(query.limit, MAX_LIMIT))
         served = after[:limit]
         authors = Counter(line.entry.author for line in lines if keep(line, "author"))
         cats = Counter(c for line in lines if keep(line, "category") for c in line.entry.categories)
         infras = Counter(line.entry.infrastructure for line in lines if keep(line, "infrastructure"))
+        acts = Counter(a for line in lines if keep(line, "action") for a in line.entry.actions)
         # l'univers des facettes ne dépend d'aucun filtre (sauf l'infrastructure, pour auteurs et catégories) : une
         # valeur ne disparaît ni ne change de place quand on filtre, son compte passe à 0
         scoped = [
@@ -537,5 +531,7 @@ class JournalReader:
             authors=[JournalFacet(value=a, count=authors[a]) for a in every_author],
             categories=[JournalFacet(value=c, count=cats[c]) for c in CATEGORIES if c in every_cat],
             infrastructures=[JournalFacet(value=i, count=infras[i]) for i in every_infra],
+            actions=[JournalFacet(value=a, count=acts[a]) for a in ACTIONS],
             unreadable=unreadable,
+            start_missing=missing,
         )

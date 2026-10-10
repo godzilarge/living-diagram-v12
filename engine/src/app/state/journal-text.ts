@@ -62,8 +62,23 @@ function subjectOf(entry: JournalEntry, op: JournalOp, index: number): JournalSu
   return entry.subjects.find((s) => s.id === id) || { id, kind, label: "", form: "" };
 }
 const node = (host: string): Piece => ({ ref: "node", id: host, text: host });
-/** Un sujet cité : son nom d'alors, sinon son identité (la phrase dit déjà sa sorte). */
-const subject = (s: JournalSubject | null): Piece => (s ? { ref: s.kind, id: s.id, text: s.label || s.id } : "");
+// Un sujet sans nom se dit par sa sorte, jamais par son identité (revue Impeccable du 2026-10-10 : « la forme a980-1 »
+// ne parlait à personne ; l'identité reste dans l'infobulle et dans « brut »). La phrase dit déjà la sorte : « la forme
+// sans titre », « la note vide ». Les mêmes mots que le serveur pour un bout de connecteur (`journal.py`, `_UNNAMED`).
+const UNNAMED: Record<string, string> = { note: "vide", shape: "sans titre", table: "vide", image: "sans titre" };
+const UNNAMED_REF: Record<string, string> = { note: "note vide", shape: "forme sans titre", table: "tableau vide", image: "image sans titre" };
+const unnamed = (s: JournalSubject): string => (s.kind === "annotation" ? UNNAMED[s.form] || "sans titre" : "sans nom");
+/** Un sujet cité : son nom d'alors, sinon sa sorte. */
+const subject = (s: JournalSubject | null): Piece => (s ? { ref: s.kind, id: s.id, text: s.label || unnamed(s) } : "");
+/** Un groupe ou une annotation cités par un ancrage ou un bout : leur nom, sinon leur sorte (le serveur les cite). */
+function refName(entry: JournalEntry | undefined, ref: string): string {
+  const s = entry ? entry.subjects.find((x) => x.id === ref) : undefined;
+  if (!s) return ref.startsWith("g") ? "un groupe" : ref.startsWith("a") ? "une annotation" : ref;
+  if (s.label) return (s.kind === "group" ? "groupe " : "") + s.label;
+  return s.kind === "group" ? "groupe sans nom" : UNNAMED_REF[s.form] || "annotation sans titre";
+}
+/** Une phrase qui retire quelque chose : elle ressort dans le fil (verbe en rouge). */
+export const destroys = (sentence: Sentence): boolean => typeof sentence.pieces[0] === "string" && sentence.pieces[0].startsWith("a supprimé");
 const changes = (op: JournalOp): string => { const f = changedFields(op); return f.length ? " : " + f.join(", ") : ""; };
 
 // ---- la purge (`ld journal prune`, côté serveur) : une ligne de trace, jamais une requête de la page
@@ -204,18 +219,19 @@ function contentText(value: unknown): string {
   return str(c.kind);
 }
 const SIDE: Record<string, string> = { n: "haut", e: "droite", s: "bas", w: "gauche" };
-function endText(value: unknown): string {
+function endText(value: unknown, entry?: JournalEntry): string {
   const e = record(value);
   if (!e) return "";
   if (e.kind === "free") return "point (" + num(e.x) + ", " + num(e.y) + ")";
   const side = SIDE[str(e.side)];
-  return str(e.ref) + (side ? ", côté " + side : "");
+  return (e.kind === "device" ? str(e.ref) : refName(entry, str(e.ref))) + (side ? ", côté " + side : "");
 }
 const ROUTE: Record<string, string> = { straight: "droit", elbow: "coudé", curve: "courbe" };
 const HEAD: Record<string, string> = { none: "aucune", arrow: "flèche" };
 
-/** Les faits d'une opération : ce qu'elle a posé, en mots ; les clés nulles ne disent rien. */
-export function factsOf(op: JournalOp): Fact[] {
+/** Les faits d'une opération : ce qu'elle a posé, en mots ; les clés nulles ne disent rien. `entry` nomme les groupes et
+ *  annotations qu'elle cite (ancrage, bouts). */
+export function factsOf(op: JournalOp, entry?: JournalEntry): Fact[] {
   const facts: Fact[] = [];
   const add = (label: string, value: string, list?: string[]): void => { if (value || (list && list.length)) facts.push({ label, value, list }); };
   if (op.op === "journal_prune") {
@@ -236,9 +252,9 @@ export function factsOf(op: JournalOp): Fact[] {
   if (given(op.members)) add(count(strings(op.members).length, "membre"), "", strings(op.members));
   if (given(op.content)) add("contenu", contentText(op.content));
   const anchor = record(op.anchor);
-  if (anchor) add("ancrage", anchor.kind === "free" ? "libre" : str(anchor.ref));
-  if (given(op.start)) add("départ", endText(op.start));
-  if (given(op.end)) add("arrivée", endText(op.end));
+  if (anchor) add("ancrage", anchor.kind === "free" ? "libre" : anchor.kind === "device" ? str(anchor.ref) : refName(entry, str(anchor.ref)));
+  if (given(op.start)) add("départ", endText(op.start, entry));
+  if (given(op.end)) add("arrivée", endText(op.end, entry));
   const heads = record(op.heads);
   if (heads) add("pointes", (HEAD[str(heads.start)] || str(heads.start)) + " → " + (HEAD[str(heads.end)] || str(heads.end)));
   if (given(op.route)) add("tracé", ROUTE[str(op.route)] || str(op.route));
@@ -250,12 +266,29 @@ export function factsOf(op: JournalOp): Fact[] {
   return facts;
 }
 
+/** Une session de positions en une phrase : « a placé 48 équipements », « … et désépinglé 3 ». */
+export function sessionSentence(placed: number, unpinned: number): Sentence {
+  const pieces = placed ? ["a placé " + count(placed, "équipement") + (unpinned ? " et désépinglé " + unpinned : "")]
+    : ["a désépinglé " + count(unpinned, "équipement")];
+  return { pieces, category: "positions" };
+}
+
 // ---- la recherche, surlignée
-/** Le texte découpé sur les mots cherchés (sans la casse) : `hit` = un mot trouvé. */
+/** Le texte comparable, sans la casse ni les accents, **de même longueur** que le texte (un caractère pour un : les
+ *  index d'une correspondance valent dans l'original) ; le même pli que le serveur (`journal_words.fold` : revue, B1). */
+export function foldText(text: string): string {
+  let out = "";
+  for (const ch of text) {
+    const bare = ch.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("fr");
+    out += bare.length === ch.length ? bare : ch.length === 1 && bare.length > 0 ? bare[0] : ch;
+  }
+  return out;
+}
+/** Le texte découpé sur les mots cherchés (sans la casse ni les accents) : `hit` = un mot trouvé. */
 export function marks(text: string, words: string[]): { text: string; hit: boolean }[] {
-  const wanted = words.map((w) => w.toLocaleLowerCase("fr")).filter(Boolean);
+  const wanted = words.map(foldText).filter(Boolean);
   if (!wanted.length || !text) return [{ text, hit: false }];
-  const low = text.toLocaleLowerCase("fr"), out: { text: string; hit: boolean }[] = [];
+  const low = foldText(text), out: { text: string; hit: boolean }[] = [];
   let at = 0;
   while (at < text.length) {
     let best = -1, len = 0;
@@ -270,15 +303,15 @@ export function marks(text: string, words: string[]): { text: string; hit: boole
 export const textOf = (s: Sentence): string => s.pieces.map((p) => (typeof p === "string" ? p : p.text)).join("");
 /** Vrai si chaque mot cherché se lit dans la phrase : sinon, la correspondance est dans le détail, et la ligne le dit. */
 export const visibleMatch = (s: Sentence, author: string, words: string[]): boolean => {
-  const text = (author + " " + textOf(s)).toLocaleLowerCase("fr");
-  return words.every((w) => text.includes(w.toLocaleLowerCase("fr")));
+  const text = foldText(author + " " + textOf(s));
+  return words.every((w) => text.includes(foldText(w)));
 };
 /** Ce qu'une recherche a trouvé hors de la phrase : le premier nom (équipement, membre, objet cité) qui contient un
  *  mot cherché, à dire sur la ligne (« trouvé : dc01-core-02 ») ; `null` si la correspondance est ailleurs (contenu). */
 export function hiddenHit(entry: JournalEntry, words: string[]): string | null {
-  const wanted = words.map((w) => w.toLocaleLowerCase("fr"));
+  const wanted = words.map(foldText);
   const names = entry.ops.flatMap((op) => [str(op.hostname), ...strings(op.members)]).concat(entry.subjects.map((s) => s.label));
-  return names.find((n) => n && wanted.some((w) => n.toLocaleLowerCase("fr").includes(w))) || null;
+  return names.find((n) => n && wanted.some((w) => foldText(n).includes(w))) || null;
 }
 /** Le premier objet cité par une entrée (ce que « o » ouvre au clavier). */
 export function firstRef(entry: JournalEntry): Exclude<Piece, string> | null {

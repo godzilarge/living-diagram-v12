@@ -5,7 +5,7 @@
 // entrée à l'historique du navigateur, et Retour ramène au Journal.
 import { fetchJournal } from "../api/client";
 import type { Session } from "../api/client";
-import { newer, queryOf } from "./journal";
+import { defaultFilters, newer, queryOf } from "./journal";
 import { csvName, csvOf } from "./journal-csv";
 import type { JournalEntry, JournalFilters, JournalPage } from "./journal";
 import type { Action, AppState, JournalUi, ViewState } from "./types";
@@ -28,6 +28,9 @@ export interface JournalCommands {
   showFromJournal: (infrastructure: string, kind: string, id: string) => void;
   backToJournal: () => void;
   journalUi: (patch: Partial<JournalUi>) => void;
+  /** L'historique d'un objet (hostname ou identité) : le Journal de cette infrastructure, tout ce qui le cite ; depuis
+   *  le Diagramme, Retour y ramène. */
+  openHistory: (object: string, infrastructure?: string) => void;
   /** Toutes les entrées des filtres posés, page après page, en CSV (rien n'est affiché ni gardé). */
   exportJournal: () => Promise<JournalExport>;
 }
@@ -35,6 +38,7 @@ export interface JournalCommands {
 export type JournalExport = { ok: true; csv: string; name: string; count: number; truncated: boolean } | { ok: false; message: string };
 
 export const RELOAD_MAX = 500; // la borne de l'API : au-delà, la queue déjà lue est gardée telle quelle
+export const PAGE = 200; // entrées par lecture (la suite se lit en arrivant au bas du fil)
 export const EXPORT_MAX = 100_000; // entrées au plus dans un export (200 lectures) : au-delà, le fichier le dit
 
 export function journalCommands(deps: JournalDeps): JournalCommands {
@@ -51,7 +55,7 @@ export function journalCommands(deps: JournalDeps): JournalCommands {
     if (more && !before) return;
     const n = ++turn.n;
     const at = more && was.kind === "ready" ? was.at : Date.now(); // la période se compte depuis la première page
-    const limit = !more && cached ? Math.min(RELOAD_MAX, Math.max(100, cached.entries.length)) : undefined;
+    const limit = !more && cached ? Math.min(RELOAD_MAX, Math.max(PAGE, cached.entries.length)) : PAGE;
     const shown = was.kind === "ready" || was.kind === "loading" ? was.page : null;
     dispatch({ type: "journal", journal: more && cached ? { kind: "ready", key, at, page: cached, more: true } : { kind: "loading", key, at, page: shown } });
     const result = await fetchJournal(session().token, queryOf(filters, infra, at, before, limit));
@@ -68,7 +72,8 @@ export function journalCommands(deps: JournalDeps): JournalCommands {
     const entries: JournalEntry[] = [];
     let before: string | null = null;
     do {
-      const result = await fetchJournal(session().token, queryOf(filters, infra, at, before, RELOAD_MAX));
+      // un lien vers une entrée n'est pas un filtre : l'export prend aussi les plus récentes (revue, M5)
+      const result = await fetchJournal(session().token, queryOf({ ...filters, rev: null }, infra, at, before, RELOAD_MAX));
       if (!result.ok) { if (result.status === 401) deps.dropToken(); return { ok: false, message: result.message }; }
       entries.push(...result.page.entries);
       before = result.page.next;
@@ -78,18 +83,33 @@ export function journalCommands(deps: JournalDeps): JournalCommands {
   }
   return {
     exportJournal,
-    setJournal: (patch) => setView({ journal: { ...current().view.journal, ...patch } }),
+    // un autre filtre posé quitte le lien vers une entrée (`rev`) : la page repart des plus récentes ; une autre
+    // infrastructure quitte l'historique d'un objet (une identité `g…` n'est unique que dans la sienne : revue, M3)
+    setJournal: (patch) => {
+      const was = current().view.journal;
+      const moved = patch.infrastructure !== undefined && patch.infrastructure !== was.infrastructure && patch.object === undefined;
+      setView({ journal: { ...was, rev: null, ...(moved ? { object: "" } : {}), ...patch } });
+    },
     loadJournal: (more) => { void loadJournal(more); },
     showFromJournal: (infrastructure, kind, id) => {
       const state = current();
       deps.pushNext();
-      dispatch({ type: "journalUi", patch: { back: true } });
+      dispatch({ type: "journalUi", patch: { back: true, refocus: true } });
       setView({ mode: "diagram" });
       dispatch({ type: "want", wanted: { kind, token: id } });
       if (infrastructure !== session().infrastructure) deps.connect({ token: session().token, infrastructure, author: state.author });
     },
     backToJournal: () => { dispatch({ type: "journalUi", patch: { back: false } }); setView({ mode: "journal" }); },
     journalUi: (patch) => dispatch({ type: "journalUi", patch }),
+    // l'historique s'ouvre dans l'infrastructure de l'objet (une ligne d'une autre, en vue « Toutes » : revue, H1) ;
+    // Retour ramène là d'où on vient, Diagramme ou liste du Journal (revue, B6)
+    openHistory: (object, infrastructure) => {
+      const from = current().view.mode;
+      deps.pushNext();
+      if (from !== "journal") dispatch({ type: "journalUi", patch: { scroll: 0, open: [], active: null, refocus: false, back: false } });
+      const infra = !infrastructure || infrastructure === session().infrastructure ? "" : infrastructure;
+      setView({ mode: "journal", journal: { ...defaultFilters(), infrastructure: infra, object } });
+    },
   };
 }
 
@@ -97,7 +117,7 @@ export function journalCommands(deps: JournalDeps): JournalCommands {
  *  garde la queue déjà lue (plus ancienne que sa dernière entrée) et son curseur. */
 function merged(page: JournalPage, cached: JournalPage | null, more: boolean): JournalPage {
   if (!cached) return page;
-  if (more) return { ...page, entries: cached.entries.concat(page.entries) };
+  if (more) return { ...page, entries: cached.entries.concat(page.entries), start_missing: cached.start_missing }; // revue, B2
   const last = page.entries[page.entries.length - 1];
   if (!last || !page.next || cached.entries.length <= page.entries.length) return page;
   const tail = cached.entries.filter((e) => newer(last, e));

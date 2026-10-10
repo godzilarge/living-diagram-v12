@@ -13,7 +13,7 @@ import type { Connector, ConnectorStyle, Model } from "../../../canvas/types";
 import { useEditable, useStore } from "../../state/store";
 import { Badge } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, Menu, NumberField, Row, Section, Segmented, Select, TextInput, Title } from "../../ui/inspector";
-import { HostLink, HueSetting, WriteHint, signed } from "./shared";
+import { HistoryButton, HostLink, HueSetting, WriteHint, signed } from "./shared";
 import { StrokeRow, TextRows, options } from "./style";
 
 const LINES = ["solid", "dashed", "dotted"] as const;
@@ -50,6 +50,7 @@ export function ConnectorCard({ model, c }: { model: Model; c: Connector }) {
       <InspectorHead icon={<Spline />} kind={arrow ? "Flèche" : "Connecteur"}
         actions={<>
           {!orphan ? <IconButton label="centrer la toile sur le connecteur" onClick={() => commands.reveal({ kind: "connector", id: c.id })}><Crosshair /></IconButton> : null}
+          <HistoryButton object={c.id} />
           {canWrite ? <IconButton label="inverser le sens" onClick={() => update({ start: c.end, end: c.start, heads: { start: c.heads.end, end: c.heads.start } })}><ArrowLeftRight /></IconButton> : null}
           {canWrite ? <IconButton label={c.locked ? "déverrouiller" : "verrouiller"} pressed={c.locked} onClick={() => update({ locked: !c.locked })}>{c.locked ? <Lock /> : <LockOpen />}</IconButton> : null}
           {canWrite ? <Menu label="plus d'actions" items={[

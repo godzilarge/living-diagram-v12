@@ -16,7 +16,7 @@ import { useEditable, useStore, useWriteLock } from "../../state/store";
 import { Badge, DiffBadge, SourceBadge, plural } from "../../ui";
 import { Facts, Hint, IconButton, Inspector, InspectorHead, List, ListRow, Menu, Section, Title } from "../../ui/inspector";
 import { Appearance } from "./Appearance";
-import { Cables, HaRows, TypeIcon, WriteHint, changeText, kindBadge, signed } from "./shared";
+import { Cables, HaRows, HistoryButton, TypeIcon, WriteHint, changeText, kindBadge, signed } from "./shared";
 
 /** L'état d'un port en un mot : ce que le device dit (`oper_status`), « admin down » quand c'est lui qui l'a coupé. */
 const stateWord = (itf: SnapshotInterface): string => (itf.admin_status === "down" ? "admin down" : itf.oper_status);
@@ -116,6 +116,7 @@ export function NodeFacts({ model, node }: { model: Model; node: ModelNode }) {
       <InspectorHead icon={<TypeIcon type={node.type} hue={hueOfNode(model, node)} />} kind={kind}
         actions={<>
           <IconButton label="centrer la toile sur cet équipement" onClick={() => commands.reveal({ kind: "node", id: node.hostname })}><Crosshair /></IconButton>
+          <HistoryButton object={node.hostname} />
           <IconButton label="masquer cet équipement et ses câbles" onClick={() => commands.hideHosts([node.hostname])}><EyeOff /></IconButton>
           <IconButton label="isoler avec ses voisins directs" onClick={() => commands.isolateHosts([node.hostname])}><Focus /></IconButton>
           {pin && canWrite ? <Menu label="plus d'actions" items={[{ label: "retirer l'épingle", icon: <PinOff />, onSelect: () => commands.unpin([node.hostname]) }]} /> : null}

@@ -8,7 +8,7 @@ export const initialState = (): AppState => ({
   token: "", author: "", address: { infrastructure: "", runId: "", from: "" }, runs: null, runsMessage: null, listing: false,
   run: { kind: "idle" }, view: defaultView(), prefs: defaultPrefs(), selection: null, hosts: [], wanted: null, palette: { open: false, text: "" },
   expanded: false, menuOpen: false, connectOpen: false, colorsOpen: false, note: null, history: { undo: null, redo: null }, revision: 0, walk: null,
-  context: null, editRequest: null, journal: { kind: "idle" }, journalUi: { open: [], scroll: 0, back: false },
+  context: null, editRequest: null, journal: { kind: "idle" }, journalUi: { open: [], scroll: 0, back: false, active: null, refocus: false },
 });
 
 const sameHosts = (a: string[], b: string[]): boolean => a.length === b.length && a.every((host, i) => host === b[i]);

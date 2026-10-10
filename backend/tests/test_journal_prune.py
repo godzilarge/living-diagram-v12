@@ -158,10 +158,13 @@ def test_a_date_in_another_zone_is_the_same_instant(root: Path):
     assert prune(root, LAB, before=paris, author="admin", now=NOW).removed == 3
 
 
-def test_the_trace_is_found_by_its_word_never_by_its_archive_or_categories(root: Path):
+def test_the_trace_is_found_by_the_words_its_line_shows_never_by_its_archive(root: Path):
+    """Révisé le 2026-10-10 (revue, M4 : la recherche trouve ce que la ligne affiche) : la ligne dit « a purgé le
+    journal : 6 entrées antérieures au … (positions, couleurs, groupes) », ces mots la trouvent ; l'archive, non."""
     prune(root, LAB, before=_at(9), categories=("positions", "colors", "groups"), author="admin", now=NOW)
     assert [e["ops"][0]["op"] for e in _entries(root, q="purge")] == ["journal_prune"]
-    assert _entries(root, q="journal-archive") == [] and _entries(root, q="positions") == []
+    assert [e["ops"][0]["op"] for e in _entries(root, q="couleurs antérieures")] == ["journal_prune"]
+    assert _entries(root, q="journal-archive") == []
 
 
 def test_dry_run_and_nothing_to_remove_leave_the_journal_untouched(root: Path):

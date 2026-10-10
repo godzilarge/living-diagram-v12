@@ -12,7 +12,7 @@ import { exactRule } from "../../../canvas/query";
 import { useStore } from "../../state/store";
 import { Badge, DiffBadge, SourceBadge } from "../../ui";
 import { Facts, IconButton, Inspector, InspectorHead, List, ListRow, Section, Title } from "../../ui/inspector";
-import { Cables, ChecksSection, HaRows, TypeIcon, changeText, kindBadge } from "./shared";
+import { Cables, ChecksSection, HaRows, HistoryButton, TypeIcon, changeText, kindBadge } from "./shared";
 
 // l'état de collecte d'un équipement, en mots (le contrat dit `unreachable`, `failed`, `partial`, `not_collected`)
 
@@ -78,6 +78,7 @@ export function NodeCard({ model, node }: { model: Model; node: ModelNode }) {
       <InspectorHead icon={<TypeIcon type={node.type} hue={hueOfNode(model, node)} />} kind={kind}
         actions={<>
           <IconButton label="centrer la toile sur cet équipement" onClick={() => commands.reveal({ kind: "node", id: node.hostname })}><Crosshair /></IconButton>
+          <HistoryButton object={node.hostname} />
           <IconButton label="masquer cet équipement et ses câbles" onClick={() => commands.hideHosts([node.hostname])}><EyeOff /></IconButton>
           <IconButton label="isoler avec ses voisins directs" onClick={() => commands.isolateHosts([node.hostname])}><Focus /></IconButton>
         </>}

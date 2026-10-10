@@ -1,36 +1,39 @@
-"""API REST : la porte d'entrée de Living Diagram."""
+"""API REST : la porte d'entrée de Living Diagram.
+
+Ce module déclare les routes ; `openapi.py` dit ce qu'elles répondent (groupes, réponses, schémas des contrats) et
+`bodies.py` lit les corps et met les refus à la forme `Problem`. Toute route sauf `/api/health` passe par le routeur
+protégé : jeton exigé, 401 et 422 documentés une fois pour toutes.
+"""
 
 import hmac
-import json
-import re
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
+from functools import partial
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from ld_contracts.bundle import RunBundle
-from ld_contracts.diff import Diff
 from ld_contracts.diff.serialize import canonical_json as diff_json
-from ld_contracts.intent import Intent
 from ld_contracts.intent.serialize import canonical_json as intent_json
 from ld_contracts.snapshot import Snapshot
 from pydantic import AwareDatetime, ValidationError
-from pydantic.json_schema import models_json_schema
-from starlette.requests import ClientDisconnect
 
+from ld_backend import __version__
+from ld_backend import openapi as doc
 from ld_backend.archive import ArchiveCorruptError, BundleArchive
 from ld_backend.assets import AssetStore, AssetTypeError, AssetUnknownError
+from ld_backend.bodies import IMAGE_MEDIA_TYPE, one_problem, problem, query_problem, read_body, read_json_body
 from ld_backend.config import Settings
 from ld_backend.diff import DiffError, diff
-from ld_backend.diffs import SnapshotUnavailableError, load_archived_snapshot
+from ld_backend.diffs import CacheKey, DiffCache, SnapshotUnavailableError, load_archived_snapshot
 from ld_backend.ingest import ingest_bundle, result_payload
-from ld_backend.intent import IntentCorruptError, IntentGroupError, IntentLimitError, IntentStore
+from ld_backend.intent import AssetInUseError, IntentCorruptError, IntentGroupError, IntentLimitError, IntentStore
 from ld_backend.journal import MAX_LIMIT, Category, JournalCursorError, JournalPage, JournalQuery, JournalReader
+from ld_backend.journal_index import Action
 from ld_backend.placement import (
     Placement,
     PlacementCorruptError,
@@ -42,7 +45,7 @@ from ld_backend.placement import (
 )
 from ld_backend.render import render_shell
 from ld_backend.render.app import APP_ASSET_PREFIX, APP_CSP, APP_ROUTE, read_app_asset, render_app
-from ld_backend.schemas import AssetReceipt, IngestReport, IntentOps, RunEntry, RunList
+from ld_backend.schemas import AssetReceipt, Health, IngestReport, IntentOps, RunEntry, RunList
 
 # Une run s'adresse par paramètres de requête, jamais par le chemin : `infrastructure` est un libellé libre et
 # `run_id` vient de l'amont ; un `/` dans l'un ou l'autre rendait la run archivée illisible (404).
@@ -55,147 +58,24 @@ INTENT = "/api/intent"
 INTENT_PATCHES = "/api/intent/patches"
 INTENT_ASSETS = "/api/intent/assets"
 INTENT_JOURNAL = "/api/intent/journal"
-IMAGE_MEDIA_TYPE = re.compile(r"image/(png|jpeg|webp)", re.IGNORECASE)
 PLACEMENT = "/api/placement"
 VIEW = "/view"
 APP_ASSET = APP_ASSET_PREFIX + "{name:path}"
-JSON_MEDIA_TYPE = re.compile(r"application/(?:[\w.-]+\+)?json", re.IGNORECASE)
-SCHEMA_REF_TEMPLATE = "#/components/schemas/{model}"
-CONTRACT_MODELS = (RunBundle, Snapshot, Diff, Intent, IntentOps, Placement, PlacementWrite)
-# Les corps lus à la main (en flux, avec une limite) sont déclarés dans OpenAPI ici, pas par FastAPI.
-BODY_MODELS = {
-    BUNDLES: (RunBundle, "RunBundle v1 : la référence est `contracts/CONTRAT.md`."),
-    INTENT_PATCHES: (
-        IntentOps,
-        "Une requête d'écriture de la couche d'intention : auteur et opérations, dans l'ordre.",
-    ),
-    PLACEMENT: (
-        PlacementWrite,
-        "Les places des équipements qu'une page vient de placer sans mémoire ; `replace` pour « replacer ».",
-    ),
-}
+CORRUPT = "entrée d'archive corrompue, intervention nécessaire"
 
 _bearer = HTTPBearer(
     auto_error=False,
     scheme_name="bearerAuth",
-    description="Valeur de `LD_API_TOKEN`, envoyée en `Authorization: Bearer <jeton>`. Dans `/docs`, "
-    "bouton « Authorize » : coller le jeton seul, sans le mot Bearer.",
+    description="Valeur de `LD_API_TOKEN`, envoyée en `Authorization: Bearer <jeton>`. Dans `/docs`, bouton "
+    "« Authorize » : coller le jeton seul, sans le mot Bearer.",
 )
 
-POST_RESPONSES: dict[int | str, dict[str, Any]] = {
-    201: {
-        "model": IngestReport,
-        "description": "bundle archivé (`created`) ; `correlation` dit ce que B1 en a fait : un échec de B1 "
-        "(`failed`) laisse le bundle archivé et ne change pas ce code",
-    },
-    200: {
-        "model": IngestReport,
-        "description": "run déjà archivée avec des données identiques (`already_present`) ; `findings` décrit la "
-        "livraison reçue, le rapport archivé reste celui de la première ; le snapshot n'est pas recalculé, sauf "
-        "s'il manquait : il l'est alors depuis le bundle archivé",
-    },
-    409: {
-        "model": IngestReport,
-        "description": "run déjà archivée avec des données différentes (`conflict`) : l'archive ne change pas, "
-        "`conflict` donne les deux empreintes",
-    },
-    422: {
-        "model": IngestReport,
-        "description": "bundle hors contrat (`invalid`) : `errors` liste chemin, règle et localisation "
-        "(section, index), jamais de valeur du bundle",
-    },
-    415: {"description": "`Content-Type` qui n'est pas `application/json`"},
-    400: {"description": "corps qui n'est pas du JSON, ou connexion fermée avant la fin du corps"},
-    401: {"description": "jeton d'API absent ou invalide"},
-    413: {"description": "corps au-delà de `LD_MAX_BUNDLE_BYTES`"},
-    500: {"description": "entrée d'archive illisible pour cette run (`archive_error`) : intervention nécessaire"},
-}
-
-
-SNAPSHOT_RESPONSES: dict[int | str, dict[str, Any]] = {
-    200: {
-        "description": "Snapshot v1 tel qu'archivé, forme canonique ; référence : `contracts/CONTRAT.md`, partie B.",
-        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Snapshot.__name__)}}},
-    },
-    404: {"description": "run inconnue, ou run archivée sans snapshot (B1 a échoué : `ld correlate` après correction)"},
-    500: {"description": "entrée d'archive illisible pour cette run : intervention nécessaire"},
-}
-
-DIFF_RESPONSES: dict[int | str, dict[str, Any]] = {
-    200: {
-        "description": "Diff v1 entre les snapshots des runs `from` et `to`, calculé à la demande, jamais archivé ; "
-        "référence : `contracts/CONTRAT.md`, partie C.",
-        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Diff.__name__)}}},
-    },
-    404: {"description": "run `from` ou `to` inconnue, ou sans snapshot (`ld correlate`) ; le détail nomme le côté"},
-    500: {"description": "entrée d'archive illisible, ou snapshot archivé hors contrat : intervention nécessaire"},
-}
-
-INTENT_RESPONSES: dict[int | str, dict[str, Any]] = {
-    200: {
-        "description": "Intent v1 de l'infrastructure, forme canonique ; le document vide (`revision` 0) si rien n'a "
-        "jamais été écrit. Référence : `contracts/CONTRAT.md`, partie D.",
-        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Intent.__name__)}}},
-    },
-    500: {"description": "document d'intention illisible ou incohérent sur disque : intervention nécessaire"},
-}
-
-PATCHES_RESPONSES: dict[int | str, dict[str, Any]] = {
-    200: {
-        "description": "le document résultant, `revision` incrémentée, opérations appliquées dans l'ordre (dernier "
-        "écrivain gagne, par épingle) ; une ligne de journal par requête acceptée",
-        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Intent.__name__)}}},
-    },
-    404: {"description": "infrastructure sans aucune run archivée : rien à épingler"},
-    413: {"description": "corps au-delà de `LD_MAX_INTENT_BYTES`"},
-    415: {"description": "`Content-Type` qui n'est pas `application/json`"},
-    422: {
-        "description": "corps hors forme (auteur vide, liste vide, coordonnée non entière ou hors borne, opération "
-        "inconnue), ou document qui dépasserait 10 000 épingles ; `errors` liste chemin et règle, jamais une valeur"
-    },
-    500: {"description": "document d'intention illisible ou incohérent sur disque : intervention nécessaire"},
-}
-
-PLACEMENT_RESPONSES: dict[int | str, dict[str, Any]] = {
-    200: {
-        "description": "Le placement mémorisé de l'infrastructure : une place par équipement déjà dessiné ; le "
-        "document vide (`revision` 0) si rien n'a jamais été dessiné. Donnée dérivée et jetable (`docs/09`).",
-        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Placement.__name__)}}},
-    },
-    500: {"description": "document de placement illisible ou incohérent sur disque : `ld placement --forget`"},
-}
-
-PLACEMENT_WRITE_RESPONSES: dict[int | str, dict[str, Any]] = {
-    200: {
-        "description": "le document résultant : sans `replace`, seuls les équipements sans place mémorisée entrent "
-        "(la première place reste) et rien n'est écrit si la requête n'apporte rien ; avec `replace`, le document "
-        "devient exactement `places`",
-        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Placement.__name__)}}},
-    },
-    404: {"description": "infrastructure sans aucune run archivée : rien à placer"},
-    409: {
-        "description": "la page a dessiné sur un document qui a changé depuis (`base_revision` ≠ `revision`) et la "
-        "requête apporterait quelque chose : rien n'est écrit, le corps est le document courant, à partir duquel "
-        "redessiner",
-        "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=Placement.__name__)}}},
-    },
-    413: {"description": "corps au-delà de `LD_MAX_INTENT_BYTES` (même borne que l'intention)"},
-    415: {"description": "`Content-Type` qui n'est pas `application/json`"},
-    422: {
-        "description": "corps hors forme (coordonnée non entière ou hors borne, équipement nommé deux fois, "
-        "`replace` absent), ou document qui dépasserait 10 000 équipements ; `errors` liste chemin et règle, "
-        "jamais une valeur"
-    },
-    500: {"description": "document de placement illisible ou incohérent sur disque : `ld placement --forget`"},
-}
-
 Label = Annotated[str, Query(min_length=1)]
-JOURNAL_RESPONSES: dict[int | str, dict[str, Any]] = {
-    422: {"description": "paramètre invalide (catégorie inconnue, date sans fuseau, curseur illisible), sans écho"},
-}
-
+InfraLabel = Annotated[str, Query(min_length=1, description="libellé de l'infrastructure, tel que dans `devices`")]
+RunLabel = Annotated[str, Query(min_length=1, description="`collector_run_id` de la run")]
 FromLabel = Annotated[str, Query(min_length=1, alias="from", description="run de départ")]
 ToLabel = Annotated[str, Query(min_length=1, alias="to", description="run d'arrivée")]
+AssetLabel = Annotated[str, Query(min_length=1, description="empreinte SHA-256 rendue par l'envoi")]
 
 
 def _unauthorized() -> HTTPException:
@@ -215,36 +95,9 @@ def _bearer_guard(settings: Settings) -> Callable[..., None]:
     return guard
 
 
-def _too_large(max_bytes: int) -> HTTPException:
-    return HTTPException(status_code=413, detail=f"bundle trop volumineux (limite {max_bytes} octets)")
-
-
-def _require_json(request: Request) -> None:
-    media_type = request.headers.get("content-type", "").split(";", 1)[0].strip()
-    if not JSON_MEDIA_TYPE.fullmatch(media_type):
-        raise HTTPException(status_code=415, detail="corps attendu en application/json")
-
-
-def _safe_message(error: dict[str, Any]) -> str:
-    """Le message d'une erreur de validation, sans la valeur reçue : Pydantic la recopie dans certains messages (le
-    discriminant d'une union, par exemple), la règle de l'API l'interdit (revue B4, M2)."""
-    if error["type"] == "union_tag_invalid":
-        expected = (error.get("ctx") or {}).get("expected_tags", "")
-        return f"valeur inconnue pour le discriminant ; attendu : {expected}"
-    received = error.get("input")
-    if isinstance(received, str) and received and received in error["msg"]:
-        return error["type"]
-    return error["msg"]
-
-
-def _problem(detail: str, errors: list[dict[str, Any]]) -> JSONResponse:
-    listed = [{"path": ".".join(str(p) for p in e["loc"]), "message": _safe_message(e)} for e in errors]
-    return JSONResponse(status_code=422, content={"detail": detail, "errors": listed})
-
-
-def _query_problem(_: Request, exc: RequestValidationError) -> JSONResponse:
-    """Même forme que le reste de l'API ; la valeur reçue (`input`) n'est jamais renvoyée."""
-    return _problem("paramètres de requête invalides", list(exc.errors()))
+def _server_error(_: Request, __: Exception) -> JSONResponse:
+    """Une erreur imprévue garde la forme `Problem`, sans rien dire de sa cause ; le serveur la journalise."""
+    return JSONResponse(status_code=500, content={"detail": "erreur interne, intervention nécessaire"})
 
 
 def _archived(load: Callable[[], Any]) -> Any:
@@ -252,7 +105,7 @@ def _archived(load: Callable[[], Any]) -> Any:
     try:
         found = load()
     except (ArchiveCorruptError, OSError) as exc:
-        raise HTTPException(status_code=500, detail="entrée d'archive corrompue, intervention nécessaire") from exc
+        raise HTTPException(status_code=500, detail=CORRUPT) from exc
     if found is None:
         raise HTTPException(status_code=404, detail="run inconnue pour cette infrastructure")
     return found
@@ -267,111 +120,31 @@ def _archived_snapshot(store: BundleArchive, infrastructure: str, run_id: str, s
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ArchiveCorruptError, OSError) as exc:
-        raise HTTPException(status_code=500, detail="entrée d'archive corrompue, intervention nécessaire") from exc
+        raise HTTPException(status_code=500, detail=CORRUPT) from exc
 
 
-ASSET_POST_RESPONSES: dict[int | str, dict[str, Any]] = {
-    201: {"description": "fichier rangé sous son empreinte (`asset`), type reconnu aux octets, dimensions lues"},
-    200: {"description": "fichier déjà présent : la même empreinte"},
-    404: {"description": "infrastructure sans run archivée"},
-    413: {"description": "corps au-delà de `LD_MAX_ASSET_BYTES` (4 Mo par défaut)"},
-    415: {"description": "`Content-Type` qui n'est pas `image/png`, `image/jpeg` ou `image/webp`"},
-    422: {
-        "description": "octets de tête qui ne sont ni PNG, ni JPEG, ni WebP (`asset_unrecognized`) : un SVG est refusé"
-    },
-}
-ASSET_GET_RESPONSES: dict[int | str, dict[str, Any]] = {
-    200: {"description": "les octets du fichier, `Content-Type` vérifié à la lecture, `nosniff`, cache immuable"},
-    404: {"description": "empreinte inconnue pour cette infrastructure"},
-}
-ASSET_DELETE_RESPONSES: dict[int | str, dict[str, Any]] = {
-    204: {"description": "fichier retiré"},
-    404: {"description": "empreinte inconnue pour cette infrastructure"},
-    409: {"description": "une annotation cite encore ce fichier (`asset_in_use`)"},
-}
-
-
-async def _read_bytes_body(request: Request, max_bytes: int) -> bytes:
-    """Le corps brut, en flux, coupé dès que la limite est dépassée (un fichier d'image)."""
-    declared = request.headers.get("content-length")
-    if declared is not None and declared.isdigit() and int(declared) > max_bytes:
-        raise _too_large(max_bytes)
-    chunks: list[bytes] = []
-    total = 0
+def _known_run(store: BundleArchive, infrastructure: str, run_id: str, side: str) -> None:
+    """La run existe et son entrée se lit : vérifié avant le cache, qui ne doit pas masquer une archive abîmée."""
     try:
-        async for chunk in request.stream():
-            total += len(chunk)
-            if total > max_bytes:
-                raise _too_large(max_bytes)
-            chunks.append(chunk)
-    except ClientDisconnect as exc:
-        raise HTTPException(status_code=400, detail="connexion fermée avant la fin du corps") from exc
-    return b"".join(chunks)
+        found = store.find_run(infrastructure, run_id)
+    except (ArchiveCorruptError, OSError) as exc:
+        raise HTTPException(status_code=500, detail=CORRUPT) from exc
+    if found is None:
+        raise HTTPException(status_code=404, detail=str(SnapshotUnavailableError("unknown", side)))
 
 
-async def _read_json_body(request: Request, max_bytes: int) -> Any:
-    """Lit le corps en flux et coupe dès que la limite est dépassée : jamais tout en mémoire d'abord."""
-    _require_json(request)
-    declared = request.headers.get("content-length")
-    if declared is not None and declared.isdigit() and int(declared) > max_bytes:
-        raise _too_large(max_bytes)
-    chunks: list[bytes] = []
-    total = 0
+def _diff_key(store: BundleArchive, infrastructure: str, from_run: str, to_run: str) -> CacheKey | None:
+    """La clé du cache : les deux runs et l'identité de leurs fichiers snapshot ; `None` = ne pas garder."""
     try:
-        async for chunk in request.stream():
-            total += len(chunk)
-            if total > max_bytes:
-                raise _too_large(max_bytes)
-            chunks.append(chunk)
-    except ClientDisconnect as exc:
-        raise HTTPException(status_code=400, detail="connexion fermée avant la fin du corps") from exc
-    try:
-        return await run_in_threadpool(json.loads, b"".join(chunks))
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail=f"JSON invalide : {exc.msg} (ligne {exc.lineno})") from exc
+        before, after = store.snapshot_stamp(infrastructure, from_run), store.snapshot_stamp(infrastructure, to_run)
+    except OSError:
+        return None
+    if before is None or after is None:
+        return None
+    return infrastructure, from_run, to_run, before, after
 
 
-def _contract_schemas() -> dict[str, Any]:
-    """Modèles des trois contrats sous `components.schemas`, références réécrites pour le document OpenAPI.
-
-    Une seule génération pour les trois : les types partagés (bundle, snapshot, diff) n'apparaissent qu'une fois.
-    """
-    _, top = models_json_schema([(model, "validation") for model in CONTRACT_MODELS], ref_template=SCHEMA_REF_TEMPLATE)
-    return top["$defs"]
-
-
-def _with_contract(base: dict[str, Any]) -> dict[str, Any]:
-    """Nouveau document : schémas du contrat fusionnés et corps des POST lus à la main déclarés. `base` n'est pas
-    modifié."""
-    components = base.get("components", {})
-    schemas = components.get("schemas", {})
-    contract = _contract_schemas()
-    clashes = sorted(name for name in contract if name in schemas and schemas[name] != contract[name])
-    if clashes:
-        raise RuntimeError(f"collision de schémas OpenAPI entre l'API et le contrat : {clashes}")
-    paths = dict(base["paths"])
-    for route, (model, description) in BODY_MODELS.items():
-        body = {
-            "required": True,
-            "description": description,
-            "content": {"application/json": {"schema": {"$ref": SCHEMA_REF_TEMPLATE.format(model=model.__name__)}}},
-        }
-        paths[route] = {**paths[route], "post": {**paths[route]["post"], "requestBody": body}}
-    return {**base, "components": {**components, "schemas": {**schemas, **contract}}, "paths": paths}
-
-
-class IngestApp(FastAPI):
-    """FastAPI dont le document OpenAPI porte le contrat : le corps du POST est lu à la main, pas déclaré."""
-
-    def openapi(self) -> dict[str, Any]:
-        cached = self.openapi_schema
-        base = super().openapi()
-        if base is not cached:
-            self.openapi_schema = _with_contract(base)
-        return self.openapi_schema
-
-
-def _intent_or_500(load: Callable[[], Intent]) -> Intent:
+def _intent_or_500[T](load: Callable[[], T]) -> T:
     try:
         return load()
     except IntentCorruptError as exc:
@@ -390,50 +163,26 @@ def _placement_or_500(load: Callable[[], Placement]) -> Placement:
         raise HTTPException(status_code=500, detail="document de placement illisible, intervention nécessaire") from exc
 
 
-def create_app(settings: Settings, archive: BundleArchive | None = None) -> FastAPI:
-    store = archive or BundleArchive(settings.archive_dir)
-    assets = AssetStore(settings.archive_dir)
-    intents = IntentStore(settings.archive_dir, asset_exists=assets.exists)
-    placements = PlacementStore(settings.archive_dir)
-    journal = JournalReader(settings.archive_dir)
-    app = IngestApp(
-        title="Living Diagram — ingestion",
-        version="0.1.0",
-        description="Porte d'entrée de Living Diagram : reçoit un RunBundle, le valide, l'archive, le corrèle (B1), "
-        "sert le snapshot et compare deux runs (B3).",
-    )
-    app.add_exception_handler(RequestValidationError, _query_problem)
-    guard = Depends(_bearer_guard(settings))
+async def _require_runs(store: BundleArchive, infrastructure: str, what: str) -> None:
+    """Une écriture n'a de sens que pour une infrastructure archivée ; vérifié hors de la boucle d'événements."""
+    if not await run_in_threadpool(store.has_runs, infrastructure):
+        raise HTTPException(status_code=404, detail=f"aucune run archivée pour cette infrastructure : rien à {what}")
 
-    @app.get("/api/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
 
+def _json(payload: str | bytes, status_code: int = 200) -> Response:
+    return Response(content=payload, status_code=status_code, media_type="application/json")
+
+
+def _pages(app: FastAPI) -> None:
+    """Les deux pages et les fichiers de l'application : servis sans jeton, hors du document OpenAPI."""
     shell = render_shell()  # une fois : la coquille ne dépend d'aucune run
+    application = render_app()  # une fois : la page ne dépend d'aucune run ; ses fichiers, eux, sont lus à la requête
 
-    @app.get(
-        VIEW,
-        response_class=HTMLResponse,
-        summary="Page de lecture d'une run archivée (le jeton se saisit dans la page)",
-        description="La coquille du visualiseur, sans donnée, servie sans jeton comme `/docs`. Elle lit le snapshot "
-        "et le rapport par l'API avec le jeton saisi dans la page, gardé dans l'onglet. Adresse partageable : "
-        "`/view?infrastructure=&run_id=#view=graph` ; avec `&from=<run_id>`, la page lit aussi le diff depuis cette "
-        "run (`/api/diff`) et peint les changements ; le jeton n'y entre jamais.",
-    )
+    @app.get(VIEW, response_class=HTMLResponse, include_in_schema=False)
     def view() -> HTMLResponse:
         return HTMLResponse(shell)
 
-    application = render_app()  # une fois : la page ne dépend d'aucune run ; ses fichiers, eux, sont lus à la requête
-
-    @app.get(
-        APP_ROUTE,
-        response_class=HTMLResponse,
-        summary="L'application (le jeton se saisit dans la page)",
-        description="La face utilisateur de Living Diagram : le diagramme est la page. Servie sans jeton, sans "
-        "donnée ; elle charge `/assets/app/app.js` et `/assets/app/app.css` depuis sa propre origine (CSP "
-        "`'self'`, aucune ressource externe) et lit la run par l'API avec le jeton saisi dans la page. Adresse "
-        "partageable : `/?infrastructure=&run_id=&from=#node=…` ; le jeton n'y entre jamais.",
-    )
+    @app.get(APP_ROUTE, response_class=HTMLResponse, include_in_schema=False)
     def application_page() -> HTMLResponse:
         return HTMLResponse(application, headers={"Content-Security-Policy": APP_CSP, "Cache-Control": "no-cache"})
 
@@ -448,137 +197,171 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
             return Response(status_code=304, headers=headers)
         return Response(content=content, media_type=media_type, headers=headers)
 
-    @app.post(BUNDLES, dependencies=[guard], status_code=201, responses=POST_RESPONSES, summary="Ingérer un RunBundle")
+
+def _ingestion_routes(router: APIRouter, store: BundleArchive, settings: Settings) -> None:
+    @router.post(
+        BUNDLES,
+        tags=[doc.INGESTION],
+        operation_id="ingest_bundle",
+        status_code=201,
+        responses=doc.INGEST_RESPONSES,
+        summary="Ingérer un RunBundle : valider, archiver, corréler",
+    )
     async def post_bundle(request: Request) -> JSONResponse:
-        data = await _read_json_body(request, settings.max_bundle_bytes)
+        data = await read_json_body(request, settings.max_bundle_bytes)
         result = await run_in_threadpool(ingest_bundle, data, store)
         return JSONResponse(status_code=result.http_status, content=result_payload(result))
 
-    @app.get(BUNDLES, dependencies=[guard], summary="Lister les runs archivées d'une infrastructure")
-    def list_runs(infrastructure: Label) -> RunList:
+
+def _run_routes(router: APIRouter, store: BundleArchive) -> None:
+    @router.get(BUNDLES, tags=[doc.RUNS], operation_id="list_runs", summary="Lister les runs archivées")
+    def list_runs(infrastructure: InfraLabel) -> RunList:
+        """Triées par début de collecte (ordre de la timeline et du diff N-1) ; liste vide si rien n'est archivé."""
         runs = store.list_runs(infrastructure)
         entries = [RunEntry(**{name: getattr(r, name) for name in RunEntry.model_fields}) for r in runs]
         return RunList(infrastructure=infrastructure, runs=entries)
 
-    @app.get(BUNDLE, dependencies=[guard], summary="Relire un bundle archivé (forme canonique)")
-    def get_bundle(infrastructure: Label, run_id: Label) -> Response:
-        raw = _archived(lambda: store.load_bundle_bytes(infrastructure, run_id))
-        return Response(content=raw, media_type="application/json")
+    @router.get(
+        BUNDLE,
+        tags=[doc.RUNS],
+        operation_id="get_bundle",
+        response_class=Response,
+        responses=doc.BUNDLE_RESPONSES,
+        summary="Relire un bundle archivé (forme canonique)",
+    )
+    def get_bundle(infrastructure: InfraLabel, run_id: RunLabel) -> Response:
+        return _json(_archived(lambda: store.load_bundle_bytes(infrastructure, run_id)))
 
-    @app.get(REPORT, dependencies=[guard], summary="Relire le rapport de la première ingestion")
-    def get_report(infrastructure: Label, run_id: Label) -> IngestReport:
+    @router.get(
+        REPORT,
+        tags=[doc.RUNS],
+        operation_id="get_report",
+        responses=doc.REPORT_RESPONSES,
+        summary="Relire le rapport de la première ingestion",
+    )
+    def get_report(infrastructure: InfraLabel, run_id: RunLabel) -> IngestReport:
         return IngestReport.model_validate(_archived(lambda: store.load_report(infrastructure, run_id)))
 
-    @app.get(
+    @router.get(
         SNAPSHOT,
-        dependencies=[guard],
+        tags=[doc.RUNS],
+        operation_id="get_snapshot",
         response_class=Response,
-        responses=SNAPSHOT_RESPONSES,
+        responses=doc.SNAPSHOT_RESPONSES,
         summary="Relire le snapshot d'une run (sortie de B1)",
     )
-    def get_snapshot(infrastructure: Label, run_id: Label) -> Response:
+    def get_snapshot(infrastructure: InfraLabel, run_id: RunLabel) -> Response:
         _archived(lambda: store.find_run(infrastructure, run_id))
         raw = _archived(lambda: store.load_snapshot_bytes(infrastructure, run_id) or b"")
         if not raw:
             raise HTTPException(status_code=404, detail="run archivée sans snapshot : lancer `ld correlate`")
-        return Response(content=raw, media_type="application/json")
+        return _json(raw)
 
-    @app.get(
+
+def _diff_routes(router: APIRouter, store: BundleArchive, cache: DiffCache) -> None:
+    @router.get(
         DIFF,
-        dependencies=[guard],
+        tags=[doc.DIFF],
+        operation_id="get_diff",
         response_class=Response,
-        responses=DIFF_RESPONSES,
+        responses=doc.DIFF_RESPONSES,
         summary="Comparer deux runs archivées (sortie de B3)",
     )
-    def get_diff(infrastructure: Label, from_run: FromLabel, to_run: ToLabel) -> Response:
-        before = _archived_snapshot(store, infrastructure, from_run, "from")
-        after = _archived_snapshot(store, infrastructure, to_run, "to")
-        try:
-            result = diff(before, after)
-        except DiffError as exc:  # deux snapshots d'une même entrée d'archive qui ne se comparent pas
-            detail = f"{exc} : archive incohérente, intervention nécessaire"
-            raise HTTPException(status_code=500, detail=detail) from exc
-        return Response(content=diff_json(result), media_type="application/json")
+    def get_diff(infrastructure: InfraLabel, from_run: FromLabel, to_run: ToLabel) -> Response:
+        _known_run(store, infrastructure, from_run, "from")
+        _known_run(store, infrastructure, to_run, "to")
+        key = _diff_key(store, infrastructure, from_run, to_run)
+        payload = cache.get(key) if key is not None else None
+        if payload is None:
+            before = _archived_snapshot(store, infrastructure, from_run, "from")
+            after = _archived_snapshot(store, infrastructure, to_run, "to")
+            try:
+                result = diff(before, after)
+            except DiffError as exc:  # deux snapshots d'une même entrée d'archive qui ne se comparent pas
+                raise HTTPException(
+                    status_code=500, detail=f"{exc} : archive incohérente, intervention nécessaire"
+                ) from exc
+            payload = diff_json(result).encode("utf-8")
+            if key is not None:
+                cache.put(key, payload)
+        return _json(payload)
 
-    @app.get(
+
+def _intent_routes(router: APIRouter, store: BundleArchive, intents: IntentStore, settings: Settings) -> None:
+    @router.get(
         INTENT,
-        dependencies=[guard],
+        tags=[doc.INTENT],
+        operation_id="get_intent",
         response_class=Response,
-        responses=INTENT_RESPONSES,
-        summary="Lire la couche d'intention d'une infrastructure (B4 : épingles ; docs/10 : couleurs)",
+        responses=doc.INTENT_RESPONSES,
+        summary="Lire la couche d'intention d'une infrastructure",
     )
-    def get_intent(infrastructure: Label) -> Response:
-        intent = _intent_or_500(lambda: intents.load(infrastructure))
-        return Response(content=intent_json(intent), media_type="application/json")
+    def get_intent(infrastructure: InfraLabel) -> Response:
+        return _json(intent_json(_intent_or_500(lambda: intents.load(infrastructure))))
 
-    @app.post(
+    @router.post(
         INTENT_PATCHES,
-        dependencies=[guard],
+        tags=[doc.INTENT],
+        operation_id="apply_intent_ops",
         response_class=Response,
-        responses=PATCHES_RESPONSES,
-        summary="Appliquer des opérations à la couche d'intention (pin, unpin, color, uncolor, color_type, "
-        "uncolor_type, group_create, group_update, group_add, group_remove, group_delete, annotation_create, "
-        "annotation_update, annotation_delete)",
-        description="Le document ne s'écrit que par opérations : poser ou remplacer une épingle (`pin`), la retirer "
-        "(`unpin`) ; colorer un équipement d'une teinte nommée (`color`) ou lui rendre celle de son type (`uncolor`) ; "
-        "colorer un type (`color_type`) ou lui rendre sa teinte par défaut (`uncolor_type`) ; créer, modifier, "
-        "étoffer, réduire ou supprimer un groupe (`group_create`, `group_update`, `group_add`, `group_remove`, "
-        "`group_delete` ; docs/10 §5) ; créer, modifier ou supprimer une annotation (note, forme, tableau, image ; "
-        "`annotation_create`, `annotation_update`, `annotation_delete` ; docs/10 §6). Appliquées dans l'ordre, "
-        "journalisées (auteur, date, opérations). Une infrastructure sans run archivée est refusée (404).",
+        responses=doc.PATCHES_RESPONSES,
+        summary="Appliquer des opérations à la couche d'intention",
+        description=doc.patches_description(),
     )
-    async def post_intent_patches(infrastructure: Label, request: Request) -> Response:
-        if not store.list_runs(infrastructure):
-            detail = "aucune run archivée pour cette infrastructure : rien à épingler"
-            raise HTTPException(status_code=404, detail=detail)
-        data = await _read_json_body(request, settings.max_intent_bytes)  # borné, comme un bundle (revue B4, H2)
+    async def post_intent_patches(infrastructure: InfraLabel, request: Request) -> Response:
+        await _require_runs(store, infrastructure, "modifier")
+        data = await read_json_body(request, settings.max_intent_bytes)  # borné, comme un bundle (revue B4, H2)
         try:
-            ops = IntentOps.model_validate(data)
+            ops = await run_in_threadpool(IntentOps.model_validate, data)
         except ValidationError as exc:
-            return _problem("corps de requête invalide", list(exc.errors()))
+            return problem("corps de requête invalide", list(exc.errors()))
         now = datetime.now(UTC).replace(microsecond=0)
-        try:
-            intent = _intent_or_500(lambda: intents.apply(infrastructure, ops, now))
+        try:  # verrou de fichier, `fsync` et journal hors de la boucle d'événements (audit de l'API, 2026-10-09)
+            intent = await run_in_threadpool(_intent_or_500, lambda: intents.apply(infrastructure, ops, now))
         except IntentLimitError as exc:
-            return _problem("corps de requête invalide", [{"loc": ("ops",), "type": "too_long", "msg": str(exc)}])
+            return one_problem("corps de requête invalide", "ops", "too_long", str(exc))
         except IntentGroupError as exc:
-            return _problem("corps de requête invalide", [{"loc": ("ops",), "type": exc.code, "msg": str(exc)}])
+            return one_problem("corps de requête invalide", "ops", exc.code, str(exc))
         except ValidationError as exc:  # une annotation incohérente une fois assemblée (ligne de rappel sans ancre)
-            return _problem("corps de requête invalide", list(exc.errors()))
-        return Response(content=intent_json(intent), media_type="application/json")
+            return problem("corps de requête invalide", list(exc.errors()))
+        return _json(intent_json(intent))
 
-    @app.post(
+
+def _asset_routes(
+    router: APIRouter, store: BundleArchive, assets: AssetStore, intents: IntentStore, settings: Settings
+) -> None:
+    @router.post(
         INTENT_ASSETS,
-        dependencies=[guard],
+        tags=[doc.IMAGES],
+        operation_id="upload_asset",
         status_code=201,
-        responses=ASSET_POST_RESPONSES,
-        summary="Envoyer une image pour une annotation (PNG, JPEG, WebP ; jamais SVG), rangée sous son empreinte",
-        description="Le corps est le fichier brut, `Content-Type` image ; reconnu à ses octets de tête, jamais à son "
-        "nom ni à son type déclaré ; borné par `LD_MAX_ASSET_BYTES` (4 Mo). Un fichier déjà présent répond 200 avec "
-        "la même empreinte. L'empreinte se cite ensuite dans `annotation_create` (`content.kind` = `image`).",
+        responses=doc.ASSET_POST_RESPONSES,
+        summary="Envoyer une image (PNG, JPEG, WebP ; jamais SVG)",
+        description="Le corps est le fichier brut, `Content-Type` image ; borné par `LD_MAX_ASSET_BYTES` (4 Mo). Un "
+        "fichier déjà présent répond 200 avec la même empreinte. L'empreinte se cite ensuite dans "
+        "`annotation_create` (`content.kind` = `image`).",
     )
-    async def post_intent_asset(infrastructure: Label, request: Request, response: Response) -> AssetReceipt:
-        if not await run_in_threadpool(store.list_runs, infrastructure):
-            raise HTTPException(status_code=404, detail="aucune run archivée pour cette infrastructure")
-        declared = request.headers.get("content-type", "")
-        if not IMAGE_MEDIA_TYPE.match(declared):
+    async def post_intent_asset(infrastructure: InfraLabel, request: Request, response: Response) -> AssetReceipt:
+        await _require_runs(store, infrastructure, "illustrer")
+        if not IMAGE_MEDIA_TYPE.match(request.headers.get("content-type", "")):
             raise HTTPException(status_code=415, detail="`Content-Type` attendu : image/png, image/jpeg ou image/webp")
-        data = await _read_bytes_body(request, settings.max_asset_bytes)
+        data = await read_body(request, settings.max_asset_bytes)
         try:
             info, created = await run_in_threadpool(assets.put, infrastructure, data)
         except AssetTypeError as exc:
-            return _problem("fichier refusé", [{"loc": ("body",), "type": "asset_unrecognized", "msg": str(exc)}])  # type: ignore[return-value]
+            return one_problem("fichier refusé", "body", "asset_unrecognized", str(exc))  # type: ignore[return-value]
         response.status_code = 201 if created else 200
         return AssetReceipt(**asdict(info))
 
-    @app.get(
+    @router.get(
         INTENT_ASSETS,
-        dependencies=[guard],
+        tags=[doc.IMAGES],
+        operation_id="get_asset",
         response_class=Response,
-        responses=ASSET_GET_RESPONSES,
-        summary="Lire une image du magasin d'une infrastructure, par son empreinte",
+        responses=doc.ASSET_GET_RESPONSES,
+        summary="Lire une image par son empreinte",
     )
-    def get_intent_asset(infrastructure: Label, asset: Label) -> Response:
+    def get_intent_asset(infrastructure: InfraLabel, asset: AssetLabel) -> Response:
         try:
             data, media_type = assets.get(infrastructure, asset)
         except AssetUnknownError as exc:
@@ -590,50 +373,65 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
         headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=31536000, immutable"}
         return Response(content=data, media_type=media_type, headers=headers)
 
-    @app.delete(
+    @router.delete(
         INTENT_ASSETS,
-        dependencies=[guard],
+        tags=[doc.IMAGES],
+        operation_id="delete_asset",
         status_code=204,
         response_class=Response,
-        responses=ASSET_DELETE_RESPONSES,
-        summary="Retirer une image du magasin ; refusé tant qu'une annotation la cite (`asset_in_use`)",
+        responses=doc.ASSET_DELETE_RESPONSES,
+        summary="Retirer une image que plus aucune annotation ne cite",
     )
-    def delete_intent_asset(infrastructure: Label, asset: Label) -> Response:
-        intent = _intent_or_500(lambda: intents.load(infrastructure))
-        cited = any(a.content.kind == "image" and a.content.asset == asset for a in intent.annotations)
-        if cited:
-            raise HTTPException(
-                status_code=409, detail="image citée par une annotation : supprimez l'annotation d'abord"
-            )
+    def delete_intent_asset(infrastructure: InfraLabel, asset: AssetLabel) -> Response:
         try:
-            assets.delete(infrastructure, asset)
+            _intent_or_500(
+                lambda: intents.release_asset(infrastructure, asset, partial(assets.delete, infrastructure, asset))
+            )
+        except AssetInUseError as exc:
+            detail = "image citée par une annotation : supprimez l'annotation d'abord"
+            raise HTTPException(status_code=409, detail=detail) from exc
         except AssetUnknownError as exc:
             raise HTTPException(status_code=404, detail="image inconnue pour cette infrastructure") from exc
         return Response(status_code=204)
 
-    @app.get(
+
+def _journal_routes(router: APIRouter, journal: JournalReader) -> None:
+    @router.get(
         INTENT_JOURNAL,
-        dependencies=[guard],
-        responses=JOURNAL_RESPONSES,
-        summary="Lire le journal des modifications de l'intention (qui, quand, quoi), filtré, la plus récente d'abord",
+        tags=[doc.JOURNAL],
+        operation_id="get_journal",
+        responses=doc.JOURNAL_RESPONSES,
+        summary="Lire le journal des modifications, le plus récent d'abord",
         description="Une entrée par requête acceptée par `POST /api/intent/patches` : auteur déclaré, date, révision, "
         "catégories (`positions`, `colors`, `groups`, `annotations`, `connectors`, `other`), identités créées, "
         "sujets cités avec leur nom d'alors, opérations telles que reçues. Sans `infrastructure`, toutes les "
         "infrastructures. Filtres combinés : `author` et `category` répétables (l'un ou l'autre), `q` (chaque mot, "
-        "sans la casse, sur l'auteur, l'infrastructure, les noms et le contenu des opérations), `since` inclus, "
-        "`until` exclu. Pagination par `before` = le `next` de la page précédente. Lecture seule ; une ligne "
-        "illisible est sautée et comptée (`unreadable`).",
+        "sans la casse ni les accents, sur l'auteur, les noms, les mots des phrases de la page et le contenu des "
+        "opérations ; jamais le nom de l'infrastructure), `since` inclus, "
+        "`until` exclu, `action` répétable (`created`, `modified`, `deleted`), `object` (l'historique d'un objet : "
+        "hostname ou identité, tout ce qui le cite ; avec `infrastructure`). Pagination par `before` = le `next` "
+        "de la page précédente ; "
+        "`start` (avec `infrastructure`) fait commencer la première page à une révision (le lien vers une entrée). "
+        "Lecture seule ; une ligne illisible est sautée et comptée (`unreadable`).",
     )
     def get_intent_journal(
-        infrastructure: Annotated[str | None, Query(min_length=1)] = None,
+        infrastructure: Annotated[str | None, Query(min_length=1, description="absent = toutes")] = None,
         author: Annotated[list[str] | None, Query(description="répétable")] = None,
         category: Annotated[list[Category] | None, Query(description="répétable")] = None,
-        q: Annotated[str, Query(max_length=200)] = "",
-        since: AwareDatetime | None = None,
-        until: AwareDatetime | None = None,
-        before: Annotated[str | None, Query(max_length=400)] = None,
+        q: Annotated[str, Query(max_length=200, description="mots cherchés, sans la casse")] = "",
+        since: Annotated[AwareDatetime | None, Query(description="inclus, avec fuseau")] = None,
+        until: Annotated[AwareDatetime | None, Query(description="exclu, avec fuseau")] = None,
+        before: Annotated[str | None, Query(max_length=400, description="le `next` de la page précédente")] = None,
         limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 100,
+        action: Annotated[list[Action] | None, Query(description="répétable")] = None,
+        object: Annotated[str | None, Query(min_length=1, max_length=253, description="hostname ou identité")] = None,  # noqa: A002
+        start: Annotated[int | None, Query(ge=0, description="révision, avec `infrastructure`")] = None,
     ) -> JournalPage:
+        # une révision, comme une identité `g…` / `a…` / `c…`, n'est unique que dans son infrastructure (revue, M3)
+        for name, given in (("start", start), ("object", object)):
+            if given is not None and infrastructure is None:
+                detail = f"{name} demande une infrastructure (unique dans la sienne seulement)"
+                return one_problem("paramètres de requête invalides", name, "missing_infrastructure", detail)  # type: ignore[return-value]
         query = JournalQuery(
             infrastructure=infrastructure,
             authors=tuple(author or ()),
@@ -643,55 +441,84 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
             until=until,
             before=before,
             limit=limit,
+            actions=tuple(action or ()),
+            object=object,
+            start=start,
         )
         try:
             return journal.page(query)
         except JournalCursorError as exc:
-            return _problem(
-                "paramètres de requête invalides", [{"loc": ("before",), "type": "cursor", "msg": str(exc)}]
-            )  # type: ignore[return-value]
+            return one_problem("paramètres de requête invalides", "before", "cursor", str(exc))  # type: ignore[return-value]
         except OSError as exc:
             raise HTTPException(status_code=500, detail="journal illisible, intervention nécessaire") from exc
 
-    @app.get(
-        PLACEMENT,
-        dependencies=[guard],
-        response_class=Response,
-        responses=PLACEMENT_RESPONSES,
-        summary="Lire le placement mémorisé d'une infrastructure (la place de chaque équipement déjà dessiné)",
-    )
-    def get_placement(infrastructure: Label) -> Response:
-        doc = _placement_or_500(lambda: placements.load(infrastructure))
-        return Response(content=placement_json(doc), media_type="application/json")
 
-    @app.post(
+def _placement_routes(router: APIRouter, store: BundleArchive, placements: PlacementStore, settings: Settings) -> None:
+    @router.get(
         PLACEMENT,
-        dependencies=[guard],
+        tags=[doc.PLACEMENT],
+        operation_id="get_placement",
         response_class=Response,
-        responses=PLACEMENT_WRITE_RESPONSES,
-        summary="Mémoriser les places que la page vient de calculer (première place gagnante), ou tout replacer",
-        description="La page `/view` envoie, après chaque dessin, les équipements qu'elle a placés sans mémoire : "
-        "la première place d'un équipement est celle qui reste, une seconde page ne déplace rien. `replace` "
-        "remplace tout le document (« replacer » dans la page). Aucun nom requis : c'est une donnée dérivée, les "
-        "épingles de l'intention gagnent toujours sur elle. Une infrastructure sans run archivée est refusée (404).",
+        responses=doc.PLACEMENT_RESPONSES,
+        summary="Lire le placement mémorisé d'une infrastructure",
     )
-    async def post_placement(infrastructure: Label, request: Request) -> Response:
-        if not await run_in_threadpool(store.list_runs, infrastructure):
-            raise HTTPException(status_code=404, detail="aucune run archivée pour cette infrastructure : rien à placer")
-        data = await _read_json_body(request, settings.max_intent_bytes)
+    def get_placement(infrastructure: InfraLabel) -> Response:
+        return _json(placement_json(_placement_or_500(lambda: placements.load(infrastructure))))
+
+    @router.post(
+        PLACEMENT,
+        tags=[doc.PLACEMENT],
+        operation_id="record_placement",
+        response_class=Response,
+        responses=doc.PLACEMENT_WRITE_RESPONSES,
+        summary="Mémoriser les places calculées par une page, ou tout replacer",
+        description="Une page envoie, après chaque dessin, les équipements qu'elle a placés sans mémoire : la "
+        "première place d'un équipement est celle qui reste, une seconde page ne déplace rien. `replace` remplace "
+        "tout le document (« replacer »). Aucun nom requis : c'est une donnée dérivée, les épingles de l'intention "
+        "gagnent toujours sur elle.",
+    )
+    async def post_placement(infrastructure: InfraLabel, request: Request) -> Response:
+        await _require_runs(store, infrastructure, "placer")
+        data = await read_json_body(request, settings.max_intent_bytes)
         try:
             write = PlacementWrite.model_validate(data)
         except ValidationError as exc:
-            return _problem("corps de requête invalide", list(exc.errors()))
+            return problem("corps de requête invalide", list(exc.errors()))
         now = datetime.now(UTC).replace(microsecond=0)
         try:  # le verrou de fichier et le fsync hors de la boucle d'événements (revue, B3)
-            doc = await run_in_threadpool(_placement_or_500, lambda: placements.record(infrastructure, write, now))
+            placed = await run_in_threadpool(_placement_or_500, lambda: placements.record(infrastructure, write, now))
         except PlacementLimitError as exc:
-            return _problem("corps de requête invalide", [{"loc": ("places",), "type": "too_long", "msg": str(exc)}])
+            return one_problem("corps de requête invalide", "places", "too_long", str(exc))
         except PlacementStaleError as exc:
-            return Response(status_code=409, content=placement_json(exc.current), media_type="application/json")
-        return Response(content=placement_json(doc), media_type="application/json")
+            return _json(placement_json(exc.current), status_code=409)
+        return _json(placement_json(placed))
 
+
+def create_app(settings: Settings, archive: BundleArchive | None = None) -> FastAPI:
+    store = archive or BundleArchive(settings.archive_dir)
+    assets = AssetStore(settings.archive_dir)
+    intents = IntentStore(settings.archive_dir, asset_exists=assets.exists)
+    app = doc.DocumentedApp(
+        title="Living Diagram API", version=__version__, description=doc.DESCRIPTION, openapi_tags=doc.TAGS
+    )
+    app.request_bodies = doc.request_bodies(BUNDLES, INTENT_PATCHES, PLACEMENT, INTENT_ASSETS)
+    app.add_exception_handler(RequestValidationError, query_problem)  # type: ignore[arg-type]
+    app.add_exception_handler(Exception, _server_error)
+
+    @app.get("/api/health", tags=[doc.SYSTEM], operation_id="health", summary="Le service répond")
+    def health() -> Health:
+        return Health(status="ok")
+
+    _pages(app)
+    protected = APIRouter(dependencies=[Depends(_bearer_guard(settings))], responses=doc.PROTECTED)
+    _ingestion_routes(protected, store, settings)
+    _run_routes(protected, store)
+    _diff_routes(protected, store, DiffCache())
+    _intent_routes(protected, store, intents, settings)
+    _asset_routes(protected, store, assets, intents, settings)
+    _placement_routes(protected, store, PlacementStore(settings.archive_dir), settings)
+    _journal_routes(protected, JournalReader(settings.archive_dir))
+    app.include_router(protected)
     return app
 
 

@@ -14,7 +14,7 @@ import type { Annotation, AnnotationStyle, Model } from "../../../canvas/types";
 import { useEditable, useStore } from "../../state/store";
 import { Badge } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, Menu, NumberField, Pair, Row, Section, Segmented, Select, Stepper, Switch, TextArea, TextInput, Title } from "../../ui/inspector";
-import { HostLink, HueSetting, WriteHint, signed } from "./shared";
+import { HistoryButton, HostLink, HueSetting, WriteHint, signed } from "./shared";
 import { StrokeRow, TextRows, options } from "./style";
 
 type Content = Annotation["content"];
@@ -147,6 +147,7 @@ export function AnnotationCard({ model, a }: { model: Model; a: Annotation }) {
       <InspectorHead icon={KIND_ICON[c.kind]} kind={capital(KIND_LABEL[c.kind] || c.kind)}
         actions={<>
           {!orphan ? <IconButton label="centrer la toile sur l'annotation" onClick={() => commands.reveal({ kind: "annotation", id: a.id })}><Crosshair /></IconButton> : null}
+          <HistoryButton object={a.id} />
           {canWrite ? <IconButton label="dupliquer" onClick={() => commands.annotationDuplicate(a.id)}><Copy /></IconButton> : null}
           {canWrite ? <IconButton label={a.locked ? "déverrouiller" : "verrouiller"} pressed={a.locked} onClick={() => update({ locked: !a.locked })}>{a.locked ? <Lock /> : <LockOpen />}</IconButton> : null}
           {canWrite ? <Menu label="plus d'actions" items={[

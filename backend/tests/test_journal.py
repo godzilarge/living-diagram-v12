@@ -242,4 +242,206 @@ def test_tables_images_and_connectors_are_named_by_what_they_show(tmp_path: Path
         2,
     )
     labels = [[s["label"] for s in e["subjects"]] for e in _read(tmp_path)["entries"]]
-    assert labels == [["fw-edge-01 → Cœur"], ["fw-edge-01 → point libre"], ["VLAN · NAME", "Cœur"]]
+    assert labels == [["fw-edge-01 → Cœur", "Cœur"], ["fw-edge-01 → point libre"], ["VLAN · NAME", "Cœur"]], (
+        "le groupe visé par un bout est cité avec son nom"
+    )
+
+
+def test_an_unnamed_subject_is_said_by_its_kind_and_an_anchor_is_cited_by_name(tmp_path: Path):
+    """Revue Impeccable du 2026-10-10 : « ancrage g187-1 », « a848-1 → point libre » ne parlaient à personne."""
+    store = IntentStore(tmp_path)
+    shape = {"kind": "shape", "shape": "rectangle", "label": ""}
+    group = {"op": "group_create", "label": "Cœur", "members": ["sw-core-01"]}
+    _write(store, LAB, "o", [{"op": "annotation_create", "content": shape}, group], 0)
+    ends = {"start": {"kind": "annotation", "ref": "a1-1", "side": "auto"}, "end": {"kind": "free", "x": 0, "y": 0}}
+    _write(store, LAB, "o", [{"op": "connector_create", **ends}], 1)
+    _write(store, LAB, "o", [{"op": "annotation_update", "id": "a1-1", "anchor": {"kind": "group", "ref": "g1-1"}}], 2)
+    entries = _read(tmp_path)["entries"]
+    cited = [[(s["id"], s["label"]) for s in e["subjects"]] for e in entries]
+    assert cited[0] == [("a1-1", ""), ("g1-1", "Cœur")], (
+        "l'ancrage est cité par son nom ; sans nom, la page dit sa sorte"
+    )
+    assert cited[1] == [("c2-1", "forme sans titre → point libre"), ("a1-1", "")]
+    assert cited[2] == [("a1-1", ""), ("g1-1", "Cœur")]
+
+
+def test_search_finds_the_words_the_page_shows_without_case_or_accents(tmp_path: Path):
+    """Revue Impeccable du 2026-10-10 : « supprimé », « rouge », « placé » ne trouvaient rien (la recherche ne lisait
+    que `group_delete`, `red`, `pin`) ; un faux négatif silencieux dans un registre d'audit."""
+    store = IntentStore(tmp_path)
+    table = {"kind": "table", "header": True, "rows": [["VLAN", "NAME"]]}
+    table = {**table, "widths": None, "heights": None, "merges": []}
+    _write(store, LAB, "o", [{"op": "pin", "hostname": "sw-core-01", "x": 1, "y": 2}], 0)
+    _write(store, LAB, "o", [{"op": "color", "hostname": "fw-edge-01", "hue": "red"}], 1)
+    _write(store, LAB, "o", [{"op": "group_create", "label": "Cœur", "members": ["sw-core-01"]}], 2)
+    _write(store, LAB, "o", [{"op": "group_delete", "id": "g3-1"}], 3)
+    _write(store, LAB, "o", [{"op": "annotation_create", "content": table}], 4)
+    _write(store, LAB, "o", [{"op": "annotation_update", "id": "a5-1", "x": 4}], 5)
+    _write(store, LAB, "o", [{"op": "color_type", "type": "router", "hue": "amber"}], 6)
+
+    def found(q: str) -> list[int]:
+        return [e["revision"] for e in _read(tmp_path, q=q)["entries"]]
+
+    assert found("supprimé") == [4]
+    assert found("SUPPRIME") == [4], "sans la casse ni les accents"
+    assert found("rouge") == [2]
+    assert found("placé") == [1]
+    assert found("tableau") == [6, 5], "la sorte d'une annotation, même dans une mise à jour sans contenu"
+    assert found("tableau position") == [6], "les champs modifiés, comme la page les dit"
+    assert found("routeur ambre") == [7]
+
+
+def test_groups_are_computed_on_the_whole_file_never_on_a_filter(tmp_path: Path):
+    """Revue Impeccable du 2026-10-10 : calculées sur la liste filtrée, les sessions changeaient avec le filtre."""
+    store = IntentStore(tmp_path)
+    pin = [{"op": "pin", "hostname": "sw-core-01", "x": 1, "y": 2}]
+    for minute in (0, 5, 10):
+        _write(store, LAB, "o", pin, minute)
+    _write(store, LAB, "o", [{"op": "color", "hostname": "fw-edge-01", "hue": "red"}], 11)
+    for minute in (12, 14):
+        _write(store, LAB, "o", [{"op": "pin", "hostname": "fw-edge-01", "x": minute, "y": 0}], minute)
+    _write(store, LAB, "o", [{"op": "color", "hostname": "fw-edge-01", "hue": "teal"}], 15)
+    _write(store, LAB, "o", [{"op": "color", "hostname": "fw-edge-01", "hue": "red"}], 16)
+    _write(store, LAB, "bob", pin, 17)
+
+    def groups(**kwargs) -> list:
+        return [
+            (e["revision"], e["group"] and (e["group"]["kind"], e["group"]["size"]))
+            for e in _read(tmp_path, **kwargs)["entries"]
+        ]
+
+    assert groups() == [
+        (9, None),
+        (8, ("repeat", 2)),
+        (7, ("repeat", 2)),
+        (6, ("repeat", 2)),
+        (5, ("repeat", 2)),
+        (4, None),
+        (3, ("session", 3)),
+        (2, ("session", 3)),
+        (1, ("session", 3)),
+    ], "trois positions : une session ; deux : une répétition ; une couleur coupe ; un autre auteur aussi"
+    assert groups(categories=("positions",))[1:] == [
+        (6, ("repeat", 2)),
+        (5, ("repeat", 2)),
+        (3, ("session", 3)),
+        (2, ("session", 3)),
+        (1, ("session", 3)),
+    ], "filtrées, les positions ne fusionnent pas en une session de cinq"
+
+
+def test_every_verb_the_page_writes_is_searchable():
+    """La recherche lit les mots de la page (`journal_words.py`) : chaque verbe de `sentenceOf` (journal-text.ts) doit
+    être dans le vocabulaire de son opération, sinon une phrase affichée ne se trouve pas."""
+    import re
+
+    from ld_backend.journal_words import OP_WORDS, fold
+
+    source = Path(__file__).parents[2] / "engine" / "src" / "app" / "state" / "journal-text.ts"
+    cases = re.findall(r'case "(\w+)": return say\("a (\w+)', source.read_text(encoding="utf-8"))
+    assert len(cases) >= 17, "les phrases de la page se lisent encore"
+    for op, verb in cases:
+        assert fold(verb) in fold(" ".join(OP_WORDS.get(op, ()))), (op, verb)
+    # les rafales (`BATCH`) : « a placé 3 équipements », le verbe et le nom au pluriel (revue, M4)
+    batches = re.findall(r'(\w+): \["a (\w+) [^"]*", "(\w+)"\]', source.read_text(encoding="utf-8"))
+    assert len(batches) >= 12, "la table des rafales se lit encore"
+    for op, verb, noun in batches:
+        words = fold(" ".join(OP_WORDS.get(op, ())))
+        assert fold(verb) in words and fold(noun + "s") in words, (op, verb, noun)
+
+
+def test_actions_are_created_modified_deleted_and_a_purge_counts_as_deleted(root: Path):
+    page = _read(root, infrastructure=LAB)
+    assert [(e["revision"], e["actions"]) for e in page["entries"]] == [
+        (6, ["deleted"]),
+        (5, ["created"]),
+        (4, ["modified"]),
+        (3, ["modified"]),
+        (2, ["created"]),
+        (1, ["modified"]),
+    ], "retirer une épingle ou une couleur modifie, ne supprime pas"
+    assert page["actions"] == [{"value": "created", "count": 2}, {"value": "modified", "count": 3},
+                               {"value": "deleted", "count": 1}]  # fmt: skip
+    deleted = _read(root, infrastructure=LAB, actions=("deleted",))
+    assert [e["revision"] for e in deleted["entries"]] == [6]
+    assert [f["count"] for f in deleted["actions"]] == [2, 3, 1], "la facette se compte sans son propre filtre"
+
+
+def test_object_history_lists_everything_that_cites_it(root: Path):
+    """L'historique d'un objet : ses opérations, sa création, un groupe qui le compte parmi ses membres."""
+    assert [e["revision"] for e in _read(root, infrastructure=LAB, object="sw-core-01")["entries"]] == [4, 2, 1]
+    assert [e["revision"] for e in _read(root, infrastructure=LAB, object="g2-1")["entries"]] == [6, 3, 2], (
+        "créé, renommé, supprimé"
+    )
+    assert _read(root, infrastructure=LAB, object="inconnu")["entries"] == []
+    with pytest.raises(ValueError):  # une identité n'est unique que dans son infrastructure (revue, M3)
+        _read(root, object="g2-1")
+
+
+def test_a_link_opens_the_page_at_its_revision_and_says_when_it_is_gone(root: Path):
+    page = _read(root, infrastructure=LAB, start=3, limit=2)
+    assert [e["revision"] for e in page["entries"]] == [3, 2] and page["start_missing"] is False
+    assert page["next"], "la suite se lit comme d'habitude"
+    assert [e["revision"] for e in _read(root, infrastructure=LAB, before=page["next"])["entries"]] == [1]
+    gone = _read(root, infrastructure=LAB, start=99)
+    assert gone["start_missing"] is True, "une révision absente (purgée, ou inconnue) se dit"
+    assert gone["entries"][0]["revision"] == 6, "et la page part de la plus proche plus ancienne"
+    nearest = _read(root, infrastructure=LAB, start=4, categories=("groups",))
+    assert nearest["start_missing"] is True, "filtrée : la page part de la plus proche plus ancienne"
+    assert [e["revision"] for e in nearest["entries"]] == [3, 2]
+
+
+def test_a_link_to_a_purged_revision_lands_on_the_purge_never_on_an_empty_page(tmp_path: Path):
+    """Revue, M1 et M2 : la trace de purge porte la révision maximale ; un lien vers l'entrée purgée de cette révision
+    tombait sur la trace sans dire que l'entrée manque, et un lien plus ancien que tout donnait une page vide."""
+    from ld_backend.journal_prune import prune
+
+    store = IntentStore(tmp_path)
+    for minute in range(3):
+        _write(store, LAB, "o", [{"op": "pin", "hostname": f"sw-{minute}", "x": 0, "y": 0}], minute)
+    prune(
+        tmp_path, LAB, before=datetime(2026, 10, 7, tzinfo=UTC), author="admin", now=datetime(2026, 10, 7, tzinfo=UTC)
+    )
+    _write(store, LAB, "o", [{"op": "color", "hostname": "sw-0", "hue": "red"}], 30)
+    for revision in (3, 1):
+        page = _read(tmp_path, infrastructure=LAB, start=revision)
+        assert page["start_missing"] is True, revision
+        assert page["entries"][0]["ops"][0]["op"] == "journal_prune", "la trace qui explique la disparition"
+    unknown = _read(tmp_path, infrastructure=LAB, start=0)
+    assert unknown["start_missing"] is True and len(unknown["entries"]) == 2, "jamais une page vide : tout le journal"
+
+
+def test_search_finds_plurals_counts_and_purge_words(tmp_path: Path):
+    """Revue, M4 : « équipements » ne trouvait pas « a placé 3 équipements », ni la purge par ses mots."""
+    from ld_backend.journal_prune import prune
+
+    store = IntentStore(tmp_path)
+    _write(
+        store,
+        LAB,
+        "o",
+        [{"op": "pin", "hostname": "a", "x": 0, "y": 0}, {"op": "pin", "hostname": "b", "x": 0, "y": 0}],
+        0,
+    )
+    _write(store, LAB, "o", [{"op": "group_create", "label": "G", "members": ["a", "b"]}], 1)
+    when = datetime(2026, 10, 6, 10, 1, tzinfo=UTC)
+    prune(tmp_path, LAB, before=when, categories=("positions",), author="admin", now=datetime(2026, 10, 7, tzinfo=UTC))
+
+    def found(q: str) -> int:
+        return _read(tmp_path, q=q)["total"]
+
+    assert found("membres") == 1
+    assert found("autres modifications") == 0 and found("groupes") == 1
+    assert found("entrées antérieures") == 1 and found("positions purgé") == 1, "la trace, par ses mots et sa catégorie"
+
+
+def test_a_legacy_line_is_in_the_history_of_the_connector_it_became(tmp_path: Path):
+    """Revue, B10 : une flèche d'un 1.3.x (annotation `a…`) est relue comme connecteur `c…` : sa création compte."""
+    line = json.dumps(
+        {"at": "2026-10-06T10:00:00Z", "author": "o", "revision": 5, "ops": [
+            {"op": "annotation_create", "content": {"kind": "shape", "shape": "arrow", "label": ""}}]}
+    )  # fmt: skip
+    folder = tmp_path / "_intent" / LAB
+    folder.mkdir(parents=True)
+    (folder / "journal.jsonl").write_text(line + "\n", encoding="utf-8")
+    assert [e["revision"] for e in _read(tmp_path, infrastructure=LAB, object="c5-1")["entries"]] == [5]
