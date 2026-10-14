@@ -89,6 +89,15 @@ export async function readAsset(session: Session, asset: string): Promise<string
   return URL.createObjectURL(await response.blob());
 }
 
+/** Le fichier d'une image d'une infrastructure (peut-être une autre que celle de la session : un collage d'ailleurs,
+ *  lot 3 de docs/11), avec son type ; `null` si elle manque, si l'API refuse ou ne répond pas. */
+export async function fetchAssetFile(session: Session, infrastructure: string, asset: string): Promise<Blob | null> {
+  try {
+    const response = await fetch(withParams(ROUTES.assets, { infrastructure, asset }), { headers: { Authorization: "Bearer " + session.token }, credentials: "omit" });
+    return response.status === 200 ? await response.blob() : null;
+  } catch (error) { return null; }
+}
+
 export type JournalResult = { ok: true; page: JournalPage } | { ok: false; status: number; message: Said };
 
 /** Une page du journal des modifications (`GET /api/intent/journal`) ; `params` répétables (`author`, `category`). */

@@ -437,6 +437,16 @@ ne le lisent (`rendu = f(snapshot ⊕ intent, vue)`, `diff = snapshot ↔ snapsh
 | `ld render --infrastructure X --run-id Y` | la page embarque le document (clé `intent`, **lecture seule** : sans serveur, un déplacement reste local) ; en mode fichier, pas d'intention |
 | `/view` | lit `/api/intent` avec le snapshot ; **le nom saisi dans la page** (champ « votre nom », gardé dans `localStorage`) signe les épingles ; glisser un équipement envoie `pin` à la relâche, l'onglet **Intentions** liste, retire, confirme avant de tout retirer |
 
+**Les identités d'une requête de créations** (figées par un test le 2026-10-14, lot 3 de `docs/11`) : la réponse reste
+le document ; la n-ième `annotation_create` d'une requête reçoit `a<revision>-<n>`, le n-ième `connector_create`
+`c<revision>-<n>`, le n-ième `group_create` `g<revision>-<n>`, n compté par sorte dans l'ordre des opérations, mêlées ou
+non, au-delà de neuf compris (`tests/test_api_intent.py`) ; c'est un engagement de l'API, écrit dans l'OpenAPI (route
+et opérations de création, `tests/test_openapi.py`) et dans `docs/10` §6. C'est ce que la page lit pour relier un
+collage : un connecteur qui vise une annotation collée part dans une seconde requête, sous l'identité que la première a
+donnée, lue sur la **réponse** de cette requête et vérifiée dans ce document (sorte et place) avant l'envoi ; si la
+seconde ne part pas ou est refusée, la page défait la première (le serveur ne vérifie pas qu'une annotation visée
+existe : la viser par une identité devinée avant la réponse serait fragile).
+
 Le store (`intent.py`) : `<archive>/_intent/<infra>/intent.json` (forme canonique) et `journal.jsonl` (une ligne par
 requête acceptée : `at`, `author`, `revision`, `ops`) ; écriture atomique sous un verrou de fichier par infrastructure
 (`fcntl`, plus un verrou de processus) : deux requêtes simultanées s'appliquent l'une après l'autre, aucune n'est perdue

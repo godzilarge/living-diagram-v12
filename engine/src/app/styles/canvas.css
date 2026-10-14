@@ -253,6 +253,9 @@
 .sketch-layer { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
 .sketch-layer .connector-line { stroke: var(--accent); stroke-dasharray: 6 4; }
 .sketch-layer .connector-head { fill: var(--accent); }
+/* le fantôme d'un Alt + glissé (lot 3 de docs/11) : la copie à venir, à 60 %, jamais estompée par la sélection */
+.clone-layer { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; opacity: 0.6; }
+.flow.has-selection .clone-layer .annotation:not(.selected):not(.related), .flow.has-selection .clone-layer .connector:not(.selected):not(.related) { opacity: 1; }
 /* l'outil connecteur armé (bouton de la barre, touche C) : la toile prend la croix */
 .tool-connector .react-flow__pane, .tool-connector .react-flow__node, .tool-connector .react-flow__node *, .tool-connector .react-flow__edge * { cursor: crosshair !important; }
 /* le survol, quand on peut écrire : un liseré d'accent à 50 %, 1 px d'écran, sur l'annotation, le cadre, le connecteur */

@@ -192,6 +192,8 @@ button.count.sev-error[aria-pressed="true"], button.count.sev-warning[aria-press
 /* ---------- l'état, l'accueil, la ligne d'état ---------- */
 .toast { position: absolute; left: 50%; bottom: var(--sp-4); transform: translateX(-50%); z-index: var(--z-toast); max-width: min(520px, calc(100% - 2 * var(--sp-4))); padding: 8px 12px; border-radius: var(--r); box-shadow: var(--shadow); font-size: var(--fs-sm); color: var(--ink); animation: rise var(--t) var(--ease) both; }
 .app.ready .toast { bottom: 72px; } /* au-dessus de la bande des runs */
+.toast.with-offer { display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 12px; } /* une action proposée (lot 2 de docs/11) : le texte, puis le bouton */
+.toast.with-offer.busy::before { flex: 0 0 auto; }
 @keyframes rise-left { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* ---------- les commandes de la toile (grille, aimant, minimap, cadrer, thème) ---------- */
 .controls { position: absolute; left: var(--sp-4); bottom: var(--sp-4); z-index: var(--z-band); display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: var(--r); box-shadow: var(--shadow); animation: rise-left var(--t) var(--ease) both; }
@@ -258,6 +260,9 @@ button.count.sev-error[aria-pressed="true"], button.count.sev-warning[aria-press
 .context-item:hover, .context-item:focus-visible { background: color-mix(in srgb, var(--accent) 16%, transparent); outline: none; }
 .context-item.danger { color: var(--error); }
 .context-item.checked::before { content: ""; position: absolute; left: 10px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--accent); }
+/* le raccourci d'une entrée (lot 3 de docs/11 : copier Ctrl+C…), à droite, discret */
+.context-label { flex: 1; min-width: 0; }
+.context-keys { flex: none; font: 500 var(--fs-xs) var(--mono); color: var(--ink-3); background: none; border: 0; padding: 0; }
 .context-sep { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
 @media (prefers-reduced-motion: reduce) { .context-menu { animation: none; } }
 .toolbar-group { display: flex; align-items: center; gap: 2px; animation: grow-in var(--t) var(--ease) both; }
@@ -279,7 +284,11 @@ button.count.sev-error[aria-pressed="true"], button.count.sev-warning[aria-press
 .walk-keys { display: inline-flex; gap: 3px; margin-right: 2px; }
 @media (max-width: 1200px) { .walk { left: var(--sp-4); top: calc(var(--bar-h) + var(--sp-3) + 2 * (40px + var(--sp-2))); transform: none; animation: rise-left var(--t) var(--ease) both; } .walk-keys { display: none; } }
 @media (prefers-reduced-motion: reduce) { .walk { animation: none; } }
-@media (max-width: 1200px) { .toolbar { left: var(--sp-4); top: calc(var(--bar-h) + var(--sp-3) + 40px + var(--sp-2)); transform: none; animation: rise-left var(--t) var(--ease) both; } }
+/* Le panneau ouvert (lot 2 de docs/11) : la barre se centre entre la recherche et le panneau et passe à la ligne
+   plutôt que de glisser dessous (une sélection mixte y met huit alignements). */
+.app.has-panel .toolbar { left: calc((var(--sp-4) + 300px + var(--sp-3) + 100vw - var(--panel-w) - var(--sp-3) - var(--sp-3)) / 2); max-width: calc(100vw - var(--panel-w) - 300px - var(--sp-4) - 4 * var(--sp-3)); flex-wrap: wrap; justify-content: center; }
+@media (max-width: 1200px) { .toolbar { left: var(--sp-4); top: calc(var(--bar-h) + var(--sp-3) + 40px + var(--sp-2)); transform: none; animation: rise-left var(--t) var(--ease) both; }
+  .app.has-panel .toolbar { left: var(--sp-4); max-width: calc(100vw - var(--panel-w) - 3 * var(--sp-4)); justify-content: flex-start; } }
 /* sous 1460 px, la bande des runs se centre à droite des commandes et de la minimap, qu'elle recouvrait */
 @media (max-width: 1460px) { .band { left: 268px; right: var(--sp-4); width: fit-content; max-width: calc(100% - 268px - var(--sp-4)); margin-inline: auto; transform: none; animation-name: rise-left; } }
 @media (max-width: 1280px) { .bar-center { justify-content: flex-start; } }

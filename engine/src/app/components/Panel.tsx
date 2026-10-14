@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { aggregateOf, beamOf, clusterOf, groupOf, linkOf, nodeOf } from "../../canvas/model";
 import { PANEL_WIDTH, clampPanelWidth } from "../state/prefs";
 import { useModel, useStore } from "../state/store";
+import { size } from "../state/selection";
 import { Button } from "../ui";
 import { AnnotationCard } from "./cards/AnnotationCard";
 import { ConnectorCard } from "./cards/ConnectorCard";
@@ -69,10 +70,11 @@ export function Panel() {
   const model = useModel();
   const { t } = useTranslation("panel");
   if (!model) return null;
-  const { selection, hosts } = state;
+  const { selection, picked } = state;
   const control = state.view.mode === "control";
+  const many = size(picked) >= 2;
   let card = null;
-  if (hosts.length >= 2) card = <MultiCard model={model} hosts={hosts} />;
+  if (many) card = <MultiCard model={model} picked={picked} />;
   else if (selection) {
     const node = nodeOf(model, selection), link = linkOf(model, selection), beam = beamOf(model, selection), cluster = clusterOf(model, selection), aggregate = aggregateOf(model, selection);
     const group = control ? undefined : groupOf(model, selection);
@@ -88,7 +90,7 @@ export function Panel() {
     else if (aggregate) card = <AggregateCard model={model} aggregate={aggregate} />;
   }
   if (!card) return null;
-  const key = (hosts.length >= 2 ? "multi" : selection ? selection.kind + ":" + selection.id : "") + (control ? "#control" : "");
+  const key = (many ? "multi" : selection ? selection.kind + ":" + selection.id : "") + (control ? "#control" : "");
   return (
     <aside className="panel glass" key={key} aria-label={t("panel.label")}>
       <Resizer />

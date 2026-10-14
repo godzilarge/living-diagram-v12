@@ -138,7 +138,17 @@
     "selected_one": "{{count}} device selected",
     "selected_other": "{{count}} devices selected",
     "clear": "clear the selection",
-    "keys": "{{label}} ({{keys}})"
+    "keys": "{{label}} ({{keys}})",
+    "selectedItems_one": "{{count}} item selected",
+    "selectedItems_other": "{{count}} items selected",
+    "box": {
+      "left": "align left",
+      "center": "align centre",
+      "right": "align right",
+      "top": "align top",
+      "middle": "align middle",
+      "bottom": "align bottom"
+    }
   },
   "keys": {
     "escape": "Esc"
@@ -214,7 +224,13 @@
     "undoStale": "nothing to undo: {{what}}, changed since by someone else",
     "redoStale": "nothing to redo: {{what}}, changed since by someone else",
     "skipped_one": "{{count}} changed since by someone else, left as is",
-    "skipped_other": "{{count}} changed since by someone else, left as is"
+    "skipped_other": "{{count}} changed since by someone else, left as is",
+    "movedItems_one": "move of {{count}} item",
+    "movedItems_other": "move of {{count}} items",
+    "deletedItems_one": "deletion of {{count}} item",
+    "deletedItems_other": "deletion of {{count}} items",
+    "createdItems_one": "addition of {{count}} item",
+    "createdItems_other": "addition of {{count}} items"
   },
   "context": {
     "label": "context menu",
@@ -271,7 +287,19 @@
     "duplicate": "duplicate",
     "detach": "detach",
     "defaultNote": "Note",
-    "defaultGroup": "Group"
+    "defaultGroup": "Group",
+    "copy": "copy",
+    "cut": "cut",
+    "pasteHere": "paste here",
+    "copyName": "copy the name",
+    "copyNames": "copy the names",
+    "copySelection": "copy the selection",
+    "keys": {
+      "copy": "Ctrl+C",
+      "cut": "Ctrl+X",
+      "paste": "Ctrl+V",
+      "duplicate": "Ctrl+D"
+    }
   },
   "palette": {
     "label": "type palette",
@@ -317,7 +345,18 @@
     "runsUnavailable": "run list unavailable: {{reason}}",
     "imageTooLarge": "image too large (4 MB at most)",
     "imageFormats": "PNG, JPEG or WebP only",
-    "notFoundInRun": "not found in this run: {{token}}"
+    "notFoundInRun": "not found in this run: {{token}}",
+    "itemsMoved_one": "{{count}} item moved, saved ({{author}})",
+    "itemsMoved_other": "{{count}} items moved, saved ({{author}})",
+    "itemsAligned_one": "{{count}} item aligned, saved ({{author}})",
+    "itemsAligned_other": "{{count}} items aligned, saved ({{author}})",
+    "itemsDeleted_one": "{{count}} item deleted ({{author}}) · Ctrl+Z to undo",
+    "itemsDeleted_other": "{{count}} items deleted ({{author}}) · Ctrl+Z to undo",
+    "deviceKept": "a device comes from the data: it cannot be deleted, it can be hidden",
+    "devicesKept": "devices come from the data: they cannot be deleted, they can be hidden",
+    "hideOffer": "hide",
+    "itemsCut_one": "{{count}} item cut ({{author}}) · Ctrl+Z to undo",
+    "itemsCut_other": "{{count}} items cut ({{author}}) · Ctrl+Z to undo"
   },
   "canvas": {
     "haActive": "active",
@@ -339,7 +378,7 @@
     "cellText": "cell text",
     "connectorLabel": "connector label",
     "nodeHelp": "Enter or Space selects the device; Escape clears the selection.",
-    "nodeHelpKeys": "Enter or Space selects the device; the arrow keys move it, Shift to go faster; Escape clears the selection.",
+    "nodeHelpKeys": "Enter or Space selects the device; Tab moves to the next item; the arrow keys move the selection, Shift to go faster; Delete removes annotations, connectors and groups; Escape clears the selection.",
     "moved": "Moved {{direction}}. Position: {{x}}, {{y}}.",
     "direction": {
       "up": "up",
@@ -361,7 +400,9 @@
       "cable": "cable",
       "beam": "bundle"
     },
-    "imageLoading": "loading image…"
+    "imageLoading": "loading image…",
+    "shapeLabel": "label of the shape",
+    "groupName": "name of the group"
   },
   "live": {
     "selected": "{{kind}} {{label}} selected",
@@ -374,6 +415,56 @@
       "group": "group",
       "annotation": "annotation",
       "connector": "connector"
-    }
+    },
+    "many": "selection: {{items}}"
+  },
+  "items": {
+    "node_one": "{{count}} device",
+    "node_other": "{{count}} devices",
+    "annotation_one": "{{count}} annotation",
+    "annotation_other": "{{count}} annotations",
+    "connector_one": "{{count}} connector",
+    "connector_other": "{{count}} connectors",
+    "group_one": "{{count}} group",
+    "group_other": "{{count}} groups",
+    "all_one": "{{count}} item",
+    "all_other": "{{count}} items"
+  },
+  "clipboard": {
+    "copied_one": "{{count}} item copied",
+    "copied_other": "{{count}} items copied",
+    "namesCopied_one": "name of {{count}} device copied as text",
+    "namesCopied_other": "names of {{count}} devices copied as text",
+    "groupsNotCopied_one": "a group is not copied (its members come from the data)",
+    "groupsNotCopied_other": "groups are not copied (their members come from the data)",
+    "readOnly": "Checks view, read only: nothing is written",
+    "giveName": "nothing is written without a name: give yours (top right)",
+    "carrying_one": "sending {{count}} image to this infrastructure…",
+    "carrying_other": "sending {{count}} images to this infrastructure…",
+    "devicesNotPasted_one": "a device is not pasted: it comes from the data",
+    "devicesNotPasted_other": "devices are not pasted: they come from the data",
+    "empty": "nothing to paste",
+    "imageMissing": "image not found",
+    "imagesMissing_one": "{{count}} image not found, pasted as a note",
+    "imagesMissing_other": "{{count}} images not found, pasted as notes",
+    "tooMany": "too many items for one paste ({{max}} at most)",
+    "pasted_one": "{{count}} item pasted ({{author}}) · Ctrl+Z to undo",
+    "pasted_other": "{{count}} items pasted ({{author}}) · Ctrl+Z to undo",
+    "unreadable": "unreadable Living Diagram copy (unknown version or damaged): nothing pasted",
+    "tabOnly": "kept in this tab only, the system clipboard refused",
+    "readRefused": "the browser refuses to read the clipboard: paste with Ctrl+V",
+    "tooManyImages": "too many images to send from another infrastructure ({{max}} at most): nothing pasted",
+    "groupsKept_one": "{{count}} group kept: a group is not cut",
+    "groupsKept_other": "{{count}} groups kept: a group is not cut",
+    "tooBig": "paste too large for one request ({{max}} KB at most): nothing pasted",
+    "freed_one": "{{count}} anchor released",
+    "freed_other": "{{count}} anchors released",
+    "pasting": "pasting…",
+    "refused": "paste refused: {{reason}}",
+    "idsUnknown": "the created items cannot be found in the server's answer",
+    "partial": "incomplete paste: {{reason}}; undoing it failed too ({{undo}}) · Ctrl+Z to undo what remains",
+    "abandoned": "paste abandoned: the run or infrastructure shown changed, nothing was written to {{infrastructure}}",
+    "abandonedAfter": "paste interrupted: the run or infrastructure shown changed; what was already written stays in {{infrastructure}}",
+    "pasteFailed": "the clipboard was read, but its content could not be pasted"
   }
 }

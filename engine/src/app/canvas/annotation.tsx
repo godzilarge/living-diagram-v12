@@ -3,7 +3,8 @@
 // elle est un nœud enfant de sa carte ou de son cadre : React Flow la déplace avec eux. Sélectionnée et éditable, huit
 // poignées à taille d'écran constante la redimensionnent (handles.ts : quatre coins, quatre barres de côté ; Maj garde
 // le rapport, Alt part du centre), une pastille dit la taille pendant le geste, « X, Y » pendant un glissé ; un
-// double-clic sur une note ouvre son texte en place, un tableau s'édite cellule par cellule (table.tsx) ; le clic droit
+// double-clic (ou F2, Entrée) sur une note ouvre son texte en place, sur une forme son étiquette (lot 2 de docs/11), un
+// tableau s'édite cellule par cellule (table.tsx) ; le clic droit
 // ouvre le menu contextuel. Survolée quand on peut écrire, un liseré d'accent (lot 1 de docs/11).
 import { t } from "../../i18n";
 import { useReactFlow, useStore } from "@xyflow/react";
@@ -25,10 +26,13 @@ import type { HandleId, PillPlace } from "./handles";
 import { useAsset } from "./assets";
 import type { EndKind, Pick } from "./snap";
 import { TableBody } from "./table";
+import { InlineInput } from "./inline";
 import type { Cell } from "./table";
 
 export interface AnnotationData extends Record<string, unknown> {
   a: Annotation; frame: Frame; leader: Segment | null; editable: boolean; classes: string; label: string;
+  /** Dans une sélection de plusieurs éléments : pas de poignées (on ne redimensionne qu'une boîte à la fois). */
+  multi?: boolean;
 }
 export type AnnotationNodeType = Node<AnnotationData, "annotation">;
 /** Ce que la toile sait faire d'une annotation ou d'un connecteur : la page écrit par l'API. */
@@ -48,11 +52,14 @@ export interface AnnotationActions {
   aim: (pick: Pick | null) => void;
   /** Un geste en cours (redimensionnement, bout glissé, édition en place) : la bulle se tait tant qu'il dure. */
   hold: (reason: string, on: boolean) => void;
+  /** Le nom d'un groupe édité sur son cadre (lot 2 de docs/11). */
+  groupLabel: (id: string, label: string) => void;
 }
 const freePick = (at: Point): Pick => ({ end: { kind: "free", x: at.x, y: at.y }, place: { kind: "point", at }, target: null, anchors: [], snapped: null });
-export const AnnotationContext = createContext<AnnotationActions>({ resize: () => undefined, edit: () => undefined, content: () => undefined, menu: () => undefined, connector: () => undefined, pick: freePick, aim: () => undefined, hold: () => undefined });
-/** Les gestes d'édition en place qu'une commande (menu) peut demander au nœud : éditer telle cellule, tel texte. */
-export const EditRequest = createContext<{ id: string; cell: Cell | null; at: number } | null>(null);
+export const AnnotationContext = createContext<AnnotationActions>({ resize: () => undefined, edit: () => undefined, content: () => undefined, menu: () => undefined, connector: () => undefined, pick: freePick, aim: () => undefined, hold: () => undefined, groupLabel: () => undefined });
+/** Les gestes d'édition en place qu'une commande (menu, F2, Entrée) peut demander au nœud : éditer telle cellule, tel
+ *  texte ; `kind` = « group » : le nom d'un groupe sur son cadre. */
+export const EditRequest = createContext<{ id: string; cell: Cell | null; at: number; kind?: "annotation" | "group" } | null>(null);
 
 /** Le zoom courant (les poignées et les pastilles gardent leur taille d'écran). */
 const useZoom = (): number => useStore((st) => st.transform[2]);
@@ -113,7 +120,9 @@ function Leader({ seg, frame }: { seg: Segment; frame: Frame }) {
   return <g className="annotation-leader"><line x1={x1} y1={y1} x2={x2} y2={y2} /><polygon className="annotation-arrow" points={`${x2},${y2} ${p(0.45)} ${p(-0.45)}`} /></g>;
 }
 
-function Body({ a, frame }: { a: Annotation; frame: Frame }) {
+/** Le dessin d'une annotation (forme, texte, image), aux dimensions de sa boîte ; aussi celui du fantôme d'un Alt +
+ *  glissé (clone.tsx). */
+export function Body({ a, frame, editing = false }: { a: Annotation; frame: Frame; editing?: boolean }) {
   const s = a.style, c = a.content;
   const stroke = s.stroke_style === "none" ? 0 : s.stroke_width;
   const dash = dashArray(s) || undefined;
@@ -127,7 +136,7 @@ function Body({ a, frame }: { a: Annotation; frame: Frame }) {
     ? <ellipse className="annotation-shape" cx={frame.w / 2} cy={frame.h / 2} rx={frame.w / 2} ry={frame.h / 2} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={dash} />
     : <rect className="annotation-shape" x={0} y={0} width={frame.w} height={frame.h} rx={s.radius} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={dash} />;
   if (c.kind === "note") return <>{box}{text(c.text)}</>;
-  if (c.kind === "shape") return <>{box}{c.label ? text(c.label) : null}</>;
+  if (c.kind === "shape") return <>{box}{c.label && !editing ? text(c.label) : null}</>;
   return <>{box}<Picture a={a} frame={frame} /></>;
 }
 
@@ -164,11 +173,14 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
   useEffect(() => { setLive(null); }, [data.frame]);
   // désélectionnée (Échap, clic ailleurs) en plein redimensionnement : les poignées partent, la boîte d'avant revient, rien ne s'écrit
   useEffect(() => { if (!selected) { setPick(null); setCell(null); setLive(null); } }, [selected]);
-  // une commande du menu demande l'édition en place : telle cellule du tableau, ou le texte de la note
+  // une commande (menu, F2, Entrée) demande l'édition en place : telle cellule du tableau, le texte de la note,
+  // l'étiquette de la forme ; une seule fois par demande (l'annotation modifiée ne la rejoue pas)
+  const handled = useRef(0);
   useEffect(() => {
-    if (!request || request.id !== a.id) return;
+    if (!request || request.id !== a.id || request.kind === "group" || request.at === handled.current) return;
+    handled.current = request.at;
     if (request.cell && a.content.kind === "table") { setPick({ r0: request.cell[0], c0: request.cell[1], r1: request.cell[0], c1: request.cell[1] }); setCell(request.cell); }
-    else if (a.content.kind === "note") setEditing(true);
+    else if (a.content.kind === "note" || a.content.kind === "shape") setEditing(true);
   }, [request, a]);
   const frame = live || data.frame;
   // Pendant un geste ou une édition en place, la bulle se tait (lot 1 de docs/11).
@@ -188,8 +200,13 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
     if (next.x !== was.x || next.y !== was.y || next.w !== was.w || next.h !== was.h) actions.resize(a.id, next);
   }, [a.id, data.frame, actions]);
   const canEdit = editable && !a.locked;
-  const dbl = useCallback((): void => { if (canEdit && a.content.kind === "note") setEditing(true); }, [canEdit, a.content.kind]);
-  const done = useCallback((text: string | null): void => { setEditing(false); if (text !== null && a.content.kind === "note" && text.trim() && text !== a.content.text) actions.edit(a.id, text); }, [a, actions]);
+  const dbl = useCallback((): void => { if (canEdit && (a.content.kind === "note" || a.content.kind === "shape")) setEditing(true); }, [canEdit, a.content.kind]);
+  const done = useCallback((text: string | null): void => {
+    setEditing(false);
+    if (text === null) return;
+    if (a.content.kind === "note" && text.trim() && text !== a.content.text) actions.edit(a.id, text);
+    if (a.content.kind === "shape" && text.trim() !== a.content.label) actions.edit(a.id, text.trim()); // une étiquette vide est admise
+  }, [a, actions]);
   const menu = useCallback((event: ReactMouseEvent): void => { event.preventDefault(); event.stopPropagation(); actions.menu({ kind: "annotation", id: a.id }, event); }, [actions, a.id]);
   const cellMenu = useCallback((target: { cell: Cell; range: Range }, event: ReactMouseEvent): void => { event.preventDefault(); event.stopPropagation(); actions.menu({ kind: "annotation", id: a.id, ...target }, event); }, [actions, a.id]);
   const classes = `annotation kind-${a.content.kind} hue-${a.style.hue} plane-${a.z}${a.locked ? " locked" : ""}${a.anchor.kind !== "free" ? " anchored" : ""} ${data.classes}`;
@@ -201,13 +218,14 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
             {data.leader && !live ? <Leader seg={data.leader} frame={frame} /> : null}
             {a.content.kind === "table"
               ? <TableBody a={a} content={a.content} frame={frame} active={!!selected} editable={canEdit} onContent={(content) => actions.content(a.id, content)} onMenu={cellMenu} pick={pick} onPick={setPick} editing={cell} onEdit={setCell} />
-              : <Body a={a} frame={frame} />}
+              : <Body a={a} frame={frame} editing={editing} />}
           </g>
           {a.content.kind === "shape" && a.content.shape === "ellipse"
             ? <ellipse className="hover-ring" cx={frame.w / 2} cy={frame.h / 2} rx={frame.w / 2} ry={frame.h / 2} />
             : <rect className="hover-ring" x={0} y={0} width={frame.w} height={frame.h} rx={a.style.radius} />}
-          {selected && canEdit && !editingNow ? <Handles frame={frame} onResize={onResize} /> : null}
+          {selected && canEdit && !editingNow && !data.multi ? <Handles frame={frame} onResize={onResize} /> : null}
           {moved ? <GesturePill place={moved} /> : null}
+          {editing && a.content.kind === "shape" ? <InlineInput at={{ x: 6, y: Math.max(0, frame.h / 2 - 13) }} width={Math.max(60, frame.w - 12)} height={26} initial={a.content.label} max={80} label={t("shell:canvas.shapeLabel")} onDone={done} /> : null}
         </g>
       </svg>
       {editing && a.content.kind === "note" ? <NoteEditor initial={a.content.text} onDone={done} /> : null}

@@ -363,6 +363,47 @@ def test_connector_operations_create_update_delete_and_refuse_in_the_shape_of_th
     assert res.status_code == 200 and Intent.model_validate_json(res.content).connectors == ()
 
 
+def test_a_batch_of_creations_gets_its_ids_in_the_order_of_its_operations(client: TestClient, auth, bundle_dict):
+    """Lot 3 de docs/11 : un collage = une requête de créations ; la page relie ce qu'elle a collé par la règle des
+    identités, `a<revision>-<n>` et `c<revision>-<n>`, n dans l'ordre des opérations de chaque sorte, mêlées ou non. La
+    réponse (le document) ne change pas : cette règle est ce que la page lit, elle est figée ici."""
+    assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
+    pin = {"author": "orhan", "ops": [PIN]}
+    assert client.post(PATCHES_URL, params=PARAMS, json=pin, headers=auth).status_code == 200  # révision 1
+    note = {"op": "annotation_create", "y": 0, "w": 100, "h": 40}
+    free = {"kind": "free", "x": 0, "y": 0}
+
+    def line(x: int) -> dict:
+        return {"op": "connector_create", "start": free, "end": {"kind": "free", "x": x, "y": 9}}
+
+    ops = [
+        {**note, "content": {"kind": "note", "text": "trois"}, "x": 3},
+        line(1),
+        {**note, "content": {"kind": "note", "text": "un"}, "x": 1},
+        line(2),
+        {**note, "content": {"kind": "shape", "shape": "ellipse", "label": "deux"}, "x": 2},
+        line(3),
+    ]
+    res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": ops}, headers=auth)
+    assert res.status_code == 200, res.text
+    intent = Intent.model_validate_json(res.content)
+    assert intent.revision == 2
+    assert [(a.id, a.x) for a in intent.annotations] == [("a2-1", 3), ("a2-2", 1), ("a2-3", 2)]
+    assert [(c.id, c.end.x) for c in intent.connectors] == [("c2-1", 1), ("c2-2", 2), ("c2-3", 3)]
+    # la seconde requête d'un collage : des connecteurs vers les annotations créées juste avant, sous leurs identités
+    to_note = {"kind": "annotation", "ref": "a2-2", "side": "auto"}
+    second = [{"op": "connector_create", "start": free, "end": to_note}]
+    res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": second}, headers=auth)
+    linked = Intent.model_validate_json(res.content).connectors
+    assert [(c.id, c.end.kind, getattr(c.end, "ref", None)) for c in linked][-1] == ("c3-1", "annotation", "a2-2")
+    # au-delà de neuf : le rang reste le rang (le document trie ses identités en texte, `a4-10` avant `a4-2` : on lit
+    # par identité, jamais par place dans la liste)
+    many = [{**note, "content": {"kind": "note", "text": f"n{i}"}, "x": i} for i in range(1, 12)]
+    res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": many}, headers=auth)
+    by_id = {a.id: a.x for a in Intent.model_validate_json(res.content).annotations}
+    assert all(by_id[f"a4-{i}"] == i for i in range(1, 12)), by_id
+
+
 def test_openapi_describes_the_intent_from_the_contract(client: TestClient):
     doc = client.get("/openapi.json").json()
     get = doc["paths"][INTENT_URL]["get"]

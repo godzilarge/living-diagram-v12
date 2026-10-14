@@ -279,6 +279,10 @@ def patches_description() -> str:
         f"- groupes (docs/10 §5) : {_family('group_')} ;\n"
         f"- annotations (docs/10 §6) : {_family('annotation_')} ;\n"
         f"- connecteurs (docs/10 §6.6) : {_family('connector_')}.\n\n"
+        "Identités des créations : la n-ième `group_create`, `annotation_create` ou `connector_create` d'une requête "
+        "reçoit `g`, `a` ou `c` + `<revision>-<n>`, `revision` étant celle du document rendu, n compté par sorte "
+        "à partir de 1 dans l'ordre des opérations. Un bout de connecteur qui vise une annotation n'est pas vérifié : "
+        "la viser dans la même requête que sa création demanderait de deviner `revision`.\n\n"
         "Une infrastructure sans run archivée est refusée (404)."
     )
 

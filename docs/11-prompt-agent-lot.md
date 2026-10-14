@@ -77,6 +77,20 @@ lot et compléter les crochets. Les lots 5 et 1 ont été lancés avec ce gabari
 > résultats avec les nombres, mutations vérifiées, échecs tels quels ; 5. les captures : chemins et ce que tu y as vu ;
 > 6. écarts à la spécification, décisions prises seul, ce qui est parqué.
 
+## 2 bis. Lot de design d'interface : prototype d'abord (règle d'Orhan, 2026-10-14)
+
+Pour un lot qui dessine de l'interface (lot 4 barre contextuelle, lot 14 passe visuelle, tout nouveau panneau), deux
+agents en séquence, jamais un seul :
+
+1. **Agent prototype** : charge les skills `frontend-design:frontend-design` et `impeccable:impeccable`, lit le lot et
+   les captures actuelles, et produit dans `.impeccable/prototype-lot-{N}/` une page HTML autonome (données factices,
+   jetons de `engine/src/app/styles/tokens.css` recopiés, aucune ressource externe) qui montre le rendu et les états
+   (repos, survol, sélection de chaque sorte, sombre et clair, 1440 et 1280), plus ses captures. **Il ne touche ni
+   `engine/` ni `backend/`.** L'orchestrateur remet le prototype à Orhan et attend son verdict.
+2. **Agent d'implémentation**, après l'accord d'Orhan : le prompt du § 2, avec en plus « le prototype validé
+   `.impeccable/prototype-lot-{N}/` fait foi pour le rendu » et les skills `frontend-design` et `impeccable` chargés
+   pour la finition et le détecteur.
+
 ## 3. Quand reprendre un modèle plus fort que l'implémenteur
 
 Pas pour coder un lot : la spécification est écrite. Utile aux points de jugement : trancher D6 à D12 avant la vague 2

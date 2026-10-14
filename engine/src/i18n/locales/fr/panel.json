@@ -207,7 +207,10 @@
     "defaultName": "Groupe",
     "addTo": "ajouter à",
     "devices": "Équipements",
-    "devicesList": "équipements"
+    "devicesList": "équipements",
+    "others": "Annotations, connecteurs, groupes",
+    "othersList": "annotations, connecteurs et groupes de la sélection",
+    "delete": "supprimer les annotations, connecteurs et groupes de la sélection"
   },
   "words": {
     "none": "aucune",

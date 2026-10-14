@@ -1,14 +1,20 @@
 // La fiche d'une sélection multiple, dans la grammaire de l'inspecteur : combien, ce qu'on en fait (masquer, isoler ;
 // aligner et répartir sont dans la barre d'outils de la toile), la teinte d'un coup (docs/10, une requête pour toute la
-// sélection), un groupe (nouveau ou existant), puis la liste. La sélection vient de Maj + clic, du rectangle, ou de la
-// recherche.
-import { EyeOff, Focus, Group as GroupIcon, SquareDashedMousePointer } from "lucide-react";
+// sélection), un groupe (nouveau ou existant), puis la liste. La sélection vient de Maj / Ctrl + clic, du rectangle, de
+// Ctrl+A ou de la recherche. Une sélection mixte (lot 2 de docs/11) compte par sorte (« 2 équipements, 1 annotation ») ;
+// teinte et groupe s'appliquent à ses équipements ; la corbeille supprime ses annotations, connecteurs et groupes.
+import { EyeOff, Focus, Group as GroupIcon, SquareDashedMousePointer, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { hueOfNode } from "../../../canvas/hues";
 import type { HueName } from "../../../canvas/hues";
 import type { Model } from "../../../canvas/types";
+import { summary as annotationSummary } from "../../../canvas/annotations";
+import { summary as connectorSummary } from "../../../canvas/connectors";
+import { itemsText } from "../../state/describe";
+import { deleteOps, size } from "../../state/selection";
+import type { Multi } from "../../state/selection";
 import { useEditable, useStore } from "../../state/store";
 import { IconButton, Inspector, InspectorHead, List, MoreLink, Row, Section, TextButton, Title } from "../../ui/inspector";
 import { GroupPicker, HueSetting, WriteHint } from "./shared";
@@ -22,10 +28,30 @@ function common(model: Model, hosts: string[]): { own: string | null; effective:
 
 const LIMIT = 12;
 
-export function MultiCard({ model, hosts }: { model: Model; hosts: string[] }) {
+// Les annotations, connecteurs et groupes d'une sélection mixte : par leur résumé, un clic les ouvre seuls.
+function Others({ model, picked }: { model: Model; picked: Multi }) {
+  const { commands } = useStore();
+  const { t } = useTranslation(["panel", "shell"]);
+  const rows = ([] as { key: string; label: string; open: () => void }[]).concat(
+    picked.annotations.flatMap((id) => { const a = model.annotationById.get(id); return a ? [{ key: "a:" + id, label: annotationSummary(a), open: () => commands.reveal({ kind: "annotation", id }) }] : []; }),
+    picked.connectors.flatMap((id) => { const c = model.connectorById.get(id); return c ? [{ key: "c:" + id, label: connectorSummary(c), open: () => commands.reveal({ kind: "connector", id }) }] : []; }),
+    picked.groups.flatMap((id) => { const g = model.groupById.get(id); return g ? [{ key: "g:" + id, label: g.label, open: () => commands.reveal({ kind: "group", id }) }] : []; }));
+  if (!rows.length) return null;
+  return (
+    <Section title={t("multi.others")} count={rows.length}>
+      <List label={t("multi.othersList")}>
+        {rows.map((row) => <li key={row.key}><button type="button" className="insp-list-row link" onClick={row.open}><span className="insp-list-main">{row.label}</span></button></li>)}
+      </List>
+    </Section>
+  );
+}
+
+export function MultiCard({ model, picked }: { model: Model; picked: Multi }) {
   const { commands, state } = useStore();
   const [all, setAll] = useState(false);
-  const { t } = useTranslation(["panel", "common"]);
+  const { t } = useTranslation(["panel", "common", "shell"]);
+  const hosts = picked.hosts;
+  const mixed = size(picked) > hosts.length;
   const sorted = hosts.slice().sort();
   const devices = hosts.filter((host) => { const node = model.nodeByHost.get(host); return !!node && node.kind !== "stub"; });
   const canWrite = useEditable();
@@ -38,10 +64,12 @@ export function MultiCard({ model, hosts }: { model: Model; hosts: string[] }) {
     <Inspector kind="multi">
       <InspectorHead icon={<SquareDashedMousePointer />} kind={t("multi.kind")}
         actions={<>
-          <IconButton label={t("multi.hide")} onClick={() => commands.hideHosts(hosts)}><EyeOff /></IconButton>
-          <IconButton label={t("multi.isolate")} onClick={() => commands.isolateHosts(hosts)}><Focus /></IconButton>
+          {hosts.length ? <IconButton label={t("multi.hide")} onClick={() => commands.hideHosts(hosts)}><EyeOff /></IconButton> : null}
+          {hosts.length ? <IconButton label={t("multi.isolate")} onClick={() => commands.isolateHosts(hosts)}><Focus /></IconButton> : null}
+          {canWrite && deleteOps(picked).length ? <IconButton label={t("multi.delete")} onClick={() => { commands.deleteSelection(); }}><Trash2 /></IconButton> : null}
         </>}
-        title={<Title>{t("common:devices", { count: hosts.length })}</Title>}>
+        title={<Title>{mixed ? t("shell:items.all", { count: size(picked) }) : t("common:devices", { count: hosts.length })}</Title>}
+        meta={mixed ? itemsText(picked) : undefined}>
         {canWrite || control ? null : <WriteHint action={t("multi.toEdit")} />}
       </InspectorHead>
       {devices.length && canWrite ? (
@@ -61,7 +89,7 @@ export function MultiCard({ model, hosts }: { model: Model; hosts: string[] }) {
           {model.groupById.size ? <Row label={t("multi.addTo")}><GroupPicker model={model} hosts={devices} /></Row> : null}
         </Section>
       ) : null}
-      <Section title={t("multi.devices")} count={hosts.length}>
+      {hosts.length ? <Section title={t("multi.devices")} count={hosts.length}>
         <List label={t("multi.devicesList")}>
           {shown.map((host) => (
             <li key={host}><button type="button" className="insp-list-row link" title={(model.nodeByHost.get(host) || { type: null }).type || ""} onClick={() => commands.reveal({ kind: "node", id: host })}>
@@ -70,7 +98,8 @@ export function MultiCard({ model, hosts }: { model: Model; hosts: string[] }) {
           ))}
         </List>
         {sorted.length > LIMIT ? <MoreLink onClick={() => setAll(!all)}>{all ? t("less") : t("moreOthers", { count: sorted.length - LIMIT })}</MoreLink> : null}
-      </Section>
+      </Section> : null}
+      <Others model={model} picked={picked} />
     </Inspector>
   );
 }

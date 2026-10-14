@@ -12,11 +12,22 @@ import type { Session } from "./client";
 export interface WriteObserver { before: () => Intent | null; after: (ops: Op[], before: Intent | null, intent: Intent) => void }
 /** `locked` : l'intention n'a pas pu être lue avec la run ; l'écrivain se tait (son nom se lit vide, `canWrite` est
  *  faux) et refuse d'envoyer, pour ne rien écrire sur un document qu'on n'a pas vu. Le nom est gardé pour la suite. */
-export type AppWriter = Writer & { observer: WriteObserver | null; locked: boolean };
+export type AppWriter = Writer & {
+  observer: WriteObserver | null; locked: boolean;
+  /** Ce qu'a rendu la requête dont `op` était la première opération : le document de la **réponse** (jamais celui que
+   *  la page a lu depuis), ou la raison du refus ; `undefined` tant qu'elle n'est pas revenue (lot 3 de docs/11 : un
+   *  collage relie ses connecteurs aux identités que cette réponse-là a données). */
+  outcomeOf: (op: Op) => SaveResult | undefined;
+};
 
+/** `session` : le jeton vivant, et l'infrastructure de la run où l'écrivain est né (Canvas la fige : une écriture en
+ *  vol après un changement d'infrastructure ne part jamais dans la nouvelle ; revue du lot 3, H1). */
 export function makeWriter(session: () => Session, author: string, onAuthor: (name: string) => void): AppWriter {
   let queue: Promise<unknown> = Promise.resolve();
-  const send = async (ops: Op[]): Promise<SaveResult> => {
+  const outcomes = new WeakMap<Op, SaveResult>();
+  const kept = (ops: Op[], result: SaveResult): SaveResult => { if (ops.length) outcomes.set(ops[0], result); return result; };
+  const send = async (ops: Op[]): Promise<SaveResult> => kept(ops, await post(ops));
+  const post = async (ops: Op[]): Promise<SaveResult> => {
     if (me.locked) return { ok: false, message: t("shell:messages.intentLocked") };
     if (!me.author) return { ok: false, message: t("shell:messages.giveName") };
     const current = session();
@@ -35,7 +46,7 @@ export function makeWriter(session: () => Session, author: string, onAuthor: (na
   const me: AppWriter = {
     get author() { return me.locked ? "" : name; },
     set author(next: string) { name = next; },
-    observer: null, locked: false,
+    observer: null, locked: false, outcomeOf: (op) => outcomes.get(op),
     setAuthor: (next) => { name = next; onAuthor(next); },
     save: (ops) => {
       const turn = queue.then(() => send(ops));

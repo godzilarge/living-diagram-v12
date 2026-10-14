@@ -27,6 +27,12 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
   lui, les règles douteuses se parquent en « ouvert » avec un comportement prudent. **Une** revue indépendante par
   brique, pas de boucle revue → contre-revue → re-revue. Une remarque de fond d'Orhan sur le modèle ou le contrat passe
   avant tout code en cours : s'arrêter, répondre avec un avis et des recommandations.
+- **UI : prototype jugé avant le code, avec les skills de design** (Orhan, 2026-10-14). Tout lot de design d'interface
+  (barre contextuelle du lot 4, passe visuelle, nouveaux panneaux…) passe par les skills `frontend-design:frontend-design`
+  et `impeccable:impeccable`, et commence par un **prototype autonome hors du projet** (page HTML dans `.impeccable/`,
+  données factices, aucun fichier de `engine/` ni de `backend/` touché) qu'Orhan ouvre et juge lui-même ; le code du
+  projet ne s'écrit qu'après son accord sur le prototype. Prolonge « voir avant de trancher » et la règle « direction
+  visuelle d'abord » du 2026-10-06, qui n'avait pas été tenue en session autonome.
 - **Être synthétique** (Orhan, 2026-10-03). Une réponse commence par ce que la chose fait, en une phrase qu'il peut
   répéter (« un générateur d'infrastructures pour faire des tests »), puis le strict nécessaire. Pas de roman : les
   détails vivent dans `docs/`, les README et ce journal, on les référence. Une brique qu'on ne peut pas nommer en une
@@ -1659,6 +1665,49 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   (vide la sélection, rend la boîte), frontières de tableau pas encore à taille d'écran. **Reprise** : une session
   Opus suffit (`docs/11-prompt-agent-lot.md` : prompt de reprise et prompt par lot) ; prochain lot = **2** (sélection
   mixte et clavier, D1 / D2 / D5 tranchées), puis 3 → 4 → 6. Arbre non commité : i18n (lots 1 à 8), audit, lots 5 et 1.
+- **Navigation de la toile : D1 et D2 révisées, D6 tranchée** (2026-10-14, pendant le lot 2, retours d'Orhan à l'usage :
+  le glissé nu qui sélectionne est « très très perturbant, je ne vois pas ce que ça apporte » ; « remets le zoom à la
+  molette »). Avis rendu : les deux recommandations venaient des éditeurs de dessin (Visio, draw.io, Figma) ; Living
+  Diagram se lit plus qu'il ne se dessine, le panoramique et le zoom sont les gestes dominants. **D1 révisée** : glissé
+  nu sur le fond = **panoramique** (comme avant, dans les deux vues), **Maj + glissé = rectangle** qui ajoute, clic sur
+  le fond = vide la sélection, bouton du milieu et Espace + glissé = panoramique **même en partant d'un élément**, qui
+  ne bouge pas (défaut signalé par Orhan : Espace + glisser déplaçait l'élément). **D2 révisée** : **molette = zoom**
+  (comme avant), pincement et Ctrl + molette aussi. **D6 tranchée à la recommandation** : copier un équipement = ses
+  noms en texte, coller des équipements ne crée rien (lot 3). Le clic molette « ne fonctionne pas correctement » chez
+  Orhan : cause cherchée par l'agent du lot 2. Transmis à l'agent en cours ; `docs/11` §5 mis à jour par lui. Orhan
+  préfère les lots en séquence (lot 3 après relecture du lot 2, sans redemander).
+- **Lot 2 livré : sélection mixte et clavier** (2026-10-14, agent Opus, relu ; détail dans `docs/11` § Lot 2 « Fait »).
+  Une sélection prend équipements, annotations, connecteurs et groupes (`app/state/selection.ts`, pur) ; Maj / Ctrl +
+  clic, Maj + rectangle qui ajoute ; le bloc mixte se glisse, s'aligne par les boîtes (`canvas/align.ts` `alignBoxes`,
+  `/view` inchangée à l'octet) et se déplace aux flèches en **une** entrée d'historique ; Ctrl+A (sans les cadres),
+  Suppr / Retour arrière (annotations, connecteurs, groupes ; sur un équipement, rien et « masquer » proposé, D5), Tab /
+  Maj+Tab, F2 / Entrée, nom d'un groupe et étiquette d'une forme éditables sur la toile ; fiche multiple dès deux
+  éléments, comptée par sorte. Navigation selon D1 / D2 révisées (entrée précédente) ; **bouton du milieu** : l'action
+  du navigateur (défilement automatique, collage Linux) n'était pas annulée, corrigé sans reproduction locale (Chromium
+  sans écran n'en a pas) ; **Espace + glissé** ne déplace plus un élément (`gestures.ts`, classe `space-pan`). Défauts
+  purs : SVG des connecteurs ~13 unités trop bas (ligne de base), édition en place rejouée, connecteur orphelin après
+  annulation d'une suppression groupée. Mesures (Chromium sans écran) : demo-dc rectangle 72-110 ms, flèche 74-83 ms ;
+  **500 équipements : rectangle 0,6-0,8 s, flèche 1,2-1,3 s** (toile reconstruite à chaque version : lot 13). Tests :
+  `tests/test_app_selection.py` (parcours Chromium du lot), 5 tests Node, 18 mutations ; backend 607 tests. Captures
+  `.impeccable/planche-lot-2/`. Parqués : redimensionner plusieurs éléments, aligner sur le principal, style des
+  annotations depuis la fiche multiple ; la fiche multiple montre l'identifiant brut d'une annotation et les coordonnées
+  d'un bout libre (« flèche · -753, 129 → annotation a1-1 (bas) ») : à reprendre au lot 4 ou 14.
+- **Lot 3 livré : le presse-papiers, revue traitée** (2026-10-14, agent Opus, relu ; détail dans `docs/11` § Lot 3
+  « Fait » et « Corrections après la revue »). Ctrl+C / X / V / D et Alt + glissé (fantôme) sur les annotations et
+  connecteurs, dans la page et d'une page à l'autre : charge versionnée `{ "living-diagram": 1, … }`
+  (`app/state/clipboard.ts`, pur ; commandes dans `clipboard-commands.ts`), deux représentations à l'écriture et mémoire
+  de l'onglet en repli, collage au pointeur ou à +20 cumulé, ancrages gardés ou libérés et dits, images renvoyées au
+  magasin d'une autre infrastructure (introuvable ⇒ note avec le texte alternatif), copier des équipements = leurs noms
+  (D6), couper ne supprime que ce qui a été copié ; menu contextuel avec raccourcis. **API inchangée** : les connecteurs
+  qui visent une annotation collée partent dans une seconde requête, identités lues sur la révision de la réponse et
+  vérifiées avant ; seconde requête refusée ⇒ la première est défaite, « collage refusé » ; un collage dont la toile
+  change en vol s'abandonne ; écrivain figé par run. **Engagement écrit** dans OpenAPI, `backend/README.md`, `docs/10`
+  §6 : la n-ième création d'une sorte reçoit `a|c|g<révision>-<n>` dans l'ordre des opérations. **Revue indépendante
+  consignée et traitée** (`docs/revues/2026-10-14-lot-3-presse-papiers.md` : 0 critique, 1 haut, 5 moyens, 9 bas ;
+  sondes rejouées en tests) ; B2 assumé (des noms d'équipements collés dans un autre onglet deviennent une note).
+  `Flow.tsx` 622 → 431 lignes (`flow-build.ts`). Backend 614 tests, 35 mutations ; mesuré : collage de 30 éléments
+  0,2 s sur demo-dc, 1,5 s à 500 équipements (lot 13). Captures `.impeccable/planche-lot-3/`. Parqués : image retirée
+  du magasin entre copie et collage (422), fantôme d'un tableau réduit à son cadre.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 

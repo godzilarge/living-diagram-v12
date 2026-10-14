@@ -196,7 +196,10 @@
     "defaultName": "Group",
     "addTo": "add to",
     "devices": "Devices",
-    "devicesList": "devices"
+    "devicesList": "devices",
+    "others": "Annotations, connectors, groups",
+    "othersList": "annotations, connectors and groups of the selection",
+    "delete": "delete the annotations, connectors and groups of the selection"
   },
   "words": {
     "none": "none",

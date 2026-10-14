@@ -3,7 +3,10 @@
 // pour le pilote Chromium. Le catalogue des codes (sens, règle) est lu une fois dans le bloc JSON de la page. La langue
 // (i18n) est fixée avant le premier rendu, comme le thème : rien ne s'affiche dans une langue puis dans l'autre.
 import { createRoot } from "react-dom/client";
-import { alignment } from "../canvas/align";
+import { alignment, boxAlignment } from "../canvas/align";
+import { selecting } from "./state/selection";
+import { clipboard } from "./state/clipboard";
+import { wheel } from "./canvas/wheel";
 import { query } from "../canvas/query";
 import type { CatalogueEntry } from "../canvas/types";
 import { App } from "./App";
@@ -29,7 +32,7 @@ import "@xyflow/react/dist/base.css";
 import "./styles/index.css";
 import "./styles/flow.css";
 
-export const LDApp = { address, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reducer, initialState, query, alignment, debug, prefs: { parsePrefs, defaultPrefs },
+export const LDApp = { address, clipboard, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reducer, initialState, query, alignment, boxAlignment, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
   i18n: { LANGUAGES, detectLanguage, effectiveLanguage, setLanguage, language: () => i18n.language, t } };
 (globalThis as unknown as { LDApp: typeof LDApp }).LDApp = LDApp;
 

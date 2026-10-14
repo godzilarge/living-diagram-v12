@@ -4,7 +4,9 @@
 // appelle une commande ; il ne fait jamais d'appel réseau, ne touche jamais la toile.
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { AlignMode } from "../../canvas/align";
+import type { AlignMode, BoxMode } from "../../canvas/align";
+import { deleteOps, empty, itemsOf, size as sizeOf } from "./selection";
+import type { Item, Multi } from "./selection";
 import type { Toile, Viewport } from "../canvas/toile";
 import type { StackHolder, Undo } from "../canvas/undo";
 import { build, tokenOf } from "../../canvas/model";
@@ -31,6 +33,8 @@ import type { Stack } from "./history";
 import { formatHash, formatSearch, parseHash, parseSearch } from "./address";
 import { journalCommands } from "./journal-commands";
 import type { JournalCommands } from "./journal-commands";
+import { clipboardCommands } from "./clipboard-commands";
+import type { ClipboardCommands } from "./clipboard-commands";
 import { debug } from "./debug";
 import { readPrefs, writePrefs } from "./prefs";
 import type { Prefs } from "./prefs";
@@ -40,9 +44,9 @@ import { stepWalk, walkHosts, walkLabel } from "./walk";
 import type { Walk, WalkKind } from "./walk";
 import { said } from "./said";
 
-export interface CanvasHandle { toile: Toile; intents: IntentHost; placements: PlacementHost; writer: Writer; placer: Placer | null; undo: Undo }
+export interface CanvasHandle { toile: Toile; intents: IntentHost; placements: PlacementHost; writer: AppWriter; placer: Placer | null; undo: Undo }
 
-export interface Commands extends JournalCommands {
+export interface Commands extends JournalCommands, ClipboardCommands {
   connect: (fields: { token: string; infrastructure: string; author: string }) => void;
   listRuns: () => void;
   openRun: (runId: string, from: string) => void;
@@ -67,7 +71,19 @@ export interface Commands extends JournalCommands {
   reveal: (selection: Selection | null) => void;
   selectHosts: (hosts: string[]) => void;
   clearSelection: () => void;
-  align: (mode: AlignMode) => void;
+  /** Ctrl+A (lot 2 de docs/11) : tout ce qui est visible et se sélectionne en bloc (équipements, annotations, connecteurs). */
+  selectAll: () => void;
+  /** Tab / Maj+Tab : l'élément suivant (précédent) dans l'ordre de lecture, sélectionné ; rendu pour que la page y
+   *  mette le focus. */
+  cycle: (direction: 1 | -1) => Item | null;
+  /** Suppr / Retour arrière : annotations, connecteurs et groupes de la sélection supprimés en une requête (une entrée
+   *  d'annulation) ; un équipement ne se supprime pas, la ligne d'état le dit et propose de le masquer (D5). Rend
+   *  faux s'il n'y avait rien à faire. */
+  deleteSelection: () => boolean;
+  /** F2 ou Entrée : l'édition en place de l'élément sélectionné (texte d'une note, étiquette d'une forme, nom d'un
+   *  groupe) ; faux si l'élément ne s'édite pas ainsi. */
+  editSelection: () => boolean;
+  align: (mode: AlignMode | BoxMode) => void;
   fit: () => void;
   /** Centre la vue sur la sélection (un élément ou la sélection multiple). */
   center: () => void;
@@ -101,8 +117,9 @@ export interface Commands extends JournalCommands {
   /** Le menu contextuel (clic droit) : ouvrir pour une cible, fermer. */
   openContext: (menu: ContextMenuState) => void;
   closeContext: () => void;
-  /** Une édition en place demandée au nœud (cellule d'un tableau, ou texte d'une note : `cell` null). */
-  requestEdit: (id: string, cell: [number, number] | null) => void;
+  /** Une édition en place demandée au nœud (cellule d'un tableau, ou texte d'une note : `cell` null ; le nom d'un
+   *  groupe : `kind` = « group »). */
+  requestEdit: (id: string, cell: [number, number] | null, kind?: "annotation" | "group") => void;
   /** Insérer une annotation ou un connecteur d'une sorte (note, rectangle, ellipse, table, connector) à un point du plan. */
   insertAt: (kind: string, at: Point) => void;
   /** Armer ou ranger un outil de la toile (lot 1 de docs/11 : l'outil connecteur, bouton de la barre ou touche C). */
@@ -110,7 +127,8 @@ export interface Commands extends JournalCommands {
   toggleTool: (tool: Tool) => void;
   /** Ouvre le choix d'un fichier d'image (le champ de la barre d'outils). */
   pickImage: () => void;
-  /** Une image ou un texte collés (Ctrl+V) : une annotation image (envoyée au magasin) ou une note, au centre de la vue. */
+  /** Une image ou un texte venus d'ailleurs (Ctrl+V, docs/10 §6.6) : une annotation image (envoyée au magasin) ou une
+   *  note, au centre de la vue ; une charge de Living Diagram passe d'abord par `pasteEvent` (lot 3 de docs/11). */
   paste: (data: DataTransfer) => boolean;
   /** La sélection multiple courante. */
   selectedHosts: () => string[];
@@ -125,8 +143,9 @@ export interface Commands extends JournalCommands {
   endWalk: () => void;
   /** Déplace la sélection au clavier ; rend faux s'il n'y a rien à déplacer. */
   nudge: (dx: number, dy: number) => boolean;
-  /** Les écrivains d'une run qui vient d'être montée (session courante, nom courant) et la pile d'annulation. */
-  makeHosts: () => { writer: AppWriter; placer: Placer | null; history: StackHolder };
+  /** Les écrivains d'une run qui vient d'être montée (jeton courant, infrastructure de cette run figée, nom courant)
+   *  et la pile d'annulation. */
+  makeHosts: (infrastructure: string) => { writer: AppWriter; placer: Placer | null; history: StackHolder };
   /** La toile vient d'être montée (ou démontée) : les composants qui en dépendent se redessinent. */
   setHandle: (handle: CanvasHandle | null) => void;
 }
@@ -178,7 +197,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
   const stackRef = useRef<Stack>(emptyStack());
   // Le parcours en cours, tenu ici avant que React l'applique (deux ↓ de suite), et ce qu'il y avait avant lui.
   const walkRef = useRef<Walk | null>(null);
-  const beforeWalk = useRef<{ selection: Selection | null; hosts: string[]; view: Viewport | null } | null>(null);
+  const beforeWalk = useRef<{ selection: Selection | null; picked: Multi; view: Viewport | null } | null>(null);
 
   const commands = useMemo<Commands>(() => {
     const session = (): Session => sessionRef.current;
@@ -232,10 +251,11 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       const g = graph(), before = beforeWalk.current;
       beforeWalk.current = null;
       if (!g || !before) return;
-      if (before.hosts.length >= 2) g.selectHosts(before.hosts); else g.select(before.selection);
+      if (sizeOf(before.picked) >= 2) g.selectItems(itemsOf(before.picked)); else g.select(before.selection);
       if (before.view) g.restoreView(before.view);
     }
     const history: StackHolder = {
+      owner: () => sessionRef.current.infrastructure,
       get: () => stackRef.current,
       set: (stack) => { stackRef.current = stack; dispatch({ type: "history", ...labels(stack) }); },
     };
@@ -315,7 +335,41 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       isolateHosts: (hosts) => { if (hosts.length) setView({ only: exactRule(hosts) }); },
       reveal: (selection) => { const g = graph(); if (g) g.reveal(selection); else dispatch({ type: "select", selection, hosts: [] }); },
       selectHosts: (hosts) => { const g = graph(); if (g) g.selectHosts(hosts); },
-      clearSelection: () => { const g = graph(); if (g) g.select(null); else dispatch({ type: "select", selection: null, hosts: [] }); },
+      clearSelection: () => { const g = graph(); if (g) g.select(null); else dispatch({ type: "select", selection: null, hosts: [], picked: empty() }); },
+      selectAll: () => { const g = graph(); if (g) g.selectItems(g.allItems()); },
+      cycle: (direction) => { const g = graph(); return g ? g.cycle(direction) : null; },
+      deleteSelection: () => {
+        const h = handleRef.current;
+        if (!h) return false;
+        const s = h.toile.state;
+        const multi: Multi = sizeOf(s.multi) ? s.multi : empty();
+        const ops = deleteOps(multi);
+        const devices = multi.hosts.filter((host) => { const node = h.toile.model.nodeByHost.get(host); return !!node && !node.ghost; });
+        if (!ops.length && !devices.length) return false;
+        const kept = devices.length ? { text: t(devices.length > 1 ? "shell:messages.devicesKept" : "shell:messages.deviceKept"), offer: { kind: "hide" as const, hosts: devices } } : null;
+        if (!ops.length || !h.intents.canWrite()) {
+          if (kept) dispatch({ type: "note", text: kept.text, offer: kept.offer, at: Date.now() });
+          else dispatch({ type: "note", text: t("shell:messages.giveName"), at: Date.now() });
+          return true;
+        }
+        void h.intents.apply(ops, t("shell:messages.itemsDeleted", { count: ops.length, author: h.writer.author })).then((intent) => {
+          if (!intent) return;
+          // ce qui reste sélectionné : les équipements (on peut encore les masquer), rien d'autre
+          if (devices.length) h.toile.selectHosts(devices); else h.toile.select(null);
+          const done = t("shell:messages.itemsDeleted", { count: ops.length, author: h.writer.author });
+          dispatch({ type: "note", text: kept ? done + " · " + kept.text : done, offer: kept ? kept.offer : undefined, at: Date.now() });
+        });
+        return true;
+      },
+      editSelection: () => {
+        const h = handleRef.current, sel = h ? h.toile.state.selection : null;
+        if (!h || !sel || !h.intents.canWrite()) return false;
+        if (sel.kind === "group" && h.toile.model.groupById.has(sel.id)) { commands.requestEdit(sel.id, null, "group"); return true; }
+        const a = sel.kind === "annotation" ? h.toile.model.annotationById.get(sel.id) : undefined;
+        if (!a || a.locked || (a.content.kind !== "note" && a.content.kind !== "shape")) return false;
+        commands.requestEdit(sel.id, null);
+        return true;
+      },
       align: (mode) => { const g = graph(); if (g) g.alignSelected(mode); },
       fit: () => { const g = graph(); if (g) g.fit(); },
       center: () => { const g = graph(); if (g) g.frame(); },
@@ -414,7 +468,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       },
       openContext: (menu) => dispatch({ type: "context", menu }),
       closeContext: () => { if (current().context) dispatch({ type: "context", menu: null }); },
-      requestEdit: (id, cell) => dispatch({ type: "editRequest", request: { id, cell, at: Date.now() } }),
+      requestEdit: (id, cell, kind) => dispatch({ type: "editRequest", request: { id, cell, at: Date.now(), ...(kind ? { kind } : {}) } }),
       insertAt: (kind, at) => {
         if (kind === "connector") { commands.connectorCreate({ start: { kind: "free", x: Math.round(at.x - DEFAULT_LENGTH / 2), y: Math.round(at.y) }, end: { kind: "free", x: Math.round(at.x + DEFAULT_LENGTH / 2), y: Math.round(at.y) } }); return; }
         const content: Annotation["content"] | null = kind === "note" ? { kind: "note", text: t("shell:messages.defaultNote") } : kind === "rectangle" ? { kind: "shape", shape: "rectangle", label: "" } : kind === "ellipse" ? { kind: "shape", shape: "ellipse", label: "" } : kind === "table" ? freshTable([[t("shell:messages.column", { n: 1 }), t("shell:messages.column", { n: 2 })], ["", ""]]) : null;
@@ -439,6 +493,9 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         createAnnotation({ kind: "note", text: text.slice(0, 2000) }, null, {});
         return true;
       },
+      ...clipboardCommands({
+        dispatch, current, session, handle: () => handleRef.current, pasteForeign: (data) => commands.paste(data),
+      }),
       selectedHosts: () => current().hosts,
       resetMoves: () => { const g = graph(); if (g) { g.resetPins(); dispatch({ type: "touched" }); } },
       undo: () => { if (handleRef.current) void handleRef.current.undo.undo(); },
@@ -451,17 +508,21 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         if (live && live.kind === kind) { endWalk(); return; }
         const hosts = walkHosts(s.run.model, kind);
         if (!hosts.length) { dispatch({ type: "note", text: walkLabel(kind, 0), at: Date.now() }); return; }
-        if (!live) beforeWalk.current = { selection: s.selection, hosts: s.hosts, view: g.viewport() };
+        if (!live) beforeWalk.current = { selection: s.selection, picked: s.picked, view: g.viewport() };
         if (kind === "diff" && !s.view.showDiff) setView({ showDiff: true });
         walkTo({ kind, hosts, index: 0 });
       },
       stepWalk: (direction) => { const live = current().walk ? walkRef.current : null; if (live) walkTo(stepWalk(live, direction)); },
       endWalk,
-      makeHosts: () => ({
-        history,
-        writer: makeWriter(session, current().author, (name) => dispatch({ type: "session", author: name })),
-        placer: ((run) => (run.kind === "ready" && run.remembered ? makePlacer(session) : null))(current().run),
-      }),
+      makeHosts: (infrastructure) => {
+        // l'infrastructure de la run, figée ; le jeton, vivant (revue du lot 3, H1)
+        const frozen = (): Session => ({ token: session().token, infrastructure });
+        return {
+          history,
+          writer: makeWriter(frozen, current().author, (name) => dispatch({ type: "session", author: name })),
+          placer: ((run) => (run.kind === "ready" && run.remembered ? makePlacer(frozen) : null))(current().run),
+        };
+      },
       setHandle: (next) => {
         handleRef.current = next; setHandleState(next);
         // les images des annotations se lisent avec la session courante (docs/10 §6) ; sans toile, plus rien ne se lit

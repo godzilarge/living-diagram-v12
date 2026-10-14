@@ -6,6 +6,8 @@ import { beamLabel, clusterLabel } from "../../canvas/geometry";
 import { aggregateOf, beamOf, clusterOf, endLabel, entityOf } from "../../canvas/model";
 import type { Model, Selection } from "../../canvas/types";
 import { t } from "../../i18n";
+import { counts, kindsOf, size } from "./selection";
+import type { Multi } from "./selection";
 
 function labelOf(model: Model, selection: Selection): string {
   switch (selection.kind) {
@@ -20,7 +22,14 @@ function labelOf(model: Model, selection: Selection): string {
   }
 }
 
-export function describe(model: Model, selection: Selection | null): string {
+/** Une sélection mixte en mots : « 2 équipements, 1 annotation ». */
+export function itemsText(multi: Multi): string {
+  const n = counts(multi);
+  return kindsOf(multi).map((kind) => t(`shell:items.${kind}`, { count: n[kind] })).join(", ");
+}
+
+export function describe(model: Model, selection: Selection | null, multi?: Multi): string {
+  if (!selection && multi && size(multi) >= 2) return t("shell:live.many", { items: itemsText(multi) });
   if (!selection || !entityOf(model, selection)) return "";
   return t("shell:live.selected", { kind: t(("shell:live.kind." + selection.kind) as never), label: labelOf(model, selection) });
 }

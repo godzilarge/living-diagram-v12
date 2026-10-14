@@ -10,6 +10,7 @@ import type { Label } from "./history";
 import type { Prefs } from "./prefs";
 import type { Walk } from "./walk";
 import type { Said } from "./said";
+import type { Multi } from "./selection";
 
 export interface Address { infrastructure: string; runId: string; from: string }
 /** Les outils de la toile qui s'arment (bouton à bascule de la barre, raccourci) ; un seul pour l'instant. */
@@ -25,7 +26,9 @@ export interface SelectionToken { kind: string; token: string }
 /** Le menu contextuel ouvert : sa cible, où le poser (écran), le point du plan visé. */
 export interface ContextMenuState { target: ContextTarget; at: Point; plan: Point }
 /** Une édition en place demandée par le menu : la cellule d'un tableau, ou le texte d'une note (`cell` null) ; `at` la distingue d'une demande identique. */
-export interface EditRequestState { id: string; cell: [number, number] | null; at: number }
+export interface EditRequestState { id: string; cell: [number, number] | null; at: number; kind?: "annotation" | "group" }
+/** Ce qu'une ligne d'état propose de faire (lot 2 de docs/11 : Suppr sur un équipement propose de le masquer). */
+export interface NoteOffer { kind: "hide"; hosts: string[] }
 
 /** La vue Journal : la page lue (entrées accumulées par « plus ancien »), ou ce qui l'empêche. `key` : les filtres
  *  de la lecture, une réponse pour d'autres filtres est ignorée ; `at` : l'instant de la première page, d'où se compte
@@ -61,8 +64,10 @@ export interface AppState {
   /** Les préférences du navigateur (prefs.ts) : thème, grille, aimant, minimap. Jamais dans l'adresse. */
   prefs: Prefs;
   selection: Selection | null;
-  /** La sélection multiple : des équipements (un seul = aussi `selection`). */
+  /** Les équipements de la sélection (un seul = aussi `selection`) ; `picked.hosts`, gardé pour les lecteurs d'avant. */
   hosts: string[];
+  /** La sélection mixte (lot 2 de docs/11) : équipements, annotations, connecteurs, groupes ; un seul élément = aussi `selection`. */
+  picked: Multi;
   /** Une sélection demandée par l'adresse ou par un lien, à résoudre par la toile quand elle est montée. */
   wanted: SelectionToken | null;
   palette: { open: boolean; text: string };
@@ -71,7 +76,7 @@ export interface AppState {
   connectOpen: boolean;
   /** Le volet « palette des types » (docs/10). */
   colorsOpen: boolean;
-  note: { text: string; busy: boolean; at: number } | null;
+  note: { text: string; busy: boolean; at: number; offer?: NoteOffer } | null;
   /** Ce que les boutons annuler / rétablir disent (le geste en haut de chaque pile), `null` si la pile est vide. */
   /** Ce que Ctrl+Z et Ctrl+Y feraient, sans langue (`labelText` l'écrit au moment de le montrer). */
   history: { undo: Label | null; redo: Label | null };
@@ -98,14 +103,14 @@ export type Action =
   | { type: "ready"; model: Model; data: PageData; warnings: Said[]; runs: RunEntry[] | null; remembered: boolean }
   | { type: "view"; patch: Partial<ViewState> }
   | { type: "prefs"; patch: Partial<Prefs> }
-  | { type: "select"; selection: Selection | null; hosts: string[] }
+  | { type: "select"; selection: Selection | null; hosts: string[]; picked?: Multi }
   | { type: "want"; wanted: SelectionToken | null }
   | { type: "palette"; open?: boolean; text?: string }
   | { type: "expand"; expanded: boolean }
   | { type: "menu"; open: boolean }
   | { type: "connect"; open: boolean }
   | { type: "colors"; open: boolean }
-  | { type: "note"; text: string | null; busy?: boolean; at?: number }
+  | { type: "note"; text: string | null; busy?: boolean; at?: number; offer?: NoteOffer }
   | { type: "history"; undo: Label | null; redo: Label | null }
   | { type: "touched" }
   | { type: "walk"; walk: Walk | null }

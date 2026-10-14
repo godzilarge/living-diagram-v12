@@ -33,7 +33,8 @@ export function ContextMenu() {
   }, [menu, commands]);
   const editable = useEditable();
   if (!menu || !model || !handle) return null;
-  const items = menuItems(menu.target, model, { editable, selectedHosts: state.hosts, hasSelection: !!state.selection || state.hosts.length > 0, pinned: (host) => model.pinByHost.has(host) });
+  const picked = state.picked.hosts.length + state.picked.annotations.length + state.picked.connectors.length + state.picked.groups.length;
+  const items = menuItems(menu.target, model, { editable, selectedHosts: state.hosts, hasSelection: !!state.selection || state.hosts.length > 0, pinned: (host) => model.pinByHost.has(host), items: picked });
   if (!items.length) return null;
   // Le menu reste dans la fenêtre : il se décale à gauche ou au-dessus du clic quand la place manque.
   const rows = items.filter((i) => !i.sep).length, height = rows * ROW + items.filter((i) => i.sep).length * 9 + 12;
@@ -51,8 +52,10 @@ export function ContextMenu() {
   return (
     <div ref={(el) => { (ref as { current: HTMLDivElement | null }).current = el; place(el); }} className="context-menu glass" role="menu" aria-label={t("shell:context.label")} onKeyDown={keys} onContextMenu={(event) => event.preventDefault()}>
       {items.map((item, i) => (item.sep ? <hr key={"s" + i} className="context-sep" />
-        : <button key={item.id} type="button" role={item.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={item.checked === undefined ? undefined : item.checked ? "true" : "false"}
-          className={"context-item" + (item.danger ? " danger" : "") + (item.checked ? " checked" : "")} onClick={() => run(item)}>{item.label}</button>))}
+        : <button key={item.id} type="button" role={item.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={item.checked === undefined ? undefined : item.checked ? "true" : "false"} aria-keyshortcuts={item.aria}
+          className={"context-item" + (item.danger ? " danger" : "") + (item.checked ? " checked" : "")} onClick={() => run(item)}>
+          <span className="context-label">{item.label}</span>{item.keys ? <kbd className="context-keys">{item.keys}</kbd> : null}
+        </button>))}
     </div>
   );
 }
@@ -61,6 +64,13 @@ type Commands = ReturnType<typeof useStore>["commands"];
 type Model = NonNullable<ReturnType<typeof useModel>>;
 // Ce qu'une entrée fait : les mêmes commandes que les fiches et la barre d'outils, jamais un chemin à part.
 function execute(target: ContextTarget, id: string, plan: { x: number; y: number }, commands: Commands, model: Model): void {
+  if (id.startsWith("clip:")) { // le presse-papiers (lot 3) : sur la sélection si la cible en fait partie, sinon sur elle seule
+    const what = target.kind === "node" || target.kind === "annotation" || target.kind === "connector" ? { kind: target.kind, id: target.id } : null;
+    if (id === "clip:paste") commands.pasteFromMenu(plan);
+    else if (id === "clip:copy" || id === "clip:cut") commands.copyFromMenu(id === "clip:cut", what);
+    else if (id === "clip:duplicate") commands.duplicate(what);
+    return;
+  }
   if (target.kind === "pane") {
     if (id === "fit") commands.fit();
     else if (id === "clear") commands.clearSelection();
@@ -122,7 +132,6 @@ function execute(target: ContextTarget, id: string, plan: { x: number; y: number
   else if (id === "header") tableOp((t) => ({ ...t, header: !t.header }));
   else if (id === "text") commands.requestEdit(a.id, null);
   else if (id === "center") commands.reveal({ kind: "annotation", id: a.id });
-  else if (id === "duplicate") commands.annotationDuplicate(a.id);
   else if (id === "lock") commands.annotationUpdate(a.id, { locked: !a.locked });
   else if (id === "plane") commands.annotationUpdate(a.id, { z: a.z === "back" ? "front" : "back" });
   else if (id === "detach") commands.annotationDetach(a.id);

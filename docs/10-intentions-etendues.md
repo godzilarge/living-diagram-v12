@@ -240,7 +240,12 @@ attendent. Ce n'est pas Visio : peu d'objets, mais complets.
    police sans ou mono, graisse, couleur teinte ou encre) plus l'alignement du texte et l'opacité de l'ensemble ; le
    serveur complète avec les défauts de la sorte à la création, accepte des patchs partiels ensuite.
 5. **Identité stable attribuée par le serveur** : `a<revision>-<n>`, comme un groupe ; l'adresse désigne une annotation
-   par `#annotation=<id>`.
+   par `#annotation=<id>`. **Engagement de l'API** (écrit le 2026-10-14, lot 3 de `docs/11`, revue M2) : `revision` est
+   celle du document que la requête rend, `n` le rang de l'opération parmi les créations **de sa sorte** dans la requête,
+   à partir de 1 (`a` pour `annotation_create`, `c` pour `connector_create`, `g` pour `group_create`, chaque sorte
+   comptée à part) ; écrit dans l'OpenAPI (route et opérations de création), figé par
+   `test_a_batch_of_creations_gets_its_ids_in_the_order_of_its_operations`. Le presse-papiers relie un collage par cette
+   règle, lue sur la **réponse** de sa première requête et vérifiée dans ce document avant d'envoyer la seconde.
 6. **Orphelines** : une annotation attachée à un équipement absent de la run (ou à un groupe sans membre présent, ou
    supprimé) n'est pas dessinée, elle est listée (fiche, onglet Intentions de `/view`, `ld intent`), jamais effacée en
    silence ; elle se détache (devient libre, au dernier centre de la vue) ou se supprime.

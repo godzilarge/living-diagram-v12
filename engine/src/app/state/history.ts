@@ -23,18 +23,21 @@ export type Entry =
 /** Ce qu'une entrée dit d'elle-même, rangé sans langue (une clé et ses valeurs) : écrit dans la langue de la page au
  *  moment de le montrer (`labelText`), il suit un changement de langue. */
 export type LabelKey = "moved" | "movedLocal" | "unpinned" | "colored" | "typeColored" | "groupCreated" | "groupDeleted" | "groupChanged"
-  | "annotationCreated" | "annotationDeleted" | "annotationChanged" | "connectorCreated" | "connectorDeleted" | "connectorChanged" | "changed";
-export interface Label { key: LabelKey; who?: { host: string | null; count: number }; name?: string }
+  | "annotationCreated" | "annotationDeleted" | "annotationChanged" | "connectorCreated" | "connectorDeleted" | "connectorChanged" | "changed"
+  | "movedItems" | "deletedItems" | "createdItems";
+/** `count` : le nombre d'éléments d'un geste sur une sélection mixte (lot 2 de docs/11), écrit au pluriel voulu. */
+export interface Label { key: LabelKey; who?: { host: string | null; count: number }; name?: string; count?: number }
 /** Un équipement par son nom, plusieurs par leur nombre. */
 export const whoOf = (hosts: string[]): { host: string | null; count: number } => ({ host: hosts.length === 1 ? hosts[0] : null, count: hosts.length });
 /** « déplacement de 2 équipements », « couleur de sw-01 »… dans la langue de la page. */
 export function labelText(label: Label): string {
   const who = label.who ? (label.who.host !== null ? label.who.host : t("common:devices", { count: label.who.count })) : "";
-  return t(`history.${label.key}`, { who, name: label.name || "" });
+  return t(`history.${label.key}`, { who, name: label.name || "", ...(label.count === undefined ? {} : { count: label.count }) });
 }
 export interface Plan { ops: Op[]; applied: Change[]; skipped: Change[]; created: string[] }
 
 export const LIMIT = 100;
+const MOVES = ["pin", "annotation_update", "connector_update"];
 export const keyOf = (kind: Kind, id: string): string => kind + SEP + id;
 const split = (key: string): [Kind, string] => { const at = key.indexOf(SEP); return [key.slice(0, at) as Kind, key.slice(at + 1)]; };
 
@@ -142,13 +145,42 @@ export function createdIds(created: string[], doc: Intent): Map<string, string> 
   return new Map(created.map((old) => { const prefix = old[0] === "a" ? "a" : old[0] === "c" ? "c" : "g"; counts[prefix] += 1; return [old, prefix + doc.revision + "-" + counts[prefix]]; }));
 }
 
-/** Une entrée dont les groupes recréés ont changé d'identité. */
+// Un ancrage ou un bout qui désigne un élément recréé désigne sa nouvelle identité (un équipement ne change jamais).
+type Ref = { kind: string; ref?: string | null };
+const relinked = <T extends Ref>(end: T, ids: Map<string, string>): T => (end.kind !== "device" && end.kind !== "free" && end.ref && ids.has(end.ref) ? { ...end, ref: ids.get(end.ref) as string } : end);
+function remapValue(value: Value, ids: Map<string, string>): Value {
+  if (!value || typeof value !== "object") return value;
+  if ("anchor" in value) return { ...value, anchor: relinked(value.anchor, ids) };
+  if ("start" in value) return { ...value, start: relinked(value.start, ids), end: relinked(value.end, ids) };
+  return value;
+}
+
+/** Une entrée dont les groupes, annotations ou connecteurs recréés ont changé d'identité : ses clés, et les ancrages et
+ *  bouts de ses valeurs qui les désignaient. */
 export function remap(entry: Entry, ids: Map<string, string>): Entry {
   if (entry.kind !== "intent" || !ids.size) return entry;
   return { ...entry, changes: entry.changes.map((change) => {
     const [kind, id] = split(change.key);
-    return (kind === "group" || kind === "annotation" || kind === "connector") && ids.has(id) ? { ...change, key: keyOf(kind, ids.get(id) as string) } : change;
+    const key = (kind === "group" || kind === "annotation" || kind === "connector") && ids.has(id) ? keyOf(kind, ids.get(id) as string) : change.key;
+    return { key, before: remapValue(change.before, ids), after: remapValue(change.after, ids) };
   }) };
+}
+
+/** Après une annulation qui recrée des éléments (une suppression d'une sélection mixte, par exemple) : les annotations
+ *  et connecteurs du document qui désignent encore l'ancienne identité d'un élément recréé (ancrage, bout) la
+ *  reprennent ; sans cela, un connecteur recréé avec la note à laquelle il tenait resterait orphelin. */
+export function relinkOps(doc: Intent, ids: Map<string, string>): Op[] {
+  if (!ids.size) return [];
+  const ops: Op[] = [];
+  (doc.annotations || []).forEach((a) => {
+    const anchor = relinked(a.anchor, ids);
+    if (anchor !== a.anchor) ops.push({ op: "annotation_update", id: a.id, anchor });
+  });
+  (doc.connectors || []).forEach((c) => {
+    const start = relinked(c.start, ids), end = relinked(c.end, ids);
+    if (start !== c.start || end !== c.end) ops.push({ op: "connector_update", id: c.id, ...(start !== c.start ? { start } : {}), ...(end !== c.end ? { end } : {}) });
+  });
+  return ops;
 }
 
 /** Ce que la page dit d'une requête : « déplacement de 2 équipements », « couleur de sw-01 »… (`labelText`). */
@@ -158,6 +190,13 @@ export function labelOf(ops: Op[]): Label {
   if (ops.every((op) => op.op === "unpin")) return { key: "unpinned", who: whoOf(hosts(["unpin"])) };
   if (ops.every((op) => op.op === "color" || op.op === "uncolor")) return { key: "colored", who: whoOf(hosts(["color", "uncolor"])) };
   if (ops.every((op) => op.op === "color_type" || op.op === "uncolor_type")) return { key: "typeColored" };
+  // Un geste sur une sélection mixte (lot 2 de docs/11) : un bloc glissé, aligné ou poussé aux flèches (épingles et
+  // boîtes ensemble), ou plusieurs éléments supprimés d'un coup.
+  const ids = new Set(ops.map((op) => ("hostname" in op ? "h" + op.hostname : "id" in op ? op.op.split("_")[0] + op.id : op.op)));
+  if (new Set(ops.map((op) => op.op)).size > 1 && ops.every((op) => MOVES.includes(op.op))) return { key: "movedItems", count: ids.size };
+  if (ops.length > 1 && ops.every((op) => op.op.endsWith("_delete"))) return { key: "deletedItems", count: ids.size };
+  // un collage, une duplication (lot 3 de docs/11) : plusieurs annotations et connecteurs créés d'un coup
+  if (ops.length > 1 && ops.every((op) => op.op === "annotation_create" || op.op === "connector_create")) return { key: "createdItems", count: ops.length };
   const create = ops.find((op) => op.op === "group_create");
   if (create && create.op === "group_create") return { key: "groupCreated", name: create.label };
   if (ops.every((op) => op.op === "group_delete")) return { key: "groupDeleted" };
@@ -193,9 +232,21 @@ export function moved(stack: Stack, direction: "undo" | "redo", ids: Map<string,
   const rest = from.filter((e) => e !== top).map((e) => remap(e, ids)), other = to.map((e) => remap(e, ids)).concat(remap(entry, ids));
   return direction === "undo" ? { undo: rest, redo: other } : { undo: other, redo: rest };
 }
+/** Une suite de requêtes d'un même geste (un collage en deux requêtes, lot 3 de docs/11) : l'entrée de la suivante
+ *  rejoint `target`, là où elle est dans la pile (un autre geste a pu s'empiler entre-temps) ; des créations seules se
+ *  disent « ajout de n éléments ». `target` sorti de la pile (annulé entre-temps) : l'entrée entre seule. Rend la pile
+ *  et l'entrée qui porte désormais le geste. */
+export function absorb(stack: Stack, target: Entry, extra: Entry): { stack: Stack; entry: Entry } {
+  const at = stack.undo.indexOf(target);
+  if (at < 0 || target.kind !== "intent" || extra.kind !== "intent") return { stack: push(stack, extra), entry: extra };
+  const changes = target.changes.concat(extra.changes);
+  const label: Label = changes.every((c) => c.before === null && c.after !== null) ? { key: "createdItems", count: changes.length } : target.label;
+  const entry: Entry = { kind: "intent", label, changes };
+  return { stack: { undo: stack.undo.map((e, i) => (i === at ? entry : e)), redo: stack.redo }, entry };
+}
 /** Une entrée dont rien n'a pu être rejoué (tout a changé depuis) : elle sort de la pile. */
 export function discard(stack: Stack, direction: "undo" | "redo"): Stack {
   return direction === "undo" ? { ...stack, undo: stack.undo.slice(0, -1) } : { ...stack, redo: stack.redo.slice(0, -1) };
 }
 
-export const history = { keyOf, valueOf, same, keysOf, record, plan, createdIds, remap, labelOf, labelText, emptyStack, push, dropLocal, labels, moved, discard, LIMIT };
+export const history = { keyOf, valueOf, same, keysOf, record, plan, createdIds, remap, relinkOps, labelOf, labelText, emptyStack, push, absorb, dropLocal, labels, moved, discard, LIMIT };

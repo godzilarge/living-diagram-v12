@@ -199,7 +199,9 @@ Members = Annotated[list[PinHostname], Field(min_length=1, max_length=10_000)]
 
 class GroupCreateOp(ApiModel):
     """Créer un groupe (docs/10 §5) : un libellé, des membres ; description et style facultatifs (défauts sinon).
-    Le serveur attribue l'identité `g<revision>-<n>`."""
+    Le serveur attribue l'identité `g<revision>-<n>` : `revision` est celle du document que
+    la requête rend, `n` le rang de l'opération parmi les `group_create` de la requête, à partir de 1 (les autres
+    opérations ne comptent pas). Engagement de l'API (lot 3 de docs/11 : la page relie un collage par cette règle)."""
 
     op: Literal["group_create"]
     label: GroupLabel
@@ -267,7 +269,9 @@ def _free_anchor() -> Anchor:
 class AnnotationCreateOp(ApiModel):
     """Créer une annotation (docs/10 §6) : un contenu (note, forme, tableau, image) ; ancrage, boîte, plan, verrou,
     ligne de rappel et style facultatifs (libre, taille de la sorte, devant, déverrouillée, sans rappel, défauts du
-    style). Le serveur attribue l'identité `a<revision>-<n>`."""
+    style). Le serveur attribue l'identité `a<revision>-<n>` : `revision` est celle du document que
+    la requête rend, `n` le rang de l'opération parmi les `annotation_create` de la requête, à partir de 1 (les autres
+    opérations ne comptent pas). Engagement de l'API (lot 3 de docs/11 : la page relie un collage par cette règle)."""
 
     op: Literal["annotation_create"]
     content: AnnotationContent
@@ -328,7 +332,9 @@ def _default_heads() -> Heads:
 class ConnectorCreateOp(ApiModel):
     """Créer un connecteur (docs/10 §6) : ses deux bouts obligatoires (libres, ou attachés à un équipement, un groupe,
     une annotation) ; pointes (une flèche à l'arrivée), tracé (droit), courbure (0), étiquette, plan (devant), verrou
-    et style facultatifs. Le serveur attribue l'identité `c<revision>-<n>`."""
+    et style facultatifs. Le serveur attribue l'identité `c<revision>-<n>` : `revision` est celle du document que
+    la requête rend, `n` le rang de l'opération parmi les `connector_create` de la requête, à partir de 1 (les autres
+    opérations ne comptent pas). Engagement de l'API (lot 3 de docs/11 : la page relie un collage par cette règle)."""
 
     op: Literal["connector_create"]
     start: ConnectorEnd

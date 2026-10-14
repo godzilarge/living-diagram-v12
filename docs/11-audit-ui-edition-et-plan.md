@@ -251,12 +251,12 @@ attend d'un éditeur et qui donne l'impression de « fluidité » :
 
 | # | Question | Recommandation | Autre option |
 |---|---|---|---|
-| D1 | Glissé nu sur le fond | **rectangle de sélection**, comme Visio, draw.io, Lucidchart et Figma ; la vue se déplace par Espace + glissé ou le bouton du milieu (et par le glissé nu en Contrôle, où rien ne s'édite) | garder le panoramique (Miro), rectangle avec Maj |
-| D2 | Molette | **défilement** (vertical ; Maj = horizontal), **Ctrl + molette = zoom**, pincement = zoom | garder molette = zoom |
+| D1 | Glissé nu sur le fond | ~~rectangle de sélection~~ **révisée le 2026-10-14 par Orhan : glissé nu = panoramique, Maj + glissé = rectangle** (qui ajoute à la sélection ; « le glissé nu qui sélectionne, très très perturbant ») ; la vue se déplace aussi par Espace + glissé, même en partant d'un élément, et par le bouton du milieu | rectangle de sélection au glissé nu (Visio, draw.io, Lucidchart, Figma), la recommandation d'origine |
+| D2 | Molette | ~~défilement, Ctrl + molette = zoom~~ **révisée le 2026-10-14 par Orhan : molette = zoom (comme avant)** ; Ctrl + molette zoome aussi, du même pas ; pincement = zoom | défilement (draw.io, Lucidchart, Figma, Visio), la recommandation d'origine |
 | D3 | Ancres | **jamais au repos** ; visibles sur l'élément survolé **pendant** qu'on tire un bout de connecteur, et sur tous les éléments survolés quand l'**outil connecteur** est armé (`C`, bouton de la barre ; Échap le range) | flèches rapides au survol d'un élément sélectionné (AutoConnect de Visio / draw.io), en plus |
 | D4 | Taille des cartes | **nom 15 → 18 px**, carte et grille inchangées ; **niveau de détail** sous 0,6 : nom agrandi, icône réduite, nom lisible jusqu'à 0,35 ; **arrangements** à la demande (lot 6) ; pas de taille par équipement | échelle d'affichage partagée (×1,25, ×1,5) comme intention de l'infrastructure, en plus |
 | D5 | Suppr sur un équipement | **rien, et la page le dit** (« un équipement vient de la donnée : masquer ? » avec le bouton) ; Suppr vide les annotations, connecteurs et groupes de la sélection | Suppr = masquer |
-| D6 | Copier un équipement | **ses noms en texte** (utile ailleurs) ; coller des équipements ne crée rien | rien |
+| D6 | Copier un équipement | **tranchée le 2026-10-14 par Orhan, à la recommandation : copier un équipement = ses noms en texte ; coller des équipements ne crée rien** | rien |
 | D7 | Ordre de superposition | **`order` entier additif** (Intent 1.6.0) dans chacun des deux plans gardés ; avancer / reculer / devant / derrière | fusionner les plans en un seul ordre |
 | D8 | Export | **PNG d'abord** par capture du DOM (court), **SVG et PDF ensuite** par un rendu SVG pur de la scène (long) | SVG pur d'abord |
 | D9 | Multi-utilisateur | **relecture de l'intention toutes les 15 s** quand l'onglet est visible (`ETag`, 304 sinon), fusion, « mis à jour par X » ; puis `expected_revision` | rien avant une vraie identité |
@@ -446,6 +446,58 @@ carte et une note, Ctrl+clic, glissé du bloc (épingle + patch, une entrée Ctr
 **Acceptation** : captures `1-selection-mixte`, `2-alignement-mixte` ; le parcours Chromium existant
 (`test_the_application_end_to_end_in_a_browser`) adapté sans perte d'assertion.
 
+**Fait le 2026-10-14** : la sélection accepte les quatre sortes (`app/state/selection.ts`, pur : listes triées, élément
+principal = le dernier entré, rectangle en mode « touche » ou « englobe », ordre de lecture et Tab en boucle,
+opérations de Suppr), tenue par la toile (`toile.state.multi`, `primary`, `selectItems`, `allItems`, `cycle`) et par le
+store (`picked`, `hosts` gardé pour les lecteurs d'avant) ; câbles, faisceaux, clusters et agrégats restent seuls ;
+l'adresse garde une seule clé quand la sélection est simple. **D1 et D2 révisées par Orhan pendant le lot (écarts à la
+spécification ci-dessus, voulus)** : le glissé nu sur le fond déplace la vue, en Diagramme comme en Contrôle
+(`panOnDrag` [0, 1]) ; Maj + glissé = rectangle en mode « touche » qui ajoute à la sélection (Ctrl tenu à la relâche =
+englobés seulement, option faite ; en Contrôle, des équipements seulement) ; un clic sans glisser sur le fond vide la
+sélection ; Maj, Ctrl ou Cmd + clic ajoute ou retire ; Espace + glissé déplace la vue même en partant d'une carte,
+d'une annotation, d'un cadre ou d'un tracé (la toile pose `space-pan` : ses éléments laissent passer l'appui jusqu'au
+fond, rien ne se glisse ; avant, Espace + glissé sur une carte la déplaçait) ; le bouton du milieu aussi, partout. La
+molette zoome (comme avant) ; Ctrl + molette zoome du même pas autour du pointeur (`app/canvas/wheel.ts` : React Flow
+prenait le cran pour un pincement, ×4), un pincement garde son pas. D5 : Suppr sur un
+équipement n'écrit rien et la ligne d'état propose « masquer » ; annotations, connecteurs et groupes partent en une
+requête. Un bloc mixte glisse d'un coup (épingles, annotations, bouts libres des connecteurs, membres d'un cadre
+sélectionné) en une écriture et une entrée d'annulation (« déplacement de n éléments ») ; les flèches de même, une
+rafale = une écriture ; Ctrl+A ; F2 / Entrée et double-clic : texte d'une note, étiquette d'une forme, nom d'un groupe
+sur son cadre (`app/canvas/inline.tsx`) ; Tab / Maj+Tab dans l'ordre de lecture, le focus suit. Alignement par les
+boîtes (`canvas/align.ts`, `alignBoxes` : gauche, centre, droite, haut, milieu, bas, répartir à écarts égaux) dès
+qu'une annotation est dans la sélection ; des cartes seules gardent leurs quatre alignements par les centres (captures
+existantes inchangées). `MultiCard` compte par sorte (« 4 éléments · 2 équipements, 1 annotation, 1 connecteur »), liste
+annotations, connecteurs et groupes, porte une corbeille ; la zone live le dit. Tests : Node (sélection, boîtes,
+historique composé et reliage, molette, réducteur), Chromium `tests/test_app_selection.py` (tout le parcours demandé,
+plus le bouton du milieu sur le fond et sur une carte), parcours existants inchangés ; 18 mutations attrapées (8 sous
+Node, 10 dans Chromium), deux équivalentes (la garde des extrêmes d'une répartition ; `nodesDraggable` coupé sous Espace,
+que `space-pan` rend redondant) ; captures `.impeccable/planche-lot-2/`.
+**Défauts purs corrigés en passant** : (1) le SVG d'un pixel d'un connecteur était un élément en ligne posé sur la ligne
+de base du texte : tracé, poignées et zone de clic dessinés environ 13 unités plus bas que la toile ne les calcule
+(`flow.css`, `display: block` sur connecteurs, annotations, cadres ; un test le garde) ; (2) une demande d'édition en
+place (menu, F2) se rejouait à chaque nouvelle version de l'annotation ou du cadre : elle ne vaut plus qu'une fois ;
+(3) le bouton du milieu (retour d'Orhan pendant le lot) : React Flow le prend mais n'annulait pas l'action du
+navigateur sur son appui (défilement automatique de Windows et de Firefox, collage de la sélection primaire sous
+Linux), qui prenait la main sur le panoramique ; l'appui est annulé sur `mousedown` (pas sur `pointerdown`, qui
+couperait les événements souris de d3-zoom) et `auxclick`, sans arrêter la propagation. Cause probable, non reproduite
+dans le Chromium sans écran de Linux (sans défilement automatique) ; le test vérifie que l'appui est annulé et que la
+vue bouge depuis le fond comme depuis une carte. (4) Un « annuler » qui recrée une note et le connecteur qui y tenait
+laissait le connecteur orphelin (ancienne identité) : une seconde requête le relie (`relinkOps`), les valeurs gardées
+dans la pile suivent (`remap`). **Écarts** : (1) la fiche : un élément = sa fiche, plusieurs = `MultiCard`, même d'une
+seule sorte (la fiche du principal laisserait croire qu'on édite tout ; la fiche multiple des équipements existait) ;
+(2) Tab et Ctrl+A prennent équipements, annotations et connecteurs, pas les cadres de groupe (Tab compte aussi les
+verrouillés, Ctrl+A non) ; (3) Ctrl + clic sur le fond vide la sélection (React Flow) ; (4) un connecteur sélectionné
+est désormais glissable par React Flow avec un bloc (seul, il se glisse toujours par son tracé) ; (5) dans un bloc, une
+note n'a plus ses poignées de taille ; (6) panneau ouvert, la barre d'outils se centre entre la recherche et le panneau
+et passe à la ligne (huit alignements à 1280 px la faisaient glisser dessous) ; le lot 4 la refait. **Mesures**
+(Chromium sans écran, de l'action à la deuxième image ; trois passages) : demo-dc, Maj + rectangle 72 à 110 ms, Ctrl+A
+23 ms (33 éléments), flèche 74 à 83 ms ; 500 équipements (`generate --seed 7`), rectangle 634 à 785 ms, Ctrl+A 189 à
+202 ms (520 éléments), flèche 1,23 à 1,31 s : la toile reconstruite à chaque version (un simple `repaint` y coûte 0,6 à
+1,1 s, en grande partie hors du script, non comparé à la version commitée), dette du lot 13, non corrigée ici.
+**Parqués** : redimensionner plusieurs éléments, une ancre d'alignement autre que l'ensemble (« aligner sur le
+principal »), la fiche d'une sélection mixte n'offre ni teinte ni style pour les annotations, Ctrl + clic sur le fond
+qui garderait la sélection.
+
 ### Lot 3 — Presse-papiers : copier, couper, coller, dupliquer (P0, M)
 
 **En une phrase** : Ctrl+C / X / V / D et Alt + glissé sur tout ce qui s'édite, dans la page et d'une page à l'autre.
@@ -496,11 +548,102 @@ pointeur, Ctrl+D, Alt + glissé, collage entre deux infrastructures avec une ima
 
 **Acceptation** : capture `1-collage` (original, copie décalée, barre contextuelle avec « coller »).
 
+**Fait le 2026-10-14** : Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+D, Alt + glissé et, dans le menu contextuel, « copier »,
+« couper », « coller ici », « dupliquer » avec leur raccourci écrit (`aria-keyshortcuts`). **La charge**
+(`app/state/clipboard.ts`, pur) : `{ "living-diagram": 1, infrastructure, annotations, connectors, hosts }`, chaque
+annotation avec sa boîte dans le plan (`frame`), chaque connecteur avec la place de ses deux bouts ; relue avec une
+garde de forme (version, types, identités uniques, empreinte `sha256` d'une image avant qu'elle parte dans une adresse,
+2 M caractères au plus), le reste est validé par le serveur. Écrite
+au clavier par les événements natifs (`copy` / `cut` : `application/x-living-diagram+json` et `text/plain`), depuis le
+menu par l'API asynchrone (`web application/x-living-diagram+json` et `text/plain`, sinon le texte seul) ; la mémoire de
+l'onglet double toujours le système. Relue : le format propre, puis un texte qui commence par `{"living-diagram"`, sinon
+le comportement d'avant (image → annotation image, texte → note). D6 : un équipement copié donne son nom en texte, un
+par ligne ; collé, rien ne se crée et la page le dit. **Coller** : au pointeur (coin haut gauche du collage, aimanté
+avec l'aimant), sinon +20 / +20 cumulés ; ancrage gardé si l'ancre existe (équipement du même nom ; groupe du même id
+**dans la même infrastructure seulement**), sinon libre à sa place ; bouts des connecteurs remappés sur les annotations
+collées, gardés sur ce qui existe, sinon libres à leur dernière place. **API inchangée** : la réponse reste le document,
+la règle des identités (`a<révision>-<n>`, n dans l'ordre des créations de chaque sorte) est désormais figée par un test
+(`tests/test_api_intent.py`, `test_a_batch_of_creations_gets_its_ids_in_the_order_of_its_operations`) ; les connecteurs
+qui visent une annotation collée partent dans une seconde requête (le serveur ne vérifie pas qu'une annotation visée
+existe : deviner `a<révision + 1>` avant la réponse aurait relié en silence à une autre en cas d'écriture concurrente) ;
+**une seule entrée d'annulation** pour les deux (`undo.chain`, `history.absorb`, « ajout de n éléments »), et le
+rétablir relie de nouveau par `relinkOps` (lot 2). D'une autre infrastructure : chaque image est lue là-bas
+(`fetchAssetFile`) et renvoyée au magasin d'ici (`uploadAsset`, même empreinte) avant la création, 50 images au plus
+par collage (au-delà, rien n'est collé et la page le dit). **Dupliquer** :
+Ctrl+D = copier + coller à +20 / +20 sans toucher au presse-papiers, puis répète l'écart du dernier clone tant que la
+sélection est la copie. **Alt + glissé** (`app/canvas/clone.tsx`) : l'appui (bouton principal, Alt) sur une annotation,
+un connecteur, une carte ou un cadre est pris à la capture avant React Flow ; le fantôme (les annotations dessinées par le
+même `Body` que la toile, les connecteurs par `Stroke`) suit le pointeur à 60 % dans une couche à part, la copie se crée
+à la relâche, l'original reste ; un Alt + clic sans mouvement sélectionne ; poignées, champs, Espace + glissé et le
+bouton du milieu gardent leur geste (D1 / D2 révisées). **Couper** = copier puis Suppr du lot 2 (« n éléments coupés ·
+Ctrl+Z pour annuler » ; un équipement reste et « masquer » est proposé). En Contrôle et sans nom, rien ne se colle ni ne
+se duplique, la ligne d'état le dit ; copier reste possible. Tests : 5 tests Node (charge et relecture, plan de collage,
+duplication et fantôme, entrée d'annulation composée, menu) et le test du menu existant adapté ; Chromium
+`tests/test_app_clipboard.py`, deux parcours (le presse-papiers du système de Chromium sans écran, par les événements
+natifs ; l'API asynchrone par `Browser.grantPermissions` ; le repli de l'onglet exercé par un texte collé égal à la
+dernière copie) ; backend : identités d'un lot de créations. **23 mutations attrapées** (12 sous Node, 11 dans
+Chromium), aucune survivante. Captures `.impeccable/planche-lot-3/` : `1-collage.png` (l'original estompé, sa copie
+collée au pointeur et sélectionnée avec son connecteur, le menu contextuel ouvert sur elle, raccourcis écrits en chasse
+fixe à droite), `2-alt-glisse.png` (le fantôme à 60 % pendant le glissé, l'original sélectionné à sa place). **Mesures**
+(Chromium sans écran, de la touche Ctrl+V à la copie sélectionnée et peinte, deux requêtes ; trois passages) : 20
+annotations et 10 connecteurs, demo-dc 176 à 223 ms ; 500 équipements (`generate --seed 7`) 1,47 à 1,57 s, l'essentiel
+étant la toile reconstruite à chaque version (dette du lot 13, non corrigée ici). **Écarts, décisions prises seul** :
+(1) une image introuvable devient une **note** qui porte son texte de remplacement (une annotation image sans fichier est
+refusée par le contrat, `unknown_asset`) ; (2) un id de groupe ou d'annotation ne vaut que dans sa propre infrastructure
+(la spécification disait « groupe du même id ») ; (3) un connecteur dont aucun bout ne bougerait est libéré et décalé ;
+(4) les copies ne sont jamais verrouillées ; (5) ~~couper supprime aussi les groupes sélectionnés~~ **révisé après
+revue (M4)** : couper supprime exactement ce qui a été copié, un groupe reste et la page le dit ; (6) la barre contextuelle n'existant pas encore, la capture
+montre le menu contextuel ; « dupliquer » du menu d'une annotation passe désormais par le presse-papiers (copie
+sélectionnée, connecteurs compris), celui de la fiche garde son chemin d'avant ; (7) un collage de plus de 500 éléments
+est refusé et le dit (une requête de l'API en porte 500 au plus). **Parqués** : coller des équipements, coller un
+groupe, coller dans `/view` (hors périmètre) ; une image du même magasin retirée entre la copie et le collage fait
+refuser tout le collage (422 `unknown_asset`, dit tel quel) ; Alt + glissé et un gestionnaire de fenêtres Linux qui
+prend Alt + glissé pour lui (rien à faire côté page) ; le fantôme d'un tableau n'en dessine que le cadre.
+
+**Corrections après la revue indépendante (2026-10-14)** (`docs/revues/2026-10-14-lot-3-presse-papiers.md`, 0 critique,
+1 haut, 5 moyens, 9 bas ; suivi point par point dans le rapport). **H1** : un collage appartient à sa toile.
+L'écrivain et le placeur d'une run écrivent dans l'infrastructure de cette run, figée (`makeHosts(infrastructure)` ; le
+jeton reste vivant) ; les images d'un collage se lisent et se renvoient avec cette session ; après chaque attente
+(lecture, renvoi d'image, chaque requête), un collage dont la toile a changé s'arrête sans rien écrire de plus et le dit
+(« collage abandonné », ou « interrompu » si une partie était déjà écrite) ; une écriture qui revient après un changement
+d'infrastructure n'entre plus dans la pile d'annulation de l'autre (`StackHolder.owner`). **M1 + M2, sans changer l'API
+ni le contrat** : les identités se lisent sur la **réponse** de la première requête (`AppWriter.outcomeOf`, jamais
+`model.intent`) et y sont vérifiées (`verifyCreated` : présentes, de la sorte et à la place envoyées) ; si une manque, la
+seconde requête ne part pas ; si elle ne part pas ou est refusée, la première est défaite par son entrée (`undo.revert` :
+opérations inverses, sans entrée, l'entrée retirée de la pile), un seul message « collage refusé : … » ; si défaire échoue
+aussi, la page le dit et l'entrée reste (Ctrl+Z défait ce qui reste) ; « n éléments collés » ne se dit qu'après tout. Le
+rétablir lit aussi ses identités sur la réponse. L'engagement des identités est écrit (OpenAPI : route et trois opérations
+de création, `test_openapi.py` ; `backend/README.md` ; `docs/10` §6). **M3** : un appui sur la toile hors d'un champ
+efface la sélection de texte de la page ; un texte sélectionné dans une fiche garde la copie native. **M4** : couper =
+copier puis supprimer les annotations et connecteurs de la charge prise (au clic, pas la sélection au retour de
+l'écriture) ; groupes et équipements restent, dits. **M5** : une annotation attachée collée d'ailleurs tombe sous le
+pointeur, son écart écrit depuis l'ancre d'ici (`Target.anchorAt` : centre de la carte, coin du cadre ;
+`app/canvas/clip-toile.ts`). **Bas** : deux Ctrl+D rapprochés posent deux copies à deux pas (B1) ; Alt + glissé n'est
+pas pris sans nom, et un cadre seul dit « un groupe ne se copie pas » (B3) ; borne en octets UTF-8 alignée sur le défaut
+de `LD_MAX_INTENT_BYTES` (1 Mio, `bytesOf`, « collage trop gros ») (B4) ; ancrages libérés dits (B5) ; le menu « coller »
+distingue refus de lecture et échec de collage (B6) ; `Flow.tsx` 622 → 431 lignes, le calcul des nœuds et arêtes sorti
+dans `app/canvas/flow-build.ts` (B7) ; tests des trous : rétablir, seconde requête refusée, changement d'infrastructure
+en vol, ancre d'ici, rangs au-delà de neuf (B8) ; la mémoire de l'onglet vit dans les commandes (une par Store), et
+`toile.pointer` reste posé comme `frames`, `ends`, `boxes` (la toile tient l'état mutable de la vue) (B9). **Assumé (B2)** :
+des noms d'équipements copiés n'ont pas de format propre ; collés dans un autre onglet, ils arrivent comme un texte brut
+venu d'ailleurs et deviennent une note (comportement d'avant) ; dans le même onglet, la mémoire de l'onglet les reconnaît
+et rien ne se crée. Tests : `tests/test_app_clipboard_guards.py` (nouveau, trois parcours Chromium : H1 rejoué, M1
+rejoué, M3 / M4 / B1 / B3), rétablir ajouté au parcours principal, un test Node de plus (ancre d'ici, identités
+vérifiées, octets), rangs au-delà de neuf et règle dans l'OpenAPI côté backend. **35 mutations attrapées** (16 sous
+Node, 19 dans Chromium ; 12 nouvelles), aucune survivante ; l'écrivain figé seul est équivalent dans le parcours H1 (la
+garde de la toile s'arrête avant tout envoi), attrapé avec elle.
+
 ### Lot 4 — La barre contextuelle flottante (P0, L)
 
 **En une phrase** : les réglages fréquents de l'élément sélectionné sont à un clic, au-dessus de lui.
 
 **Dépend de** : lot 1 (poignées), lot 2 (sélection mixte). **Pourquoi** : §4.1 point 4 ; décision D10.
+
+**Méthode imposée (Orhan, 2026-10-14)** : prototype d'abord. Un premier agent, avec les skills
+`frontend-design:frontend-design` et `impeccable:impeccable`, produit dans `.impeccable/prototype-lot-4/` une page HTML
+autonome (données factices, jetons recopiés, aucun fichier de `engine/` ni de `backend/`) qu'Orhan juge lui-même ; le
+code ne s'écrit qu'après son accord, le prototype validé faisant foi pour le rendu (`docs/11-prompt-agent-lot.md`
+§ 2 bis). Même règle pour le lot 14 et tout nouveau panneau. **D10 reste à trancher** avec le prototype sous les yeux.
 
 **Spécification**
 

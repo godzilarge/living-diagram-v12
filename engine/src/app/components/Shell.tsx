@@ -2,7 +2,13 @@
 // Ctrl+K donnent le focus à la recherche, C arme ou range l'outil connecteur (lot 1 de docs/11), Échap ferme ce qui est
 // ouvert, puis range l'outil, puis finit un parcours, puis vide la sélection ; Ctrl+Z annule, Ctrl+Y (ou
 // Ctrl+Maj+Z) rétablit ; les flèches déplacent la sélection d'un carreau de grille, de cinq avec Maj ; Ctrl+V colle
-// une image (annotation image) ou un texte (note) sur la toile.
+// une image (annotation image) ou un texte (note) sur la toile. Lot 2 de docs/11 : Ctrl+A sélectionne tout ce qui est
+// visible ; Suppr ou Retour arrière supprime annotations, connecteurs et groupes de la sélection (un équipement se
+// masque, la ligne d'état le propose) ; F2 ou Entrée ouvre l'édition en place (note, forme, nom d'un groupe) ; Tab et
+// Maj+Tab passent d'un élément à l'autre dans l'ordre de lecture, le focus suit, quand une sélection existe et que le
+// focus est sur la toile (Échap la vide : Tab rend alors la main à la page). Lot 3 : Ctrl+C / Ctrl+X copient (coupent)
+// la sélection, Ctrl+V colle une copie de Living Diagram au pointeur (sinon à côté de l'original), Ctrl+D duplique
+// (state/clipboard-commands.ts) ; dans un champ, ou avec du texte sélectionné dans la page, le navigateur garde la main.
 import { ArrowLeft } from "lucide-react";
 import { useEffect } from "react";
 import { applyLanguage, t } from "../../i18n";
@@ -35,6 +41,15 @@ const elsewhere = (target: EventTarget | null): boolean => {
   const el = target as HTMLElement | null;
   return typing(target) || (!!el && typeof el.closest === "function" && !!el.closest(".band, .menu, .sheet, .palette, [role=dialog]"));
 };
+/** Le focus est-il sur la toile, ou sur la page elle-même (rien d'autre de focalisé) ? Tab et Entrée n'y sont à la
+ *  toile que là : sur un bouton de la barre, ils gardent leur sens. */
+const onCanvas = (target: EventTarget | null): boolean => {
+  const el = target as HTMLElement | null;
+  if (!el || typeof el.closest !== "function") return true;
+  return el === document.body || el.classList.contains("app") || !!el.closest(".flow-host");
+};
+/** Le nœud React Flow d'un élément de la sélection : le focus y va (Tab). */
+const NODE_ID: Record<string, string> = { node: "", annotation: "annotation:", connector: "connector:", group: "group:" };
 
 export function Shell() {
   const { state, dispatch, commands } = useStore();
@@ -68,18 +83,29 @@ export function Shell() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [state.palette.open, state.colorsOpen, state.menuOpen, state.connectOpen, state.walk, state.context, state.tool, state.view.mode, ready, editable, dispatch, commands]);
-  // Coller (Orhan, 2026-10-09 : « coller une image depuis le presse-papiers ») : hors d'un champ, une image du
-  // presse-papiers devient une annotation image, un texte une note ; dans un champ, le collage reste au champ.
-  const control = state.view.mode === "control"; // la vue Contrôle se lit : rien ne s'édite au clavier (2026-10-09)
+  // Coller (Orhan, 2026-10-09 : « coller une image depuis le presse-papiers ») : hors d'un champ, une copie de Living
+  // Diagram se colle (lot 3 de docs/11), une image du presse-papiers devient une annotation image, un texte une note ;
+  // dans un champ, le collage reste au champ. Copier, couper (lot 3) : la sélection de la toile, sauf si la page a du
+  // texte sélectionné (une fiche, une description) : ce texte-là se copie.
+  const control = state.view.mode === "control"; // la vue Contrôle se lit : rien ne s'y colle, la page le dit (2026-10-09)
   const journal = state.view.mode === "journal"; // la vue Journal remplace la toile : ni toile, ni outils, ni clavier de la toile
   useEffect(() => {
     const onPaste = (event: ClipboardEvent): void => {
-      if (!ready || control || journal || typing(event.target) || !event.clipboardData) return;
-      if (commands.paste(event.clipboardData)) event.preventDefault();
+      if (!ready || journal || typing(event.target) || !event.clipboardData) return;
+      if (commands.pasteEvent(event.clipboardData)) event.preventDefault();
     };
+    const onCopy = (cut: boolean) => (event: ClipboardEvent): void => {
+      if (!ready || journal || elsewhere(event.target) || !event.clipboardData) return;
+      const text = typeof window.getSelection === "function" ? String(window.getSelection() || "") : "";
+      if (text) return;
+      if (commands.copyEvent(event.clipboardData, cut)) event.preventDefault();
+    };
+    const copy = onCopy(false), cut = onCopy(true);
     window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, [ready, control, journal, commands]);
+    window.addEventListener("copy", copy);
+    window.addEventListener("cut", cut);
+    return () => { window.removeEventListener("paste", onPaste); window.removeEventListener("copy", copy); window.removeEventListener("cut", cut); };
+  }, [ready, journal, commands]);
   // Annuler, rétablir, déplacer au clavier : à la capture, avant React Flow (qui déplacerait aussi le nœud focalisé).
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -87,8 +113,30 @@ export function Shell() {
       const key = event.key.toLowerCase(), mod = event.ctrlKey || event.metaKey;
       if (mod && !event.altKey && (key === "y" || (key === "z" && event.shiftKey))) { if (!control) { event.preventDefault(); commands.redo(); } return; }
       if (mod && !event.altKey && key === "z") { if (!control) { event.preventDefault(); commands.undo(); } return; }
+      const dialog = state.palette.open || state.menuOpen || state.connectOpen || state.colorsOpen;
+      // Ctrl+D : dupliquer (lot 3) ; en Contrôle ou sans nom, rien ne se crée et la page le dit
+      if (mod && !event.altKey && !event.shiftKey && key === "d" && !dialog && !elsewhere(event.target)) { if (commands.duplicate()) { event.preventDefault(); event.stopPropagation(); } return; }
+      if (!control && !dialog && !elsewhere(event.target)) {
+        if (mod && !event.altKey && key === "a") { event.preventDefault(); event.stopPropagation(); commands.selectAll(); return; }
+        if (!mod && !event.altKey && (event.key === "Delete" || event.key === "Backspace")) { if (commands.deleteSelection()) { event.preventDefault(); event.stopPropagation(); } return; }
+        if (!mod && !event.altKey && (event.key === "F2" || (event.key === "Enter" && !event.shiftKey && onCanvas(event.target)))) {
+          if (commands.editSelection()) { event.preventDefault(); event.stopPropagation(); }
+          return;
+        }
+      }
+      if (event.key === "Tab" && !mod && !event.altKey && !dialog && onCanvas(event.target) && (state.selection || state.picked.hosts.length + state.picked.annotations.length + state.picked.connectors.length + state.picked.groups.length)) {
+        const next = commands.cycle(event.shiftKey ? -1 : 1);
+        if (!next) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const id = NODE_ID[next.kind] + next.id;
+        // le nœud est dessiné au rendu suivant (sa classe `selected`) : le focus y va tout de suite, il existe déjà
+        const el = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`);
+        if (el) el.focus({ preventScroll: true });
+        return;
+      }
       const arrow = ARROWS[event.key];
-      if (!arrow || mod || event.altKey || elsewhere(event.target) || state.palette.open || state.menuOpen || state.connectOpen || state.colorsOpen) return;
+      if (!arrow || mod || event.altKey || elsewhere(event.target) || dialog) return;
       // pendant un parcours, ↑↓ vont d'un équipement à l'autre (← → déplacent toujours la sélection)
       if (state.walk && arrow[0] === 0) { event.preventDefault(); event.stopPropagation(); commands.stepWalk(arrow[1] as -1 | 1); return; }
       if (control) return;
@@ -97,7 +145,7 @@ export function Shell() {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [ready, control, journal, state.palette.open, state.menuOpen, state.connectOpen, state.colorsOpen, state.walk, commands]);
+  }, [ready, control, journal, state.palette.open, state.menuOpen, state.connectOpen, state.colorsOpen, state.walk, state.selection, state.picked, commands]);
   // Le thème : une préférence du navigateur, posée sur la racine (tokens.css la lit).
   useEffect(() => {
     document.documentElement.dataset.theme = state.prefs.theme;
@@ -111,7 +159,7 @@ export function Shell() {
   // toile (revue Impeccable du 2026-10-07 : Tab parcourait 154 câbles avant la barre). L'empilement, lui, tient aux
   // z-index. La bande reste pendant un chargement : le focus y demeure d'une run à l'autre.
   return (
-    <div className={ready ? "app ready" : "app"} tabIndex={-1}>
+    <div className={"app" + (ready ? " ready" : "") + (ready && !journal && (state.selection || state.picked.hosts.length + state.picked.annotations.length + state.picked.connectors.length + state.picked.groups.length >= 2) ? " has-panel" : "")} tabIndex={-1}>
       <TopBar />
       {ready && !journal ? <Search /> : null}
       {ready && !journal ? <Toolbar /> : null}
@@ -129,7 +177,7 @@ export function Shell() {
       {ready && state.context ? <ContextMenu /> : null}
       <Toast />
       {showConnect ? <Connect /> : null}
-      <p id="live" className="sr-only" aria-live="polite">{model ? describe(model, state.selection) : ""}</p>
+      <p id="live" className="sr-only" aria-live="polite">{model ? describe(model, state.selection, state.picked) : ""}</p>
     </div>
   );
 }

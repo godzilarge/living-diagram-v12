@@ -4,8 +4,12 @@
 // page (`onSelect`, `onPin`, `onPins`, `onPlaced`) comme graph.ts le fait pour `/view`. Déterministe : le placement
 // vient de scene.ts, les positions sont des centres entiers en unités du dessin ; la vue (zoom, décalage) est celle
 // de React Flow, que la toile lit et pose par `attach`.
-import { align as alignPositions } from "../../canvas/align";
-import type { AlignMode } from "../../canvas/align";
+import { align as alignPositions, alignBoxes } from "../../canvas/align";
+import type { AlignMode, Box, BoxMode } from "../../canvas/align";
+import type { End } from "../../canvas/connectors";
+import type { Op } from "../../shell/apps";
+import { empty, has, itemOf, itemsOf, multiOf, primaryOf, readingOrder, cycle as cycleOrder, selectionOf, single, size } from "../state/selection";
+import type { Item, Multi, Shape as PickShape } from "../state/selection";
 import type { PinsCause } from "../../canvas/graph";
 import { bounds } from "../../canvas/layout";
 import type { Point } from "../../canvas/layout";
@@ -20,7 +24,8 @@ export interface Insets { top: number; right: number; bottom: number; left: numb
 /** Ce que la toile sait de la vue : la taille du canevas, la vue courante, et comment en poser une. */
 export interface ViewPort { rect: () => { width: number; height: number }; get: () => Viewport; set: (view: Viewport, animate: boolean) => void }
 export interface ToileHooks {
-  onSelect: (selection: Selection | null, hosts: string[]) => void;
+  /** La sélection a changé : l'élément lu quand il n'y en a qu'un (sinon `null`), et toute la sélection mixte. */
+  onSelect: (selection: Selection | null, multi: Multi) => void;
   onPin?: (hostname: string, point: Point) => void;
   onPins?: (moves: Map<string, Point>, cause: PinsCause) => void;
   onPlaced?: (fresh: Map<string, Point>, replace: boolean) => void;
@@ -28,7 +33,14 @@ export interface ToileHooks {
   onMoved?: (before: Map<string, Point>, after: Map<string, Point>) => void;
   /** Rappelle `run` dans `ms` millisecondes, rend de quoi annuler : la minuterie vient de la page (la toile n'en a pas). */
   later?: (run: () => void, ms: number) => () => void;
+  /** Un geste sur une sélection mixte (glissé, alignement, flèches) : les épingles et les opérations des annotations et
+   *  connecteurs, à enregistrer en une seule écriture (une entrée d'annulation). */
+  onBlock?: (pins: Map<string, Point>, ops: Op[], cause: PinsCause) => void;
+  /** Peut-on écrire l'intention (un nom, la vue Diagramme) ? Sinon annotations et connecteurs ne bougent pas. */
+  canWrite?: () => boolean;
 }
+/** Une boîte d'annotation posée localement (glissé, redimensionnement, flèches, alignement) en attendant la réponse. */
+export type PendingBox = Partial<{ x: number; y: number; w: number; h: number }>;
 export interface Layers { speeds: boolean; beams: boolean; pins: boolean; notes: boolean; oper: boolean }
 export interface ToileState {
   filters: Filters; showPorts: boolean; query: string; insets: Insets;
@@ -37,7 +49,12 @@ export interface ToileState {
   /** La vue Contrôle (2026-10-09) : statuts, contrôles et état de collecte dessinés ; sinon la vue Diagramme, neutre. */
   control: boolean;
   pinned: Map<string, Point>; placed: Map<string, Point>; positions: Map<string, Point>;
-  selection: Selection | null; selected: Set<string>;
+  /** L'élément lu (un seul élément sélectionné), sinon `null`. */
+  selection: Selection | null;
+  /** La sélection mixte (lot 2 de docs/11) : équipements, annotations, connecteurs, groupes, et son élément principal. */
+  multi: Multi; primary: Item | null;
+  /** Les équipements de la sélection (`multi.hosts`), en ensemble. */
+  selected: Set<string>;
 }
 export interface Toile {
   model: Model;
@@ -63,16 +80,31 @@ export interface Toile {
   restoreView: (view: Viewport) => void;
   select: (selection: Selection | null) => void;
   selectHosts: (hosts: string[]) => void;
+  /** Une sélection mixte (rectangle, Maj + clic, Ctrl+A) ; `primary` : l'élément principal, sinon le dernier entré. */
+  selectItems: (items: Item[], primary?: Item | null) => void;
+  /** Tout ce qui est visible et se sélectionne en bloc (Ctrl+A) : équipements de la run, annotations et connecteurs
+   *  dessinés, non verrouillés ; jamais les cadres. */
+  allItems: () => Item[];
+  /** Ce qu'un rectangle de sélection peut prendre : équipements de la run (boîte), annotations (boîte) et connecteurs
+   *  (tracé) dessinés, avec leur verrou ; jamais un cadre ni un cluster, qui couvriraient tout. */
+  shapes: () => PickShape[];
+  /** Tab : sélectionne l'élément suivant (ou précédent) dans l'ordre de lecture, le rend. */
+  cycle: (direction: 1 | -1) => Item | null;
   /** Montre un élément choisi ailleurs : le rend visible (voisins inconnus, changements, statuts), le sélectionne, le centre. */
   reveal: (selection: Selection | null) => boolean;
   /** Un équipement déplacé prend sa position et une épingle locale ; la page décide d'enregistrer ou non. */
   moveTo: (hostname: string, point: Point) => void;
-  /** Des équipements relâchés après un glissé : un seul, ou la sélection glissée d'un bloc (un seul paquet). */
-  dropped: (hosts: string[]) => void;
-  alignSelected: (mode: AlignMode) => Map<string, Point>;
+  /** Des équipements relâchés après un glissé : un seul, ou la sélection glissée d'un bloc (un seul paquet) ; `ops` :
+   *  les annotations et connecteurs glissés avec eux, dans la même écriture. */
+  dropped: (hosts: string[], ops?: Op[]) => void;
+  /** Aligne la sélection : des cartes seules par leurs centres (`AlignMode`), une sélection mixte par les boîtes. */
+  alignSelected: (mode: AlignMode | BoxMode) => Map<string, Point>;
   /** Déplace la sélection de (dx, dy) au clavier ; une rafale de flèches n'enregistre qu'un paquet, `NUDGE_MS` après la
    *  dernière. Rend faux s'il n'y a aucun équipement sélectionné. */
   nudge: (dx: number, dy: number) => boolean;
+  /** Des connecteurs glissés avec une sélection : leurs bouts libres posés localement de (dx, dy), et les opérations
+   *  qui les écrivent (rien pour un connecteur sans bout libre ou qui n'a pas bougé). */
+  moveLines: (ids: string[], dx: number, dy: number) => Op[];
   /** Termine tout de suite une rafale de flèches en attente (avant une annulation, par exemple). */
   flush: () => void;
   /** Remet des équipements à ces positions, comme des déplacements locaux, sans rien enregistrer (annuler sans nom). */
@@ -87,9 +119,18 @@ export interface Toile {
   /** Le centre d'une annotation dessinée (pour la centrer) : posé par la toile React Flow à chaque dessin (`frames`). */
   frames: Map<string, { x: number; y: number; w: number; h: number }>;
   /** Les deux bouts d'un connecteur dessiné, dans le plan : posés de même (`ends`). */
-  ends: Map<string, { a: Point; b: Point }>;
+  ends: Map<string, { a: Point; b: Point; mid?: Point }>;
+  /** La boîte (largeur, hauteur) de chaque équipement dessiné : posée de même (`boxes`). */
+  boxes: Map<string, { w: number; h: number }>;
+  /** Les boîtes d'annotations et les bouts libres de connecteurs posés localement, en attendant que le document les porte
+   *  (Flow.tsx les lit au dessin et les oublie dès que le modèle est d'accord). */
+  pending: Map<string, PendingBox>;
+  pendingEnds: Map<string, { start?: End; end?: End }>;
   /** Le point du plan au milieu de ce qui reste visible : où poser une annotation insérée. */
   viewCenter: () => Point;
+  /** Le point du plan sous le pointeur quand il est sur la toile, sinon `null` : où un Ctrl+V colle (lot 3 de docs/11) ;
+   *  posé par la toile React Flow (Flow.tsx). */
+  pointer: Point | null;
 }
 
 /** Le délai après la dernière flèche avant d'enregistrer le déplacement : une rafale = un paquet d'épingles. */
@@ -105,7 +146,8 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
   const savedPlaces = (): Map<string, Point> => new Map(Array.from(model.placeByHost, ([host, place]) => [host, { x: place.x, y: place.y }]));
   const state: ToileState = {
     filters: { showStubs: false, showDiff: true, hiddenStatuses: new Set(), hide: [], only: null }, showPorts: false, query: "", layers: { speeds: false, beams: false, pins: true, notes: true, oper: false }, control: false,
-    insets: { top: 0, right: 0, bottom: 0, left: 0 }, pinned: savedPins(), placed: savedPlaces(), positions: new Map(), selection: null, selected: new Set(),
+    insets: { top: 0, right: 0, bottom: 0, left: 0 }, pinned: savedPins(), placed: savedPlaces(), positions: new Map(), selection: null,
+    multi: empty(), primary: null, selected: new Set(),
   };
   let version = 0;
   const listeners = new Set<() => void>();
@@ -136,19 +178,24 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     const box = bounds(state.positions), area = visibleRect();
     view.set(centered({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, fitZoom(state.positions, area), area), false);
   }
-  // Amène l'élément choisi au milieu de ce qui reste visible, à un zoom où son nom se lit.
-  function centerOn(selection: Selection | null): void {
+  // Les points d'un élément : le centre d'un équipement, d'une annotation dessinée, les bouts d'un connecteur, les
+  // membres d'un groupe ou d'un cluster.
+  function pointsOf(selection: Selection): Point[] {
+    if (selection.kind === "annotation") { const f = toile.frames.get(selection.id); return f ? [{ x: f.x + f.w / 2, y: f.y + f.h / 2 }] : []; }
+    if (selection.kind === "connector") { const e = toile.ends.get(selection.id); return e ? [e.a, e.b] : []; }
+    return hostsOf(model, selection).map(at).filter((p): p is Point => !!p);
+  }
+  // Amène l'élément choisi (ou toute la sélection mixte) au milieu de ce qui reste visible, à un zoom où son nom se lit.
+  function centerOn(selection: Selection | null, many: Item[] = []): void {
     if (!view) return;
-    let ends = hostsOf(model, selection).map(at).filter((p): p is Point => !!p);
-    if (selection && selection.kind === "annotation") { const f = toile.frames.get(selection.id); ends = f ? [{ x: f.x + f.w / 2, y: f.y + f.h / 2 }] : []; }
-    if (selection && selection.kind === "connector") { const e = toile.ends.get(selection.id); ends = e ? [e.a, e.b] : []; }
+    const ends = (selection ? pointsOf(selection) : []).concat(many.flatMap((item) => pointsOf(selectionOf(item))));
     if (!ends.length) return;
     const area = visibleRect();
     const x = ends.reduce((sum, p) => sum + p.x, 0) / ends.length, y = ends.reduce((sum, p) => sum + p.y, 0) / ends.length;
     const k = Math.max(view.get().zoom, REVEAL_MIN_ZOOM);
     view.set({ zoom: k, x: area.x + area.width / 2 - x * k, y: area.y + area.height / 2 - y * k }, true);
   }
-  const frame = (): void => { if (state.selection || state.selected.size) centerOn(state.selection || { kind: "node", id: Array.from(state.selected)[0] }); else fit(); };
+  const frame = (): void => { if (state.selection || size(state.multi)) centerOn(state.selection, state.selection ? [] : itemsOf(state.multi)); else fit(); };
   // En vue Diagramme, les contrôles ne comptent pas : seuls les changements orientent l'ouverture.
   function notable(): string[] {
     const sc = current || visible(model, state.filters), found = new Set<string>();
@@ -165,26 +212,68 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
   }
   function open(): void {
     if (!view) return;
-    if (state.selection || state.selected.size) { frame(); return; }
+    if (state.selection || size(state.multi)) { frame(); return; }
     const next = openingView(state.positions, notable(), visibleRect());
     if (next) view.set(next, false);
   }
 
-  // La sélection simple : un élément, lu ; un équipement est aussi le seul membre de la sélection multiple. La page
-  // apprend les deux (`onSelect`).
-  const notify = (): void => hooks.onSelect(state.selection, Array.from(state.selected));
+  // La sélection : un élément seul est lu (`selection`) et forme aussi la sélection mixte s'il est d'une des quatre
+  // sortes (équipement, annotation, connecteur, groupe) ; plusieurs éléments n'ont pas d'élément lu. La page apprend
+  // les deux (`onSelect`).
+  const notify = (): void => hooks.onSelect(state.selection, state.multi);
+  const known = (item: Item): boolean => (item.kind === "node" ? model.nodeByHost.has(item.id) : item.kind === "annotation" ? model.annotationById.has(item.id)
+    : item.kind === "connector" ? model.connectorById.has(item.id) : model.groupById.has(item.id));
+  function setMulti(multi: Multi, primary: Item | null): void {
+    state.multi = multi;
+    state.primary = primary;
+    state.selected = new Set(multi.hosts);
+  }
   function select(selection: Selection | null): void {
+    const item = itemOf(selection);
     state.selection = selection;
-    state.selected = new Set(selection && selection.kind === "node" ? [selection.id] : []);
+    setMulti(item ? multiOf([item]) : empty(), item);
     bump();
     notify();
   }
-  function selectHosts(hosts: string[]): void {
-    const kept = new Set(hosts.filter((host) => model.nodeByHost.has(host)));
-    state.selected = kept;
-    state.selection = kept.size === 1 ? { kind: "node", id: Array.from(kept)[0] } : null;
+  function selectItems(items: Item[], primary?: Item | null): void {
+    const kept = items.filter(known);
+    const multi = multiOf(kept);
+    const only = single(multi);
+    state.selection = only ? selectionOf(only) : null;
+    setMulti(multi, primary && has(multi, primary) ? primary : primaryOf(state.multi, state.primary, multi, kept));
     bump();
     notify();
+  }
+  const selectHosts = (hosts: string[]): void => selectItems(hosts.map((id): Item => ({ kind: "node", id })));
+  const locked = (item: Item): boolean => (item.kind === "annotation" ? !!(model.annotationById.get(item.id) || { locked: false }).locked
+    : item.kind === "connector" ? !!(model.connectorById.get(item.id) || { locked: false }).locked : false);
+  // Ce qui se sélectionne à la main sur la toile (Tab), avec son coin haut gauche : équipements de la run (pas un
+  // fantôme du diff), annotations et connecteurs dessinés.
+  function drawnItems(): { item: Item; at: Point }[] {
+    const sc = current || visible(model, state.filters);
+    const hosts = sc.nodes.filter((node) => !node.ghost && at(node.hostname)).map((node): { item: Item; at: Point } => {
+      const c = at(node.hostname) as Point, box = toile.boxes.get(node.hostname) || { w: 0, h: 0 };
+      return { item: { kind: "node" as const, id: node.hostname }, at: { x: c.x - box.w / 2, y: c.y - box.h / 2 } };
+    });
+    const notes = Array.from(toile.frames, ([id, f]): { item: Item; at: Point } => ({ item: { kind: "annotation", id }, at: { x: f.x, y: f.y } }));
+    const lines = Array.from(toile.ends, ([id, e]): { item: Item; at: Point } => ({ item: { kind: "connector", id }, at: { x: Math.min(e.a.x, e.b.x), y: Math.min(e.a.y, e.b.y) } }));
+    return hosts.concat(notes, lines).filter((entry) => known(entry.item));
+  }
+  function shapes(): PickShape[] {
+    const out: PickShape[] = [];
+    (current || visible(model, state.filters)).nodes.forEach((node) => {
+      const c = at(node.hostname), b = toile.boxes.get(node.hostname);
+      if (!node.ghost && c && b) out.push({ item: { kind: "node", id: node.hostname }, box: { x: c.x - b.w / 2, y: c.y - b.h / 2, w: b.w, h: b.h } });
+    });
+    toile.frames.forEach((f, id) => out.push({ item: { kind: "annotation", id }, box: f, locked: locked({ kind: "annotation", id }) }));
+    toile.ends.forEach((e, id) => out.push({ item: { kind: "connector", id }, line: e.mid ? [e.a, e.mid, e.b] : [e.a, e.b], locked: locked({ kind: "connector", id }) }));
+    return out;
+  }
+  const allItems = (): Item[] => drawnItems().map((entry) => entry.item).filter((item) => !locked(item));
+  function cycle(direction: 1 | -1): Item | null {
+    const next = cycleOrder(readingOrder(drawnItems()), state.primary || itemOf(state.selection), direction);
+    if (next) select(selectionOf(next));
+    return next;
   }
   function reveal(selection: Selection | null): boolean {
     if (!selection) { select(null); return false; }
@@ -223,47 +312,103 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     gesture = new Map();
     if (before.size && hooks.onMoved) hooks.onMoved(before, after);
   }
-  function save(hosts: string[], cause: PinsCause): void {
+  // Une écriture pour un geste : les épingles seules passent par `onPin` / `onPins` (comme avant) ; avec des annotations
+  // ou des connecteurs, tout part ensemble par `onBlock` (une seule entrée d'annulation).
+  function save(hosts: string[], cause: PinsCause, ops: Op[] = []): void {
     const moves = new Map(hosts.filter((host) => at(host)).map((host): [string, Point] => [host, { ...(at(host) as Point) }]));
-    if (moves.size > 1 && hooks.onPins) hooks.onPins(moves, cause);
+    if (ops.length && hooks.onBlock) hooks.onBlock(moves, ops, cause);
+    else if (moves.size > 1 && hooks.onPins) hooks.onPins(moves, cause);
     else if (hooks.onPin) moves.forEach((point, host) => hooks.onPin?.(host, point));
   }
-  function dropped(hosts: string[]): void {
+  function dropped(hosts: string[], ops: Op[] = []): void {
     bump();
-    save(hosts, "dragged");
+    save(hosts, "dragged", ops);
     settle(hosts);
   }
-  function alignSelected(mode: AlignMode): Map<string, Point> {
+  const writable = (): boolean => !!hooks.canWrite && hooks.canWrite();
+  // Les annotations et connecteurs de la sélection qu'un geste peut déplacer : dessinés, non verrouillés, et seulement
+  // si l'on peut écrire (sans nom, rien de l'intention ne bouge, même localement).
+  const movableNotes = (): string[] => (writable() ? state.multi.annotations.filter((id) => toile.frames.has(id) && !locked({ kind: "annotation", id })) : []);
+  const movableLines = (): string[] => (writable() ? state.multi.connectors.filter((id) => {
+    const c = model.connectorById.get(id);
+    return !!c && !c.locked && toile.ends.has(id) && (endOf(id, "start").kind === "free" || endOf(id, "end").kind === "free");
+  }) : []);
+  // La place courante d'une annotation (écart à son ancre) et d'un bout de connecteur : posée localement, sinon celle du document.
+  const noteAt = (id: string): Point => { const a = model.annotationById.get(id) as { x: number; y: number }, p = toile.pending.get(id) || {}; return { x: p.x === undefined ? a.x : p.x, y: p.y === undefined ? a.y : p.y }; };
+  function endOf(id: string, which: "start" | "end"): End {
+    const local = toile.pendingEnds.get(id), c = model.connectorById.get(id);
+    return (local && local[which]) || (c ? c[which] : { kind: "free", x: 0, y: 0 });
+  }
+  const shiftNote = (id: string, dx: number, dy: number): void => { const now = noteAt(id); toile.pending.set(id, { ...(toile.pending.get(id) || {}), x: now.x + dx, y: now.y + dy }); };
+  function shiftLine(id: string, dx: number, dy: number): void {
+    const next: { start?: End; end?: End } = { ...(toile.pendingEnds.get(id) || {}) };
+    (["start", "end"] as const).forEach((which) => { const e = endOf(id, which); if (e.kind === "free") next[which] = { kind: "free", x: e.x + dx, y: e.y + dy }; });
+    toile.pendingEnds.set(id, next);
+  }
+  // Les opérations qui écrivent ce qui a été posé localement.
+  const noteOps = (ids: Iterable<string>): Op[] => Array.from(ids).sort().map((id): Op => { const p = noteAt(id); return { op: "annotation_update", id, x: p.x, y: p.y }; });
+  const lineOps = (ids: Iterable<string>): Op[] => Array.from(ids).sort().map((id): Op => {
+    const s0 = endOf(id, "start"), e0 = endOf(id, "end");
+    return { op: "connector_update", id, ...(s0.kind === "free" ? { start: s0 } : {}), ...(e0.kind === "free" ? { end: e0 } : {}) };
+  });
+  // Une sélection de cartes seules s'aligne par les centres (règle d'avant, captures inchangées) ; dès qu'une annotation
+  // en fait partie, ou pour un bord (gauche, haut…), par les boîtes (align.ts).
+  const CENTER_MODES: Record<AlignMode, BoxMode> = { horizontal: "middle", vertical: "center", "distribute-horizontal": "distribute-horizontal", "distribute-vertical": "distribute-vertical" };
+  function alignSelected(mode: AlignMode | BoxMode): Map<string, Point> {
     flush();
-    const moved = alignPositions(state.positions, Array.from(state.selected).filter((host) => at(host)), mode);
-    moved.forEach((point, host) => moveTo(host, point));
+    const hosts = Array.from(state.selected).filter((host) => at(host) && !(model.nodeByHost.get(host) || { ghost: true }).ghost);
+    const notes = movableNotes();
+    if (!notes.length && mode in CENTER_MODES) {
+      const moved = alignPositions(state.positions, hosts, mode as AlignMode);
+      moved.forEach((point, host) => moveTo(host, point));
+      bump();
+      if (moved.size && hooks.onPins) hooks.onPins(moved, "aligned");
+      settle(Array.from(moved.keys()));
+      return moved;
+    }
+    const boxes = new Map<string, Box>();
+    hosts.forEach((host) => { const c = at(host) as Point, b = toile.boxes.get(host) || { w: 0, h: 0 }; boxes.set("node\u0000" + host, { x: c.x - b.w / 2, y: c.y - b.h / 2, w: b.w, h: b.h }); });
+    notes.forEach((id) => boxes.set("annotation\u0000" + id, { ...(toile.frames.get(id) as Box) }));
+    const moved = alignBoxes(boxes, Array.from(boxes.keys()), mode in CENTER_MODES ? CENTER_MODES[mode as AlignMode] : mode as BoxMode);
+    const hostMoves = new Map<string, Point>(), shifted: string[] = [];
+    moved.forEach((corner, key) => {
+      const [kind, id] = key.split("\u0000"), box = boxes.get(key) as Box;
+      if (kind === "node") { const point = { x: Math.round(corner.x + box.w / 2), y: Math.round(corner.y + box.h / 2) }; moveTo(id, point); hostMoves.set(id, point); }
+      else { shiftNote(id, corner.x - box.x, corner.y - box.y); shifted.push(id); }
+    });
     bump();
-    if (moved.size && hooks.onPins) hooks.onPins(moved, "aligned");
-    settle(Array.from(moved.keys()));
-    return moved;
+    save(Array.from(hostMoves.keys()).sort(), "aligned", noteOps(shifted));
+    settle(Array.from(hostMoves.keys()));
+    return hostMoves;
   }
   // Les flèches : la sélection bouge tout de suite, l'enregistrement attend la fin de la rafale.
-  let nudging: { hosts: Set<string>; cancel: () => void } | null = null;
+  let nudging: { hosts: Set<string>; notes: Set<string>; lines: Set<string>; cancel: () => void } | null = null;
+  // Les équipements qu'un geste déplace : ceux de la sélection, et les membres des groupes sélectionnés (un cadre
+  // entraîne ses membres, comme au glissé) ; jamais un fantôme du diff.
   const movable = (): string[] => {
-    const hosts = state.selected.size ? Array.from(state.selected) : state.selection && state.selection.kind === "node" ? [state.selection.id] : [];
-    return hosts.filter((host) => { const node = model.nodeByHost.get(host); return !!at(host) && !!node && !node.ghost; });
+    const hosts = new Set(state.selected.size ? state.selected : state.selection && state.selection.kind === "node" ? [state.selection.id] : []);
+    state.multi.groups.forEach((id) => { const g = model.groupById.get(id); if (g) g.members.forEach((host) => hosts.add(host)); });
+    return Array.from(hosts).sort().filter((host) => { const node = model.nodeByHost.get(host); return !!at(host) && !!node && !node.ghost; });
   };
   function flush(): void {
     if (!nudging) return;
-    const hosts = Array.from(nudging.hosts).sort();
+    const { hosts, notes, lines } = nudging;
     nudging.cancel();
     nudging = null;
-    save(hosts, "dragged");
-    settle(hosts);
+    const all = Array.from(hosts).sort();
+    save(all, "dragged", noteOps(notes).concat(lineOps(lines)));
+    settle(all);
   }
   function nudge(dx: number, dy: number): boolean {
-    const hosts = movable();
-    if (!hosts.length) return false;
+    const hosts = movable(), notes = movableNotes(), lines = movableLines();
+    if (!hosts.length && !notes.length && !lines.length) return false;
     hosts.forEach((host) => { const now = at(host) as Point; moveTo(host, { x: now.x + dx, y: now.y + dy }); });
+    notes.forEach((id) => shiftNote(id, dx, dy));
+    lines.forEach((id) => shiftLine(id, dx, dy));
     bump();
-    const all = new Set([...(nudging ? nudging.hosts : []), ...hosts]);
+    const merge = (was: Set<string> | undefined, now: string[]): Set<string> => new Set([...(was || []), ...now]);
     if (nudging) nudging.cancel();
-    nudging = { hosts: all, cancel: hooks.later ? hooks.later(flush, NUDGE_MS) : () => undefined };
+    nudging = { hosts: merge(nudging?.hosts, hosts), notes: merge(nudging?.notes, notes), lines: merge(nudging?.lines, lines), cancel: hooks.later ? hooks.later(flush, NUDGE_MS) : () => undefined };
     if (!hooks.later) flush(); // sans minuterie (tests), chaque flèche s'enregistre
     return true;
   }
@@ -301,12 +446,13 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     return { x: Math.round((area.x + area.width / 2 - v.x) / v.zoom), y: Math.round((area.y + area.height / 2 - v.y) / v.zoom) };
   };
   const toile: Toile = {
-    model, state, version: () => version, frames: new Map(), ends: new Map(), viewCenter,
+    model, state, version: () => version, frames: new Map(), ends: new Map(), boxes: new Map(), pending: new Map(), pendingEnds: new Map(), viewCenter, pointer: null,
     subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     attach: (next) => { view = next; },
     scene: () => current || (current = visible(model, state.filters)),
-    render, repaint: bump, fit, frame, open, notable, select,
+    render, repaint: bump, fit, frame, open, notable, select, selectItems, allItems, cycle, shapes,
     viewport: () => (view ? { ...view.get() } : null), restoreView: (next) => { if (view) view.set(next, true); }, selectHosts, reveal, moveTo, dropped, alignSelected, nudge, flush, restore,
+    moveLines: (ids, dx, dy) => { const kept = ids.filter((id) => model.connectorById.has(id) && (dx || dy)); kept.forEach((id) => shiftLine(id, dx, dy)); return lineOps(kept).filter((op) => op.op === "connector_update" && (op.start || op.end)); },
     resetPins: () => { state.pinned = savedPins(); render(true); },
     replaceAll: () => { state.pinned = savedPins(); state.placed = new Map(); render(false, true); },
     syncPins, syncPlaces,

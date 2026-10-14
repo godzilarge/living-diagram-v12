@@ -6,7 +6,8 @@
 // sélectionné, trois poignées à taille d'écran constante : les deux bouts (glisser un bout montre le contour et les
 // ancres de l'élément survolé, dans la couche du dessus, drawing.tsx, et s'y accroche ; relâché ailleurs, il est libre)
 // et la courbure au milieu (glisser un tracé droit le courbe). Un double-clic édite l'étiquette en place. Survolé quand
-// on peut écrire, un liseré d'accent (lot 1 de docs/11).
+// on peut écrire, un liseré d'accent (lot 1 de docs/11). Dans une sélection mixte glissée d'un bloc (lot 2), React Flow
+// déplace le nœud lui-même : ses bouts libres suivent du même écart, ses bouts attachés suivent ce qu'ils tiennent.
 import { t } from "../../i18n";
 import { useReactFlow, useStore, useStoreApi } from "@xyflow/react";
 import type { Node, NodeProps } from "@xyflow/react";
@@ -99,8 +100,12 @@ export function Stroke({ d, a, b, dirA, dirB, heads, style, label, mid }: { d: s
   );
 }
 
-export function ConnectorNode({ data, selected }: NodeProps<ConnectorNodeType>) {
-  const { c, origin, editable } = data;
+export function ConnectorNode({ data, selected, positionAbsoluteX, positionAbsoluteY }: NodeProps<ConnectorNodeType>) {
+  const { c, editable } = data;
+  // Le coin du nœud tel que React Flow le pose : celui de la boîte calculée, ou décalé pendant un glissé de bloc.
+  const origin = { x: positionAbsoluteX, y: positionAbsoluteY };
+  const shift = { x: positionAbsoluteX - data.origin.x, y: positionAbsoluteY - data.origin.y };
+  const carried = (place: EndPlace): EndPlace => (place.kind === "point" && (shift.x || shift.y) ? { kind: "point", at: { x: place.at.x + shift.x, y: place.at.y + shift.y } } : place);
   const rf = useReactFlow();
   const store = useStoreApi();
   useStore((s) => s.nodes); // se redessine quand un nœud bouge : les bouts attachés suivent pendant un glissé
@@ -112,8 +117,8 @@ export function ConnectorNode({ data, selected }: NodeProps<ConnectorNodeType>) 
   // Un bout ou la courbure qu'on glisse, l'étiquette qu'on édite : la bulle se tait (lot 1 de docs/11).
   useEffect(() => { actions.hold("connector:" + c.id, !!live || editing); return () => actions.hold("connector:" + c.id, false); }, [actions, c.id, live, editing]);
   const lookup = store.getState().nodeLookup;
-  const start = live && live.start ? live.start : livePlace(c.start, data.places.start, lookup);
-  const end = live && live.end ? live.end : livePlace(c.end, data.places.end, lookup);
+  const start = live && live.start ? live.start : c.start.kind === "free" ? carried(data.places.start) : livePlace(c.start, data.places.start, lookup);
+  const end = live && live.end ? live.end : c.end.kind === "free" ? carried(data.places.end) : livePlace(c.end, data.places.end, lookup);
   const route = live && live.route ? live.route : c.route;
   const bend = live && live.bend !== undefined ? live.bend : c.bend;
   const path = pathOf(start, end, route, bend);

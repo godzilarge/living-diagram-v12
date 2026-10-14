@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "checkMeaning", "context", "debug", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "searching", "snap", "tool", "walking"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "context", "debug", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -363,24 +363,24 @@ test("le menu contextuel (context.ts) : ce qu'un clic droit propose selon la cib
   const ids = (items) => clone(items.filter((i) => !i.sep).map((i) => i.id));
   const rw = { editable: true, selectedHosts: [], hasSelection: false, pinned: () => false };
   const ro = { ...rw, editable: false };
-  assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, rw)), ["insert:note", "insert:rectangle", "insert:ellipse", "insert:connector", "insert:table", "insert:image", "fit"]);
+  assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, rw)), ["clip:paste", "insert:note", "insert:rectangle", "insert:ellipse", "insert:connector", "insert:table", "insert:image", "fit"]);
   assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, { ...ro, hasSelection: true })), ["fit", "clear"], "en lecture seule, rien à insérer");
-  assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, pinned: () => true })), ["center", "hide", "isolate", "note", "connect", "unpin"]);
-  assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, selectedHosts: ["sw-core-01", "sw-core-02"] })), ["center", "hide", "isolate", "align:horizontal", "align:vertical", "group"], "dans une sélection multiple : aligner, grouper");
+  assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, pinned: () => true })), ["center", "hide", "isolate", "clip:copy", "clip:paste", "note", "connect", "unpin"]);
+  assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, selectedHosts: ["sw-core-01", "sw-core-02"] })), ["center", "hide", "isolate", "clip:copy", "clip:paste", "align:horizontal", "align:vertical", "group"], "dans une sélection multiple : aligner, grouper");
   assert.deepEqual(ids(c.menuItems({ kind: "group", id: "g1-1" }, model, ro)), ["center", "members", "hide", "isolate"]);
   const cell = ids(c.menuItems({ kind: "annotation", id: "a1-1", cell: [0, 0], range: { r0: 0, c0: 0, r1: 0, c1: 1 } }, model, rw));
-  assert.deepEqual(cell, ["cell:edit", "cell:split", "row:above", "row:below", "row:delete", "col:left", "col:right", "col:delete", "header", "center", "duplicate", "lock", "detach", "connect", "delete"], "une cellule fusionnée se sépare ; une plage d'une seule cellule visible ne se fusionne pas ; attachée, pas de « mettre dessous » (lot 1)");
+  assert.deepEqual(cell, ["cell:edit", "cell:split", "row:above", "row:below", "row:delete", "col:left", "col:right", "col:delete", "header", "center", "clip:copy", "clip:cut", "clip:paste", "clip:duplicate", "lock", "detach", "connect", "delete"], "une cellule fusionnée se sépare ; une plage d'une seule cellule visible ne se fusionne pas ; attachée, pas de « mettre dessous » (lot 1)");
   const range = ids(c.menuItems({ kind: "annotation", id: "a1-1", cell: [1, 0], range: { r0: 1, c0: 0, r1: 1, c1: 1 } }, model, rw));
   assert.equal(range.includes("cell:merge") && !range.includes("cell:split"), true, "une plage se fusionne");
-  assert.deepEqual(ids(c.menuItems({ kind: "annotation", id: "a1-2" }, model, rw)), ["text", "center", "duplicate", "lock", "plane", "connect", "delete"], "une note libre : son texte, pas de détacher");
-  assert.deepEqual(ids(c.menuItems({ kind: "annotation", id: "a1-2" }, model, ro)), ["center"]);
+  assert.deepEqual(ids(c.menuItems({ kind: "annotation", id: "a1-2" }, model, rw)), ["text", "center", "clip:copy", "clip:cut", "clip:paste", "clip:duplicate", "lock", "plane", "connect", "delete"], "une note libre : son texte, pas de détacher");
+  assert.deepEqual(ids(c.menuItems({ kind: "annotation", id: "a1-2" }, model, ro)), ["center", "clip:copy"], "en lecture seule, copier seulement (lot 3)");
   // attachée, elle se dessine au-dessus de son ancre : « mettre dessous » n'est jamais proposé ; un document qui dit
   // encore « dessous » garde « mettre dessus » (lot 1 de docs/11)
   const attachedBack = { ...model, annotationById: new Map([["a1-3", { id: "a1-3", anchor: { kind: "group", ref: "g1-1" }, z: "back", locked: false, content: { kind: "note", text: "x" } }]]) };
   const backItems = c.menuItems({ kind: "annotation", id: "a1-3" }, attachedBack, rw);
   assert.equal(backItems.find((i) => i.id === "plane").label, "mettre dessus");
   const line = c.menuItems({ kind: "connector", id: "c1-1" }, model, rw);
-  assert.deepEqual(ids(line), ["center", "reverse", "heads:none/arrow", "heads:arrow/none", "heads:arrow/arrow", "heads:none/none", "route:straight", "route:elbow", "route:curve", "straighten", "detach", "lock", "plane", "delete"]);
+  assert.deepEqual(ids(line), ["center", "clip:copy", "clip:cut", "clip:paste", "clip:duplicate", "reverse", "heads:none/arrow", "heads:arrow/none", "heads:arrow/arrow", "heads:none/none", "route:straight", "route:elbow", "route:curve", "straighten", "detach", "lock", "plane", "delete"]);
   assert.equal(line.find((i) => i.id === "route:curve").checked && line.find((i) => i.id === "heads:none/arrow").checked, true, "ce qui est coché est l'état courant");
   assert.deepEqual(ids(c.menuItems({ kind: "connector", id: "c9-9" }, model, rw)), [], "un connecteur inconnu : rien");
 });
@@ -624,4 +624,345 @@ test("le parcours d'un compte : les équipements touchés, le plus touché d'abo
   assert.equal(walking.stepWalk(walking.stepWalk(walk, 1), 1).index, 0);
   assert.equal(walk.index, 0, "jamais muté");
   assert.deepEqual([walking.walkLabel("diff", 0), walking.walkLabel("diff", 1), walking.walkLabel("error", 4)], ["aucun équipement changé", "1 équipement changé", "4 équipements en erreur"]);
+});
+
+test("la sélection mixte (selection.ts) : quatre sortes triées, principal, rectangle, ordre de lecture, Suppr", () => {
+  const { selecting: s } = loadApp();
+  const node = (id) => ({ kind: "node", id }), note = (id) => ({ kind: "annotation", id }), line = (id) => ({ kind: "connector", id }), group = (id) => ({ kind: "group", id });
+  const m = s.multiOf([note("a2"), node("sw-b"), node("sw-a"), note("a1"), node("sw-a"), group("g1"), line("c1")]);
+  assert.deepEqual(clone(m), { hosts: ["sw-a", "sw-b"], annotations: ["a1", "a2"], connectors: ["c1"], groups: ["g1"] }, "triée, sans doublon");
+  assert.equal(s.size(m), 6);
+  assert.deepEqual(clone(s.counts(m)), { node: 2, annotation: 2, connector: 1, group: 1 });
+  assert.deepEqual(clone(s.kindsOf(s.multiOf([line("c"), node("n")]))), ["node", "connector"], "les sortes dans l'ordre : équipements d'abord");
+  assert.deepEqual(clone(s.single(s.multiOf([note("a1")]))), note("a1"));
+  assert.equal(s.single(m), null);
+  assert.equal(s.itemOf({ kind: "link", id: "x" }), null, "un câble ne se mêle pas à une sélection mixte");
+  assert.deepEqual(clone(s.itemOf({ kind: "group", id: "g" })), group("g"));
+  // Maj / Ctrl + clic : ajoute, puis retire
+  const plus = s.toggle(m, note("a3"));
+  assert.deepEqual(clone(plus.annotations), ["a1", "a2", "a3"]);
+  assert.deepEqual(clone(s.toggle(plus, node("sw-a")).hosts), ["sw-b"]);
+  assert.equal(s.same(s.toggle(plus, note("a3")), m), true, "ajouter puis retirer : la même sélection");
+  // le principal : le dernier entré, sinon l'ancien s'il reste, sinon le premier
+  const before = s.multiOf([node("sw-a")]);
+  assert.deepEqual(clone(s.primaryOf(before, node("sw-a"), s.multiOf([node("sw-a"), note("a1")]), [node("sw-a"), note("a1")])), note("a1"));
+  assert.deepEqual(clone(s.primaryOf(m, note("a2"), s.multiOf([note("a2"), node("sw-a")]))), note("a2"), "rien n'est entré : le principal reste");
+  assert.deepEqual(clone(s.primaryOf(m, note("zz"), s.multiOf([note("a2"), node("sw-a")]))), node("sw-a"), "le principal parti : le premier");
+  assert.equal(s.primaryOf(m, null, s.empty()), null);
+  // le rectangle : nu, il remplace ; avec Maj, il ajoute
+  assert.deepEqual(clone(s.itemsOf(s.afterRectangle(before, [note("a1")], false))), [note("a1")]);
+  assert.deepEqual(clone(s.itemsOf(s.afterRectangle(before, [note("a1")], true))), [node("sw-a"), note("a1")]);
+  // ce qu'il couvre : en mode « touche » tout ce qu'il effleure, en mode « englobe » ce qu'il contient ; jamais un verrou
+  const shapes = [
+    { item: node("sw-a"), box: { x: 0, y: 0, w: 100, h: 40 } },
+    { item: note("a1"), box: { x: 90, y: 30, w: 50, h: 50 } },
+    { item: note("lock"), box: { x: 10, y: 10, w: 10, h: 10 }, locked: true },
+    { item: line("diag"), line: [{ x: -50, y: 120 }, { x: 250, y: 120 }] }, // traverse le rectangle sans y avoir de bout
+    { item: line("far"), line: [{ x: 500, y: 500 }, { x: 600, y: 600 }] },
+  ];
+  const r = s.rectOf({ x: 120, y: 150 }, { x: 50, y: 20 });
+  assert.deepEqual(clone(r), { x: 50, y: 20, w: 70, h: 130 }, "dans n'importe quel sens");
+  assert.deepEqual(clone(s.covered(r, shapes)), [node("sw-a"), note("a1"), line("diag")]);
+  assert.deepEqual(clone(s.covered({ x: 0, y: 0, w: 200, h: 100 }, shapes, "inside")), [node("sw-a"), note("a1")], "englobés seulement ; le verrou jamais");
+  assert.deepEqual(clone(s.covered({ x: 300, y: 0, w: 10, h: 10 }, shapes)), [], "rien dessous");
+  // Tab : l'ordre de lecture, par rangées puis de gauche à droite ; en boucle
+  const order = s.readingOrder([
+    { item: note("b"), at: { x: 400, y: 12 } }, { item: node("c"), at: { x: 0, y: 200 } },
+    { item: node("a"), at: { x: 10, y: 0 } }, { item: line("d"), at: { x: 500, y: 210 } },
+  ]);
+  assert.deepEqual(clone(order), [node("a"), note("b"), node("c"), line("d")], "même rangée à 12 unités près : de gauche à droite");
+  assert.deepEqual(clone(s.cycle(order, note("b"), 1)), node("c"));
+  assert.deepEqual(clone(s.cycle(order, line("d"), 1)), node("a"), "après le dernier : le premier");
+  assert.deepEqual(clone(s.cycle(order, node("a"), -1)), line("d"), "Maj+Tab avant le premier : le dernier");
+  assert.deepEqual(clone(s.cycle(order, null, -1)), line("d"));
+  assert.equal(s.cycle([], null, 1), null);
+  // Suppr : annotations, connecteurs, groupes ; jamais un équipement
+  assert.deepEqual(clone(s.deleteOps(m)), [{ op: "annotation_delete", id: "a1" }, { op: "annotation_delete", id: "a2" }, { op: "connector_delete", id: "c1" }, { op: "group_delete", id: "g1" }]);
+  assert.deepEqual(clone(s.deleteOps(s.multiOf([node("sw-a")]))), []);
+});
+
+test("l'alignement par les boîtes (align.ts) : bords, milieux, répartition à écarts égaux ; entier", () => {
+  const { boxAlignment: b, alignment } = loadApp();
+  const boxes = new Map([["card", { x: 0, y: 0, w: 240, h: 80 }], ["note", { x: 300, y: 100, w: 101, h: 40 }], ["small", { x: 50, y: 300, w: 20, h: 20 }]]);
+  const run = (mode, ids = ["card", "note", "small"]) => clone(Object.fromEntries(b.alignBoxes(boxes, ids, mode)));
+  assert.deepEqual(run("top"), { note: { x: 300, y: 0 }, small: { x: 50, y: 0 } }, "le bord le plus haut ; ce qui y est déjà ne bouge pas");
+  assert.deepEqual(run("bottom"), { card: { x: 0, y: 240 }, note: { x: 300, y: 280 } }, "le bord le plus bas : 320");
+  assert.deepEqual(run("left"), { note: { x: 0, y: 100 }, small: { x: 0, y: 300 } });
+  assert.deepEqual(run("right"), { card: { x: 161, y: 0 }, small: { x: 381, y: 300 } }, "le bord le plus à droite : 401");
+  assert.deepEqual(run("center"), { card: { x: 81, y: 0 }, note: { x: 150, y: 100 }, small: { x: 191, y: 300 } }, "le milieu de l'ensemble (200,5), arrondi");
+  assert.deepEqual(run("middle"), { card: { x: 0, y: 120 }, note: { x: 300, y: 140 }, small: { x: 50, y: 150 } });
+  // répartir : la première et la dernière ne bougent pas, les écarts entre boîtes sont égaux (ici 30)
+  const row = new Map([["a", { x: 0, y: 0, w: 100, h: 10 }], ["b", { x: 110, y: 0, w: 50, h: 10 }], ["c", { x: 400, y: 0, w: 40, h: 10 }]]);
+  assert.deepEqual(clone(Object.fromEntries(b.alignBoxes(row, ["c", "a", "b"], "distribute-horizontal"))), { b: { x: 225, y: 0 } }, "écarts de (440 − 190) / 2 = 125");
+  assert.equal(b.alignBoxes(boxes, ["card", "note"], "distribute-vertical").size, 0, "répartir demande trois boîtes");
+  assert.equal(b.alignBoxes(boxes, ["card", "ghost"], "top").size, 0, "une boîte inconnue est ignorée ; une seule ne s'aligne pas");
+  assert.deepEqual(clone(b.BOX_MODES), ["left", "center", "right", "top", "middle", "bottom", "distribute-horizontal", "distribute-vertical"]);
+  assert.deepEqual(clone(alignment.ALIGN_MODES), ["horizontal", "vertical", "distribute-horizontal", "distribute-vertical"], "la règle des cartes seules (et de /view) ne change pas");
+});
+
+test("annuler une sélection mixte : un geste, une entrée ; les liens d'un élément recréé le suivent", () => {
+  const { history: h } = loadApp();
+  const pin = { op: "pin", hostname: "sw-a", x: 20, y: 0 };
+  const moved = h.labelOf([pin, { op: "annotation_update", id: "a1", x: 5, y: 5 }, { op: "connector_update", id: "c1", start: { kind: "free", x: 1, y: 1 } }]);
+  assert.deepEqual(clone(moved), { key: "movedItems", count: 3 });
+  assert.equal(h.labelText(moved), "déplacement de 3 éléments");
+  assert.equal(h.labelText(h.labelOf([{ op: "annotation_delete", id: "a1" }, { op: "connector_delete", id: "c1" }])), "suppression de 2 éléments");
+  assert.equal(h.labelText(h.labelOf([{ op: "annotation_delete", id: "a1" }])), "suppression d'une annotation", "un seul : son libellé d'avant");
+  assert.equal(h.labelText(h.labelOf([pin])), "déplacement de sw-a", "des épingles seules : le libellé d'avant");
+  assert.equal(h.labelOf([{ op: "annotation_update", id: "a1", x: 1 }]).key, "annotationChanged");
+  // une note et le connecteur qui y tient, supprimés ensemble puis recréés : le connecteur reprend la note sous sa nouvelle identité
+  const free = { kind: "free", x: 0, y: 0 };
+  const style = { hue: "slate" };
+  const note = { id: "a3-1", content: { kind: "note", text: "x" }, anchor: { kind: "free", ref: null }, x: 0, y: 0, w: 10, h: 10, z: "front", locked: false, leader: false, style };
+  const line = { id: "c3-1", start: free, end: { kind: "annotation", ref: "a3-1", side: "auto" }, heads: {}, route: "straight", bend: 0, label: "", z: "front", locked: false, style };
+  const doc = (revision, annotations, connectors) => ({ intent_version: "1.5.0", infrastructure: "x", revision, updated_at: null, pins: [], type_colors: [], device_colors: [], groups: [], annotations, connectors });
+  const before = doc(3, [note], [line]), after = doc(4, [], []);
+  const entry = h.record([{ op: "annotation_delete", id: "a3-1" }, { op: "connector_delete", id: "c3-1" }], before, after);
+  assert.equal(h.labelText(entry.label), "suppression de 2 éléments");
+  const undo = h.plan(after, entry.changes, "undo");
+  assert.deepEqual(clone(undo.ops.map((op) => op.op)), ["annotation_create", "connector_create"]);
+  const recreated = doc(5, [{ ...note, id: "a5-1" }], [{ ...line, id: "c5-1" }]); // le serveur garde l'ancienne référence
+  const ids = h.createdIds(undo.created, recreated);
+  assert.deepEqual(clone(Object.fromEntries(ids)), { "a3-1": "a5-1", "c3-1": "c5-1" });
+  assert.deepEqual(clone(h.relinkOps(recreated, ids)), [{ op: "connector_update", id: "c5-1", end: { kind: "annotation", ref: "a5-1", side: "auto" } }]);
+  assert.deepEqual(clone(h.relinkOps(recreated, new Map())), []);
+  const remapped = h.remap(entry, ids);
+  const lineChange = remapped.changes.find((c) => c.key.startsWith("connector"));
+  assert.equal(lineChange.key, "connector\u0000c5-1");
+  assert.deepEqual(clone(lineChange.before.end), { kind: "annotation", ref: "a5-1", side: "auto" }, "la valeur gardée désigne la nouvelle note");
+  assert.equal(entry.changes.find((c) => c.key.startsWith("connector")).before.end.ref, "a3-1", "l'entrée d'origine n'a pas été mutée");
+  const created = { kind: "intent", label: { key: "connectorCreated" }, changes: [{ key: "connector\u0000c3-1", before: null, after: line }, { key: "annotation\u0000a9-1", before: null, after: { ...note, anchor: { kind: "group", ref: "g3-1" } } }] };
+  const both = h.remap(created, new Map([["a3-1", "a5-1"], ["g3-1", "g5-1"]]));
+  assert.equal(both.changes[0].after.end.ref, "a5-1", "les valeurs d'après aussi");
+  assert.equal(both.changes[1].after.anchor.ref, "g5-1", "l'ancrage d'une annotation à un groupe recréé");
+  // rétablir sur le document relié : rien n'est « modifié par quelqu'un d'autre »
+  const relinked = doc(6, [{ ...note, id: "a5-1" }], [{ ...line, id: "c5-1", end: { kind: "annotation", ref: "a5-1", side: "auto" } }]);
+  const redo = h.plan(relinked, remapped.changes, "redo");
+  assert.equal(redo.skipped.length, 0);
+  assert.deepEqual(clone(redo.ops), [{ op: "annotation_delete", id: "a5-1" }, { op: "connector_delete", id: "c5-1" }]);
+});
+
+test("la molette (wheel.ts) : Ctrl + un cran de souris zoome d'un pas doux, un pincement garde le sien ; le point sous le pointeur reste", () => {
+  const { wheel } = loadApp();
+  const close = (a, b) => Math.abs(a - b) < 1e-9;
+  assert.equal(close(wheel.wheelZoom(1, -100, 0, 0.05, 6), Math.pow(2, 0.2)), true, "un cran vers l'avant : ×1,15 (React Flow faisait ×4)");
+  assert.equal(close(wheel.wheelZoom(1, 100, 0, 0.05, 6), Math.pow(2, -0.2)), true);
+  assert.equal(close(wheel.wheelZoom(1, -3, 1, 0.05, 6), Math.pow(2, 0.15)), true, "en lignes (Firefox)");
+  assert.equal(close(wheel.wheelZoom(1, -5, 0, 0.05, 6), Math.pow(2, 0.1)), true, "un pincement : petits pas, ×10");
+  assert.equal(wheel.wheelZoom(5.9, -1000, 0, 0.05, 6), 6, "borné");
+  assert.equal(wheel.wheelZoom(0.06, 1000, 0, 0.05, 6), 0.05);
+  const view = wheel.zoomAround({ x: 100, y: 50, zoom: 1 }, 2, 300, 250);
+  assert.deepEqual(clone(view), { zoom: 2, x: -100, y: -150 }, "le point (200, 200) du plan reste sous le pointeur");
+});
+
+test("le réducteur tient la sélection mixte : sans elle dite, celle des équipements ; une nouvelle run la vide", () => {
+  const { reducer, initialState, selecting } = loadApp();
+  const ready = reducer(initialState(), { type: "ready", model: {}, data: {}, warnings: [], runs: null, remembered: false });
+  assert.deepEqual(clone(ready.picked), clone(selecting.empty()));
+  const hosts = reducer(ready, { type: "select", selection: null, hosts: ["b", "a"] });
+  assert.deepEqual(clone(hosts.picked.hosts), ["a", "b"], "les lecteurs d'avant : des équipements seuls");
+  const picked = selecting.multiOf([{ kind: "node", id: "a" }, { kind: "annotation", id: "a1" }]);
+  const mixed = reducer(ready, { type: "select", selection: null, hosts: ["a"], picked });
+  assert.deepEqual(clone(mixed.picked), clone(picked));
+  assert.equal(reducer(mixed, { type: "select", selection: null, hosts: ["a"], picked: selecting.multiOf([{ kind: "node", id: "a" }, { kind: "annotation", id: "a1" }]) }), mixed, "la même : aucun rendu");
+  assert.notEqual(reducer(mixed, { type: "select", selection: null, hosts: ["a"], picked: selecting.multiOf([{ kind: "node", id: "a" }, { kind: "connector", id: "c1" }]) }), mixed, "mêmes équipements, autre annotation : un nouvel état");
+  assert.deepEqual(clone(reducer(mixed, { type: "loading", infrastructure: "i", runId: "r" }).picked), clone(selecting.empty()));
+  const offer = { kind: "hide", hosts: ["a"] };
+  assert.deepEqual(clone(reducer(ready, { type: "note", text: "x", at: 1, offer }).note), { text: "x", busy: false, at: 1, offer });
+});
+
+// ——— Le presse-papiers (lot 3 de docs/11) ———
+const STYLE = { hue: "slate" };
+const noteA = (id, extra = {}) => ({ id, anchor: { kind: "free", ref: null }, x: 100, y: 50, w: 200, h: 80, z: "front", locked: true, leader: false, content: { kind: "note", text: "Baie " + id }, style: STYLE, author: "orhan", at: "2026-10-14T00:00:00Z", ...extra });
+const lineC = (id, start, end, extra = {}) => ({ id, start, end, heads: { start: "none", end: "arrow" }, route: "straight", bend: 0, label: "", z: "front", locked: false, style: STYLE, author: "orhan", at: "2026-10-14T00:00:00Z", ...extra });
+const frameOf = (a) => ({ x: a.x, y: a.y, w: a.w, h: a.h });
+const target = (infrastructure, hosts = [], groups = [], annotations = []) => ({ infrastructure, hasHost: (h) => hosts.includes(h), hasGroup: (g) => groups.includes(g), hasAnnotation: (a) => annotations.includes(a) });
+
+test("le presse-papiers (clipboard.ts) : la charge versionnée, son texte, sa relecture ; une charge étrangère ou inconnue n'est pas lue", () => {
+  const { clipboard: c } = loadApp();
+  const a1 = noteA("a1-1"), a2 = noteA("a1-2", { x: 400, y: 50 });
+  const line = lineC("c1-1", { kind: "annotation", ref: "a1-1", side: "e" }, { kind: "annotation", ref: "a1-2", side: "auto" });
+  const p = c.payloadOf({ infrastructure: "lab", annotations: [{ a: a1, frame: frameOf(a1) }, { a: a2, frame: frameOf(a2) }], connectors: [{ c: line, a: { x: 300.4, y: 90 }, b: { x: 399.6, y: 90 } }], hosts: ["sw-01"] });
+  assert.equal(p["living-diagram"], 1, "versionnée");
+  assert.equal(p.annotations[0].author, undefined, "ni auteur ni date : le collage les reçoit du serveur");
+  assert.deepEqual(clone(p.connectors[0].a), { x: 300, y: 90 }, "les bouts dessinés, entiers");
+  assert.equal(c.pastable(p), 3);
+  // le texte : la charge en JSON, qui se relit à l'identique ; ou les noms des équipements seuls, un par ligne (D6)
+  const text = c.textOf(p);
+  assert.ok(text.startsWith('{"living-diagram":1'));
+  const back = c.parse(text);
+  assert.equal(back.kind, "payload");
+  assert.deepEqual(clone(back.payload), clone(p), "aller-retour");
+  assert.equal(c.parse("  " + text).kind, "payload", "des blancs devant");
+  const names = c.payloadOf({ infrastructure: "lab", annotations: [], connectors: [], hosts: ["sw-01", "sw-02"] });
+  assert.equal(c.textOf(names), "sw-01\nsw-02");
+  assert.equal(c.pastable(names), 0);
+  // étrangère, inconnue, abîmée
+  assert.equal(c.parse("Baie 12, rangée 3").kind, "foreign", "un texte d'ailleurs : le comportement d'avant");
+  assert.equal(c.parse('{"other": 1}').kind, "foreign");
+  assert.equal(c.parse("").kind, "foreign");
+  assert.equal(c.parse(text.replace('"living-diagram":1', '"living-diagram":2')).kind, "unknown", "une version inconnue n'est pas lue");
+  assert.equal(c.parse(text.slice(0, -5)).kind, "unknown", "tronquée");
+  assert.equal(c.parse(JSON.stringify({ ...p, annotations: [{ ...p.annotations[0], frame: null }] })).kind, "unknown", "une annotation sans boîte");
+  assert.equal(c.parse(JSON.stringify({ ...p, annotations: [p.annotations[0], p.annotations[0]] })).kind, "unknown", "deux fois la même identité");
+  assert.equal(c.parse(JSON.stringify({ ...p, connectors: [{ ...p.connectors[0], start: { kind: "free", x: "1", y: 2 } }] })).kind, "unknown", "une coordonnée en texte");
+  assert.equal(c.parse(JSON.stringify({ ...p, hosts: [""] })).kind, "unknown");
+  // une image se cite par son empreinte (elle part dans une adresse) : rien d'autre n'est lu
+  const image = (asset) => JSON.stringify({ ...p, annotations: [{ ...p.annotations[0], content: { kind: "image", asset, alt: "" } }] });
+  assert.equal(c.parse(image("a".repeat(64))).kind, "payload");
+  assert.deepEqual(clone(c.assetsOf(c.parse(image("a".repeat(64))).payload)), ["a".repeat(64)]);
+  assert.equal(c.parse(image("../intent?x=1")).kind, "unknown", "pas une empreinte");
+  assert.equal(c.parse(image("A".repeat(64))).kind, "unknown");
+  assert.equal(c.parse('{"living-diagram":1' + " ".repeat(2 * 1024 * 1024) + "}").kind, "unknown", "trop longue : pas lue");
+});
+
+test("coller (clipboard.ts) : décalage cumulé, au pointeur aimanté, ancres gardées ou libérées, connecteurs reliés en seconde requête", () => {
+  const { clipboard: c } = loadApp();
+  const free = noteA("a1-1"), onDevice = noteA("a1-2", { anchor: { kind: "device", ref: "sw-01" }, x: 60, y: -120, leader: true });
+  const onGroup = noteA("a1-3", { anchor: { kind: "group", ref: "g1-1" }, x: 0, y: -100, leader: true });
+  const devFrame = { x: 500, y: -80, w: 200, h: 80 }, grpFrame = { x: 800, y: 0, w: 200, h: 80 };
+  const toNote = lineC("c1-1", { kind: "device", ref: "sw-01", side: "auto" }, { kind: "annotation", ref: "a1-1", side: "w" });
+  const between = lineC("c1-2", { kind: "device", ref: "sw-01", side: "auto" }, { kind: "device", ref: "sw-02", side: "auto" });
+  const loose = lineC("c1-3", { kind: "free", x: 10, y: 10 }, { kind: "annotation", ref: "a9-9", side: "auto" });
+  const p = c.payloadOf({ infrastructure: "lab",
+    annotations: [{ a: free, frame: frameOf(free) }, { a: onDevice, frame: devFrame }, { a: onGroup, frame: grpFrame }],
+    connectors: [{ c: toNote, a: { x: 450, y: 0 }, b: { x: 100, y: 90 } }, { c: between, a: { x: 450, y: 0 }, b: { x: 700, y: 0 } }, { c: loose, a: { x: 10, y: 10 }, b: { x: 60, y: 60 } }],
+    hosts: [] });
+  // où : la boîte englobante ; sans pointeur, +20 / +20 cumulés ; au pointeur, le coin haut gauche dessous, aimanté
+  const box = c.boundsOf(p);
+  assert.deepEqual(clone(box), { x: 10, y: -80, w: 990, h: 210 });
+  assert.deepEqual(clone(c.offsetFor(box, null, 1, true)), { x: 20, y: 20 });
+  assert.deepEqual(clone(c.offsetFor(box, null, 3, true)), { x: 60, y: 60 }, "le troisième collage de suite : trois pas");
+  assert.deepEqual(clone(c.offsetFor(box, { x: 1003, y: 29 }, 1, true)), { x: 990, y: 100 }, "au pointeur aimanté : (1000, 20)");
+  assert.deepEqual(clone(c.offsetFor(box, { x: 1003, y: 29 }, 1, false)), { x: 993, y: 109 }, "sans l'aimant : au pixel");
+  assert.deepEqual(clone(c.offsetFor(box, { x: 1003, y: 29 }, 2, true)), { x: 1010, y: 120 }, "au même endroit, le second décale encore");
+  assert.equal(c.boundsOf(c.payloadOf({ infrastructure: "lab", annotations: [], connectors: [], hosts: ["x"] })), null);
+  // dans la même infrastructure, l'équipement et le groupe existent : les ancrages tiennent, décalés comme le reste
+  const same = c.pastePlan(p, target("lab", ["sw-01", "sw-02"], ["g1-1"], ["a1-1", "a1-2", "a1-3"]), { x: 20, y: 20 });
+  assert.equal(same.ok, true);
+  const plan = same.plan;
+  assert.deepEqual(clone(plan.first.map((op) => op.op)), ["annotation_create", "annotation_create", "annotation_create", "connector_create", "connector_create"]);
+  assert.deepEqual(clone(plan.annotations), ["a1-1", "a1-2", "a1-3"]);
+  assert.deepEqual(clone(plan.connectors), ["c1-2", "c1-3"], "les connecteurs sans annotation collée partent avec la première requête");
+  const [n1, n2, n3] = plan.first;
+  assert.deepEqual(clone([n1.x, n1.y, n1.anchor, n1.locked]), [120, 70, { kind: "free", ref: null }, false], "décalée, déverrouillée");
+  assert.deepEqual(clone([n2.x, n2.y, n2.anchor, n2.leader]), [80, -100, { kind: "device", ref: "sw-01" }, true], "attachée : l'écart à l'ancre décalé");
+  assert.deepEqual(clone(n3.anchor), { kind: "group", ref: "g1-1" });
+  assert.equal(n1.id, undefined, "l'identité vient du serveur");
+  const [between2, loose2] = plan.first.slice(3);
+  assert.deepEqual(clone([between2.start, between2.end]), [{ kind: "free", x: 470, y: 20 }, { kind: "free", x: 720, y: 20 }], "ses deux bouts restés en place : libérés et décalés, jamais collé sur l'original");
+  assert.deepEqual(clone(loose2.start), { kind: "free", x: 30, y: 30 });
+  assert.deepEqual(clone(loose2.end), { kind: "free", x: 80, y: 80 }, "une annotation absente : le bout devient libre, à sa dernière place décalée");
+  assert.equal(plan.later.length, 1);
+  assert.deepEqual(clone(plan.later[0].start), { kind: "device", ref: "sw-01", side: "auto" }, "attaché à ce qui existe : gardé");
+  // la seconde requête : les identités que le serveur a données (a<révision>-<n>, dans l'ordre des créations)
+  const ids = c.createdIds(plan.annotations, plan.connectors, 7);
+  assert.deepEqual(clone(Object.fromEntries(ids)), { "a1-1": "a7-1", "a1-2": "a7-2", "a1-3": "a7-3", "c1-2": "c7-1", "c1-3": "c7-2" });
+  assert.deepEqual(clone(c.resolve(plan.later, ids)[0].end), { kind: "annotation", ref: "a7-1", side: "w" });
+  assert.equal(plan.later[0].end.ref, "a1-1", "le plan n'a pas été muté");
+  // d'une autre infrastructure : l'équipement du même nom tient ; un id de groupe ne veut rien dire ailleurs
+  const other = c.pastePlan(p, target("lab-2", ["sw-01"], ["g1-1"], ["a1-1"]), { x: 0, y: 0 });
+  const [o1, o2, o3] = other.plan.first;
+  assert.deepEqual(clone(o2.anchor), { kind: "device", ref: "sw-01" });
+  assert.deepEqual(clone([o3.anchor, o3.x, o3.y, o3.leader]), [{ kind: "free", ref: null }, 800, 0, false], "groupe absent : libre, à sa place dans le plan, sans ligne de rappel");
+  assert.deepEqual(clone(o1.anchor), { kind: "free", ref: null });
+  assert.equal(other.plan.later[0].start.kind, "device");
+  assert.deepEqual(clone(other.plan.first[3].end), { kind: "free", x: 700, y: 0 }, "sw-02 absent : libéré");
+  assert.ok(other.plan.freed >= 2);
+  // une image introuvable devient une note qui porte son texte de remplacement
+  const img = noteA("a1-5", { content: { kind: "image", asset: "f".repeat(64), alt: "Baie 12" } });
+  const imgs = c.payloadOf({ infrastructure: "lab", annotations: [{ a: img, frame: frameOf(img) }], connectors: [], hosts: [] });
+  assert.deepEqual(clone(c.pastePlan(imgs, target("lab-2"), { x: 0, y: 0 }, new Set(["f".repeat(64)]), "?").plan.first[0].content), { kind: "note", text: "Baie 12" });
+  assert.deepEqual(clone(c.pastePlan(imgs, target("lab-2"), { x: 0, y: 0 }).plan.first[0].content), clone(img.content), "trouvée : l'image");
+  // rien, trop
+  assert.deepEqual(clone(c.pastePlan(c.payloadOf({ infrastructure: "lab", annotations: [], connectors: [], hosts: ["sw-01"] }), target("lab"), { x: 0, y: 0 })), { ok: false, reason: "nothing" }, "des équipements seuls : rien ne se crée (D6)");
+  const many = c.payloadOf({ infrastructure: "lab", annotations: Array.from({ length: 501 }, (_, i) => ({ a: noteA("a1-" + i), frame: frameOf(noteA("x")) })), connectors: [], hosts: [] });
+  assert.equal(c.pastePlan(many, target("lab"), { x: 0, y: 0 }).reason, "too_many");
+});
+
+test("dupliquer et cloner (clipboard.ts) : Ctrl+D répète l'écart du dernier clone tant que la sélection est la copie ; le fantôme suit", () => {
+  const { clipboard: c } = loadApp();
+  assert.deepEqual(clone(c.duplicateStep(null, "a|b#")), { x: 20, y: 20 });
+  const last = { key: c.keyOf(["a7-2", "a7-1"], ["c7-1"]), d: { x: 140, y: -60 } };
+  assert.equal(last.key, "a7-1|a7-2#c7-1", "triée");
+  assert.deepEqual(clone(c.duplicateStep(last, "a7-1|a7-2#c7-1")), { x: 140, y: -60 }, "la sélection est la copie : le même écart");
+  assert.deepEqual(clone(c.duplicateStep(last, "a7-1#")), { x: 20, y: 20 }, "une autre sélection : un pas");
+  const n = noteA("a1-1"), stay = lineC("c1-1", { kind: "device", ref: "sw-01", side: "auto" }, { kind: "annotation", ref: "a1-1", side: "auto" });
+  const p = c.payloadOf({ infrastructure: "lab", annotations: [{ a: n, frame: frameOf(n) }], connectors: [{ c: stay, a: { x: 0, y: 0 }, b: { x: 100, y: 90 } }], hosts: [] });
+  const g = c.ghostOf(p, target("lab", ["sw-01"]), { x: 40, y: 20 });
+  assert.deepEqual(clone(g.annotations[0].frame), { x: 140, y: 70, w: 200, h: 80 });
+  assert.deepEqual(clone([g.lines[0].a, g.lines[0].b]), [{ x: 0, y: 0 }, { x: 140, y: 110 }], "le bout sur l'équipement reste, celui sur la note collée suit");
+});
+
+test("un collage en deux requêtes : une seule entrée d'annulation, « ajout de n éléments »", () => {
+  const { history: h } = loadApp();
+  const creates = [{ op: "annotation_create", content: { kind: "note", text: "x" }, x: 0, y: 0 }, { op: "connector_create", start: { kind: "free", x: 0, y: 0 }, end: { kind: "free", x: 9, y: 9 } }];
+  assert.deepEqual(clone(h.labelOf(creates)), { key: "createdItems", count: 2 });
+  assert.equal(h.labelText(h.labelOf(creates)), "ajout de 2 éléments");
+  assert.equal(h.labelOf([creates[0]]).key, "annotationCreated", "une seule création : le libellé d'avant");
+  const first = { kind: "intent", label: { key: "annotationCreated" }, changes: [{ key: "annotation\u0000a7-1", before: null, after: { x: 0 } }] };
+  const other = { kind: "intent", label: { key: "moved" }, changes: [{ key: "pin\u0000sw", before: null, after: { x: 1, y: 1 } }] };
+  const second = { kind: "intent", label: { key: "connectorCreated" }, changes: [{ key: "connector\u0000c8-1", before: null, after: { x: 1 } }] };
+  const stack = h.push(h.push(h.emptyStack(), first), other); // un autre geste s'est empilé entre les deux requêtes
+  const joined = h.absorb(stack, first, second);
+  assert.equal(joined.stack.undo.length, 2, "aucune entrée de plus");
+  assert.equal(joined.stack.undo[0], joined.entry, "à la place de la première");
+  assert.equal(joined.stack.undo[1], other);
+  assert.equal(h.labelText(joined.entry.label), "ajout de 2 éléments");
+  assert.deepEqual(clone(joined.entry.changes.map((x) => x.key)), ["annotation\u0000a7-1", "connector\u0000c8-1"]);
+  const gone = h.absorb(h.push(h.emptyStack(), other), first, second);
+  assert.equal(gone.stack.undo.length, 2, "la première sortie de la pile : la seconde entre seule");
+  assert.equal(gone.entry, second);
+});
+
+test("le menu contextuel porte copier, couper, coller, dupliquer avec leurs raccourcis ; en lecture seule, copier seulement", () => {
+  const { context } = loadApp();
+  const model = { annotationById: new Map([["a1", { id: "a1", anchor: { kind: "free", ref: null }, z: "front", locked: false, content: { kind: "note", text: "x" } }]]), connectorById: new Map(), groupById: new Map() };
+  const ctx = { editable: true, selectedHosts: [], hasSelection: false, pinned: () => false };
+  const clip = (items) => items.filter((i) => i.id.startsWith("clip:")).map((i) => [i.id, i.label, i.keys, i.aria]);
+  assert.deepEqual(clone(clip(context.menuItems({ kind: "annotation", id: "a1" }, model, ctx))), [
+    ["clip:copy", "copier", "Ctrl+C", "Control+C"], ["clip:cut", "couper", "Ctrl+X", "Control+X"],
+    ["clip:paste", "coller ici", "Ctrl+V", "Control+V"], ["clip:duplicate", "dupliquer", "Ctrl+D", "Control+D"]]);
+  assert.deepEqual(clone(clip(context.menuItems({ kind: "annotation", id: "a1" }, model, { ...ctx, editable: false })).map((i) => i[0])), ["clip:copy"]);
+  assert.deepEqual(clone(clip(context.menuItems({ kind: "pane" }, model, ctx)).map((i) => i[0])), ["clip:paste"]);
+  assert.deepEqual(clone(clip(context.menuItems({ kind: "pane" }, model, { ...ctx, editable: false }))), [], "lecture seule : rien ne se colle");
+  assert.equal(clip(context.menuItems({ kind: "node", id: "sw-01" }, model, ctx))[0][1], "copier le nom");
+  assert.equal(clip(context.menuItems({ kind: "node", id: "sw-01" }, model, { ...ctx, selectedHosts: ["sw-01", "sw-02"], items: 2 }))[0][1], "copier les noms");
+  assert.equal(clip(context.menuItems({ kind: "node", id: "sw-01" }, model, { ...ctx, selectedHosts: ["sw-01", "sw-02"], items: 3 }))[0][1], "copier la sélection");
+  assert.equal(context.menuItems({ kind: "annotation", id: "a1" }, model, ctx).some((i) => i.id === "duplicate"), false, "l'ancienne entrée « dupliquer » est remplacée");
+});
+
+test("coller, après revue (clipboard.ts) : ancre d'ici (M5), identités vérifiées dans la réponse (M2), borne en octets (B4)", () => {
+  const { clipboard: c } = loadApp();
+  // M5 : l'équipement est ailleurs ici qu'à l'origine ; la boîte collée tombe quand même sous le pointeur
+  const onDevice = noteA("a1-2", { anchor: { kind: "device", ref: "sw-01" }, x: 60, y: -120, leader: true });
+  const frame = { x: 560, y: -80, w: 200, h: 80 }; // à l'origine, le centre de sw-01 est en (500, 40)
+  const p = c.payloadOf({ infrastructure: "lab", annotations: [{ a: onDevice, frame }], connectors: [], hosts: [] });
+  const here = { ...target("lab-2", ["sw-01"]), anchorAt: (kind, ref) => (kind === "device" && ref === "sw-01" ? { x: -300, y: 900 } : null) };
+  const d = c.offsetFor(c.boundsOf(p), { x: 100, y: 100 }, 1, false);
+  const op = c.pastePlan(p, here, d).plan.first[0];
+  assert.deepEqual(clone(op.anchor), { kind: "device", ref: "sw-01" }, "l'ancre est gardée");
+  assert.deepEqual(clone([-300 + op.x, 900 + op.y]), [100, 100], "centre d'ici (-300, 900) + écart écrit = le pointeur");
+  const same = c.pastePlan(p, { ...target("lab", ["sw-01"]), anchorAt: () => ({ x: 500, y: 40 }) }, { x: 20, y: 20 }).plan.first[0];
+  assert.deepEqual(clone([same.x, same.y]), [80, -100], "ici comme à l'origine : l'écart d'avant, décalé");
+  const hidden = c.pastePlan(p, { ...target("lab", ["sw-01"]), anchorAt: () => null }, { x: 20, y: 20 }).plan.first[0];
+  assert.deepEqual(clone([hidden.x, hidden.y]), [80, -100], "ancre non dessinée : l'écart d'origine");
+  // M2 : chaque identité calculée doit être dans la réponse, de la sorte et à la place envoyées
+  const n1 = noteA("a1-1"), line = lineC("c1-1", { kind: "free", x: 1, y: 2 }, { kind: "free", x: 3, y: 4 });
+  const q = c.payloadOf({ infrastructure: "lab", annotations: [{ a: n1, frame: frameOf(n1) }], connectors: [{ c: line, a: { x: 1, y: 2 }, b: { x: 3, y: 4 } }], hosts: [] });
+  const plan = c.pastePlan(q, target("lab"), { x: 20, y: 20 }).plan;
+  const ids = c.createdIds(plan.annotations, plan.connectors, 5);
+  const sentNote = plan.first[0], sentLine = plan.first[1];
+  const answer = { annotations: [{ id: "a5-1", x: sentNote.x, y: sentNote.y, content: { kind: "note" } }], connectors: [{ id: "c5-1", start: { y: 22, x: 21, kind: "free" }, end: { kind: "free", x: 23, y: 24 } }] };
+  assert.deepEqual(clone(c.verifyCreated(answer, plan.first, ids, plan)), { ok: true, found: ["a5-1", "c5-1"] }, "l'ordre des clés d'un bout ne compte pas");
+  assert.equal(sentLine.start.x, 21);
+  const other = { ...answer, annotations: [{ id: "a5-1", x: 999, y: sentNote.y, content: { kind: "note" } }] };
+  assert.deepEqual(clone(c.verifyCreated(other, plan.first, ids, plan)), { ok: false, found: ["c5-1"] }, "a5-1 est l'annotation d'un autre");
+  assert.equal(c.verifyCreated({ annotations: [], connectors: [] }, plan.first, ids, plan).ok, false);
+  // B4 : la borne en octets, celle de la requête (pas en caractères)
+  assert.equal(c.bytesOf([{ op: "x", t: "é" }]), JSON.stringify([{ op: "x", t: "é" }]).length + 1);
+  assert.equal(c.bytesOf([{ t: "😀" }]), JSON.stringify([{ t: "" }]).length + 4);
+  const heavy = c.payloadOf({ infrastructure: "lab", annotations: Array.from({ length: 300 }, (_, i) => { const a = noteA("a1-" + i, { content: { kind: "note", text: "é".repeat(1990) } }); return { a, frame: frameOf(a) }; }), connectors: [], hosts: [] });
+  assert.ok(JSON.stringify(heavy).length < 2 * 1024 * 1024, "admis par la garde de lecture");
+  assert.equal(c.pastePlan(heavy, target("lab"), { x: 0, y: 0 }).reason, "too_big", "refusé avant l'envoi");
 });

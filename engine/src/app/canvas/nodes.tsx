@@ -5,7 +5,10 @@
 // stylise), jamais de style en ligne. Une poignée invisible au centre : les câbles vont de centre à centre, sous les
 // cartes.
 import { Handle, Position } from "@xyflow/react";
-import { useCallback, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { t } from "../../i18n";
+import { AnnotationContext, EditRequest } from "./annotation";
+import { InlineInput } from "./inline";
 import type { Node, NodeProps } from "@xyflow/react";
 import { STUB_R } from "../../canvas/card";
 import type { CardPlan } from "../../canvas/card";
@@ -105,20 +108,44 @@ export function ClusterNode({ data }: NodeProps<ClusterNodeType>) {
 }
 
 // Le cadre : rectangle aux coins `radius` ou ellipse, rempli et bordé à la teinte du groupe (classe `hue-*`, attributs de
-// présentation pour les valeurs libres : opacité, épaisseur, motif, taille du texte ; jamais un style en ligne).
+// présentation pour les valeurs libres : opacité, épaisseur, motif, taille du texte ; jamais un style en ligne). Un
+// double-clic (ou F2, Entrée sur le groupe sélectionné) édite son nom en place, à la place de l'étiquette (lot 2 de docs/11).
+const NAME_W = 220, NAME_H = 28;
+// Le champ du nom, posé là où l'étiquette s'écrit (même ancre, même ligne de base approchée).
+function nameBox(slot: FrameData["slot"]): { x: number; y: number } {
+  const x = slot.anchor === "middle" ? slot.x - NAME_W / 2 : slot.anchor === "end" ? slot.x - NAME_W : slot.x;
+  const y = slot.baseline === "hanging" ? slot.y - 4 : slot.baseline === "middle" ? slot.y - NAME_H / 2 : slot.y - NAME_H + 4;
+  return { x, y };
+}
 export function FrameNode({ data }: NodeProps<FrameNodeType>) {
   const s = data.style;
+  const actions = useContext(AnnotationContext), request = useContext(EditRequest);
+  const [editing, setEditing] = useState(false);
+  const handled = useRef(0); // une demande d'édition ne s'ouvre qu'une fois (le cadre redessiné ne la rejoue pas)
+  useEffect(() => {
+    if (!request || request.kind !== "group" || request.id !== data.id || !data.editable || request.at === handled.current) return;
+    handled.current = request.at;
+    setEditing(true);
+  }, [request, data.id, data.editable]);
+  useEffect(() => { actions.hold("edit:group:" + data.id, editing); return () => actions.hold("edit:group:" + data.id, false); }, [actions, data.id, editing]);
+  const done = useCallback((text: string | null): void => {
+    setEditing(false);
+    const next = text === null ? "" : text.trim();
+    if (next && next !== data.label) actions.groupLabel(data.id, next); // un nom vide ne s'écrit pas (1 à 80 caractères)
+  }, [actions, data.id, data.label]);
   const stroke = s.stroke_style === "none" ? 0 : s.stroke_width;
   const labelClass = "frame-label" + (s.label_font === "mono" ? " font-mono" : "") + (s.label_color === "ink" ? " label-ink" : "");
   return (
-    <svg className={"frame hue-" + s.hue + " " + data.classes} width={data.w} height={data.h} viewBox={`0 0 ${data.w} ${data.h}`} overflow="visible" aria-hidden="true" data-group={data.id}>
+    <svg className={"frame hue-" + s.hue + " " + data.classes} width={data.w} height={data.h} viewBox={`0 0 ${data.w} ${data.h}`} overflow="visible" aria-hidden={editing ? undefined : "true"} data-group={data.id}
+      onDoubleClick={(event) => { if (data.editable) { event.stopPropagation(); setEditing(true); } }}>
       {s.shape === "ellipse"
         ? <ellipse className="frame-shape" cx={data.w / 2} cy={data.h / 2} rx={data.w / 2} ry={data.h / 2} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={data.dash || undefined} strokeLinecap="round" />
         : <rect className="frame-shape" x={0} y={0} width={data.w} height={data.h} rx={s.radius} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={data.dash || undefined} strokeLinecap="round" />}
-      <text className={labelClass} x={data.slot.x} y={data.slot.y} textAnchor={data.slot.anchor} dominantBaseline={data.slot.baseline} fontSize={s.label_size} fontWeight={WEIGHT_VALUE[s.label_weight] || 600}>{data.label}</text>
+      {editing ? null : <text className={labelClass} x={data.slot.x} y={data.slot.y} textAnchor={data.slot.anchor} dominantBaseline={data.slot.baseline} fontSize={s.label_size} fontWeight={WEIGHT_VALUE[s.label_weight] || 600}>{data.label}</text>}
       {s.shape === "ellipse"
         ? <ellipse className="hover-ring" cx={data.w / 2} cy={data.h / 2} rx={data.w / 2} ry={data.h / 2} />
         : <rect className="hover-ring" x={0} y={0} width={data.w} height={data.h} rx={s.radius} />}
+      {editing ? <InlineInput at={nameBox(data.slot)} width={NAME_W} height={NAME_H} initial={data.label} max={80} label={t("shell:canvas.groupName")} onDone={done} /> : null}
     </svg>
   );
 }

@@ -23,6 +23,10 @@ import { dropLocal } from "../state/history";
 import type { Toile } from "../canvas/toile";
 import { useEditable, useStore } from "../state/store";
 import type { ViewState } from "../state/types";
+import { itemsOf, same as sameMulti, size } from "../state/selection";
+import type { Item, Multi } from "../state/selection";
+import type { Op } from "../../shell/apps";
+import type { Point } from "../../canvas/layout";
 
 // Ce que la page pose sur la toile : la barre en haut, la bande des runs en bas, le panneau à droite quand une fiche
 // est ouverte (`fit` et le centrage cadrent dans ce qui reste visible).
@@ -63,7 +67,7 @@ export function Canvas() {
   // Une toile par run : React Flow est remonté avec la run (clé), ses écouteurs partent avec l'ancienne.
   useEffect(() => {
     if (!model) { setToile(null); return; }
-    const { writer, placer, history } = commands.makeHosts();
+    const { writer, placer, history } = commands.makeHosts(model.source.infrastructure);
     writer.locked = run.kind === "ready" && !run.data.intent; // intention illisible : on n'écrit pas à l'aveugle
     history.set(dropLocal(history.get())); // les déplacements locaux d'une autre toile ne se rejouent pas ici
     let created: Toile | null = null;
@@ -76,7 +80,7 @@ export function Canvas() {
         dispatch({ type: "view", patch: { showStubs: f.showStubs, showDiff: f.showDiff, hiddenStatuses: masked } });
       }
     };
-    const onSelect = (selection: Selection | null, hosts: string[]): void => { dispatch({ type: "select", selection, hosts }); syncView(); };
+    const onSelect = (selection: Selection | null, multi: Multi): void => { dispatch({ type: "select", selection, hosts: multi.hosts, picked: multi }); syncView(); };
     const note = (text: string): void => dispatch({ type: "note", text, busy: /…$/.test(text), at: Date.now() });
     const intents = createIntentHost(model, writer, {
       graph: g, openInGraph: (selection) => g().reveal(selection), refreshPage: () => dispatch({ type: "touched" }), note,
@@ -84,7 +88,15 @@ export function Canvas() {
     });
     const placements = createPlacementHost(model, placer, { graph: g, note });
     const undo = createUndo(model, writer, intents, g, history, note);
-    created = createToile(model, { onSelect, onPin: intents.onPin, onPins: intents.onPins, onPlaced: placements.onPlaced, onMoved: undo.onMoved,
+    // Un geste sur une sélection mixte (lot 2 de docs/11) : épingles et opérations des annotations et connecteurs en une
+    // seule écriture, donc une seule entrée d'annulation.
+    const onBlock = (pins: Map<string, Point>, ops: Op[], cause: "aligned" | "dragged"): void => {
+      const pinOps = Array.from(pins.keys()).sort().map((hostname): Op => { const p = pins.get(hostname) as Point; return { op: "pin", hostname, x: Math.round(p.x), y: Math.round(p.y) }; });
+      const count = pins.size + new Set(ops.map((op) => ("id" in op ? op.id : ""))).size;
+      void intents.apply(pinOps.concat(ops), text(cause === "aligned" ? "shell:messages.itemsAligned" : "shell:messages.itemsMoved", { count, author: writer.author }));
+    };
+    created = createToile(model, { onSelect, onPin: intents.onPin, onPins: intents.onPins, onPlaced: placements.onPlaced, onMoved: undo.onMoved, onBlock,
+      canWrite: () => stateRef.current.view.mode === "diagram" && intents.canWrite(),
       later: (run, ms) => { const timer = window.setTimeout(run, ms); return () => window.clearTimeout(timer); } });
     created.state.insets = { ...INSETS };
     pushView(created, stateRef.current.view);
@@ -116,7 +128,7 @@ export function Canvas() {
   useEffect(() => {
     if (!handle || !model) return;
     const t = handle.toile;
-    t.state.insets = { ...INSETS, right: state.selection || state.hosts.length >= 2 ? PANEL_W : 0 };
+    t.state.insets = { ...INSETS, right: state.selection || size(state.picked) >= 2 ? PANEL_W : 0 };
     if (state.wanted) {
       // une sélection pour une autre infrastructure (le Journal montre un objet d'ailleurs) attend la toile de celle-ci
       if (model.source.infrastructure !== state.address.infrastructure) return;
@@ -128,25 +140,32 @@ export function Canvas() {
       }
       return;
     }
-    if (sameSelection(t.state.selection, state.selection) && sameHosts(t.state.selected, state.hosts)) return;
-    if (state.hosts.length >= 2) t.selectHosts(state.hosts);
+    if (sameSelection(t.state.selection, state.selection) && sameHosts(t.state.selected, state.hosts) && sameMulti(t.state.multi, state.picked)) return;
+    if (size(state.picked) >= 2) t.selectItems(itemsOf(state.picked));
+    else if (state.hosts.length >= 2) t.selectHosts(state.hosts);
     else if (state.selection) t.reveal(state.selection);
     else t.select(null);
-  }, [handle, model, state.wanted, state.selection, state.hosts, state.address.infrastructure, dispatch]);
+  }, [handle, model, state.wanted, state.selection, state.hosts, state.picked, state.address.infrastructure, dispatch]);
 
   // Une annotation glissée, redimensionnée ou éditée en place (texte, tableau) : une écriture, sous le nom (docs/10 §6, A3, A4).
   const onAnnotation = useCallback((id: string, patch: { x?: number; y?: number; w?: number; h?: number; text?: string; content?: TableContent }): void => {
     const { text, content, ...box } = patch;
-    if (text !== undefined) commands.annotationUpdate(id, { content: { kind: "note", text } });
+    const shape = model ? model.annotationById.get(id) : undefined;
+    // le texte d'une note, ou l'étiquette d'une forme éditée en place (lot 2 de docs/11)
+    if (text !== undefined && shape && shape.content.kind === "shape") commands.annotationUpdate(id, { content: { ...shape.content, label: text.slice(0, 80) } });
+    else if (text !== undefined) commands.annotationUpdate(id, { content: { kind: "note", text } });
     else if (content) commands.annotationUpdate(id, { content });
     else commands.annotationUpdate(id, box);
-  }, [commands]);
+  }, [commands, model]);
+  const onGroupLabel = useCallback((id: string, label: string): void => commands.groupUpdate(id, { label: label.slice(0, 80) }), [commands]);
   const onConnector = useCallback((id: string, patch: ConnectorPatch): void => commands.connectorUpdate(id, patch), [commands]);
   const onConnectorCreate = useCallback((fields: { start: End; end: End }): void => commands.connectorCreate(fields), [commands]);
   const onContext = useCallback((request: ContextRequest): void => commands.openContext(request), [commands]);
   // L'outil connecteur se range après une création, sauf Maj tenue (création en série, lot 1 de docs/11).
   const onToolDone = useCallback((keep: boolean): void => { if (!keep) commands.setTool(null); }, [commands]);
+  // Alt + glissé relâché (lot 3 de docs/11) : la copie à la place du fantôme.
+  const onClone = useCallback((items: Item[], d: Point): void => commands.cloneDrop(items, d), [commands]);
   const editable = useEditable();
-  return toile ? <Flow key={runKey} toile={toile} prefs={state.prefs} editable={editable} onAnnotation={onAnnotation} onConnector={onConnector} onConnectorCreate={onConnectorCreate} onContext={onContext} editRequest={state.editRequest}
-    toolArmed={state.tool === "connector"} onToolDone={onToolDone} /> : null;
+  return toile ? <Flow key={runKey} toile={toile} prefs={state.prefs} editable={editable} onAnnotation={onAnnotation} onConnector={onConnector} onGroupLabel={onGroupLabel} onConnectorCreate={onConnectorCreate} onContext={onContext} editRequest={state.editRequest}
+    toolArmed={state.tool === "connector"} onToolDone={onToolDone} onClone={onClone} /> : null;
 }

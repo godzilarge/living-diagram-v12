@@ -151,7 +151,18 @@
     "selected_many": "{{count}} équipements sélectionnés",
     "selected_other": "{{count}} équipements sélectionnés",
     "clear": "vider la sélection",
-    "keys": "{{label}} ({{keys}})"
+    "keys": "{{label}} ({{keys}})",
+    "selectedItems_one": "{{count}} élément sélectionné",
+    "selectedItems_many": "{{count}} éléments sélectionnés",
+    "selectedItems_other": "{{count}} éléments sélectionnés",
+    "box": {
+      "left": "aligner à gauche",
+      "center": "centrer",
+      "right": "aligner à droite",
+      "top": "aligner en haut",
+      "middle": "aligner au milieu",
+      "bottom": "aligner en bas"
+    }
   },
   "keys": {
     "escape": "Échap"
@@ -233,7 +244,16 @@
     "redoStale": "rien à rétablir : {{what}}, modifié depuis par quelqu'un d'autre",
     "skipped_one": "{{count}} modifié depuis par quelqu'un d'autre, laissé tel",
     "skipped_many": "{{count}} modifiés depuis par quelqu'un d'autre, laissés tels",
-    "skipped_other": "{{count}} modifiés depuis par quelqu'un d'autre, laissés tels"
+    "skipped_other": "{{count}} modifiés depuis par quelqu'un d'autre, laissés tels",
+    "movedItems_one": "déplacement de {{count}} élément",
+    "movedItems_many": "déplacement de {{count}} éléments",
+    "movedItems_other": "déplacement de {{count}} éléments",
+    "deletedItems_one": "suppression de {{count}} élément",
+    "deletedItems_many": "suppression de {{count}} éléments",
+    "deletedItems_other": "suppression de {{count}} éléments",
+    "createdItems_one": "ajout de {{count}} élément",
+    "createdItems_many": "ajout de {{count}} éléments",
+    "createdItems_other": "ajout de {{count}} éléments"
   },
   "context": {
     "label": "menu contextuel",
@@ -290,7 +310,19 @@
     "duplicate": "dupliquer",
     "detach": "détacher",
     "defaultNote": "Note",
-    "defaultGroup": "Groupe"
+    "defaultGroup": "Groupe",
+    "copy": "copier",
+    "cut": "couper",
+    "pasteHere": "coller ici",
+    "copyName": "copier le nom",
+    "copyNames": "copier les noms",
+    "copySelection": "copier la sélection",
+    "keys": {
+      "copy": "Ctrl+C",
+      "cut": "Ctrl+X",
+      "paste": "Ctrl+V",
+      "duplicate": "Ctrl+D"
+    }
   },
   "palette": {
     "label": "palette des types",
@@ -338,7 +370,22 @@
     "runsUnavailable": "liste des runs indisponible : {{reason}}",
     "imageTooLarge": "image trop lourde (4 Mo au plus)",
     "imageFormats": "PNG, JPEG ou WebP seulement",
-    "notFoundInRun": "introuvable dans cette run : {{token}}"
+    "notFoundInRun": "introuvable dans cette run : {{token}}",
+    "itemsMoved_one": "{{count}} élément déplacé, enregistré ({{author}})",
+    "itemsMoved_many": "{{count}} éléments déplacés, enregistrés ({{author}})",
+    "itemsMoved_other": "{{count}} éléments déplacés, enregistrés ({{author}})",
+    "itemsAligned_one": "{{count}} élément aligné, enregistré ({{author}})",
+    "itemsAligned_many": "{{count}} éléments alignés, enregistrés ({{author}})",
+    "itemsAligned_other": "{{count}} éléments alignés, enregistrés ({{author}})",
+    "itemsDeleted_one": "{{count}} élément supprimé ({{author}}) · Ctrl+Z pour annuler",
+    "itemsDeleted_many": "{{count}} éléments supprimés ({{author}}) · Ctrl+Z pour annuler",
+    "itemsDeleted_other": "{{count}} éléments supprimés ({{author}}) · Ctrl+Z pour annuler",
+    "deviceKept": "un équipement vient de la donnée : il ne se supprime pas, il se masque",
+    "devicesKept": "les équipements viennent de la donnée : ils ne se suppriment pas, ils se masquent",
+    "hideOffer": "masquer",
+    "itemsCut_one": "{{count}} élément coupé ({{author}}) · Ctrl+Z pour annuler",
+    "itemsCut_many": "{{count}} éléments coupés ({{author}}) · Ctrl+Z pour annuler",
+    "itemsCut_other": "{{count}} éléments coupés ({{author}}) · Ctrl+Z pour annuler"
   },
   "canvas": {
     "haActive": "actif",
@@ -362,7 +409,7 @@
     "cellText": "texte de la cellule",
     "connectorLabel": "étiquette du connecteur",
     "nodeHelp": "Entrée ou Espace sélectionne l'équipement ; Échap vide la sélection.",
-    "nodeHelpKeys": "Entrée ou Espace sélectionne l'équipement ; les flèches le déplacent, Maj pour aller plus vite ; Échap vide la sélection.",
+    "nodeHelpKeys": "Entrée ou Espace sélectionne l'équipement ; Tab passe à l'élément suivant ; les flèches déplacent la sélection, Maj pour aller plus vite ; Suppr supprime annotations, connecteurs et groupes ; Échap vide la sélection.",
     "moved": "Déplacé {{direction}}. Position : {{x}}, {{y}}.",
     "direction": {
       "up": "vers le haut",
@@ -384,7 +431,9 @@
       "cable": "câble",
       "beam": "faisceau"
     },
-    "imageLoading": "image en chargement…"
+    "imageLoading": "image en chargement…",
+    "shapeLabel": "étiquette de la forme",
+    "groupName": "nom du groupe"
   },
   "live": {
     "selected": "sélection : {{kind}} {{label}}",
@@ -397,6 +446,70 @@
       "group": "groupe",
       "annotation": "annotation",
       "connector": "connecteur"
-    }
+    },
+    "many": "sélection : {{items}}"
+  },
+  "items": {
+    "node_one": "{{count}} équipement",
+    "node_many": "{{count}} équipements",
+    "node_other": "{{count}} équipements",
+    "annotation_one": "{{count}} annotation",
+    "annotation_many": "{{count}} annotations",
+    "annotation_other": "{{count}} annotations",
+    "connector_one": "{{count}} connecteur",
+    "connector_many": "{{count}} connecteurs",
+    "connector_other": "{{count}} connecteurs",
+    "group_one": "{{count}} groupe",
+    "group_many": "{{count}} groupes",
+    "group_other": "{{count}} groupes",
+    "all_one": "{{count}} élément",
+    "all_many": "{{count}} éléments",
+    "all_other": "{{count}} éléments"
+  },
+  "clipboard": {
+    "copied_one": "{{count}} élément copié",
+    "copied_many": "{{count}} éléments copiés",
+    "copied_other": "{{count}} éléments copiés",
+    "namesCopied_one": "nom de {{count}} équipement copié en texte",
+    "namesCopied_many": "noms de {{count}} équipements copiés en texte",
+    "namesCopied_other": "noms de {{count}} équipements copiés en texte",
+    "groupsNotCopied_one": "un groupe ne se copie pas (ses membres viennent de la donnée)",
+    "groupsNotCopied_many": "les groupes ne se copient pas (leurs membres viennent de la donnée)",
+    "groupsNotCopied_other": "les groupes ne se copient pas (leurs membres viennent de la donnée)",
+    "readOnly": "vue Contrôle, lecture seule : rien ne s'écrit",
+    "giveName": "rien ne s'écrit sans nom : donnez le vôtre (en haut à droite)",
+    "carrying_one": "envoi de {{count}} image à cette infrastructure…",
+    "carrying_many": "envoi de {{count}} images à cette infrastructure…",
+    "carrying_other": "envoi de {{count}} images à cette infrastructure…",
+    "devicesNotPasted_one": "un équipement ne se colle pas : il vient de la donnée",
+    "devicesNotPasted_many": "les équipements ne se collent pas : ils viennent de la donnée",
+    "devicesNotPasted_other": "les équipements ne se collent pas : ils viennent de la donnée",
+    "empty": "rien à coller",
+    "imageMissing": "image introuvable",
+    "imagesMissing_one": "{{count}} image introuvable, collée en note",
+    "imagesMissing_many": "{{count}} images introuvables, collées en notes",
+    "imagesMissing_other": "{{count}} images introuvables, collées en notes",
+    "tooMany": "trop d'éléments pour un collage ({{max}} au plus)",
+    "pasted_one": "{{count}} élément collé ({{author}}) · Ctrl+Z pour annuler",
+    "pasted_many": "{{count}} éléments collés ({{author}}) · Ctrl+Z pour annuler",
+    "pasted_other": "{{count}} éléments collés ({{author}}) · Ctrl+Z pour annuler",
+    "unreadable": "copie de Living Diagram illisible (version inconnue ou abîmée) : rien n'est collé",
+    "tabOnly": "gardée dans cet onglet seulement, le presse-papiers du système a refusé",
+    "readRefused": "le navigateur refuse de lire le presse-papiers : collez avec Ctrl+V",
+    "tooManyImages": "trop d'images à renvoyer d'une autre infrastructure ({{max}} au plus) : rien n'est collé",
+    "groupsKept_one": "{{count}} groupe gardé : un groupe ne se coupe pas",
+    "groupsKept_many": "{{count}} groupes gardés : un groupe ne se coupe pas",
+    "groupsKept_other": "{{count}} groupes gardés : un groupe ne se coupe pas",
+    "tooBig": "collage trop gros pour une requête ({{max}} Ko au plus) : rien n'est collé",
+    "freed_one": "{{count}} ancrage libéré",
+    "freed_many": "{{count}} ancrages libérés",
+    "freed_other": "{{count}} ancrages libérés",
+    "pasting": "collage…",
+    "refused": "collage refusé : {{reason}}",
+    "idsUnknown": "les éléments créés ne se retrouvent pas dans la réponse du serveur",
+    "partial": "collage incomplet : {{reason}} ; le défaire a échoué aussi ({{undo}}) · Ctrl+Z pour défaire ce qui reste",
+    "abandoned": "collage abandonné : la run ou l'infrastructure affichée a changé, rien n'a été écrit dans {{infrastructure}}",
+    "abandonedAfter": "collage interrompu : la run ou l'infrastructure affichée a changé ; ce qui était déjà écrit reste dans {{infrastructure}}",
+    "pasteFailed": "le presse-papiers a été lu, mais son contenu n'a pas pu être collé"
   }
 }

@@ -208,11 +208,77 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
 - **L'adresse est l'état de vue** : `?infrastructure=&run_id=&from=` (la run, comme `/view`) et
   `#mode=control|journal&node=…&stubs=1&ports=1&speeds=1&beams=1&pins=0&notes=0&oper=1&diff=0&hide=…&only=…&mask=…` (la vue : le mode et les couches du panneau Affichage en font partie) ; jamais le jeton (dans `sessionStorage`), le nom
   dans `localStorage`. En arrivant sans `run_id`, la dernière run s'ouvre comparée à la précédente.
-- **La toile pour l'application** : Maj + clic ajoute à la sélection multiple, Maj + glissé sur le fond dessine un
-  rectangle de sélection, glisser un équipement sélectionné déplace toute la sélection d'un bloc ; les règles
-  `[champ:]regex` masquent (`hide`), isolent avec les voisins directs (`only`) ou éclairent (palette) ; aligner /
-  répartir ou glisser la sélection pose ses épingles en un paquet sous le nom donné (sinon déplacements locaux, dits
-  tels). Rien de tout cela n'apparaît dans `/view`.
+- **La toile pour l'application** : les règles `[champ:]regex` masquent (`hide`), isolent avec les voisins directs
+  (`only`) ou éclairent (palette) ; aligner / répartir ou glisser la sélection pose ses épingles en un paquet sous le
+  nom donné (sinon déplacements locaux, dits tels). Rien de tout cela n'apparaît dans `/view`.
+- **La sélection mixte et le clavier** (lot 2 de `docs/11`, 2026-10-14). Une sélection accepte équipements, annotations,
+  connecteurs et groupes ensemble (`app/state/selection.ts`, pur, testé sous Node : sortes triées, élément principal =
+  le dernier entré, rectangle, ordre de lecture, opérations de Suppr) ; câbles, faisceaux, clusters et agrégats se
+  sélectionnent seuls. La toile la tient (`toile.state.multi`, `primary` ; `selectItems`, `allItems`, `cycle`), le
+  store la reçoit (`picked`, `hosts` gardé), un seul élément garde sa clé dans l'adresse, plusieurs ne s'y écrivent
+  pas. **Souris** (D1 et D2, révisées par Orhan le 2026-10-14) : le glissé nu sur le fond déplace la vue (Diagramme et
+  Contrôle) ; Maj + glissé dessine un rectangle en mode « touche » qui ajoute à la sélection (Ctrl tenu à la relâche =
+  englobés seulement ; calculé par la toile, pas par React Flow : jamais un cadre, un cluster ni un élément verrouillé) ;
+  un clic sans glisser sur le fond vide la sélection ; Maj / Ctrl / Cmd + clic ajoute ou retire ; Espace + glissé
+  déplace la vue même en partant d'un élément (`space-pan` : `app/canvas/gestures.ts`, `useSpaceHeld`, et `flow.css`),
+  le bouton du milieu aussi, partout (son action du navigateur, défilement automatique ou collage, est annulée) ; la
+  molette zoome, Ctrl + molette du même pas (`app/canvas/wheel.ts`), pincement = zoom. **Un bloc mixte glisse d'un
+  coup** : épingles, places d'annotations et bouts libres des connecteurs (un connecteur sélectionné est glissable avec le bloc, ses bouts attachés suivent ce qu'ils tiennent), membres d'un
+  cadre sélectionné, en une écriture (`onBlock` → `IntentHost.apply`) donc un seul Ctrl+Z (« déplacement de n
+  éléments ») ; une annotation glissée seule garde son écriture d'avant. **Clavier** (`components/Shell.tsx`) :
+  Ctrl+A sélectionne tout ce qui est visible (équipements de la run, annotations et connecteurs dessinés et non
+  verrouillés ; jamais les cadres) ; Suppr ou Retour arrière supprime annotations, connecteurs et groupes de la
+  sélection en une requête (un Ctrl+Z les rend, et ce qui tenait à un élément recréé le reprend : `relinkOps`) ; sur un
+  équipement, rien ne part et la ligne d'état dit qu'il vient de la donnée, avec « masquer » (D5) ; les flèches
+  déplacent toute la sélection, annotations et bouts libres compris, une rafale = une écriture ; F2 ou Entrée ouvre
+  l'édition en place d'une note, de l'étiquette d'une forme ou du nom d'un groupe (double-clic de même ; un champ
+  d'une ligne, `app/canvas/inline.tsx`) ; Tab / Maj+Tab passent à l'élément suivant dans l'ordre de lecture (haut
+  gauche → bas droite) quand une sélection existe et que le focus est sur la toile, le focus suit le nœud (Échap vide
+  la sélection : Tab rend alors la main à la page). **Alignement** : des cartes seules gardent leurs quatre alignements
+  par les centres ; dès qu'une annotation est dans la sélection, la barre propose gauche, centre, droite, haut, milieu,
+  bas et les deux répartitions, par les boîtes (`canvas/align.ts`, `alignBoxes`, que `/view` n'embarque pas). La fiche
+  d'une sélection mixte (`MultiCard`) compte par sorte ; dans un bloc, une note n'a pas ses poignées de taille.
+- **Le presse-papiers** (lot 3 de `docs/11`, 2026-10-14). **Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+D**, **Alt + glissé**, et
+  dans le menu contextuel « copier », « couper », « coller ici », « dupliquer » avec leur raccourci écrit. Ce qui se
+  copie : annotations et connecteurs ; un équipement donne **son nom en texte** (un par ligne) et ne se colle jamais
+  (D6) ; un groupe ne se copie pas (la ligne d'état le dit) ; couper = copier puis supprimer exactement ce qui a été
+  copié (annotations, connecteurs) : un équipement reste (D5, « masquer » proposé), un groupe aussi, et la page le dit. **La charge** (`app/state/clipboard.ts`, pur, testé sous Node) : `{ "living-diagram": 1, infrastructure,
+  annotations, connectors, hosts }`, chaque annotation avec sa boîte dans le plan, chaque connecteur avec la place de
+  ses deux bouts ; écrite en deux représentations, le format propre `application/x-living-diagram+json` (`web
+  application/x-living-diagram+json` par l'API asynchrone, menu) et le texte (la charge en JSON, ou les noms seuls) ;
+  relue dans cet ordre : le format propre, puis un texte qui commence par `{"living-diagram"`, sinon le comportement
+  d'avant (une image devient une annotation image, un texte une note). Une version inconnue ou une charge abîmée ne
+  colle rien et le dit. **Le repli** : la mémoire de l'onglet garde la dernière copie ; elle sert quand le système a
+  refusé l'écriture, quand le texte collé est exactement celui de cette copie (le format propre ne survit pas
+  toujours), et au menu « coller ici » si le navigateur refuse la lecture. **Coller** : au pointeur s'il est sur la
+  toile (le coin haut gauche du collage dessous, aimanté à la grille avec l'aimant), sinon à la place d'origine
+  décalée de +20 / +20, chaque collage répété au même endroit décalant encore ; une annotation garde son ancrage si
+  l'ancre existe ici (un équipement du même nom ; un groupe du même id dans la même infrastructure seulement), sinon
+  elle devient libre à sa place ; un connecteur suit les annotations collées avec lui, reste attaché à ce qui existe,
+  sinon son bout devient un point libre ; un connecteur dont aucun bout ne bougerait est libéré et décalé (sinon il
+  serait collé exactement sur l'original). **Deux requêtes, une entrée d'annulation** : les annotations et les
+  connecteurs qui n'en visent aucune, puis les connecteurs qui visent une annotation collée, sous l'identité que le
+  serveur lui a donnée (`a<révision>-<n>`, dans l'ordre des créations), lue sur la **réponse** de la première requête
+  (`AppWriter.outcomeOf`) et vérifiée dans ce document (`verifyCreated`) ; `undo.chain` joint la seconde écriture à
+  l'entrée de la première (`history.absorb`, « ajout de n éléments »). Si la seconde ne peut pas partir ou est refusée,
+  la première est défaite (`undo.revert`, sans entrée) et la page dit « collage refusé » ; « n éléments collés » ne se
+  dit qu'après tout. **Un collage appartient à sa toile** : l'écrivain d'une run écrit dans l'infrastructure de cette
+  run (figée), et après chaque attente (renvoi d'image, requête) un collage dont la toile a changé s'arrête sans rien
+  écrire de plus et le dit. Une annotation attachée collée d'ailleurs tombe sous le pointeur, son écart étant écrit
+  depuis l'ancre d'ici (`Target.anchorAt`, `app/canvas/clip-toile.ts`) ; un collage est borné à 500 éléments et à
+  1 Mio de corps (octets UTF-8) ; les ancrages libérés sont dits. D'une autre infrastructure, les images sont lues
+  là-bas et renvoyées au magasin d'ici ; une image introuvable devient une note qui porte son texte de remplacement.
+  **Dupliquer** : Ctrl+D copie la sélection et la colle à +20 / +20 sans toucher au presse-papiers ; après un Alt +
+  glissé, Ctrl+D répète l'écart du clone tant que la sélection est la copie. **Alt + glissé** (`app/canvas/clone.tsx`) :
+  l'appui est pris avant React Flow, un fantôme de la copie (les annotations dessinées comme sur la toile, les
+  connecteurs) suit le pointeur à 60 %, la copie se crée à la relâche, l'original reste ; poignées, champs, Espace +
+  glissé et le bouton du milieu gardent leur geste ; sans nom, Alt + glissé n'est pas pris. Deux Ctrl+D rapprochés posent
+  deux copies à deux pas. Un appui sur la toile (hors d'un champ) efface la sélection de texte de la page, pour que
+  Ctrl+C copie la sélection de la toile ; un texte sélectionné dans une fiche garde la copie native. En vue Contrôle ou sans nom, rien ne se colle ni ne se duplique, et
+  la ligne d'état le dit ; copier reste possible. Les commandes : `app/state/clipboard-commands.ts` ; les événements
+  natifs `copy`, `cut`, `paste` et Ctrl+D : `components/Shell.tsx` (dans un champ, ou avec du texte sélectionné dans
+  la page, le navigateur garde la main). Ce que les nœuds de React Flow dessinent se calcule dans `app/canvas/flow-build.ts`
+  (sorti de `Flow.tsx`).
 - **Une seule pastille** (`canvas/pill.ts`, `app/canvas/pill.tsx`, `.pill` dans `styles/app.css`) : tout fait court (rôle
   HA, stack, vitesse, MLAG, statut, gravité) a la même capsule ; seul le ton (`tone-*`) change. Une commande est un
   rectangle aux coins de 6, jamais une capsule. Les vitesses (`canvas/speed.ts`) et les faisceaux révélés au clic
@@ -273,7 +339,7 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   disque, annotation et cadre, **jamais au repos ni sur la sélection**, seulement sur la cible d'un bout qu'on tire ou
   sous le pointeur quand l'outil connecteur est armé ; `app/canvas/snap.ts`, pur : un bout glissé s'accroche à une ancre à portée, sinon à l'élément
   dessous sur son contour, sinon reste libre, carte avant annotation avant cadre, l'autre bout du connecteur exclu) ; **Ctrl+V** (`Shell.tsx` : une image du presse-papiers part au magasin, un
-  texte devient une note).
+  texte devient une note ; une copie de Living Diagram se colle d'abord, voir « Le presse-papiers »).
 - **Ce qu'on manipule se voit** (lot 1 de `docs/11`, 2026-10-13). **Poignées** (`app/canvas/handles.ts`, pur, testé sous
   Node ; dessinées par `annotation.tsx`) : taille d'écran constante (× 1 / zoom), quatre coins carrés de 8 px, quatre
   barres de 14 × 5 posées sur les côtés (pas de barre sur un côté de moins de 40 px à l'écran), curseurs de

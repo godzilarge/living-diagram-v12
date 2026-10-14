@@ -123,6 +123,17 @@ def test_the_patch_route_names_every_operation_of_the_contract(client: TestClien
         assert f"`{name}`" in op["description"], name
 
 
+def test_the_patch_route_states_how_created_ids_are_numbered(client: TestClient):
+    """Lot 3 de docs/11 (revue, M2) : la page relie un collage par la règle des identités ; elle est écrite dans
+    l'OpenAPI, sur la route et sur chaque opération de création."""
+    doc = _doc(client)
+    route = doc["paths"]["/api/intent/patches"]["post"]["description"]
+    assert "`<revision>-<n>`" in route and "document rendu" in route
+    for name in ("GroupCreateOp", "AnnotationCreateOp", "ConnectorCreateOp"):
+        text = doc["components"]["schemas"][name]["description"]
+        assert "rang de l'opération" in text and "document que" in text, name
+
+
 def test_summaries_are_one_short_line(client: TestClient):
     for path, method, op in _operations(_doc(client)):
         assert op.get("summary") and len(op["summary"]) <= 80 and "\n" not in op["summary"], (path, method)

@@ -2,11 +2,12 @@
 import { tokenOf } from "../../canvas/model";
 import { defaultView } from "./address";
 import { defaultPrefs } from "./prefs";
+import { empty, multiOf, same as sameMulti } from "./selection";
 import type { Action, AppState } from "./types";
 
 export const initialState = (): AppState => ({
   token: "", author: "", address: { infrastructure: "", runId: "", from: "" }, runs: null, runsMessage: null, listing: false,
-  run: { kind: "idle" }, view: defaultView(), prefs: defaultPrefs(), selection: null, hosts: [], wanted: null, palette: { open: false, text: "" },
+  run: { kind: "idle" }, view: defaultView(), prefs: defaultPrefs(), selection: null, hosts: [], picked: empty(), wanted: null, palette: { open: false, text: "" },
   expanded: false, menuOpen: false, connectOpen: false, colorsOpen: false, note: null, history: { undo: null, redo: null }, revision: 0, walk: null,
   context: null, editRequest: null, tool: null, journal: { kind: "idle" }, journalUi: { open: [], scroll: 0, back: false, active: null, refocus: false },
 });
@@ -28,7 +29,7 @@ export function reducer(state: AppState, action: Action): AppState {
       // sélection attendue, que la toile de la run suivante résoudra ; la sélection multiple, non.
       const token = state.run.kind === "ready" && state.selection ? tokenOf(state.run.model, state.selection) : null;
       const carried = state.wanted || (token ? { kind: token[0], token: token[1] } : null);
-      return { ...state, run: { kind: "loading", infrastructure: action.infrastructure, runId: action.runId }, wanted: carried, selection: null, hosts: [],
+      return { ...state, run: { kind: "loading", infrastructure: action.infrastructure, runId: action.runId }, wanted: carried, selection: null, hosts: [], picked: empty(),
         connectOpen: false, menuOpen: false, colorsOpen: false, walk: null, context: null, editRequest: null, tool: null };
     }
     case "failed":
@@ -36,7 +37,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case "ready":
       // Une autre run : la sélection par identité traverse (la toile la résout), la sélection multiple non.
       return { ...state, run: { kind: "ready", model: action.model, data: action.data, warnings: action.warnings, remembered: action.remembered }, runs: action.runs === null ? state.runs : action.runs,
-        hosts: [], expanded: false, connectOpen: false, palette: { ...state.palette, open: false } };
+        hosts: [], picked: empty(), expanded: false, connectOpen: false, palette: { ...state.palette, open: false } };
     case "view": {
       // un outil ne s'arme qu'en Diagramme : passer en Contrôle ou au Journal le range
       const view = { ...state.view, ...action.patch };
@@ -46,8 +47,10 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, prefs: { ...state.prefs, ...action.patch } };
     case "select": {
       const same = state.selection === action.selection || (!!state.selection && !!action.selection && state.selection.kind === action.selection.kind && state.selection.id === action.selection.id);
-      if (same && sameHosts(state.hosts, action.hosts)) return state.wanted ? { ...state, wanted: null } : state; // la toile a répondu, même sans changer
-      return { ...state, selection: action.selection, hosts: action.hosts, expanded: same ? state.expanded : false, wanted: null };
+      // sans sélection mixte dite, celle des équipements (les lecteurs d'avant, les tests du réducteur)
+      const picked = action.picked || multiOf(action.hosts.map((id) => ({ kind: "node" as const, id })));
+      if (same && sameHosts(state.hosts, action.hosts) && sameMulti(state.picked, picked)) return state.wanted ? { ...state, wanted: null } : state; // la toile a répondu, même sans changer
+      return { ...state, selection: action.selection, hosts: action.hosts, picked, expanded: same ? state.expanded : false, wanted: null };
     }
     case "want":
       return { ...state, wanted: action.wanted };
@@ -62,7 +65,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case "colors":
       return { ...state, colorsOpen: action.open, menuOpen: false };
     case "note":
-      return { ...state, note: action.text === null ? null : { text: action.text, busy: !!action.busy, at: action.at || 0 } };
+      return { ...state, note: action.text === null ? null : { text: action.text, busy: !!action.busy, at: action.at || 0, ...(action.offer ? { offer: action.offer } : {}) } };
     case "history":
       return { ...state, history: { undo: action.undo, redo: action.redo } };
     case "touched":
