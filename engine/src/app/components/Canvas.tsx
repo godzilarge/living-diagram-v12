@@ -13,6 +13,7 @@ import type { Selection } from "../../canvas/types";
 import { createIntentHost } from "../../shell/intent";
 import { createPlacementHost } from "../../shell/placement";
 import { Flow } from "../canvas/Flow";
+import { FloatingBar } from "./FloatingBar";
 import type { ContextRequest } from "../canvas/Flow";
 import type { ConnectorPatch } from "../../shell/apps";
 import type { End } from "../../canvas/connectors";
@@ -167,5 +168,5 @@ export function Canvas() {
   const onClone = useCallback((items: Item[], d: Point): void => commands.cloneDrop(items, d), [commands]);
   const editable = useEditable();
   return toile ? <Flow key={runKey} toile={toile} prefs={state.prefs} editable={editable} onAnnotation={onAnnotation} onConnector={onConnector} onGroupLabel={onGroupLabel} onConnectorCreate={onConnectorCreate} onContext={onContext} editRequest={state.editRequest}
-    toolArmed={state.tool === "connector"} onToolDone={onToolDone} onClone={onClone} /> : null;
+    toolArmed={state.tool === "connector"} onToolDone={onToolDone} onClone={onClone}><FloatingBar /></Flow> : null;
 }

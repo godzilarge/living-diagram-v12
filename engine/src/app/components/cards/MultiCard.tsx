@@ -1,30 +1,22 @@
 // La fiche d'une sélection multiple, dans la grammaire de l'inspecteur : combien, ce qu'on en fait (masquer, isoler ;
-// aligner et répartir sont dans la barre d'outils de la toile), la teinte d'un coup (docs/10, une requête pour toute la
+// aligner et répartir sont dans la barre contextuelle, lot 4 de docs/11), la teinte d'un coup (docs/10, une requête pour toute la
 // sélection), un groupe (nouveau ou existant), puis la liste. La sélection vient de Maj / Ctrl + clic, du rectangle, de
 // Ctrl+A ou de la recherche. Une sélection mixte (lot 2 de docs/11) compte par sorte (« 2 équipements, 1 annotation ») ;
-// teinte et groupe s'appliquent à ses équipements ; la corbeille supprime ses annotations, connecteurs et groupes.
-import { EyeOff, Focus, Group as GroupIcon, SquareDashedMousePointer, Trash2 } from "lucide-react";
+// la teinte s'applique à tout ce qui en a une, le groupe à ses équipements ; la corbeille supprime ses annotations,
+// connecteurs et groupes ; le verrou les verrouille d'un coup (lot 4).
+import { EyeOff, Focus, Group as GroupIcon, Lock, LockOpen, SquareDashedMousePointer, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { hueOfNode } from "../../../canvas/hues";
-import type { HueName } from "../../../canvas/hues";
 import type { Model } from "../../../canvas/types";
 import { summary as annotationSummary } from "../../../canvas/annotations";
-import { summary as connectorSummary } from "../../../canvas/connectors";
-import { itemsText } from "../../state/describe";
+import { connectorText, itemsText } from "../../state/describe";
+import { multiHues } from "../../state/floating";
 import { deleteOps, size } from "../../state/selection";
 import type { Multi } from "../../state/selection";
 import { useEditable, useStore } from "../../state/store";
 import { IconButton, Inspector, InspectorHead, List, MoreLink, Row, Section, TextButton, Title } from "../../ui/inspector";
 import { GroupPicker, HueSetting, WriteHint } from "./shared";
-
-// Ce que la sélection a en commun : la teinte choisie (si tous en ont la même) et la teinte en vigueur (si une seule).
-function common(model: Model, hosts: string[]): { own: string | null; effective: HueName | null } {
-  const own = new Set(hosts.map((host) => { const color = model.colorByHost.get(host); return color ? color.hue : null; }));
-  const effective = new Set(hosts.map((host) => hueOfNode(model, model.nodeByHost.get(host) || { hostname: host, type: null })));
-  return { own: own.size === 1 ? Array.from(own)[0] : null, effective: effective.size === 1 ? Array.from(effective)[0] : null };
-}
 
 const LIMIT = 12;
 
@@ -34,13 +26,13 @@ function Others({ model, picked }: { model: Model; picked: Multi }) {
   const { t } = useTranslation(["panel", "shell"]);
   const rows = ([] as { key: string; label: string; open: () => void }[]).concat(
     picked.annotations.flatMap((id) => { const a = model.annotationById.get(id); return a ? [{ key: "a:" + id, label: annotationSummary(a), open: () => commands.reveal({ kind: "annotation", id }) }] : []; }),
-    picked.connectors.flatMap((id) => { const c = model.connectorById.get(id); return c ? [{ key: "c:" + id, label: connectorSummary(c), open: () => commands.reveal({ kind: "connector", id }) }] : []; }),
+    picked.connectors.flatMap((id) => { const c = model.connectorById.get(id); return c ? [{ key: "c:" + id, label: connectorText(model, c), open: () => commands.reveal({ kind: "connector", id }) }] : []; }),
     picked.groups.flatMap((id) => { const g = model.groupById.get(id); return g ? [{ key: "g:" + id, label: g.label, open: () => commands.reveal({ kind: "group", id }) }] : []; }));
   if (!rows.length) return null;
   return (
     <Section title={t("multi.others")} count={rows.length}>
       <List label={t("multi.othersList")}>
-        {rows.map((row) => <li key={row.key}><button type="button" className="insp-list-row link" onClick={row.open}><span className="insp-list-main">{row.label}</span></button></li>)}
+        {rows.map((row) => <li key={row.key}><button type="button" className="insp-list-row link" onClick={row.open}><span className="insp-list-main" title={row.label}><span>{row.label}</span></span></button></li>)}
       </List>
     </Section>
   );
@@ -56,10 +48,13 @@ export function MultiCard({ model, picked }: { model: Model; picked: Multi }) {
   const devices = hosts.filter((host) => { const node = model.nodeByHost.get(host); return !!node && node.kind !== "stub"; });
   const canWrite = useEditable();
   const control = state.view.mode === "control"; // en vue Contrôle, la sélection se lit : ni teinte ni groupe
-  const colour = common(model, devices);
+  const hues = multiHues(model, picked, devices);
   const [name, setName] = useState("");
   const create = (event: FormEvent): void => { event.preventDefault(); if (devices.length) commands.groupCreate(name.trim() || t("multi.defaultName"), devices); setName(""); };
   const shown = all ? sorted : sorted.slice(0, LIMIT);
+  // verrouiller d'un coup les annotations et connecteurs (lot 4 de docs/11 : la barre contextuelle le fait aussi)
+  const lockable = picked.annotations.map((id) => model.annotationById.get(id)).concat(picked.connectors.map((id) => model.connectorById.get(id)) as never[]).filter((x): x is NonNullable<typeof x> => !!x);
+  const locked = lockable.length > 0 && lockable.every((x) => x.locked);
   return (
     <Inspector kind="multi">
       <InspectorHead icon={<SquareDashedMousePointer />} kind={t("multi.kind")}
@@ -67,14 +62,16 @@ export function MultiCard({ model, picked }: { model: Model; picked: Multi }) {
           {hosts.length ? <IconButton label={t("multi.hide")} onClick={() => commands.hideHosts(hosts)}><EyeOff /></IconButton> : null}
           {hosts.length ? <IconButton label={t("multi.isolate")} onClick={() => commands.isolateHosts(hosts)}><Focus /></IconButton> : null}
           {canWrite && deleteOps(picked).length ? <IconButton label={t("multi.delete")} onClick={() => { commands.deleteSelection(); }}><Trash2 /></IconButton> : null}
+          {canWrite && lockable.length ? <IconButton label={locked ? t("shell:fbar.unlock") : t("shell:fbar.lock")} pressed={locked} onClick={() => commands.lockItems(picked.annotations, picked.connectors, !locked)}>{locked ? <Lock /> : <LockOpen />}</IconButton> : null}
         </>}
         title={<Title>{mixed ? t("shell:items.all", { count: size(picked) }) : t("common:devices", { count: hosts.length })}</Title>}
         meta={mixed ? itemsText(picked) : undefined}>
         {canWrite || control ? null : <WriteHint action={t("multi.toEdit")} />}
       </InspectorHead>
-      {devices.length && canWrite ? (
+      {hues && canWrite ? (
         <Section title={t("multi.appearance")}>
-          <Row label={t("hue")}><HueSetting value={colour.own} inherited={colour.effective} onPick={(next) => commands.colorHosts(devices, next)} /></Row>
+          {/* toute la sélection prend la teinte (lot 4 : la barre contextuelle de même) ; « défaut » pour des équipements seuls */}
+          <Row label={t("hue")}><HueSetting value={hues.value} inherited={hues.inherited} allowDefault={hues.devicesOnly} onPick={(next) => commands.colorItems(picked, next)} /></Row>
         </Section>
       ) : null}
       {devices.length && canWrite ? (

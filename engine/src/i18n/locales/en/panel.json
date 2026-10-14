@@ -85,7 +85,8 @@
     "beamTo": "bundle to",
     "aggregate": "aggregate",
     "collectionWord": "collection {{state}}",
-    "rule": "rule"
+    "rule": "rule",
+    "pin": "pin in place"
   },
   "link": {
     "kind": "Cable",

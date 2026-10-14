@@ -260,7 +260,7 @@ attend d'un éditeur et qui donne l'impression de « fluidité » :
 | D7 | Ordre de superposition | **`order` entier additif** (Intent 1.6.0) dans chacun des deux plans gardés ; avancer / reculer / devant / derrière | fusionner les plans en un seul ordre |
 | D8 | Export | **PNG d'abord** par capture du DOM (court), **SVG et PDF ensuite** par un rendu SVG pur de la scène (long) | SVG pur d'abord |
 | D9 | Multi-utilisateur | **relecture de l'intention toutes les 15 s** quand l'onglet est visible (`ETag`, 304 sinon), fusion, « mis à jour par X » ; puis `expected_revision` | rien avant une vraie identité |
-| D10 | Barre contextuelle | **les alignements quittent la barre haute** pour elle ; la barre haute garde annuler, rétablir, vue, insertion ; le panneau reste la fiche complète | garder les alignements aux deux endroits |
+| D10 | Barre contextuelle | **tranchée le 2026-10-14 par Orhan sur le prototype : A**, les alignements quittent la barre haute pour la barre contextuelle (un bouton « aligner et répartir » à volet) | garder les alignements aux deux endroits |
 | D11 | Texte riche des notes | **Markdown restreint** (gras, italique, listes, lien) dans le texte existant, rendu par la toile | rien (texte brut) |
 | D12 | Style par défaut à l'insertion | **le dernier style utilisé par sorte**, préférence du navigateur | intention de l'infrastructure |
 
@@ -643,7 +643,18 @@ garde de la toile s'arrête avant tout envoi), attrapé avec elle.
 `frontend-design:frontend-design` et `impeccable:impeccable`, produit dans `.impeccable/prototype-lot-4/` une page HTML
 autonome (données factices, jetons recopiés, aucun fichier de `engine/` ni de `backend/`) qu'Orhan juge lui-même ; le
 code ne s'écrit qu'après son accord, le prototype validé faisant foi pour le rendu (`docs/11-prompt-agent-lot.md`
-§ 2 bis). Même règle pour le lot 14 et tout nouveau panneau. **D10 reste à trancher** avec le prototype sous les yeux.
+§ 2 bis). Même règle pour le lot 14 et tout nouveau panneau.
+
+**Prototype validé le 2026-10-14** (`.impeccable/prototype-lot-4/`, fait foi pour le rendu, revue de design appliquée :
+bouton unique « aligner et répartir » à volet, barre ancrée au milieu d'un connecteur et qui évite les annotations,
+ergot vers l'ancre, fond relevé, rectangle aux coins de 10 et non capsule). **Réponses d'Orhan** : (1) D10 = A ;
+(2) **la barre et ses volets ne masquent jamais l'objet** (volet du côté opposé à la sélection, de l'autre côté s'il
+manque la place) ; (3) le coin des boutons à volet est gardé ; (4) une barre aussi sur un équipement seul ; (5) sans
+nom (lecture seule) : aucune barre ; (6) barre loin d'une grosse sélection : à juger à l'usage
+(`docs/a-juger-a-l-usage.md`). **Ajout validé** : un réglage « barre contextuelle affichée / masquée », préférence du
+navigateur (`ld-prefs`, jamais dans l'adresse), affichée par défaut, basculée par **Ctrl + .** (à vérifier sous Chrome et
+Firefox) et par une case du panneau Affichage, la ligne d'état dit la bascule ; masquée, Alt+T la rappelle pour la
+sélection en cours sans changer la préférence ; Maj tenue la cache toujours le temps d'un Maj + clic.
 
 **Spécification**
 
@@ -691,6 +702,61 @@ sur une sélection mixte, Alt+T puis ← → puis Échap, absente en Contrôle.
 
 **Acceptation** : captures `1-note`, `2-connecteur`, `3-multi` (barre au-dessus, volet ouvert sur l'une) ; critique
 Impeccable à deux agents sur ces captures en fin de lot, les P1 corrigés dans le lot.
+
+**Fait le 2026-10-14** : la barre contextuelle, transposée du prototype validé (rectangle aux coins de 10, fond relevé,
+ergot, coin des boutons à volet, valeur sur le bouton, volet du côté opposé à la sélection, mouvement de 150 ms à
+l'apparition seulement). **Base technique : une couche à soi en coordonnées d'écran, pas `NodeToolbar`** : il faut la
+zone visible (sous la recherche et la barre d'outils, au-dessus de la bande, à gauche du panneau, lue dans le DOM),
+passer dessous, éviter les annotations, s'ancrer au milieu d'un connecteur et poser des volets qui ne masquent jamais
+l'objet ; `NodeToolbar` ne fait que « au-dessus de la boîte des nœuds donnés », par un style en ligne. La couche est un
+enfant de `Flow` (fournisseur React Flow), s'abonne à la vue (`transform`, seulement quand elle se montre) et à la toile
+(`version`) ; la toile ne la connaît pas (mesuré : sa version ne bouge pas pendant un panoramique). Les gestes passent
+par `app/canvas/gate.ts` (glissé, rectangle, et les raisons `hold` existantes) ; retour 120 ms après, minuterie de la
+page. **Code** : `app/state/floating.ts` (pur : cible, boutons par sorte et par droit, raccourcis, `placeBar`,
+`placeVolet`, `anchorOf`, `multiHues`), `components/FloatingBar.tsx` (place, clavier, exécution par les commandes du
+store), `FloatingVolet.tsx`, `floating-faces.tsx` (glyphes du prototype), `styles/floating.css`,
+`state/floating-commands.ts` (`pinHere`, `lockItems`, `colorItems`) ; `HueGrid` et `PositionGrid` extraites de
+`ui/inspector.tsx` (le volet de la barre et celui de la fiche sont la même grille) ; `Toolbar.tsx` sans alignements
+(D10 = A) ; préférence `fbar` (`prefs.ts`), Ctrl + . et la case « barre contextuelle » du panneau Affichage, la ligne
+d'état dit la bascule (« … · Ctrl+. pour la rétablir, Alt+T pour la rappeler ici ») ; masquée, Alt+T la rappelle pour la
+sélection en cours. **Défaut corrigé** : la fiche multiple et la fiche d'un connecteur nomment les bouts par leur nom
+lisible (équipement, texte ou sorte de l'annotation, nom du groupe, « point libre » ; `state/describe.ts`,
+`connectorText`), sans identifiant ni coordonnée, la ligne ne déborde plus. **Écarts, décisions prises seul** : (1) les
+volets ont un troisième recours, à côté de la barre sur sa rangée, quand ni le côté opposé ni l'autre côté de la
+sélection ne tiennent (vu sur capture : le volet recouvrait la barre) ; (2) un connecteur sélectionné : son tracé
+(échantillonné dans le DOM) et son étiquette comptent, la barre se pose à gauche ou à droite d'un tracé vertical, ergot
+latéral (critique A, P1 : la règle d'Orhan « jamais masquer l'objet » est venue après le prototype, qui centrait la
+barre sur le tracé) ; les étiquettes des autres connecteurs sont des obstacles ; (3) la teinte d'une sélection
+multiple colore tout ce qui en a une (équipements, annotations, connecteurs, groupes), en une écriture, comme le
+prototype ; la fiche multiple fait de même (parité) ; « défaut » seulement pour des équipements seuls ; (4) le bouton
+teinte dit sa valeur (« teinte : ambre ») ; (5) parité barre ⊆ fiche : « épingler à sa place » ajouté au menu « … »
+de la fiche d'un équipement, le verrou d'un coup à la fiche multiple ; (6) les raccourcis non codés du prototype
+(Ctrl+B, Ctrl+G, Ctrl+Maj+L) ne sont pas affichés ; ceux qui existent le sont (Ctrl+D, Suppr, Entrée) ; (7) pas de barre
+sur un voisin inconnu ni sur un fantôme du diff ; l'outil connecteur armé la cache ; (8) une sélection de cartes seules
+garde la règle des centres pour « centrer » et « milieu » (captures du lot 2 inchangées), le reste par les boîtes ;
+(9) Échap avec un volet ouvert le ferme d'abord, d'où que vienne le focus, avant de vider la sélection ; (10) le tableau
+n'a pas « fusionner » dans la barre (la plage vit dans la toile ; le menu contextuel le garde), comme le prototype.
+**Ctrl + .** : reçu par la page dans Chromium sans écran (parcours) ; Firefox non vérifié ; Alt+D (aligner à droite)
+est aussi « barre d'adresse » de Chrome et Firefox sous Linux et Windows : à vérifier à l'usage, comme Alt+T et le menu
+Outils de Firefox. **Mesures** (Chromium sans écran, trois passages) : du clic à la barre peinte, demo-dc 90 à 112 ms,
+500 équipements (`generate --seed 7`) 713 à 826 ms, l'essentiel étant la toile reconstruite à la sélection (dette du lot
+13) ; un panoramique de 1,6 s barre affichée, demo-dc 17,8 à 18,0 ms par image en moyenne (max 33), 500 équipements
+17,4 à 19,0 ms (max 33 à 100), contre 16,7 ms barre masquée ; la version de la toile ne bouge pas pendant un
+panoramique (la barre ne la reconstruit pas). **Tests** : trois tests Node (`floating.ts`), le parcours Chromium
+`tests/test_app_floating.py` (tout ce que l'acceptation demande, plus la teinte d'une sélection mixte, Alt + D, le volet
+d'une case d'Affichage) ; parcours existants adaptés sans perte d'assertion (`test_app.py`, `test_app_selection.py` :
+alignements par la barre) ; 23 mutations Node attrapées sur 23, 10 Chromium sur 11, la onzième équivalente (« barre en Contrôle » :
+`editable` l'exclut déjà). **Critique Impeccable à deux agents** : A 27/40 (P1 corrigés : teinte d'une sélection
+mixte, barre sur un tracé), B : détecteur sans constat, contrastes AA ; corrigés aussi : légende « posé → survolé »
+dans tous les volets, filet sur l'état allumé (P2 de B), `aria-haspopup="menu"` pour le volet des groupes, tabulation
+itinérante tenue par React, contour du focus dans le menu des groupes, Alt+T écrit (ligne d'état,
+`aria-keyshortcuts`). **Parqués** : « tirer un connecteur » crée un connecteur à bout libre (comme le menu contextuel
+et la fiche ; armer l'outil depuis l'équipement serait un changement du lot 1) ; l'infobulle d'une case de la seconde
+rangée se pose contre le volet, loin de la case ; les flèches dans un volet déplacent le focus sans cocher (rôles
+`radio` hérités de l'inspecteur) ; le `title` natif des pastilles double la légende ; Maj tenue cache la barre aussi
+pendant Maj + flèches ; trois carrés proches dans la barre d'une forme (remplissage, bordure, coins) ; la barre loin
+d'une grosse sélection (`docs/a-juger-a-l-usage.md`). Captures : `.impeccable/planche-lot-4/` (1 à 6), script
+`scripts/capture_lot4.py`.
 
 ### Lot 5 — Lisibilité des cartes : le nom, le niveau de détail (P0, S)
 

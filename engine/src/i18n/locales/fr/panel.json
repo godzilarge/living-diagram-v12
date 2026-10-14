@@ -93,7 +93,8 @@
     "beamTo": "faisceau vers",
     "aggregate": "agrégat",
     "collectionWord": "collecte {{state}}",
-    "rule": "règle"
+    "rule": "règle",
+    "pin": "épingler à sa place"
   },
   "link": {
     "kind": "Câble",

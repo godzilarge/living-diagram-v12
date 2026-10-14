@@ -133,22 +133,13 @@
     "insertTable": "insert a table",
     "insertImage": "insert an image",
     "imageFile": "image file (PNG, JPEG or WebP, 4 MB at most)",
-    "alignGroup": "align the selection",
     "selectionGroup": "the selection",
     "selected_one": "{{count}} device selected",
     "selected_other": "{{count}} devices selected",
     "clear": "clear the selection",
     "keys": "{{label}} ({{keys}})",
     "selectedItems_one": "{{count}} item selected",
-    "selectedItems_other": "{{count}} items selected",
-    "box": {
-      "left": "align left",
-      "center": "align centre",
-      "right": "align right",
-      "top": "align top",
-      "middle": "align middle",
-      "bottom": "align bottom"
-    }
+    "selectedItems_other": "{{count}} items selected"
   },
   "keys": {
     "escape": "Esc"
@@ -168,7 +159,9 @@
     "showOper": "down cables",
     "showStubs": "unknown neighbours",
     "showPins": "pins",
-    "showNotes": "annotations"
+    "showNotes": "annotations",
+    "editing": "editing",
+    "showFbar": "context bar"
   },
   "band": {
     "label": "archived runs of the infrastructure",
@@ -466,5 +459,120 @@
     "abandoned": "paste abandoned: the run or infrastructure shown changed, nothing was written to {{infrastructure}}",
     "abandonedAfter": "paste interrupted: the run or infrastructure shown changed; what was already written stays in {{infrastructure}}",
     "pasteFailed": "the clipboard was read, but its content could not be pasted"
+  },
+  "fbar": {
+    "label": "quick actions: {{what}}",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items",
+    "kinds": {
+      "note": "note",
+      "shape": "shape",
+      "table": "table",
+      "image": "image",
+      "connector": "connector",
+      "group": "group"
+    },
+    "hue": "hue",
+    "hueMixed": "mixed",
+    "typeDefault": "type default",
+    "plane": "layer",
+    "back": "behind",
+    "front": "in front",
+    "lock": "lock",
+    "unlock": "unlock",
+    "duplicate": "duplicate",
+    "delete": "delete",
+    "deleteKeepDevices": "delete the annotations (devices stay)",
+    "keyDelete": "Del",
+    "keyEdit": "Enter",
+    "shift": "Shift",
+    "textSize": "text size",
+    "textSizeOf": "text size: {{value}}",
+    "sizeS": "small",
+    "sizeM": "medium",
+    "sizeL": "large",
+    "bold": "bold",
+    "textAlignOf": "text alignment: {{value}}",
+    "textAligns": {
+      "left": "left",
+      "center": "centred",
+      "right": "right"
+    },
+    "fill": "fill",
+    "fillNone": "none",
+    "fillFull": "solid",
+    "border": "border",
+    "stroke": {
+      "solid": "solid",
+      "dashed": "dashed",
+      "dotted": "dotted",
+      "none": "no border"
+    },
+    "corners": "corners",
+    "square": "square",
+    "editLabel": "edit the label",
+    "addRow": "add a row",
+    "addColumn": "add a column",
+    "header": "first row as header",
+    "replace": "replace the image",
+    "imageFile": "new image (PNG, JPEG or WebP)",
+    "opacity": "opacity",
+    "heads": {
+      "none": "no arrowhead",
+      "end": "arrowhead at the end",
+      "start": "arrowhead at the start",
+      "both": "two arrowheads"
+    },
+    "route": "route",
+    "routes": {
+      "straight": "straight",
+      "elbow": "elbow",
+      "curve": "curve"
+    },
+    "width": "thickness",
+    "lineStyle": "line style",
+    "reverse": "reverse direction",
+    "shape": "shape",
+    "shapes": {
+      "rectangle": "rectangle",
+      "ellipse": "ellipse"
+    },
+    "labelPosition": "label position",
+    "selectMembers": "select the members",
+    "paintMembers": "apply the hue to the members",
+    "deleteGroup": "delete the group",
+    "pin": "pin in place",
+    "unpin": "remove the pin",
+    "group": "group",
+    "newGroup": "new group",
+    "newGroupOf_one": "new group of {{count}} device",
+    "newGroupOf_other": "new group of {{count}} devices",
+    "addTo": "add to",
+    "note": "attached note",
+    "connect": "draw a connector",
+    "hide": "hide this device and its cables",
+    "isolate": "isolate with its direct neighbours",
+    "hideSelection": "hide the selection",
+    "isolateSelection": "isolate with their neighbours",
+    "align": "align and distribute",
+    "box": {
+      "left": "align left",
+      "center": "centre horizontally",
+      "right": "align right",
+      "top": "align top",
+      "middle": "centre vertically",
+      "bottom": "align bottom",
+      "distribute-horizontal": "distribute horizontally",
+      "distribute-vertical": "distribute vertically"
+    },
+    "hidden": "context bar hidden · Ctrl+. to bring it back, Alt+T to call it here",
+    "shown": "context bar shown · Ctrl+. to hide it",
+    "lockedItems_one": "{{count}} item locked ({{author}})",
+    "lockedItems_other": "{{count}} items locked ({{author}})",
+    "unlockedItems_one": "{{count}} item unlocked ({{author}})",
+    "unlockedItems_other": "{{count}} items unlocked ({{author}})",
+    "hueOf": "hue: {{value}}",
+    "huedItems_one": "hue {{hue}} on {{count}} item ({{author}})",
+    "huedItems_other": "hue {{hue}} on {{count}} items ({{author}})"
   }
 }

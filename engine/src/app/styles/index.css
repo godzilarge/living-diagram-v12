@@ -1,4 +1,5 @@
-/* L'ordre compte : jetons, polices, socle, toile, interface, inspecteur (les fiches du panneau), journal (la vue Journal). */
+/* L'ordre compte : jetons, polices, socle, toile, interface, inspecteur (les fiches du panneau), journal (la vue Journal),
+   barre contextuelle (lot 4 de docs/11 ; elle reprend les jetons des contrôles de l'inspecteur). */
 @import "./tokens.css";
 @import "./fonts.css";
 @import "./base.css";
@@ -6,3 +7,4 @@
 @import "./app.css";
 @import "./inspector.css";
 @import "./journal.css";
+@import "./floating.css";

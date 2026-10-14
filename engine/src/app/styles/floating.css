@@ -1,0 +1,101 @@
+/* La barre contextuelle flottante (lot 4 de docs/11), d'après le prototype validé le 2026-10-14
+   (`.impeccable/prototype-lot-4/`). Une commande, donc un rectangle aux coins de 10 comme la barre d'outils, jamais une
+   capsule (la capsule est un fait, règle des pastilles). Plus relevée que la barre du haut (fond --bg-elev-2 et bordure
+   forte en sombre, blanc opaque en clair, contre du verre en haut) : on ne confond pas « agir sur la toile » et « agir
+   sur ceci ». Marge de 4 : 10 - 4 = 6, les coins des boutons sont concentriques. La place vient de variables posées par
+   le CSSOM (--fx, --fy, --cx ; --vx, --vy ; --tx, --ty), jamais d'un style en ligne. */
+:root {
+  --shadow-fbar: 0 6px 16px rgba(0, 0, 0, 0.42), 0 1px 2px rgba(0, 0, 0, 0.35); /* plus courte que --shadow : la barre colle à l'objet */
+  --t-fbar: 150ms;
+}
+:root[data-theme="light"] { --shadow-fbar: 0 6px 16px rgba(20, 27, 36, 0.13), 0 1px 2px rgba(20, 27, 36, 0.1); }
+
+.fbar { position: absolute; left: 0; top: 0; z-index: 28; transform: translate(var(--fx, 0px), var(--fy, 0px)); --fbar-bg: var(--bg-elev-2); --fbar-line: var(--line-strong); user-select: none; -webkit-user-select: none;
+  --fbar-on-line: color-mix(in srgb, var(--ink) 30%, var(--fbar-bg)); /* le filet d'un bouton allumé : l'état se lit sans le fond seul (critique B, P2) */ }
+:root[data-theme="light"] .fbar { --fbar-bg: #ffffff; --fbar-on-line: #8f9cae; }
+.fbar-body { position: relative; display: flex; align-items: center; gap: 2px; height: 36px; padding: 0 4px; border-radius: var(--r); background: var(--fbar-bg); border: 1px solid var(--fbar-line);
+  box-shadow: var(--shadow-fbar); white-space: nowrap;
+  --ctl-bg-hover: color-mix(in srgb, var(--ink) 9%, var(--fbar-bg)); --ctl-on: color-mix(in srgb, var(--ink) 18%, var(--fbar-bg)); }
+:root[data-theme="light"] .fbar-body { --ctl-bg-hover: #edf0f4; --ctl-on: #e3e8ef; --ctl-on-shadow: inset 0 0 0 1px #c9d2dd; }
+/* l'ergot : il pointe l'ancre (--cx), au bas de la barre quand elle est au-dessus, en haut quand elle est dessous */
+.fbar-caret { position: absolute; left: calc(var(--cx, 50%) - 4px); bottom: -5px; width: 8px; height: 8px; background: var(--fbar-bg);
+  border-right: 1px solid var(--fbar-line); border-bottom: 1px solid var(--fbar-line); transform: rotate(45deg); border-bottom-right-radius: 2px; pointer-events: none; }
+.fbar.below .fbar-caret { bottom: auto; top: -5px; border: 0; border-left: 1px solid var(--fbar-line); border-top: 1px solid var(--fbar-line); border-radius: 0; border-top-left-radius: 2px; }
+/* à côté d'un tracé (un connecteur vertical) : l'ergot sur le bord qui fait face à l'ancre, à sa hauteur (--cy) */
+.fbar.left .fbar-caret, .fbar.right .fbar-caret { top: calc(var(--cy, 18px) - 4px); bottom: auto; border: 0; border-radius: 0; }
+.fbar.left .fbar-caret { left: auto; right: -5px; border-top: 1px solid var(--fbar-line); border-right: 1px solid var(--fbar-line); border-top-right-radius: 2px; }
+.fbar.right .fbar-caret { left: -5px; border-bottom: 1px solid var(--fbar-line); border-left: 1px solid var(--fbar-line); border-bottom-left-radius: 2px; }
+/* l'arrivée : 150 ms, 4 px depuis l'objet ; seulement au passage de cachée à montrée (la classe est posée par la page) */
+.fbar.enter .fbar-body { animation: fbar-in var(--t-fbar) cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fbar.below.enter .fbar-body { animation-name: fbar-in-below; }
+@keyframes fbar-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes fbar-in-below { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes fbar-fade { from { opacity: 0; } to { opacity: 1; } }
+/* cachée pendant un geste, Maj tenue, ou son ancre hors de la zone : tout de suite, sans fondu ; elle ne prend plus le pointeur */
+.fbar.suspended, .fbar.offscreen { visibility: hidden; }
+
+.fb { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: none; border-radius: var(--ctl-r); color: var(--ink-2);
+  transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast); }
+.fb svg { width: 16px; height: 16px; flex: none; stroke-width: 1.75; }
+.fb:hover { background: var(--ctl-bg-hover); color: var(--ink); }
+.fb:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+/* l'actif (bascule allumée, volet ouvert) est relevé, jamais cyan : la grammaire de l'inspecteur */
+.fb[aria-pressed="true"], .fb[aria-expanded="true"] { background: var(--ctl-on); color: var(--ink); box-shadow: var(--ctl-on-shadow), inset 0 0 0 1px var(--fbar-on-line); }
+/* un bouton qui ouvre un volet porte un coin discret en bas à droite : il propose, il n'agit pas seul */
+.fb.opens::after { content: ""; position: absolute; right: 3px; bottom: 3px; border-style: solid; border-width: 0 0 5px 5px; border-color: transparent transparent var(--ink-3) transparent; }
+.fb.opens:hover::after, .fb.opens[aria-expanded="true"]::after { border-bottom-color: var(--ink-2); }
+.fb.danger:hover { color: var(--error); background: color-mix(in srgb, var(--error) 13%, transparent); }
+.fb-sep { width: 1px; height: 16px; margin: 0 4px; flex: none; background: var(--line); }
+.fb-hue { width: 14px; height: 14px; border-radius: 50%; background: var(--type); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); }
+.fb svg.fb-mix { width: 14px; height: 14px; }
+.fb-mix path { fill: var(--type); }
+.fb-mix-ring { fill: none; stroke: color-mix(in srgb, var(--ink) 18%, transparent); stroke-width: 1; }
+.glyph .g-line { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.glyph .g-fill { fill: currentColor; }
+.glyph .g-tint { fill: var(--type, currentColor); }
+
+/* ---------- les volets ---------- */
+.fvolet { position: absolute; left: 0; top: 0; z-index: 29; transform: translate(var(--vx, 0px), var(--vy, 0px)); min-width: 168px; padding: 8px; border-radius: var(--r); background: var(--bg-elev); border: 1px solid var(--line);
+  box-shadow: var(--shadow); animation: fbar-fade var(--t-fast) linear both; user-select: none; -webkit-user-select: none; }
+.volet-cap { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; height: 20px; margin: 0 2px 6px; font: 400 12px/20px var(--sans); color: var(--ink-3); white-space: nowrap; }
+.volet-cap b { font-weight: 500; color: var(--ink); }
+.fvolet .hue-volet { gap: 8px; }
+.fvolet .hue-grid { padding: 2px; justify-content: start; }
+.fvolet .hue-default { margin-top: 0; }
+.volet-seg { height: var(--ctl-h); }
+.volet-seg .seg-item { min-width: 34px; padding: 0 8px; }
+.volet-seg .glyph { width: 16px; height: 16px; }
+.seg-num { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+.seg-item[aria-checked="true"] .seg-num { color: var(--ink-2); }
+/* aligner et répartir : deux rangées (horizontal, vertical), la répartition séparée par un filet */
+.align-grid { display: grid; grid-template-columns: repeat(3, 32px); grid-auto-rows: 28px; gap: 4px; }
+.align-grid.cols-4 { grid-template-columns: repeat(3, 32px) 41px; }
+.vgrid-item { display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; color: var(--ink-2); background: var(--ctl-bg); }
+.vgrid-item svg { width: 16px; height: 16px; stroke-width: 1.75; }
+.vgrid-item:hover { color: var(--ink); background: var(--ctl-bg-hover); }
+.vgrid-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vgrid-item.dist { position: relative; margin-left: 9px; }
+.vgrid-item.dist::before { content: ""; position: absolute; left: -7px; top: 5px; bottom: 5px; width: 1px; background: var(--line); }
+.vmenu { display: flex; flex-direction: column; margin: -4px; }
+.vmenu-item { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 4px; font: 400 13px/18px var(--sans); color: var(--ink); text-align: left; white-space: nowrap; }
+.vmenu-item svg { width: 14px; height: 14px; color: var(--ink-2); flex: none; }
+.vmenu-item:hover { background: var(--ctl-bg-hover); }
+.vmenu-item:focus-visible { background: var(--ctl-bg-hover); outline: 2px solid var(--accent); outline-offset: -2px; }
+.vmenu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+.vmenu-label { padding: 2px 10px 4px; font: 400 11px/16px var(--sans); color: var(--ink-3); }
+
+/* ---------- l'infobulle : libellé · raccourci ---------- */
+.ftip { position: absolute; left: 0; top: 0; z-index: 31; transform: translate(var(--tx, 0px), var(--ty, 0px)); display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 9px;
+  border-radius: var(--ctl-r); background: var(--bg-elev-2); border: 1px solid var(--line-strong); box-shadow: var(--shadow-tip); white-space: nowrap; pointer-events: none;
+  font: 500 12px/1 var(--sans); color: var(--ink); animation: fbar-fade 90ms linear both; }
+:root[data-theme="light"] .ftip { background: #1a2330; border-color: #1a2330; color: #e7edf3; }
+.ftip-keys { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+.ftip-keys::before { content: "·"; margin-right: 8px; font-family: var(--sans); color: var(--ink-4); }
+:root[data-theme="light"] .ftip-keys { color: #a3b2c4; }
+:root[data-theme="light"] .ftip-keys::before { color: #68798f; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fbar.enter .fbar-body, .fbar.below.enter .fbar-body { animation: fbar-fade 120ms linear both; }
+  .fvolet { animation-duration: 100ms; }
+  .fb { transition: none; }
+}

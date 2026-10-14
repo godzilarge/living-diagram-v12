@@ -1,8 +1,9 @@
 // Le panneau Affichage (Orhan, 2026-10-07 : « une sorte de palette qui me permet d'afficher ou non des éléments, et qui
 // sera peut-être enrichie par la suite ») : les couches de la toile, chacune une bascule. Elles sont l'état de vue, donc
 // dans l'adresse (une vue se partage par un lien). Une couche de plus = une ligne de `LAYERS`. « Changements » reste
-// dans la barre, à côté des comptes du diff qu'il accompagne.
-import { CircleDashed, Gauge, Network, Pin, SlidersHorizontal, StickyNote, Tag, Unplug } from "lucide-react";
+// dans la barre, à côté des comptes du diff qu'il accompagne. La barre contextuelle (lot 4 de docs/11) s'y affiche ou
+// s'y masque aussi, mais c'est une préférence du navigateur (prefs.ts), jamais dans l'adresse ; Ctrl+. fait de même.
+import { CircleDashed, Gauge, Network, PanelTop, Pin, SlidersHorizontal, StickyNote, Tag, Unplug } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -69,6 +70,15 @@ function Panel({ onClose }: { onClose: () => void }) {
             })}
           </section>
         ))}
+        <section className="display-section">
+          <h2 className="display-title">{t("display.editing")}</h2>
+          <button type="button" role="switch" aria-checked={state.prefs.fbar ? "true" : "false"} aria-keyshortcuts="Control+." className="layer" onClick={() => commands.setPrefs({ fbar: !state.prefs.fbar })}>
+            <PanelTop className="layer-icon" aria-hidden="true" />
+            <span className="layer-label">{t("display.showFbar")}</span>
+            <kbd className="kbd layer-sample" aria-hidden="true">Ctrl+.</kbd>
+            <span className="switch" aria-hidden="true"><span className="knob" /></span>
+          </button>
+        </section>
       </div>
     </Dialog>
   );

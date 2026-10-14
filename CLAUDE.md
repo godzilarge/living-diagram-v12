@@ -1708,6 +1708,30 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   `Flow.tsx` 622 → 431 lignes (`flow-build.ts`). Backend 614 tests, 35 mutations ; mesuré : collage de 30 éléments
   0,2 s sur demo-dc, 1,5 s à 500 équipements (lot 13). Captures `.impeccable/planche-lot-3/`. Parqués : image retirée
   du magasin entre copie et collage (422), fantôme d'un tableau réduit à son cadre.
+- **Prototype du lot 4 (barre contextuelle) validé par Orhan** (2026-10-14 ; première application de la règle
+  « prototype avant le code » : un agent avec les skills frontend-design et impeccable, page autonome dans
+  `.impeccable/prototype-lot-4/`, revue de design indépendante appliquée avant remise). Réponses : D10 = A (alignements
+  seulement dans la barre contextuelle) ; **la barre et ses volets ne masquent jamais l'objet** ; coin des boutons à volet
+  gardé ; barre aussi sur un équipement seul ; aucune barre en lecture seule ; barre loin d'une grosse sélection = à
+  juger à l'usage. Ajout validé : barre masquable (préférence du navigateur, Ctrl + ., case dans Affichage, Alt+T la
+  rappelle). **Nouvelle liste `docs/a-juger-a-l-usage.md`** (demande d'Orhan) : ce qui se tranche en se servant de
+  l'application, pas sur capture. Détail : `docs/11` § Lot 4.
+- **Lot 4 livré : la barre contextuelle flottante** (2026-10-14, agent Opus avec les skills frontend-design et
+  impeccable, relu ; détail dans `docs/11` § Lot 4 « Fait »). Les réglages fréquents de la sélection sont dans une barre
+  posée au-dessus d'elle, rendu repris du prototype validé. **Couche à soi en coordonnées d'écran, pas `NodeToolbar`**
+  (zone visible, dessus / dessous, évitement des annotations et des tracés, ancre au milieu d'un connecteur, volets qui
+  ne masquent jamais l'objet) : `app/state/floating.ts` (pur), `components/FloatingBar.tsx`, `FloatingVolet.tsx`,
+  `canvas/gate.ts` (gestes en cours, retour 120 ms par une minuterie de la page) ; la barre suit la vue sans jamais
+  reconstruire la toile. D10 = A : plus d'alignements dans la barre haute (bouton « aligner et répartir » à volet,
+  Alt+A / H / D / W / V / S). Barre masquable (Ctrl + ., case dans Affichage, préférence `fbar`, Alt+T la rappelle).
+  Parité barre / fiche : épingler ici, teinte et verrou de toute une sélection en une écriture, aussi dans les fiches. La
+  fiche multiple nomme les bouts d'un connecteur sans identifiant ni coordonnée. Critique Impeccable à deux agents
+  (27/40, détecteur sans constat) : P1 corrigés (teinte d'une sélection mixte, barre sur le tracé d'un connecteur).
+  Backend 615 tests, 33 tests Node, 33 mutations ; mesuré : barre peinte 0,1 s après le clic sur demo-dc, 0,7-0,8 s à
+  500 équipements (toile reconstruite à la sélection : lot 13), panoramique sans surcoût de reconstruction. Captures
+  `.impeccable/planche-lot-4/`. Ajoutés à `docs/a-juger-a-l-usage.md` : Alt+D (barre d'adresse du navigateur) et Alt+T
+  (menu Outils de Firefox). Parqués (`docs/11`) : flèches dans un volet sans cocher, infobulle de la seconde rangée,
+  « tirer un connecteur » depuis la barre crée un bout libre.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -1762,6 +1786,8 @@ Détail : `docs/00-analyse-fondation.md` §10.
 - `docs/11-audit-ui-edition-et-plan.md` — **audit de l'interface d'édition et plan de rattrapage** (2026-10-13) : état
   réel, benchmark, lacunes, douze décisions à trancher, quinze lots écrits pour un agent (lot 0 = règles communes).
   **À valider par Orhan.** Annexes : `docs/revues/2026-10-13-*`, captures `.impeccable/planche-audit/`.
+- `docs/a-juger-a-l-usage.md` — **liste « à juger à l'usage »** (2026-10-14) : points qu'Orhan tranchera en se servant de
+  l'application ; comportement prudent en attendant ; un point en sort avec sa décision écrite.
 - `docs/11-prompt-agent-lot.md` — **gabarit de reprise** (2026-10-13) : le prompt de la session qui orchestre et le prompt
   de l'agent d'un lot ; une session Opus suffit pour la suite des lots.
 - `docs/06-evidence-table-mac.md` — **conception de l'évidence table MAC** (2026-10-03) : topic `mac_table` restreint au

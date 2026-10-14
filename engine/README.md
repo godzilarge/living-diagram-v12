@@ -93,7 +93,8 @@ engine/
         ├── canvas/                   la toile de l'application (2026-10-07, React Flow) : toile.ts (l'état et les commandes, sans DOM ni React),
         │                             Flow.tsx (React Flow : nœuds et arêtes depuis la toile, vue, appuis, bulle, grille, aimant, minimap), nodes.tsx
         │                             (carte, voisin inconnu, cadre de cluster), edges.tsx (câble, bande et étiquette de faisceau)
-        ├── components/               Shell (clavier, thème), TopBar (comptes, règles, changements, nom), Display (panneau Affichage : couches `LAYERS`), Timeline (bande), Palette (règle, actions), Panel +
+        ├── components/               Shell (clavier, thème), TopBar (comptes, règles, changements, nom), Display (panneau Affichage : couches `LAYERS`), Timeline (bande), Palette (règle, actions),
+        │                             FloatingBar + FloatingVolet + floating-faces (la barre contextuelle, lot 4 ; état pur dans state/floating.ts), Panel +
         │                             cards/ (équipement, câble, faisceau, cluster, agrégat, sélection multiple), Canvas (seul à monter la toile),
         │                             Controls (grille, aimant, minimap, cadrer, thème ; en bas à gauche), Connect, Toast
         ├── ui/                       bouton, bascule, badge, touche, champ, faits, section (maison, CSS à jetons)
@@ -234,9 +235,9 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   l'édition en place d'une note, de l'étiquette d'une forme ou du nom d'un groupe (double-clic de même ; un champ
   d'une ligne, `app/canvas/inline.tsx`) ; Tab / Maj+Tab passent à l'élément suivant dans l'ordre de lecture (haut
   gauche → bas droite) quand une sélection existe et que le focus est sur la toile, le focus suit le nœud (Échap vide
-  la sélection : Tab rend alors la main à la page). **Alignement** : des cartes seules gardent leurs quatre alignements
-  par les centres ; dès qu'une annotation est dans la sélection, la barre propose gauche, centre, droite, haut, milieu,
-  bas et les deux répartitions, par les boîtes (`canvas/align.ts`, `alignBoxes`, que `/view` n'embarque pas). La fiche
+  la sélection : Tab rend alors la main à la page). **Alignement** (dans la barre contextuelle depuis le lot 4) : des cartes seules gardent
+  la règle des centres (« centrer » = même x, « milieu » = même y) ; dès qu'une annotation est dans la sélection, gauche, centre, droite, haut, milieu,
+  bas et les deux répartitions se font par les boîtes (`canvas/align.ts`, `alignBoxes`, que `/view` n'embarque pas). La fiche
   d'une sélection mixte (`MultiCard`) compte par sorte ; dans un bloc, une note n'a pas ses poignées de taille.
 - **Le presse-papiers** (lot 3 de `docs/11`, 2026-10-14). **Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+D**, **Alt + glissé**, et
   dans le menu contextuel « copier », « couper », « coller ici », « dupliquer » avec leur raccourci écrit. Ce qui se
@@ -279,6 +280,43 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   natifs `copy`, `cut`, `paste` et Ctrl+D : `components/Shell.tsx` (dans un champ, ou avec du texte sélectionné dans
   la page, le navigateur garde la main). Ce que les nœuds de React Flow dessinent se calcule dans `app/canvas/flow-build.ts`
   (sorti de `Flow.tsx`).
+- **La barre contextuelle flottante** (lot 4 de `docs/11`, 2026-10-14 ; prototype validé `.impeccable/prototype-lot-4/`,
+  qui fait foi pour le rendu). Les réglages fréquents de l'élément sélectionné, à un clic, au-dessus de lui : une note
+  (teinte | taille S / M / L · gras · alignement du texte | plan · verrou | dupliquer · supprimer), une forme (teinte ·
+  remplissage · bordure · coins | étiquette | plan · verrou | dupliquer · supprimer), un tableau (ligne + · colonne + ·
+  en-tête | teinte | plan | supprimer), une image (remplacer · opacité | plan · verrou | supprimer), un connecteur
+  (pointes en cycle · tracé | teinte · épaisseur · style | inverser · verrou | supprimer), un groupe (teinte · forme ·
+  position de l'étiquette | sélectionner les membres · leur appliquer la teinte | supprimer), un équipement (teinte |
+  épingler à sa place / retirer l'épingle · grouper | note attachée · connecteur | masquer · isoler), une sélection
+  multiple (aligner et répartir, un bouton à volet de deux rangées, répartir à partir de trois | grouper · teinte, qui
+  colore tout ce qui en a une, équipements, annotations, connecteurs et groupes, en une écriture | dupliquer · supprimer
+  · verrou, ou masquer · isoler pour des équipements seuls). Le bouton teinte dit sa valeur (« teinte : ambre »), un
+  disque coupé quand la sélection en mêle deux. **Les alignements ont quitté la barre
+  d'outils du haut** (D10) ; raccourcis Alt + A / H / D / W / V / S, Alt + Maj + H / V. Tout ce que la barre fait,
+  l'inspecteur le fait (mêmes commandes du store, mêmes écritures, même pile d'annulation) : « épingler à sa place » est
+  aussi dans le menu « … » de la fiche d'un équipement, « verrouiller » et la teinte de toute la sélection dans la fiche
+  multiple. **Où** : au-dessus de la
+  sélection, 8 px plus haut, centrée ; dessous quand le haut manque ; jamais sous la barre du haut, la recherche, la
+  barre d'outils, le panneau ni la bande (zone lue dans le DOM) ; elle évite de couvrir une annotation (puis une carte,
+  moins pénalisée, et les étiquettes des connecteurs) ; un connecteur seul l'ancre au milieu de son tracé et de son
+  étiquette, son tracé échantillonné est un obstacle fort : un tracé vertical, la barre se pose à côté (`left` /
+  `right`) ; l'ergot pointe l'ancre. Les volets s'ouvrent
+  du côté de la barre opposé à la sélection, sinon au-delà de la sélection, sinon à côté de la barre : jamais sur
+  l'objet. **Quand** : jamais en Contrôle, sans nom, l'outil connecteur armé, sur un câble, un faisceau, un cluster, un
+  voisin inconnu ou un fantôme du diff ; cachée pendant tout geste (glissé, redimensionnement, rectangle, bout de
+  connecteur, Alt + glissé, édition en place : `app/canvas/gate.ts`) et Maj tenue, revenue 120 ms après ; l'arrivée
+  (150 ms, 4 px) ne se joue qu'au passage de cachée à montrée. **Masquer** : Ctrl + . ou la case « barre contextuelle »
+  du panneau Affichage (une préférence du navigateur, `fbar` dans `ld-prefs`, jamais dans l'adresse) ; la ligne d'état
+  dit la bascule ; masquée, Alt+T la rappelle pour la sélection en cours sans changer la préférence. **Clavier** : Alt+T
+  donne le focus à la barre (`role="toolbar"`), ← → Origine Fin la parcourent, ↓ ou ↑ ouvre un volet et y entre (← → ↑ ↓
+  dans sa grille), Échap ferme le volet (d'où que vienne le focus, avant de vider la sélection) puis rend la toile ;
+  chaque bouton a son nom, son raccourci (`aria-keyshortcuts`), son infobulle « libellé · raccourci ». **Le code** :
+  `state/floating.ts` (pur, testé sous Node : quels boutons pour quelle sélection et quel droit, la place de la barre et
+  des volets) ; `components/FloatingBar.tsx` (une couche à soi en coordonnées d'écran, plutôt que `NodeToolbar` de
+  React Flow : zone visible, dessous, évitement, ancre d'un connecteur, volets ; elle s'abonne à la vue et à la toile,
+  la toile ne la connaît pas), `FloatingVolet.tsx`, `floating-faces.tsx` (icônes et glyphes qui montrent la valeur),
+  `styles/floating.css` ; `HueGrid` et `PositionGrid` (`ui/inspector.tsx`) sont les grilles de l'inspecteur, partagées ;
+  `state/floating-commands.ts` (épingler ici, verrouiller une sélection).
 - **Une seule pastille** (`canvas/pill.ts`, `app/canvas/pill.tsx`, `.pill` dans `styles/app.css`) : tout fait court (rôle
   HA, stack, vitesse, MLAG, statut, gravité) a la même capsule ; seul le ton (`tone-*`) change. Une commande est un
   rectangle aux coins de 6, jamais une capsule. Les vitesses (`canvas/speed.ts`) et les faisceaux révélés au clic
@@ -365,6 +403,7 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   sombre ou clair (`data-theme` sur la racine, les deux palettes dans `tokens.css`), grille (lignes de 20 unités,
   `Background` de React Flow), aimant (un glissé s'aligne sur la grille, `snapToGrid`), minimap (`MiniMap` de React
   Flow, cartes colorées par type, cadre déplaçable). Réglées par `Controls`, en bas à gauche, avec « cadrer tout ».
+  La barre contextuelle affichée ou masquée (`fbar`, lot 4) se règle par Ctrl + . ou dans le panneau Affichage.
 - **La langue** (2026-10-10, `src/i18n/`) : **i18next + react-i18next**, sur une instance propre ; les composants lisent
   `t` par `useTranslation()` (espace `shell` par défaut, `useTranslation(["shell", "common"])` pour en lire un autre,
   clé `common:…`), un module TypeScript pur importe `t` de `i18n/`. Catalogues **embarqués** (un JSON par langue et par

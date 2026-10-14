@@ -10,6 +10,7 @@ import { labelMap } from "../../../i18n";
 import { BOUNDS, HEADS, LABEL, ROUTES, SIDES, SIDE_LABEL, isOrphan } from "../../../canvas/connectors";
 import type { Side } from "../../../canvas/connectors";
 import { FONTS, LABEL_COLORS, WEIGHTS } from "../../../canvas/groups";
+import { KIND_LABEL, summary as annotationSummary } from "../../../canvas/annotations";
 import { hueLabel } from "../../../canvas/hues";
 import type { Connector, ConnectorStyle, Model } from "../../../canvas/types";
 import { useEditable, useStore } from "../../state/store";
@@ -31,8 +32,9 @@ function EndText({ model, end }: { model: Model; end: Connector["start"] }) {
   if (end.kind === "free") return <span title={end.x + ", " + end.y}>{t("connector.freePoint")}</span>;
   if (end.kind === "device") return <HostLink hostname={end.ref} />;
   if (end.kind === "group") { const g = model.groupById.get(end.ref); return <>{t("connector.group")} {g ? <button type="button" className="linklike" onClick={() => commands.reveal({ kind: "group", id: end.ref })}>{g.label}</button> : <span>{end.ref}</span>}</>; }
+  // une annotation par son texte (ou sa sorte), jamais par son identifiant (lot 4 de docs/11, comme la fiche multiple)
   const a = model.annotationById.get(end.ref);
-  return <>{t("connector.annotation")} {a ? <button type="button" className="linklike mono" onClick={() => commands.reveal({ kind: "annotation", id: end.ref })}>{end.ref}</button> : <span className="mono">{end.ref}</span>}</>;
+  return a ? <button type="button" className="linklike" title={annotationSummary(a)} onClick={() => commands.reveal({ kind: "annotation", id: end.ref })}>{annotationSummary(a) || KIND_LABEL[a.content.kind]}</button> : <span>{t("connector.annotation")}</span>;
 }
 /** L'ancre d'un bout attaché : le contour vers l'autre bout, ou le milieu d'un côté (le tracé coudé en part perpendiculairement). */
 function SideSelect({ label, value, onChange }: { label: string; value: Side; onChange: (side: Side) => void }) {

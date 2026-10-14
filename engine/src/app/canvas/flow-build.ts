@@ -37,7 +37,7 @@ const Z_BACK = -40, Z_FRONT = 20;
 /** Le disque d'un voisin inconnu : la boîte que les câbles, les cadres et l'accrochage lisent. */
 export const STUB_BOX: Box = { w: STUB_R * 2, h: STUB_R * 2 };
 
-export interface Built { nodes: FlowNode[]; edges: FlowEdge[]; key: string; hasSelection: boolean; frames: Map<string, AFrame>; ends: Map<string, { a: Point; b: Point; mid?: Point }>; boxes: Map<string, Box> }
+export interface Built { nodes: FlowNode[]; edges: FlowEdge[]; key: string; hasSelection: boolean; frames: Map<string, AFrame>; ends: Map<string, { a: Point; b: Point; mid?: Point }>; boxes: Map<string, Box>; groups: Map<string, AFrame> }
 /** Ce que la page règle pour les annotations : peut-on écrire (sinon rien ne se glisse), et une boîte posée localement
  *  en attendant la réponse de l'API (un glissé ou un redimensionnement relâché ne saute pas en arrière). */
 /** `control` : la vue Contrôle (2026-10-09), où cadres, annotations et connecteurs restent dessinés mais inertes. Les
@@ -206,6 +206,6 @@ export function build(toile: Toile, local: AnnotationLocal): Built {
     return { ...e, domAttributes: { "aria-hidden": "true" } };
   };
   const edges: FlowEdge[] = (beams as FlowEdge[]).concat(cables, labels, speeds).map(spoken);
-  return { nodes: all, edges, key: selectionKey(all.filter((n) => n.selected), edges.filter((e) => e.selected)), hasSelection: !!sel || multi, frames: noteFrames, ends, boxes };
+  return { nodes: all, edges, key: selectionKey(all.filter((n) => n.selected), edges.filter((e) => e.selected)), hasSelection: !!sel || multi, frames: noteFrames, ends, boxes, groups: groupFrames };
 }
 

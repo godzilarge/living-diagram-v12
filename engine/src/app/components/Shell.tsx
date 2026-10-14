@@ -36,17 +36,18 @@ const typing = (target: EventTarget | null): boolean => {
 /** Le pas des flèches : un carreau de grille, cinq avec Maj. */
 export const NUDGE_STEP = GRID, NUDGE_FAST = GRID * 5;
 const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
-// Les flèches appartiennent à la bande des runs quand elle a le focus, et à aucun dialogue ouvert.
+// Les flèches appartiennent à la bande des runs quand elle a le focus, à la barre contextuelle et à ses volets (lot 4),
+// et à aucun dialogue ouvert.
 const elsewhere = (target: EventTarget | null): boolean => {
   const el = target as HTMLElement | null;
-  return typing(target) || (!!el && typeof el.closest === "function" && !!el.closest(".band, .menu, .sheet, .palette, [role=dialog]"));
+  return typing(target) || (!!el && typeof el.closest === "function" && !!el.closest(".band, .menu, .sheet, .palette, [role=dialog], .fbar, .fvolet"));
 };
 /** Le focus est-il sur la toile, ou sur la page elle-même (rien d'autre de focalisé) ? Tab et Entrée n'y sont à la
  *  toile que là : sur un bouton de la barre, ils gardent leur sens. */
 const onCanvas = (target: EventTarget | null): boolean => {
   const el = target as HTMLElement | null;
   if (!el || typeof el.closest !== "function") return true;
-  return el === document.body || el.classList.contains("app") || !!el.closest(".flow-host");
+  return el === document.body || el.classList.contains("app") || (!!el.closest(".flow-host") && !el.closest(".fbar, .fvolet"));
 };
 /** Le nœud React Flow d'un élément de la sélection : le focus y va (Tab). */
 const NODE_ID: Record<string, string> = { node: "", annotation: "annotation:", connector: "connector:", group: "group:" };

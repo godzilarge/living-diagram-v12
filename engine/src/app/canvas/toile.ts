@@ -122,6 +122,8 @@ export interface Toile {
   ends: Map<string, { a: Point; b: Point; mid?: Point }>;
   /** La boîte (largeur, hauteur) de chaque équipement dessiné : posée de même (`boxes`). */
   boxes: Map<string, { w: number; h: number }>;
+  /** Le cadre de chaque groupe dessiné, dans le plan : posé de même (`groupFrames`, lu par la barre contextuelle). */
+  groupFrames: Map<string, { x: number; y: number; w: number; h: number }>;
   /** Les boîtes d'annotations et les bouts libres de connecteurs posés localement, en attendant que le document les porte
    *  (Flow.tsx les lit au dessin et les oublie dès que le modèle est d'accord). */
   pending: Map<string, PendingBox>;
@@ -446,7 +448,7 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     return { x: Math.round((area.x + area.width / 2 - v.x) / v.zoom), y: Math.round((area.y + area.height / 2 - v.y) / v.zoom) };
   };
   const toile: Toile = {
-    model, state, version: () => version, frames: new Map(), ends: new Map(), boxes: new Map(), pending: new Map(), pendingEnds: new Map(), viewCenter, pointer: null,
+    model, state, version: () => version, frames: new Map(), ends: new Map(), boxes: new Map(), groupFrames: new Map(), pending: new Map(), pendingEnds: new Map(), viewCenter, pointer: null,
     subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     attach: (next) => { view = next; },
     scene: () => current || (current = visible(model, state.filters)),

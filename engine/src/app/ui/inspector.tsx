@@ -293,6 +293,46 @@ export function Switch({ label, checked, onChange, disabled }: { label: string; 
   );
 }
 
+/** La grille des douze teintes (6 × 2, ← → ↑ ↓) et « défaut » : le corps du choix d'une teinte, dans le volet d'un
+ *  champ de fiche (`HueField`) comme dans celui de la barre contextuelle (lot 4 de docs/11). `onPreview` : la teinte
+ *  survolée ou focalisée (`null` en sortant), pour l'annoncer avant de la poser. */
+export function HueGrid<H extends string>({ label, hues, names, value, inherited, onPick, onPreview, allowDefault = true, defaultLabel }: {
+  label: string; hues: readonly H[]; names: Record<string, string>; value: H | null; inherited: H | null; onPick: (hue: H | null) => void;
+  onPreview?: (hue: H | null) => void; allowDefault?: boolean; defaultLabel?: string;
+}) {
+  const grid = useRef<HTMLDivElement>(null);
+  const keys = (event: KeyboardEvent<HTMLDivElement>): void => {
+    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 6, ArrowUp: -6 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const all = Array.from(grid.current ? grid.current.querySelectorAll<HTMLElement>("button") : []);
+    const at = all.indexOf(document.activeElement as HTMLElement);
+    const next = all[Math.min(all.length - 1, Math.max(0, at + step))];
+    if (next) next.focus();
+  };
+  const preview = (hue: H | null) => (): void => { if (onPreview) onPreview(hue); };
+  const leave = (): void => { if (onPreview) onPreview(null); };
+  const focusable = value || inherited || hues[0];
+  return (
+    <div className="hue-volet" ref={grid} role="radiogroup" aria-label={label} onKeyDown={keys} onPointerLeave={leave}>
+      <div className="hue-grid">
+        {hues.map((hue) => (
+          <button key={hue} type="button" role="radio" className={cx("hue-swatch", "hue-" + hue, value === null && hue === inherited && "inherited")} aria-checked={value === hue ? "true" : "false"}
+            tabIndex={hue === focusable ? 0 : -1} aria-label={names[hue]} title={names[hue]} onClick={() => onPick(hue)} onPointerEnter={preview(hue)} onFocus={preview(hue)}>{value === hue ? <Check aria-hidden="true" /> : null}</button>
+        ))}
+      </div>
+      {allowDefault ? (
+        <button type="button" role="radio" className="menu-item hue-default" aria-checked={value === null ? "true" : "false"} tabIndex={-1} onClick={() => onPick(null)}>
+          <span className={cx("hue-dot", inherited && "hue-" + inherited)} aria-hidden="true" />
+          <span>{defaultLabel || t("panel:ui.default")}{inherited ? punct.colon() + names[inherited] : ""}</span>
+          {value === null ? <Check className="menu-check" aria-hidden="true" /> : null}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /** Une teinte nommée : le champ montre la pastille et le nom ; un clic ouvre la grille des douze et « défaut ».
  *  `inherited` : la teinte en vigueur quand rien n'est choisi (celle du type, ou du moteur). */
 export function HueField<H extends string>({ label, hues, names, value, inherited, onPick, allowDefault = true }: {
@@ -300,21 +340,12 @@ export function HueField<H extends string>({ label, hues, names, value, inherite
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const grid = useRef<HTMLDivElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
   const close = (): void => setOpen(false);
   useDismiss(open, close, box);
-  useEffect(() => { if (open && grid.current) { const on = grid.current.querySelector<HTMLElement>("[aria-checked='true']") || grid.current.querySelector<HTMLElement>("button"); if (on) on.focus(); } }, [open]);
+  useEffect(() => { if (open && pop.current) { const on = pop.current.querySelector<HTMLElement>("[aria-checked='true']") || pop.current.querySelector<HTMLElement>("button"); if (on) on.focus(); } }, [open]);
   const shown = value || inherited;
   const pick = (hue: H | null): void => { close(); if (hue !== value) onPick(hue); };
-  const keys = (event: KeyboardEvent<HTMLDivElement>): void => {
-    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 6, ArrowUp: -6 }[event.key];
-    if (!step) return;
-    event.preventDefault();
-    const all = Array.from(grid.current ? grid.current.querySelectorAll<HTMLElement>("button") : []);
-    const at = all.indexOf(document.activeElement as HTMLElement);
-    const next = all[Math.min(all.length - 1, Math.max(0, at + step))];
-    if (next) next.focus();
-  };
   return (
     <div className="ctl-hue" ref={box}>
       <button type="button" className="ctl hue-trigger" aria-haspopup="true" aria-expanded={open ? "true" : "false"} aria-label={label + punct.colon() + (shown ? names[shown] : t("panel:ui.none"))} onClick={() => setOpen(!open)}>
@@ -324,22 +355,36 @@ export function HueField<H extends string>({ label, hues, names, value, inherite
         <ChevronDown className="hue-chevron" aria-hidden="true" />
       </button>
       {open ? (
-        <div className="popover hue-pop" ref={grid} role="radiogroup" aria-label={label} onKeyDown={keys}>
-          <div className="hue-grid">
-            {hues.map((hue) => (
-              <button key={hue} type="button" role="radio" className={cx("hue-swatch", "hue-" + hue, value === null && hue === inherited && "inherited")} aria-checked={value === hue ? "true" : "false"}
-                aria-label={names[hue]} title={names[hue]} onClick={() => pick(hue)}>{value === hue ? <Check aria-hidden="true" /> : null}</button>
-            ))}
-          </div>
-          {allowDefault ? (
-            <button type="button" role="radio" className="menu-item hue-default" aria-checked={value === null ? "true" : "false"} onClick={() => pick(null)}>
-              <span className={cx("hue-dot", inherited && "hue-" + inherited)} aria-hidden="true" />
-              <span>{t("panel:ui.default")}{inherited ? punct.colon() + names[inherited] : ""}</span>
-              {value === null ? <Check className="menu-check" aria-hidden="true" /> : null}
-            </button>
-          ) : null}
+        <div className="popover hue-pop" ref={pop}>
+          <HueGrid label={label} hues={hues} names={names} value={value} inherited={inherited} allowDefault={allowDefault} onPick={pick} />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** La grille 3 × 3 d'une position parmi neuf (← → ↑ ↓) : le corps du choix, dans le volet d'un champ de fiche comme
+ *  dans celui de la barre contextuelle. */
+export function PositionGrid<T extends string>({ label, options, names, value, onPick, onPreview }: {
+  label: string; options: readonly T[]; names: Record<string, string>; value: T; onPick: (value: T) => void; onPreview?: (value: T | null) => void;
+}) {
+  const grid = useRef<HTMLDivElement>(null);
+  const keys = (event: KeyboardEvent<HTMLDivElement>): void => {
+    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 3, ArrowUp: -3 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const all = Array.from(grid.current ? grid.current.querySelectorAll<HTMLElement>("button") : []);
+    const from = all.indexOf(document.activeElement as HTMLElement);
+    const next = all[Math.min(all.length - 1, Math.max(0, from + step))];
+    if (next) next.focus();
+  };
+  return (
+    <div className="pos-grid" ref={grid} role="radiogroup" aria-label={label} onKeyDown={keys} onPointerLeave={() => { if (onPreview) onPreview(null); }}>
+      {options.map((option) => (
+        <button key={option} type="button" role="radio" className="pos9-cell" aria-checked={option === value ? "true" : "false"} aria-label={names[option] || option} title={names[option] || option}
+          tabIndex={option === value ? 0 : -1} onClick={() => onPick(option)} onPointerEnter={() => { if (onPreview) onPreview(option); }} onFocus={() => { if (onPreview) onPreview(option); }}><span className="pos9-dot" /></button>
+      ))}
     </div>
   );
 }
@@ -349,20 +394,11 @@ export function HueField<H extends string>({ label, hues, names, value, inherite
 export function PositionField<T extends string>({ label, options, names, value, onPick }: { label: string; options: readonly T[]; names: Record<string, string>; value: T; onPick: (value: T) => void }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const grid = useRef<HTMLDivElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
   const close = (): void => setOpen(false);
   useDismiss(open, close, box);
-  useEffect(() => { if (open && grid.current) { const on = grid.current.querySelector<HTMLElement>("[aria-checked='true']"); if (on) on.focus(); } }, [open]);
+  useEffect(() => { if (open && pop.current) { const on = pop.current.querySelector<HTMLElement>("[aria-checked='true']"); if (on) on.focus(); } }, [open]);
   const at = options.indexOf(value);
-  const keys = (event: KeyboardEvent<HTMLDivElement>): void => {
-    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 3, ArrowUp: -3 }[event.key];
-    if (!step) return;
-    event.preventDefault();
-    const all = Array.from(grid.current ? grid.current.querySelectorAll<HTMLElement>("button") : []);
-    const from = all.indexOf(document.activeElement as HTMLElement);
-    const next = all[Math.min(all.length - 1, Math.max(0, from + step))];
-    if (next) next.focus();
-  };
   return (
     <div className="ctl-pos" ref={box}>
       <button type="button" className="ctl pos-trigger" aria-haspopup="true" aria-expanded={open ? "true" : "false"} aria-label={label + punct.colon() + (names[value] || value)} onClick={() => setOpen(!open)}>
@@ -371,11 +407,8 @@ export function PositionField<T extends string>({ label, options, names, value, 
         <ChevronDown className="hue-chevron" aria-hidden="true" />
       </button>
       {open ? (
-        <div className="popover pos-pop" ref={grid} role="radiogroup" aria-label={label} onKeyDown={keys}>
-          {options.map((option) => (
-            <button key={option} type="button" role="radio" className="pos9-cell" aria-checked={option === value ? "true" : "false"} aria-label={names[option] || option} title={names[option] || option}
-              onClick={() => { close(); if (option !== value) onPick(option); }}><span className="pos9-dot" /></button>
-          ))}
+        <div className="popover pos-pop" ref={pop}>
+          <PositionGrid label={label} options={options} names={names} value={value} onPick={(option) => { close(); if (option !== value) onPick(option); }} />
         </div>
       ) : null}
     </div>

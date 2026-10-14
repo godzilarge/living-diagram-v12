@@ -35,6 +35,8 @@ import { journalCommands } from "./journal-commands";
 import type { JournalCommands } from "./journal-commands";
 import { clipboardCommands } from "./clipboard-commands";
 import type { ClipboardCommands } from "./clipboard-commands";
+import { floatingCommands } from "./floating-commands";
+import type { FloatingCommands } from "./floating-commands";
 import { debug } from "./debug";
 import { readPrefs, writePrefs } from "./prefs";
 import type { Prefs } from "./prefs";
@@ -46,7 +48,7 @@ import { said } from "./said";
 
 export interface CanvasHandle { toile: Toile; intents: IntentHost; placements: PlacementHost; writer: AppWriter; placer: Placer | null; undo: Undo }
 
-export interface Commands extends JournalCommands, ClipboardCommands {
+export interface Commands extends JournalCommands, ClipboardCommands, FloatingCommands {
   connect: (fields: { token: string; infrastructure: string; author: string }) => void;
   listRuns: () => void;
   openRun: (runId: string, from: string) => void;
@@ -496,6 +498,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       ...clipboardCommands({
         dispatch, current, session, handle: () => handleRef.current, pasteForeign: (data) => commands.paste(data),
       }),
+      ...floatingCommands({ handle: () => handleRef.current }),
       selectedHosts: () => current().hosts,
       resetMoves: () => { const g = graph(); if (g) { g.resetPins(); dispatch({ type: "touched" }); } },
       undo: () => { if (handleRef.current) void handleRef.current.undo.undo(); },

@@ -5,6 +5,7 @@
 import { createRoot } from "react-dom/client";
 import { alignment, boxAlignment } from "../canvas/align";
 import { selecting } from "./state/selection";
+import { floating } from "./state/floating";
 import { clipboard } from "./state/clipboard";
 import { wheel } from "./canvas/wheel";
 import { query } from "../canvas/query";
@@ -32,7 +33,7 @@ import "@xyflow/react/dist/base.css";
 import "./styles/index.css";
 import "./styles/flow.css";
 
-export const LDApp = { address, clipboard, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reducer, initialState, query, alignment, boxAlignment, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
+export const LDApp = { address, clipboard, floating, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reducer, initialState, query, alignment, boxAlignment, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
   i18n: { LANGUAGES, detectLanguage, effectiveLanguage, setLanguage, language: () => i18n.language, t } };
 (globalThis as unknown as { LDApp: typeof LDApp }).LDApp = LDApp;
 

@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "context", "debug", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "context", "debug", "floating", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -254,13 +254,15 @@ test("les règles et l'alignement de la toile sont ceux du moteur", () => {
 
 test("les préférences du navigateur se lisent avec tolérance et passent par le réducteur", () => {
   const { prefs, reducer, initialState } = loadApp();
-  assert.deepEqual(clone(prefs.defaultPrefs()), { theme: "dark", language: null, grid: false, snap: false, minimap: true, panelWidth: 348 }, "sombre, langue du navigateur, sans grille ni aimant, minimap, panneau de 348");
+  assert.deepEqual(clone(prefs.defaultPrefs()), { theme: "dark", language: null, grid: false, snap: false, minimap: true, panelWidth: 348, fbar: true }, "sombre, langue du navigateur, sans grille ni aimant, minimap, panneau de 348, barre contextuelle affichée");
+  assert.equal(prefs.parsePrefs('{"fbar":false}').fbar, false, "la barre contextuelle masquée se relit (lot 4)");
+  assert.equal(prefs.parsePrefs('{"fbar":"non"}').fbar, true, "une valeur illisible : affichée");
   assert.equal(prefs.parsePrefs('{"panelWidth":5000}').panelWidth, 760, "une largeur hors bornes est ramenée au plafond");
   assert.equal(prefs.parsePrefs('{"panelWidth":"large"}').panelWidth, 348, "une largeur illisible vaut le défaut");
   assert.deepEqual(clone(prefs.parsePrefs(null)), clone(prefs.defaultPrefs()), "rien de rangé : les défauts");
   assert.deepEqual(clone(prefs.parsePrefs("{pas du json")), clone(prefs.defaultPrefs()), "texte illisible : les défauts");
   assert.deepEqual(clone(prefs.parsePrefs('{"theme":"light","grid":true,"snap":"oui","minimap":false,"autre":1}')),
-    { theme: "light", language: null, grid: true, snap: false, minimap: false, panelWidth: 348 }, "un champ mal formé vaut son défaut, un champ inconnu est ignoré");
+    { theme: "light", language: null, grid: true, snap: false, minimap: false, panelWidth: 348, fbar: true }, "un champ mal formé vaut son défaut, un champ inconnu est ignoré");
   assert.equal(prefs.parsePrefs('{"theme":"sepia"}').theme, "dark", "un thème inconnu vaut le défaut");
   const start = initialState();
   const lit = reducer(start, { type: "prefs", patch: { theme: "light" } });
@@ -965,4 +967,195 @@ test("coller, après revue (clipboard.ts) : ancre d'ici (M5), identités vérifi
   const heavy = c.payloadOf({ infrastructure: "lab", annotations: Array.from({ length: 300 }, (_, i) => { const a = noteA("a1-" + i, { content: { kind: "note", text: "é".repeat(1990) } }); return { a, frame: frameOf(a) }; }), connectors: [], hosts: [] });
   assert.ok(JSON.stringify(heavy).length < 2 * 1024 * 1024, "admis par la garde de lecture");
   assert.equal(c.pastePlan(heavy, target("lab"), { x: 0, y: 0 }).reason, "too_big", "refusé avant l'envoi");
+});
+
+// ——— La barre contextuelle (lot 4 de docs/11) ———
+function floatingModel() {
+  const style = { hue: "amber", fill_opacity: 25, stroke_style: "solid", stroke_width: 1, radius: 6, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" };
+  const note = { id: "a1-1", anchor: { kind: "free", ref: null }, x: 0, y: 0, w: 200, h: 80, z: "front", locked: false, leader: false, content: { kind: "note", text: "Baie" }, style };
+  const attached = { ...note, id: "a1-2", anchor: { kind: "device", ref: "sw-core-01" } };
+  const ellipse = { ...note, id: "a1-3", content: { kind: "shape", shape: "ellipse", label: "" } };
+  const rect = { ...note, id: "a1-4", content: { kind: "shape", shape: "rectangle", label: "Baie 12" } };
+  const table = { ...note, id: "a1-5", content: { kind: "table", header: true, rows: [["a", "b"]], widths: null, heights: null, merges: [] } };
+  const image = { ...note, id: "a1-6", locked: true, content: { kind: "image", asset: "x".repeat(64), alt: "" } };
+  const line = { id: "c1-1", start: { kind: "free", x: 0, y: 0 }, end: { kind: "annotation", ref: "a1-1", side: "auto" }, heads: { start: "none", end: "arrow" }, route: "straight", bend: 0, z: "front", locked: false, label: "", style: { hue: "slate", stroke_style: "solid", stroke_width: 2, opacity: 100 } };
+  const group = { id: "g1-1", label: "Cœurs", members: ["sw-core-01", "sw-core-02"], style: { hue: "indigo", shape: "rectangle", label_position: "top_left" } };
+  const node = (hostname, extra = {}) => [hostname, { hostname, kind: "device", type: "switch", ...extra }];
+  return {
+    annotationById: new Map([note, attached, ellipse, rect, table, image].map((a) => [a.id, a])), connectorById: new Map([[line.id, line]]), groupById: new Map([[group.id, group]]),
+    nodeByHost: new Map([node("sw-core-01"), node("sw-core-02"), node("fw-01", { type: "firewall" }), node("phone-1", { kind: "stub", type: null }), node("old-sw", { ghost: true })]),
+    colorByHost: new Map([["fw-01", { hue: "red" }]]), colorByType: new Map(), pinByHost: new Map([["sw-core-02", { x: 0, y: 0 }]]), groupsByHost: new Map([["sw-core-01", [group]]]),
+  };
+}
+
+test("la barre contextuelle (floating.ts) : quelle sélection en a une, pour quel droit ; les boutons de chaque sorte", () => {
+  const { floating: f, selecting: sel } = loadApp();
+  const model = floatingModel();
+  const none = sel.empty();
+  const one = (kind, id) => f.targetOf(model, { kind, id }, sel.multiOf([{ kind: kind === "node" ? "node" : kind, id }]));
+  assert.equal(one("annotation", "a1-1").kind, "annotation");
+  assert.equal(one("connector", "c1-1").kind, "connector");
+  assert.equal(one("group", "g1-1").kind, "group");
+  assert.equal(one("node", "sw-core-01").kind, "device");
+  assert.equal(one("node", "phone-1"), null, "un voisin inconnu n'a pas de barre");
+  assert.equal(one("node", "old-sw"), null, "ni un fantôme du diff");
+  assert.equal(f.targetOf(model, { kind: "link", id: "x" }, none), null, "ni un câble");
+  assert.equal(f.targetOf(model, { kind: "cluster", id: "x" }, none), null, "ni un cluster");
+  assert.equal(f.targetOf(model, null, sel.multiOf([{ kind: "node", id: "sw-core-01" }, { kind: "annotation", id: "a1-1" }])).kind, "multi");
+  const ctx = { editable: true, control: false, tool: false, preferred: true, summoned: false };
+  assert.equal(f.shows(ctx), true);
+  assert.equal(f.shows({ ...ctx, control: true }), false, "en Contrôle : jamais");
+  assert.equal(f.shows({ ...ctx, editable: false }), false, "sans nom : jamais");
+  assert.equal(f.shows({ ...ctx, tool: true }), false, "l'outil connecteur armé prend la toile");
+  assert.equal(f.shows({ ...ctx, preferred: false }), false, "masquée par préférence");
+  assert.equal(f.shows({ ...ctx, preferred: false, summoned: true }), true, "Alt+T la rappelle");
+  const ids = (target) => clone(f.entriesOf(model, target).map((e) => e.id));
+  assert.deepEqual(ids(one("annotation", "a1-1")), ["hue", "sep", "text_size", "bold", "text_align", "sep", "plane", "lock", "sep", "duplicate", "delete"], "la note");
+  assert.deepEqual(ids(one("annotation", "a1-2")), ["hue", "sep", "text_size", "bold", "text_align", "sep", "lock", "sep", "duplicate", "delete"], "attachée : pas de plan (lot 1)");
+  assert.deepEqual(ids(one("annotation", "a1-3")), ["hue", "fill_opacity", "stroke_style", "sep", "edit_label", "sep", "plane", "lock", "sep", "duplicate", "delete"], "une ellipse n'a pas de coins");
+  assert.deepEqual(ids(one("annotation", "a1-4")), ["hue", "fill_opacity", "stroke_style", "radius", "sep", "edit_label", "sep", "plane", "lock", "sep", "duplicate", "delete"], "la forme");
+  assert.deepEqual(ids(one("annotation", "a1-5")), ["add_row", "add_column", "header", "sep", "hue", "sep", "plane", "sep", "delete"], "le tableau");
+  assert.deepEqual(ids(one("annotation", "a1-6")), ["replace", "opacity", "sep", "plane", "lock", "sep", "delete"], "l'image");
+  assert.deepEqual(ids(one("connector", "c1-1")), ["heads", "route", "sep", "hue", "stroke_width", "line_style", "sep", "reverse", "lock", "sep", "delete"], "le connecteur");
+  assert.deepEqual(ids(one("group", "g1-1")), ["hue", "shape", "label_position", "sep", "select_members", "paint_members", "sep", "delete"], "le groupe");
+  assert.deepEqual(ids(one("node", "sw-core-01")), ["hue", "sep", "pin", "group", "sep", "note", "connect", "sep", "hide", "isolate"], "l'équipement");
+  const entries = (target) => f.entriesOf(model, target);
+  const by = (target, id) => entries(target).find((e) => e.id === id);
+  assert.equal(by(one("annotation", "a1-6"), "lock").pressed, true, "verrouillée : la bascule est enfoncée");
+  assert.equal(by(one("annotation", "a1-1"), "text_size").volet.value, "13");
+  assert.deepEqual(clone(by(one("annotation", "a1-1"), "text_size").volet.options.map((o) => o.value)), ["12", "13", "15"]);
+  assert.equal(by(one("annotation", "a1-1"), "delete").keys, "Suppr");
+  assert.equal(by(one("annotation", "a1-1"), "delete").aria, "Delete");
+  assert.equal(by(one("annotation", "a1-1"), "duplicate").aria, "Control+D");
+  assert.equal(by(one("node", "sw-core-02"), "pin").label, "retirer l'épingle", "épinglé : la bascule retire l'épingle");
+  assert.equal(by(one("node", "sw-core-02"), "pin").pressed, true);
+  assert.deepEqual(clone(by(one("node", "sw-core-01"), "group").volet.groups), [], "un groupe dont il est déjà membre n'est pas proposé");
+  const fw = by(one("node", "fw-01"), "hue").volet;
+  assert.deepEqual([fw.value, fw.inherited, fw.allowDefault], ["red", "violet", true], "sa teinte, celle du type en dessous, « défaut du type »");
+  assert.equal(by(one("annotation", "a1-1"), "hue").label, "teinte : ambre", "le bouton teinte dit sa valeur");
+  assert.equal(f.barLabel(one("annotation", "a1-1")), "actions rapides : note");
+  assert.equal(f.barLabel(one("node", "fw-01")), "actions rapides : fw-01");
+});
+
+test("la barre contextuelle, sélection multiple : aligner et répartir, grouper, teinte ; dupliquer, supprimer, verrou ; ou masquer et isoler", () => {
+  const { floating: f, selecting: sel } = loadApp();
+  const model = floatingModel();
+  const many = (items) => f.targetOf(model, null, sel.multiOf(items));
+  const ids = (target) => clone(f.entriesOf(model, target).map((e) => e.id));
+  const two = many([{ kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }]);
+  assert.deepEqual(ids(two), ["align", "sep", "group", "hue", "sep", "hide", "isolate"], "des équipements seuls : ni dupliquer, ni supprimer, ni verrou");
+  const align = f.entriesOf(model, two).find((e) => e.id === "align").volet;
+  assert.deepEqual(clone(align.rows.map((r) => r.map((c) => c.mode))), [["left", "center", "right"], ["top", "middle", "bottom"]], "à deux, pas de répartition");
+  const mixed = many([{ kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }, { kind: "annotation", id: "a1-1" }, { kind: "connector", id: "c1-1" }]);
+  assert.deepEqual(ids(mixed), ["align", "sep", "group", "hue", "sep", "duplicate", "delete", "lock"], "mixte");
+  const rows = f.entriesOf(model, mixed).find((e) => e.id === "align").volet.rows;
+  assert.deepEqual(clone(rows.map((r) => r.map((c) => c.mode))), [["left", "center", "right", "distribute-horizontal"], ["top", "middle", "bottom", "distribute-vertical"]], "à trois, répartir");
+  assert.deepEqual(clone(rows[0].map((c) => c.keys)), ["Alt+A", "Alt+H", "Alt+D", "Alt+Maj+H"]);
+  assert.equal(rows[0][3].aria, "Alt+Shift+H");
+  assert.equal(f.entriesOf(model, mixed).find((e) => e.id === "delete").label, "supprimer les annotations (les équipements restent)");
+  assert.equal(f.movableCount(model, sel.multiOf([{ kind: "node", id: "old-sw" }, { kind: "annotation", id: "a1-6" }, { kind: "node", id: "sw-core-01" }])).count, 1, "ni un fantôme, ni une annotation verrouillée ne s'alignent");
+  const notes = many([{ kind: "annotation", id: "a1-1" }, { kind: "annotation", id: "a1-4" }]);
+  assert.deepEqual(ids(notes), ["align", "sep", "hue", "sep", "duplicate", "delete", "lock"], "des annotations seules : pas de groupe ; la teinte (prototype validé)");
+  const locked = many([{ kind: "annotation", id: "a1-6" }, { kind: "group", id: "g1-1" }]);
+  assert.deepEqual(ids(locked), ["hue", "sep", "duplicate", "delete", "lock"], "une image verrouillée et un groupe : rien ne s'aligne (le cadre n'est pas une boîte qui bouge seule)");
+  assert.equal(f.entriesOf(model, locked).find((e) => e.id === "lock").label, "déverrouiller", "l'image verrouillée : le verrou propose de l'ouvrir");
+  assert.deepEqual(ids(many([{ kind: "group", id: "g1-1" }, { kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }])), ["align", "sep", "group", "hue", "sep", "delete"], "un groupe avec ses membres : supprimer le groupe, les équipements restent");
+  const lockedTwo = f.targetOf({ ...model, annotationById: new Map([...model.annotationById].map(([k, a]) => [k, { ...a, locked: true }])) }, null, sel.multiOf([{ kind: "annotation", id: "a1-1" }, { kind: "annotation", id: "a1-4" }]));
+  const lockButton = f.entriesOf({ ...model, annotationById: new Map([...model.annotationById].map(([k, a]) => [k, { ...a, locked: true }])) }, lockedTwo).find((e) => e.id === "lock");
+  assert.equal(lockButton.pressed, true, "toutes verrouillées : la bascule est enfoncée");
+  assert.equal(lockButton.label, "déverrouiller");
+  const half = f.entriesOf(model, many([{ kind: "annotation", id: "a1-1" }, { kind: "annotation", id: "a1-6" }])).find((e) => e.id === "lock");
+  assert.deepEqual([half.pressed, half.label], [false, "verrouiller"], "une seule verrouillée sur deux : le verrou propose de tout verrouiller");
+  const hues = f.entriesOf(model, many([{ kind: "node", id: "sw-core-01" }, { kind: "node", id: "fw-01" }])).find((e) => e.id === "hue");
+  assert.deepEqual(clone(hues.face.hues), ["red", "blue"], "teintes mêlées : un disque coupé (dans l'ordre des équipements)");
+  assert.equal(hues.volet.value, null, "pas de teinte commune posée");
+  assert.equal(hues.label, "teinte : mixte");
+  // la teinte d'une sélection mixte : tout ce qui en a une ; « défaut » pour des équipements seuls
+  const mix = f.multiHues(model, sel.multiOf([{ kind: "node", id: "sw-core-01" }, { kind: "annotation", id: "a1-1" }, { kind: "group", id: "g1-1" }]), ["sw-core-01"]);
+  assert.deepEqual(clone(mix), { effective: ["blue", "amber", "indigo"], value: null, inherited: null, devicesOnly: false });
+  const same = f.multiHues(model, sel.multiOf([{ kind: "annotation", id: "a1-1" }, { kind: "annotation", id: "a1-4" }]), []);
+  assert.deepEqual(clone(same), { effective: ["amber"], value: "amber", inherited: "amber", devicesOnly: false }, "deux notes ambre : la teinte posée commune");
+  assert.equal(f.multiHues(model, sel.multiOf([{ kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }]), ["sw-core-01", "sw-core-02"]).devicesOnly, true);
+  assert.equal(f.multiHues(model, sel.empty(), []), null, "rien qui se colore");
+  // les raccourcis : la lettre lue, sinon la touche (Option sous macOS donne « å ») ; Maj pour répartir
+  assert.equal(f.alignFromKey("a", "KeyQ", false), "left", "AZERTY : la lettre A");
+  assert.equal(f.alignFromKey("å", "KeyA", false), "left");
+  assert.equal(f.alignFromKey("H", "KeyH", true), "distribute-horizontal");
+  assert.equal(f.alignFromKey("v", "KeyV", false), "middle");
+  assert.equal(f.alignFromKey("t", "KeyT", false), null, "Alt+T est le focus de la barre");
+  // une sélection de cartes seules garde la règle des centres (lot 2)
+  assert.equal(f.alignCommand("center", true), "vertical");
+  assert.equal(f.alignCommand("middle", true), "horizontal");
+  assert.equal(f.alignCommand("center", false), "center");
+  assert.equal(f.alignCommand("left", true), "left");
+  // les cycles
+  assert.deepEqual(clone(f.nextHeads({ heads: { start: "none", end: "arrow" } })), { start: "arrow", end: "none" });
+  assert.deepEqual(clone(f.nextHeads({ heads: { start: "arrow", end: "arrow" } })), { start: "none", end: "none" });
+  assert.equal(f.nextTextAlign("left"), "center");
+  assert.equal(f.nextTextAlign("right"), "left");
+  assert.equal(f.selectionKey(null, sel.empty()), "");
+});
+
+test("la barre contextuelle, où : au-dessus, sinon dessous, jamais hors de la zone ; elle évite une annotation ; un connecteur s'ancre au milieu", () => {
+  const { floating: f, selecting: sel } = loadApp();
+  const zone = { left: 8, top: 100, right: 1000, bottom: 800 };
+  const anchor = { x: 400, y: 400, w: 200, h: 80 };
+  const top = f.placeBar(anchor, 280, zone, []);
+  assert.deepEqual(clone(top), { x: 360, y: 356, below: false, side: "above", covers: 0, caret: 140, caretY: 26 }, "centrée, 8 au-dessus (36 de haut)");
+  const low = f.placeBar({ ...anchor, y: 120 }, 280, zone, []);
+  assert.equal(low.below, true, "le haut manque : dessous");
+  assert.equal(low.y, 120 + 80 + 8);
+  assert.equal(f.placeBar({ ...anchor, y: 900 }, 280, zone, []), null, "l'ancre hors de la zone : pas de place");
+  const tall = f.placeBar({ x: 400, y: 110, w: 200, h: 680 }, 280, zone, []);
+  assert.deepEqual([tall.y, tall.below], [100, false], "ni dessus ni dessous : en haut de la zone");
+  // une annotation au-dessus, centrée : la barre passe dessous (passer dessous coûte moins que la couvrir)
+  const note = { box: { x: 420, y: 330, w: 160, h: 60 }, weight: 1 };
+  const avoided = f.placeBar(anchor, 280, zone, [note]);
+  assert.equal(avoided.below, true);
+  assert.equal(avoided.covers, 0);
+  // une petite carte qui déborde à peine : se décaler un peu coûte moins
+  const card = { box: { x: 620, y: 350, w: 100, h: 20 }, weight: 0.5 };
+  const shifted = f.placeBar(anchor, 280, zone, [card]);
+  assert.deepEqual([shifted.below, shifted.covers], [false, 0]);
+  assert.equal(shifted.x < 360 && shifted.x + 280 <= 612, true, "décalée juste assez à gauche");
+  assert.equal(shifted.caret > 140, true, "l'ergot pointe toujours l'ancre");
+  // un connecteur : son tracé est un obstacle fort ; vertical, la barre se pose à côté (jamais sur l'objet) ;
+  // horizontal, au-dessus
+  const mid = { x: 499, y: 389, w: 2, h: 22 };
+  const vertical = Array.from({ length: 20 }, (_, i) => ({ box: { x: 497, y: 300 + 10 * i, w: 6, h: 6 }, weight: 40 }));
+  const side = f.placeBar(mid, 280, zone, vertical, true);
+  assert.deepEqual([side.side, side.covers, side.y, side.caretY], ["left", 0, 382, 18], "à gauche du tracé, centrée sur son milieu");
+  assert.equal(side.x + 280 + 8, 499);
+  const horizontal = Array.from({ length: 20 }, (_, i) => ({ box: { x: 400 + 10 * i, y: 397, w: 6, h: 6 }, weight: 40 }));
+  assert.equal(f.placeBar(mid, 280, zone, horizontal, true).side, "above", "un tracé horizontal : au-dessus");
+  assert.equal(f.placeBar(mid, 280, zone, vertical, false).side !== "left", true, "sans `beside`, jamais à côté");
+  const edge = f.placeBar({ x: 10, y: 400, w: 20, h: 20 }, 280, zone, []);
+  assert.deepEqual([edge.x, edge.caret], [8, 14], "contre le bord : la barre reste dans la zone, l'ergot à 14 au moins");
+  // le volet : du côté opposé à la sélection, sinon au-delà de la sélection ; jamais sur l'objet
+  const bar = { x: 360, y: 356, w: 280, h: 36 };
+  const opener = { x: 380, y: 360, w: 28, h: 28 };
+  assert.deepEqual(clone(f.placeVolet(bar, false, opener, 200, 100, zone, anchor)), { x: 372, y: 250, up: true }, "au-dessus de la barre");
+  const cramped = { ...zone, top: 300 };
+  const flipped = f.placeVolet(bar, false, opener, 200, 100, cramped, anchor);
+  assert.deepEqual(clone(flipped), { x: 372, y: 486, up: false }, "pas de place au-dessus : sous la sélection, pas dessus");
+  // une barre dans la sélection (une grande sélection, la barre en haut de la zone) : au-dessus, le volet couvrirait
+  // l'objet ; il passe au-delà de la sélection
+  const inside = f.placeVolet({ ...bar, y: 300 }, false, opener, 200, 100, { ...zone, top: 0 }, { x: 300, y: 150, w: 400, h: 300 });
+  assert.deepEqual(clone(inside), { x: 372, y: 456, up: false }, "jamais sur l'objet");
+  // une grande sélection qui sort par le haut, la barre dessous près de la bande : ni dessous, ni au-delà de la
+  // sélection ; le volet se pose à côté de la barre, sur sa rangée, sans couvrir ni la barre ni la sélection
+  const tallSel = { x: 300, y: -900, w: 400, h: 1620 };
+  const nearBottom = { x: 360, y: 728, w: 280, h: 36 };
+  assert.deepEqual(clone(f.placeVolet(nearBottom, true, opener, 200, 70, zone, tallSel)), { x: 646, y: 728, up: false }, "à droite de la barre");
+  const below = f.placeVolet({ ...bar, y: 488 }, true, opener, 200, 100, zone, anchor);
+  assert.deepEqual([below.y, below.up], [530, false], "barre dessous : volet dessous");
+  // l'ancre : un connecteur seul au milieu de son tracé ; une sélection, la boîte de tout
+  const geo = {
+    node: (h) => (h === "a" ? { x: 0, y: 0, w: 100, h: 50 } : null), annotation: (id) => (id === "n" ? { x: 200, y: 100, w: 50, h: 50 } : null),
+    connector: () => ({ a: { x: 0, y: 0 }, b: { x: 100, y: 200 }, mid: { x: 60, y: 90 } }), group: () => ({ x: -20, y: -20, w: 10, h: 10 }),
+  };
+  assert.deepEqual(clone(f.anchorOf(sel.multiOf([{ kind: "connector", id: "c" }]), geo)), { x: 59, y: 79, w: 2, h: 22 });
+  assert.deepEqual(clone(f.anchorOf(sel.multiOf([{ kind: "node", id: "a" }, { kind: "annotation", id: "n" }, { kind: "group", id: "g" }]), geo)), { x: -20, y: -20, w: 270, h: 170 });
+  assert.equal(f.anchorOf(sel.multiOf([{ kind: "node", id: "z" }]), geo), null, "rien de dessiné : pas d'ancre");
+  assert.deepEqual(clone(f.toScreen({ x: 10, y: 20, w: 30, h: 40 }, { x: 5, y: 6, zoom: 2 })), { x: 25, y: 46, w: 60, h: 80 });
 });

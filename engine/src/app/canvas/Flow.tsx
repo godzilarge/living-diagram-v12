@@ -5,9 +5,9 @@
 // est dessiné est dans le snapshot, ce qui est placé vient de scene.ts.
 import { Background, BackgroundVariant, MiniMap, ReactFlow, ReactFlowProvider, SelectionMode, applyEdgeChanges, applyNodeChanges, useReactFlow } from "@xyflow/react";
 import type { EdgeChange, NodeChange, Viewport } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStoreApi } from "@xyflow/react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { t } from "../../i18n";
 import type { TableContent } from "../../contracts/intent";
@@ -41,6 +41,8 @@ import type { Op } from "../../shell/apps";
 import type { CardData, ClusterNodeType, FrameNodeType } from "./nodes";
 import type { Toile } from "./toile";
 import { STUB_BOX, build, selectionKey } from "./flow-build";
+import { createGate } from "./gate";
+import type { Gate } from "./gate";
 import type { AnnotationLocal, FlowEdge, FlowNode } from "./flow-build";
 
 const allNodeTypes = { ...nodeTypes, annotation: AnnotationNode, connector: ConnectorNode };
@@ -96,6 +98,10 @@ function tipTarget(node: FlowNode): { kind: string; id: string } {
 }
 const tipEdge = (edge: FlowEdge): { kind: string; id: string } => (edge.type === "cable" ? { kind: "link", id: (edge.data as CableData).link.id } : { kind: "beam", id: (edge.data as BeamData).beam.id });
 
+/** Ce que la barre contextuelle (lot 4 de docs/11, `components/FloatingBar.tsx`) lit de la toile qui la porte : la
+ *  toile (sa place des éléments, sa version) et les gestes en cours ; elle s'abonne, la toile ne la connaît pas. */
+export const FloatingHost = createContext<{ toile: Toile; gate: Gate } | null>(null);
+
 /** Un clic droit : la cible, la position d'écran du menu, le point du plan visé. */
 export interface ContextRequest { target: ContextTarget; at: Point; plan: Point }
 export interface FlowProps {
@@ -114,6 +120,8 @@ export interface FlowProps {
   onToolDone: (keep: boolean) => void;
   /** Alt + glissé relâché (lot 3 de docs/11) : copier ces éléments à cet écart. */
   onClone: (items: Item[], d: Point) => void;
+  /** Ce qui se pose par-dessus la toile, en coordonnées d'écran, avec accès à sa vue (la barre contextuelle). */
+  children?: ReactNode;
 }
 export function Flow(props: FlowProps) {
   return (
@@ -123,7 +131,7 @@ export function Flow(props: FlowProps) {
   );
 }
 
-function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel, onConnectorCreate, onContext, editRequest, toolArmed, onToolDone, onClone }: FlowProps) {
+function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel, onConnectorCreate, onContext, editRequest, toolArmed, onToolDone, onClone, children }: FlowProps) {
   const rf = useReactFlow<FlowNode, FlowEdge>();
   const store = useStoreApi<FlowNode, FlowEdge>();
   const container = useRef<HTMLDivElement>(null);
@@ -136,6 +144,9 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   armedRef.current = armed;
   // Les gestes en cours (redimensionnement, bout de connecteur, outil, édition en place) : la bulle se tait (lot 1).
   const holds = useRef(new Set<string>());
+  // Les mêmes gestes, plus le glissé et le rectangle, vus par la barre contextuelle (gate.ts) : elle s'efface pendant.
+  const gate = useMemo(createGate, []);
+  const floating = useMemo(() => ({ toile, gate }), [toile, gate]);
   const sketch = useMemo(createSketch, []);
   const version = useSyncExternalStore(toile.subscribe, toile.version, toile.version);
   const { i18n } = useTranslation(); // les textes des nœuds (noms accessibles, pastilles) suivent la langue
@@ -150,6 +161,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
     toile.frames = out.frames;
     toile.ends = out.ends;
     toile.boxes = out.boxes;
+    toile.groupFrames = out.groups;
     return out;
   }, [toile, version, editable, language]);
   // La bulle (tips.tsx) : jamais sur ce qui est sélectionné, jamais pendant un geste (glissé, rectangle,
@@ -159,7 +171,8 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   const hideTip = tips.hide, showTip = tips.show;
   const hold = useCallback((reason: string, on: boolean): void => {
     if (on) { holds.current.add(reason); hideTip(); } else holds.current.delete(reason);
-  }, [hideTip]);
+    gate.set(reason, on);
+  }, [hideTip, gate]);
   // Un nœud React Flow attachable, vu comme candidat d'accrochage : sa boîte absolue (une annotation attachée est un
   // enfant), son contour (coins d'une carte, disque, forme, cadre).
   const candidateOf = useCallback((node: FlowNode): Candidate | null => {
@@ -262,7 +275,8 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   const onSelectionStart = useCallback((event: ReactMouseEvent): void => {
     const rect = store.getState().userSelectionRect; // son départ, déjà dans le plan
     selecting.current = { before: itemsOf(toile.state.multi), add: event.shiftKey, from: rect ? { x: rect.startX, y: rect.startY } : rf.screenToFlowPosition({ x: event.clientX, y: event.clientY }) };
-  }, [toile, rf, store]);
+    gate.set("rectangle", true);
+  }, [toile, rf, store, gate]);
   const onSelectionEnd = useCallback((event: ReactMouseEvent): void => {
     const g = selecting.current;
     if (!g) return;
@@ -271,8 +285,9 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       selecting.current = null;
       const got = covered(rectOf(g.from, to), toile.shapes(), mode).filter((item) => !toile.state.control || item.kind === "node");
       toile.selectItems(itemsOf(afterRectangle(multiOfItems(g.before), got, g.add)));
+      gate.set("rectangle", false);
     }, 0);
-  }, [toile, rf]);
+  }, [toile, rf, gate]);
   const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]): void => {
     nodesRef.current = applyNodeChanges(changes, nodesRef.current);
     setNodes(nodesRef.current);
@@ -289,7 +304,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   // leurs cartes suivent pendant le geste, et à la relâche ils reprennent leur centre dans la toile.
   const followers = useRef<{ id: string; start: Point; members: Map<string, Point> } | null>(null);
   const onNodeDragStart = useCallback((_event: unknown, node: FlowNode, moving: FlowNode[]): void => {
-    dragging.current = true; hideTip();
+    dragging.current = true; hideTip(); gate.set("drag", true);
     toile.flush(); // une rafale de flèches en attente se termine avant que le glissé commence
     const carried = new Set(moving.filter(isHost).map((n) => n.id));
     const members = new Map<string, Point>();
@@ -298,7 +313,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       (group ? group.members : []).forEach((host) => { const at = toile.state.positions.get(host); if (at && !carried.has(host)) members.set(host, { ...at }); });
     });
     followers.current = members.size ? { id: node.id, start: { ...node.position }, members } : null;
-  }, [toile, hideTip]);
+  }, [toile, hideTip, gate]);
   const onNodeDrag = useCallback((_event: unknown, node: FlowNode): void => {
     const drag = followers.current;
     if (!drag || node.id !== drag.id) return;
@@ -315,7 +330,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   // ancre, chaque connecteur ses bouts libres ; tout part en une seule écriture (une entrée d'annulation). Une
   // annotation glissée seule garde son écriture d'avant (« annotation modifiée »).
   const onNodeDragStop = useCallback((_event: unknown, node: FlowNode, dragged: FlowNode[]) => {
-    dragging.current = false;
+    dragging.current = false; gate.set("drag", false);
     const drag = followers.current;
     followers.current = null;
     const hosts: string[] = [], ops: Op[] = [];
@@ -347,7 +362,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
     const single = lone as { id: string; patch: { x: number; y: number } } | null;
     if (!hosts.length && ops.length === 1 && single) { onAnnotation(single.id, single.patch); toile.repaint(); return; }
     if (hosts.length || ops.length) toile.dropped(hosts, ops);
-  }, [toile, onAnnotation]);
+  }, [toile, onAnnotation, gate]);
   const onNodeMouseMove = useCallback((event: ReactMouseEvent, node: FlowNode): void => {
     const model = toile.model;
     if (node.type === "cluster") {
@@ -426,6 +441,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       </EditRequest.Provider>
       </AnnotationContext.Provider>
       <svg ref={tips.svg} className="tip-layer" aria-hidden="true" />
+      <FloatingHost.Provider value={floating}>{children}</FloatingHost.Provider>
     </div>
   );
 }

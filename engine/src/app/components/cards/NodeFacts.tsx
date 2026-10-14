@@ -3,7 +3,7 @@
 // device dit de lui-même, dans l'ordre où on le lit. Aucun verdict de B1 ici (statuts, contrôles, sources, état de
 // collecte : vue Contrôle) ; le diff, lui, se lit dans les deux vues. L'apparence (teinte, groupes) ferme la fiche,
 // repliée : tout ce qui s'édite reste dans cette vue.
-import { Crosshair, EyeOff, Focus, Layers, PinOff } from "lucide-react";
+import { Crosshair, EyeOff, Focus, Layers, Pin, PinOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { KIND_LABEL, durationText, shortPort } from "../../../canvas/format";
 import { hueOfNode } from "../../../canvas/hues";
@@ -125,7 +125,9 @@ export function NodeFacts({ model, node }: { model: Model; node: ModelNode }) {
           <HistoryButton object={node.hostname} />
           <IconButton label={t("node.hide")} onClick={() => commands.hideHosts([node.hostname])}><EyeOff /></IconButton>
           <IconButton label={t("node.isolate")} onClick={() => commands.isolateHosts([node.hostname])}><Focus /></IconButton>
-          {pin && canWrite ? <Menu label={t("node.moreActions")} items={[{ label: t("node.unpin"), icon: <PinOff />, onSelect: () => commands.unpin([node.hostname]) }]} /> : null}
+          {canWrite && !stub && !node.ghost ? <Menu label={t("node.moreActions")} items={[pin
+            ? { label: t("node.unpin"), icon: <PinOff />, onSelect: () => commands.unpin([node.hostname]) }
+            : { label: t("node.pin"), icon: <Pin />, onSelect: () => commands.pinHere(node.hostname) }]} /> : null}
         </>}
         title={<Title mono>{node.hostname}</Title>}
         meta={hardware || system ? [hardware, system].filter(Boolean).join(" · ") : undefined}

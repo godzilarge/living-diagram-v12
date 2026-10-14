@@ -145,7 +145,6 @@
     "insertTable": "insérer un tableau",
     "insertImage": "insérer une image",
     "imageFile": "fichier d'image (PNG, JPEG ou WebP, 4 Mo au plus)",
-    "alignGroup": "aligner la sélection",
     "selectionGroup": "la sélection",
     "selected_one": "{{count}} équipement sélectionné",
     "selected_many": "{{count}} équipements sélectionnés",
@@ -154,15 +153,7 @@
     "keys": "{{label}} ({{keys}})",
     "selectedItems_one": "{{count}} élément sélectionné",
     "selectedItems_many": "{{count}} éléments sélectionnés",
-    "selectedItems_other": "{{count}} éléments sélectionnés",
-    "box": {
-      "left": "aligner à gauche",
-      "center": "centrer",
-      "right": "aligner à droite",
-      "top": "aligner en haut",
-      "middle": "aligner au milieu",
-      "bottom": "aligner en bas"
-    }
+    "selectedItems_other": "{{count}} éléments sélectionnés"
   },
   "keys": {
     "escape": "Échap"
@@ -183,7 +174,9 @@
     "showOper": "câbles down",
     "showStubs": "voisins inconnus",
     "showPins": "épingles",
-    "showNotes": "annotations"
+    "showNotes": "annotations",
+    "editing": "édition",
+    "showFbar": "barre contextuelle"
   },
   "band": {
     "label": "runs archivées de l'infrastructure",
@@ -511,5 +504,125 @@
     "abandoned": "collage abandonné : la run ou l'infrastructure affichée a changé, rien n'a été écrit dans {{infrastructure}}",
     "abandonedAfter": "collage interrompu : la run ou l'infrastructure affichée a changé ; ce qui était déjà écrit reste dans {{infrastructure}}",
     "pasteFailed": "le presse-papiers a été lu, mais son contenu n'a pas pu être collé"
+  },
+  "fbar": {
+    "label": "actions rapides : {{what}}",
+    "items_one": "{{count}} élément",
+    "items_many": "{{count}} éléments",
+    "items_other": "{{count}} éléments",
+    "kinds": {
+      "note": "note",
+      "shape": "forme",
+      "table": "tableau",
+      "image": "image",
+      "connector": "connecteur",
+      "group": "groupe"
+    },
+    "hue": "teinte",
+    "hueMixed": "mixte",
+    "typeDefault": "défaut du type",
+    "plane": "plan",
+    "back": "dessous",
+    "front": "dessus",
+    "lock": "verrouiller",
+    "unlock": "déverrouiller",
+    "duplicate": "dupliquer",
+    "delete": "supprimer",
+    "deleteKeepDevices": "supprimer les annotations (les équipements restent)",
+    "keyDelete": "Suppr",
+    "keyEdit": "Entrée",
+    "shift": "Maj",
+    "textSize": "taille du texte",
+    "textSizeOf": "taille du texte : {{value}}",
+    "sizeS": "petit",
+    "sizeM": "moyen",
+    "sizeL": "grand",
+    "bold": "gras",
+    "textAlignOf": "alignement du texte : {{value}}",
+    "textAligns": {
+      "left": "à gauche",
+      "center": "centré",
+      "right": "à droite"
+    },
+    "fill": "remplissage",
+    "fillNone": "aucun",
+    "fillFull": "plein",
+    "border": "bordure",
+    "stroke": {
+      "solid": "plein",
+      "dashed": "tirets",
+      "dotted": "pointillés",
+      "none": "sans bordure"
+    },
+    "corners": "coins",
+    "square": "droits",
+    "editLabel": "modifier l'étiquette",
+    "addRow": "ajouter une ligne",
+    "addColumn": "ajouter une colonne",
+    "header": "première ligne en en-tête",
+    "replace": "remplacer l'image",
+    "imageFile": "nouvelle image (PNG, JPEG ou WebP)",
+    "opacity": "opacité",
+    "heads": {
+      "none": "aucune pointe",
+      "end": "pointe à l'arrivée",
+      "start": "pointe au départ",
+      "both": "deux pointes"
+    },
+    "route": "tracé",
+    "routes": {
+      "straight": "droit",
+      "elbow": "coudé",
+      "curve": "courbe"
+    },
+    "width": "épaisseur",
+    "lineStyle": "style du trait",
+    "reverse": "inverser le sens",
+    "shape": "forme",
+    "shapes": {
+      "rectangle": "rectangle",
+      "ellipse": "ellipse"
+    },
+    "labelPosition": "position de l'étiquette",
+    "selectMembers": "sélectionner les membres",
+    "paintMembers": "appliquer la teinte aux membres",
+    "deleteGroup": "supprimer le groupe",
+    "pin": "épingler à sa place",
+    "unpin": "retirer l'épingle",
+    "group": "grouper",
+    "newGroup": "nouveau groupe",
+    "newGroupOf_one": "nouveau groupe de {{count}} équipement",
+    "newGroupOf_many": "nouveau groupe de {{count}} équipements",
+    "newGroupOf_other": "nouveau groupe de {{count}} équipements",
+    "addTo": "ajouter à",
+    "note": "note attachée",
+    "connect": "tirer un connecteur",
+    "hide": "masquer cet équipement et ses câbles",
+    "isolate": "isoler avec ses voisins directs",
+    "hideSelection": "masquer la sélection",
+    "isolateSelection": "isoler avec leurs voisins",
+    "align": "aligner et répartir",
+    "box": {
+      "left": "aligner à gauche",
+      "center": "centrer horizontalement",
+      "right": "aligner à droite",
+      "top": "aligner en haut",
+      "middle": "centrer verticalement",
+      "bottom": "aligner en bas",
+      "distribute-horizontal": "répartir horizontalement",
+      "distribute-vertical": "répartir verticalement"
+    },
+    "hidden": "barre contextuelle masquée · Ctrl+. pour la rétablir, Alt+T pour la rappeler ici",
+    "shown": "barre contextuelle affichée · Ctrl+. pour la masquer",
+    "lockedItems_one": "{{count}} élément verrouillé ({{author}})",
+    "lockedItems_many": "{{count}} éléments verrouillés ({{author}})",
+    "lockedItems_other": "{{count}} éléments verrouillés ({{author}})",
+    "unlockedItems_one": "{{count}} élément déverrouillé ({{author}})",
+    "unlockedItems_many": "{{count}} éléments déverrouillés ({{author}})",
+    "unlockedItems_other": "{{count}} éléments déverrouillés ({{author}})",
+    "hueOf": "teinte : {{value}}",
+    "huedItems_one": "teinte {{hue}} sur {{count}} élément ({{author}})",
+    "huedItems_many": "teinte {{hue}} sur {{count}} éléments ({{author}})",
+    "huedItems_other": "teinte {{hue}} sur {{count}} éléments ({{author}})"
   }
 }

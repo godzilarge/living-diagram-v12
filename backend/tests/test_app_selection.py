@@ -19,6 +19,7 @@ from tests.test_app import (
     SHIFT,
     _click,
     _double_click,
+    _fbar_align,
     _intent_doc,
     _press,
     _settled,
@@ -253,7 +254,7 @@ def test_the_application_mixed_selection_and_keyboard_in_a_browser(settings, bun
 
             # l'alignement par les boîtes : « aligner en haut » met la note au bord haut du cœur
             _wait(tab, "LDApp.debug.state().picked.annotations.length === 1")
-            tab.js("document.querySelector('.toolbar [aria-label=\"aligner en haut\"]').click()")
+            _fbar_align(tab, "aligner en haut")  # la barre contextuelle (lot 4 de docs/11, D10)
             _wait(tab, f"/aligné, enregistré \\(orhan\\)/.test({NOTE})")
             top = tab.js("LDApp.debug.handle().toile.state.positions.get('sw-core-01').y") - 40
             assert _annotation(_intent_doc(base, auth), nid)["y"] == top

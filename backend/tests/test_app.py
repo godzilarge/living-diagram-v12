@@ -276,6 +276,30 @@ def _delete_from_panel(tab, *, confirm: bool = True) -> None:
     _button(tab, "supprimer", ".panel .insp-confirm")
 
 
+# La barre contextuelle (lot 4 de docs/11) : posée (ni cachée par un geste, ni hors de la zone).
+FBAR_SHOWN = "!!document.querySelector('.fbar:not(.suspended):not(.offscreen)')"
+
+
+def _fbar(tab, button_id: str) -> None:
+    """Clique un bouton de la barre contextuelle, une fois la barre posée."""
+    from tests.test_view import _wait
+
+    target = f".fbar .fb[data-id={json.dumps(button_id)}]"
+    _wait(tab, f"!!document.querySelector('.fbar:not(.suspended):not(.offscreen) {target[6:]}')")
+    tab.js(f"document.querySelector('{target}').click()")
+
+
+def _fbar_align(tab, label: str) -> None:
+    """Aligne la sélection depuis la barre contextuelle : « aligner et répartir », puis la case du volet (D10 : les
+    alignements ont quitté la barre du haut)."""
+    from tests.test_view import _wait
+
+    _fbar(tab, "align")
+    cell = f".fvolet [aria-label={json.dumps(label)}]"
+    _wait(tab, f"!!document.querySelector('{cell}')")
+    tab.js(f"document.querySelector('{cell}').click()")
+
+
 def _intent_doc(base: str, auth: dict) -> dict:
     import httpx
 
@@ -365,12 +389,20 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             _wait(tab, "LDApp.debug.state().hosts.length === 2")
             assert "2 équipements" in tab.js(PANEL_TITLE)
             assert tab.js(NO_TEXT_SELECTED), "Maj + clic n'étend pas la sélection de texte du navigateur sur la toile"
-            # la barre d'outils : au repos, ni alignement ni compte ; avec la sélection multiple, ils entrent
+            # la barre d'outils : au repos, pas de compte ; avec la sélection multiple, il entre ; les alignements sont
+            # dans la barre contextuelle (lot 4 de docs/11, D10), plus en haut
             assert tab.js("document.querySelector('.toolbar .toolbar-count').textContent") == "2"
-            assert not tab.js("!!document.querySelector('.toolbar [aria-label=\"répartir horizontalement\"]')"), (
+            no_align = (
+                "Array.from(document.querySelectorAll('.toolbar button'))"
+                ".some((b) => /^(aligner|répartir)/.test(b.ariaLabel))"
+            )
+            assert not tab.js(no_align), "les alignements ont quitté la barre du haut"
+            _fbar(tab, "align")
+            _wait(tab, "!!document.querySelector('.fvolet [aria-label=\"centrer verticalement\"]')")
+            assert not tab.js("!!document.querySelector('.fvolet [aria-label=\"répartir horizontalement\"]')"), (
                 "répartir : trois au moins"
             )
-            tab.js("document.querySelector('.toolbar [aria-label=\"aligner horizontalement\"]').click()")
+            tab.js("document.querySelector('.fvolet [aria-label=\"centrer verticalement\"]').click()")
             _wait(tab, f"/épingles enregistrées \\(orhan\\)/.test({NOTE})")
             pins = _intent_pins(base, auth)
             pinned = {p["hostname"] for p in pins}
@@ -563,7 +595,8 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             _wait(tab, f"document.querySelector('.panel').getBoundingClientRect().width > {before} + 100")
             prefs = json.loads(tab.js("localStorage.getItem('ld-prefs')"))
             assert 460 <= prefs.pop("panelWidth") <= 470, "la largeur glissée est rangée à la relâche"
-            assert prefs == {"theme": "light", "language": None, "grid": True, "snap": False, "minimap": True}
+            expected = {"theme": "light", "language": None, "grid": True, "snap": False, "minimap": True, "fbar": True}
+            assert prefs == expected
             tab.js(
                 "document.querySelector('.panel .panel-resize')"
                 ".dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))"
