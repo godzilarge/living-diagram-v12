@@ -42,7 +42,11 @@ class PlacementCorruptError(Exception):
 
 
 class PlacementLimitError(ValueError):
-    """La requête ferait dépasser au document sa borne : refusée, rien n'est écrit."""
+    """La requête ferait dépasser au document sa borne : refusée, rien n'est écrit ; `limit` la dit."""
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(limit)
+        self.limit = limit
 
 
 class Place(ApiModel):
@@ -56,9 +60,9 @@ class Place(ApiModel):
 def _unique_sorted(places: tuple[Place, ...], *, sorted_required: bool) -> tuple[Place, ...]:
     names = [place.hostname for place in places]
     if len(set(names)) != len(names):
-        raise PydanticCustomError("place_duplicate", "un équipement n'a qu'une place")
+        raise PydanticCustomError("place_duplicate", "a device has only one place")
     if sorted_required and names != sorted(names):
-        raise PydanticCustomError("places_not_sorted", "les places sont triées par hostname")
+        raise PydanticCustomError("places_not_sorted", "places are sorted by hostname")
     return places
 
 
@@ -171,7 +175,7 @@ def _applied(current: Placement, request: PlacementWrite, now: datetime) -> Plac
     if request.base_revision != current.revision:
         raise PlacementStaleError(current)
     if len(places) > MAX_PLACES:
-        raise PlacementLimitError(f"plus de {MAX_PLACES} équipements placés pour une infrastructure")
+        raise PlacementLimitError(MAX_PLACES)
     return Placement(
         infrastructure=current.infrastructure,
         revision=current.revision + 1,

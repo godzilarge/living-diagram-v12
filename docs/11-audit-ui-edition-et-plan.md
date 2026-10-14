@@ -1,0 +1,930 @@
+# 11 — Audit de l'interface d'édition et plan de rattrapage (2026-10-13)
+
+**Ce document fait une chose : il dit ce qui manque à l'application `/` pour être un éditeur de diagramme robuste,
+confronté à ce que font Visio, draw.io, Lucidchart et les autres, et il découpe le rattrapage en lots qu'un agent peut
+coder seul.** Statut : **à valider par Orhan** (§5, douze décisions) avant qu'un lot ne parte. Un lot validé se lit sans
+ce qui l'entoure : §6 est écrit pour l'agent qui le codera.
+
+Les retours d'Orhan qui ont déclenché l'audit (2026-10-13) : pas de copier / coller des formes ; nœuds découverts trop
+petits, placement ni intuitif ni simple ; points de connexion affichés par défaut qui gênent le positionnement et le
+redimensionnement ; mise en forme par le panneau latéral peu moderne, il manque un accès rapide au-dessus de l'élément
+édité, « comme dans un Visio ». Verdict général : « une bonne base de travail », mais « pas fluide, pas intuitive, pas
+moderne ». Le but : « rendre l'outil robuste et non pas juste une jolie démonstration ».
+
+## 0. Par où commencer (recommandation)
+
+Trois vagues. La première ne touche aucun contrat et répond aux quatre points cités ; la seconde donne le « ressenti
+d'un éditeur » ; la troisième consolide. Cinq décisions suffisent pour lancer la première.
+
+- **Vague 1, les fondations visibles** : lot 5 (lisibilité, S) → lot 1 (poignées et ancres, M) → lot 2 (sélection
+  mixte et clavier, L). À trancher avant : D1 à D5.
+- **Vague 2, le ressenti d'un éditeur** : lot 3 (presse-papiers) → lot 4 (barre contextuelle) → lot 6 (arrangements).
+  À trancher avant : D6, D10. En parallèle, hors chemin critique : la **mesure seule** du lot 13 à 500 équipements, pour
+  savoir si React Flow tient la jauge avant d'y ajouter de l'interaction.
+- **Vague 3, consolider** : 7, 8, 9, 10 ; 13, 12 (avant 11 si plusieurs personnes éditent déjà), 11 ; 14, 15.
+- **Ne pas commencer par** la barre contextuelle ni l'export, même s'ils sont les plus visibles : sans sélection mixte
+  la barre serait à refaire, et l'export ne corrige rien de ce qui a été cité.
+
+## 1. Méthode et sources
+
+- **Inventaire lu dans le code**, pas dans les docs : deux relectures indépendantes (commandes, clavier, souris,
+  persistance ; géométrie, tailles, poignées, ancres, types de nœuds, rendu, performance), chaque constat avec son
+  `fichier:ligne`. Les faits de §2 et §4 en viennent.
+- **Quatre captures de l'état réel** sur `demo-dc` (32 équipements, 3 runs), Chromium 1440 × 900, sombre :
+  `.impeccable/planche-audit/` (`1-ouverture`, `2-equipement-selectionne`, `3-cadrer-tout`, `4-note-selectionnee`) ;
+  script rejouable `.impeccable/planche-audit/scripts/capture_audit.py` (à lancer depuis `backend/` avec `PYTHONPATH=.`).
+- **Benchmark** de sept éditeurs et d'un outil réseau (§3, annexe §9.3) par un agent avec sources, orienté ergonomie
+  d'édition, pas fonctions métier ; React Flow 12 lu sur ses docs et son dépôt.
+- **Critiques Impeccable antérieures** (`.impeccable/critique/`) : application 22/40 le 2026-10-07, inspecteur 25/40,
+  bulle 19/32, Journal 29/40. Leurs restes ouverts sont repris ici quand ils touchent l'édition.
+- Aucun bundle réel, comme toujours : `demo-dc` et le générateur.
+
+## 2. L'état actuel en une page
+
+Ce qui existe, famille par famille, et la limite vue. Le détail (chaque commande, chaque raccourci) est dans les deux
+inventaires consignés en fin de document (§9).
+
+| Famille | Ce qui existe | Limite vue |
+|---|---|---|
+| Navigation | molette = zoom (0,05 à 6), glissé sur le fond = panoramique, Espace + glissé (défaut React Flow), cadrer tout, centrer sur la sélection, minimap, grille 20, aimant au coin haut gauche | aucun raccourci de zoom (Ctrl+0 / 1 / + / −), pas d'indicateur de zoom, pas de zoom sur la sélection, pas de bouton du milieu, pas d'aide-mémoire des raccourcis |
+| Ouverture | zoom de lecture 0,67 sur « ce qui compte », sinon cadrer tout | à « cadrer tout » sur 32 équipements, les noms font ~6,5 px (`3-cadrer-tout.png`) |
+| Sélection | clic ; Maj + clic ajoute ; Maj + glissé = rectangle (mode « touche ») qui **ajoute** ; Échap vide | **jamais mixte** : plusieurs équipements, ou **un seul** élément d'une autre sorte (annotation, connecteur, groupe, cluster, câble) ; le rectangle n'attrape que des équipements ; Ctrl + clic ne fait rien ; pas de Ctrl+A |
+| Déplacement | équipements (un ou toute la sélection, épingles en lot), cadre de groupe (entraîne ses membres), annotations, bouts et courbure d'un connecteur ; flèches (20, 100 avec Maj) sur les équipements | flèches et alignement **n'agissent que sur les équipements** ; aucun guide d'alignement (seul l'aimant de grille) ; le placement automatique n'aimante pas à la grille |
+| Carte d'équipement | 80 de haut, largeur commune par run (200 à 360, pas de 40), nom mono 15 px en capitales, icône 40, rail de teinte, pastilles ACTIF / PASSIF / DOWN et stack | taille non réglable (ni par l'utilisateur ni par réglage) ; la largeur réservée compte un rôle et un stack que la carte n'écrit plus (`model.ts:523` vs `Flow.tsx:120`) |
+| Annotations | note, rectangle, ellipse, tableau, image ; 8 poignées, Maj garde le rapport sur les coins ; double-clic édite ; dupliquer (+20) ; verrou ; plan dessous / dessus ; ancrage libre, équipement, groupe ; ligne de rappel | poignées de **8 unités du plan, pas compensées par le zoom** (elles rapetissent en dézoomant) ; les poignées de milieu de côté **coïncident au pixel près** avec les ancres (`4-note-selectionnee.png`) ; une annotation attachée « dessous » se dessine **au-dessus** de sa carte (règle parent / enfant de React Flow) ; pas de rotation, texte brut seul |
+| Connecteurs | deux bouts libres ou ancrés (auto, n, e, s, w), tracé droit / coudé / courbe, pointes, étiquette, verrou, plan ; création depuis une ancre, le menu, la barre | les quatre ancres se montrent **au survol de n'importe quel nœud et sur tout élément sélectionné**, en écriture ; pas de point de passage libre |
+| Groupes | membres + style (forme, teinte, remplissage, bordure, coins, marge, étiquette en neuf positions) ; cadre glissable ; cadre calculé depuis les membres | suppression immédiate depuis le menu contextuel (Ctrl+Z existe), confirmation dans la fiche : deux règles |
+| Inspecteur | une grammaire pour les huit fiches, champs « scrub », sections repliables, largeur réglable | tout se règle **là et seulement là** : aucune commande au-dessus de l'élément |
+| Barre d'outils | annuler, rétablir, cadrer, centrer, insérer (note, rectangle, ellipse, connecteur, tableau, image), alignements dès deux équipements, compte et « vider » | rien de contextuel à l'élément sélectionné |
+| Menu contextuel | fond, équipement, groupe, annotation, cellule, connecteur ; clavier | pas de copier / coller / dupliquer d'équipement ni de groupe ; « supprimer » sans confirmation ici, avec dans la fiche |
+| Clavier | `/`, Ctrl+K, Échap en chaîne, Ctrl+Z / Y, flèches, Ctrl+V (image ou texte → annotation), Entrée / Tab dans les tableaux | **absents** : Ctrl+C, Ctrl+X, Ctrl+D, Ctrl+A, Suppr / Retour arrière (`deleteKeyCode={null}`), Alt + glissé, raccourcis de zoom, F2 |
+| Annuler | épingles, couleurs, groupes, annotations, connecteurs, déplacements locaux ; 100 entrées ; une clé modifiée par un autre est sautée et dite | la vue (couches, masques) et le placement mémorisé ne s'annulent pas, par choix |
+| Affichage | sept couches dans l'adresse (faisceaux, vitesses, ports, câbles down, voisins, épingles, annotations) | pas de couches de l'utilisateur (calques), pas de vues nommées |
+| Styles | tout par l'inspecteur ; défauts par sorte dans le contrat | pas de copier / coller de style, pas de « dernier style utilisé », pas de « même taille » |
+| Ordre de superposition | deux plans (dessous / dessus) pour annotations et connecteurs ; cadres rangés par aire | pas d'avancer / reculer, pas d'ordre entre deux annotations du même plan (l'ordre du tableau décide) |
+| Sortie | export CSV du Journal | **aucun export du diagramme** (PNG, SVG, PDF), pas d'impression, pas de mode présentation |
+| Multi-utilisateur | dernier écrivain gagne, journal, orphelines, annuler qui saute ce qu'un autre a changé | le document d'intention **n'est relu qu'à l'ouverture d'une run** ou dans la réponse d'une écriture : une page ouverte ne voit jamais ce qu'un autre fait ; pas de précondition de révision (docs/08 Q5) |
+| Performance | tout est reconstruit à chaque version de la toile (sélection comprise) ; chaque connecteur se redessine à chaque mouvement de n'importe quel nœud | aucune mesure de la face React Flow au-delà de 60 équipements |
+| Tactile | pincement par défaut de React Flow | rien d'autre, par décision (« la fiche suffit ») |
+
+## 3. Ce que font les éditeurs du marché
+
+Sept éditeurs (draw.io, Lucidchart, Visio, Miro, FigJam, Excalidraw, tldraw) et un outil réseau (netbox-topology-views),
+lus sur leurs pages officielles ; chaque cellule a sa source dans l'annexe §9.3. Les raccourcis sont en forme Windows.
+
+### 3.1 La matrice, condensée
+
+| Capacité | draw.io | Lucidchart | Visio | Miro | FigJam | Excalidraw | tldraw | Living Diagram |
+|---|---|---|---|---|---|---|---|---|
+| Dupliquer | Ctrl+D +10/+10, Ctrl+glissé | Ctrl+D, Alt+glissé | Ctrl+D, Ctrl+glissé | Ctrl+D, Alt+glissé | Ctrl+D, Alt+glissé | Ctrl+D +10/+10, Alt+glissé | Ctrl+D +10 à droite, Alt+glissé | menu, annotation seule |
+| Coller le style | Alt+C / V | menu, pinceau | Ctrl+Maj+C / V | Ctrl+Alt+C / V | Ctrl+Alt+C / V | Ctrl+Alt+C / V | Maj+Q | — |
+| Barre contextuelle | non | dynamique + panneau | mini-barre + volet | au-dessus, seule | seule | non | texte seul | — |
+| Poignées / Maj / centre | 8 / oui / Ctrl | ? / oui / — | 8 / oui / — | 4 / oui / Alt | 8 / oui / Alt | 8 / oui / Alt | 8 / oui / Alt | 8 / coins / — |
+| Même taille | copier la taille | Match Size | Size & Position | — | — | — | — | — |
+| Guides / espacement égal | bords, centres | + cotes | dynamic grid | oui | — | 8 px, écarts | Ctrl, 8 px, écarts | grille seule |
+| Points de connexion | survol, 2 modes | survol, rouges | survol, 2 modes | sélection, bleus | côté, Ctrl libre | flottant, Alt fixe | lent = précis, Alt | **survol de tout, sélection** |
+| Z / calques / verrou | 4 / oui / Ctrl+L | 4 / oui / 4 verrous | 4 / oui / protection | 4 / oui / Ctrl+Maj+L | 4 / non / Ctrl+Maj+L | 4 / non / Ctrl+Maj+L | 4 / non / Maj+L | 2 plans / non / annot. |
+| Rectangle | englobé, Alt = touché | touché | englobé, option | touché (90 %) | touché | englobé, préférence | touché, Ctrl, Alt lasso | Maj + touché |
+| Cadrer / sélection / 100 % | Ctrl+Maj+H / idem / Entrée | menu / — / Ctrl+0 | Ctrl+Maj+W | Alt+1 / Alt+2 / Ctrl+0 | Maj+1 / Maj+2 | Maj+1 / Maj+2 / Ctrl+0 | Maj+1 / Maj+2 / Maj+0 | bouton / bouton / — |
+| Texte riche / étiquettes de lien | oui / 3 | oui / 1 | oui / 1 | oui / n | oui / 1 | non / 1 | oui / 1 | non / 1 |
+| Arrangements | 9 algorithmes | grille, hiérarchie | 5, sur la sélection | sélection | Tidy up | non | non | — |
+| Export sélection / transparent / SVG | oui / oui / oui | oui / oui / oui | oui / web / desktop | zone / ? / oui | oui / oui / non | oui / oui / oui | oui / oui / oui | — |
+| Curseurs / suivre / commentaires / historique | par le stockage | oui × 4 | bordure / — / oui / oui | oui × 4 | oui × 4 | oui / oui / + / + | oui / oui / licence / non | — / — / — / journal |
+
+### 3.2 Ce que tous partagent (présent chez cinq éditeurs sur sept au moins)
+
+1. **Ctrl+C / V / X et Ctrl+D** partout ; le double se décale d'un pas de grille (+10 / +10 chez draw.io et Excalidraw,
+   +10 à droite chez tldraw). **Clone par modificateur + glissé** partout, **Alt + glissé chez cinq** ; tldraw et Figma
+   font répéter l'écart du clone par le Ctrl+D suivant.
+2. **Copier / coller le style** partout, `Ctrl+Alt+C / V` chez Miro, Figma, Excalidraw.
+3. **Barre contextuelle à la sélection** chez cinq : au-dessus ou à côté, **contenu typé par l'élément** (couleur,
+   trait, texte, lien, cadenas, « … ») ; le panneau latéral ne garde que valeurs numériques et attributs. Miro la cache
+   tant que Maj est tenue.
+4. **8 poignées, Maj = proportions, Alt = depuis le centre** (draw.io prend Ctrl).
+5. **Guides bords + centres** chez six, **espacement égal** chez cinq, **seuil 8 px écran** (Excalidraw, tldraw) ;
+   grille optionnelle partout ; un modificateur suspend ou force l'aimant.
+6. **Aligner (6) et répartir (2)** partout ; `Alt+A / D / W / S` et `Alt+H / V` chez Figma et tldraw.
+7. **Deux modes de liaison**, flottant (le contour) et fixe (un point) ; les points sont visibles **au survol ou à la
+   sélection pendant qu'on relie**, jamais en permanence ; draw.io distingue au drop le contour bleu (flottant) de la
+   croix verte (fixe).
+8. **Connecteur coudé à points de passage** partout ; évitement des formes chez cinq (en option chez draw.io).
+9. **Quatre commandes d'ordre et un verrou** partout : `Ctrl+] / [` (Lucidchart, Figma, Excalidraw) ou
+   `Ctrl+Maj+F / B` (draw.io, Visio) ; verrou `Ctrl+Maj+L` chez trois.
+10. **Rectangle de sélection par le glissé nu**, Maj + clic, Ctrl+A, Échap partout ; le défaut se partage entre
+    « englobé » (draw.io, Visio, Excalidraw) et « touché » (Lucidchart, Miro, FigJam, tldraw) ; un modificateur
+    bascule chez draw.io (Alt) et tldraw (Ctrl).
+11. **Ctrl + molette = zoom, Espace + glissé = vue** chez six ; cadrer tout partout, cadrer la sélection chez cinq
+    (`Maj+1 / Maj+2` chez FigJam, Excalidraw, tldraw ; `Alt+1 / 2` chez Miro) ; **pourcentage cliquable et
+    aide-mémoire** (`?` ou F1) partout.
+12. **Double-clic ou Entrée pour éditer** ; une étiquette sur le lien partout ; texte riche chez six.
+13. **Export « sélection seule »** partout, fond transparent chez six, SVG chez six, échelle 1 / 2 / 3× (Excalidraw,
+    tldraw).
+14. **Curseurs en direct et « suivre »** chez cinq ; la sélection d'autrui se montre par une bordure à sa couleur
+    (Visio, tldraw).
+
+### 3.3 Les patrons à copier, nommés
+
+- **draw.io** : la liaison lisible au drop (contour = flottant, croix = fixe) et l'évitement des formes **par câble**,
+  jamais imposé. Nos ancres `auto` / `n e s w` reprennent ce code visuel (lot 1).
+- **Lucidchart** : cotes pendant le glissé (pointillé = bords, plein = centres, distance affichée) et « Match Size »
+  direct : l'aide d'alignement la plus complète (lots 8 et 10).
+- **tldraw** : l'aimant comme geste (Ctrl tenu aimante avec des lignes de mesure), Alt + glissé puis Ctrl+D répète
+  l'écart, le rectangle touche, Ctrl exige l'englobement, Alt passe en lasso. Trois modificateurs, zéro réglage (lots 2, 3, 8).
+- **Excalidraw** : l'export en un dialogue (sélection seule, fond, sombre, échelle 1 à 3) ; `Ctrl+flèche` crée le nœud
+  voisin déjà relié (lot 11 ; le second n'a pas de sens ici, les équipements viennent de la donnée).
+- **Miro** : la barre unique au-dessus de l'objet, Maj la cache ; « voir les changements récents » surligne ce que les
+  autres ont modifié (lots 4 et 12).
+- **Visio** : « Re-Layout » qui ne touche que la sélection ; une taille tapée pour plusieurs formes (lots 6 et 10).
+- **FigJam** : « Tidy up » dans la barre de sélection dès trois objets (lot 6, arrangement en grille).
+- **netbox-topology-views** : « dès qu'un équipement est glissé, sa position est enregistrée » et sort du moteur
+  physique, par groupe de coordonnées côté serveur : exactement notre placement mémorisé (docs/09). Rien à copier,
+  une confirmation.
+
+### 3.4 Ce que React Flow 12 fournit, et ce qu'il ne fournit pas
+
+`@xyflow/react` 12.12.0. Fourni : `NodeToolbar` (à taille d'écran, `nodeId` en liste pour une sélection ; sans liste,
+**masquée dès que plusieurs nœuds sont sélectionnés**) et `EdgeToolbar` ; `NodeResizer` / `NodeResizeControl`
+(`keepAspectRatio` à brancher sur Maj) ; `snapToGrid` ; `Handle` avec classes `connecting` / `valid`,
+`connectionMode="loose"`, `connectionRadius`, `useConnection()` ; `zIndex` par nœud, `zIndexMode`, `parentId` et
+`extent: 'parent'` ; `selectionMode` `full` / `partial`, `selectionOnDrag`, `panOnDrag=[1, 2]`, `panOnScroll`
+(le réglage « façon Figma » du dépôt xyflow) ; `zoomTo`, `zoomIn / zoomOut` (× 1,2), `fitView({ nodes })`,
+`fitBounds`, `useKeyPress` ; `toObject`, `getNodesBounds`, `getViewportForBounds` ; lasso (exemple gratuit).
+**À coder nous-mêmes** (exemples **payants** « Pro » ou absents) : copier / coller, lignes d'aide (« Helper Lines »),
+points de passage d'une arête, annuler / rétablir (le nôtre existe), arrangement automatique (Dagre / ELK sont des
+exemples, pas le cœur), pourcentage de zoom, aide-mémoire, texte riche, routage évitant, export SVG vectoriel,
+collaboration. L'exemple « Download Image » épingle `html-to-image` **1.11.11** (« the latest working version »).
+
+## 4. Les lacunes, classées
+
+### 4.1 Les quatre points d'Orhan, confrontés aux faits
+
+1. **Copier / coller des formes.** Confirmé, et plus large : ni Ctrl+C, ni Ctrl+X, ni Ctrl+D, ni Alt + glissé ; « dupliquer »
+   n'existe que pour une annotation, par le menu ou la fiche (+20 / +20) ; un connecteur, un groupe ne se dupliquent pas ;
+   rien ne passe d'une infrastructure à l'autre. Ctrl+V existe mais ne colle qu'une image ou un texte **venus d'ailleurs**.
+   Tous les éditeurs du benchmark ont Ctrl+C / V / D et Alt + glissé.
+2. **Nœuds trop petits, placement pas intuitif.** Confirmé sur capture, avec une cause plus précise que la taille de la
+   carte : à « cadrer tout », 32 équipements tiennent dans 1 440 × 900 au zoom 0,45 et le nom passe à 6,5 px. La carte
+   (200 à 360 × 80) n'est pas petite ; c'est **le rapport carte / espacement** qui l'est : le placement force-dirigé
+   (`IDEAL = 220`, `REACH = 660`) étale les grappes loin les unes des autres, et le nom (15 px) est petit **dans** sa carte
+   (l'icône fait 40). Trois leviers, cumulables : le nom plus grand dans la même carte ; un niveau de détail qui garde le
+   nom lisible en dézoomant ; des **arrangements** (en couches cœur → accès, en grille, radial) à la demande, qui sont
+   le réflexe de tout éditeur (« Arrange › Layout » de draw.io, Lucidchart, Visio) et que l'application n'a pas du tout.
+   Ce dernier point est, à mon avis, la vraie lacune : un ingénieur réseau pense son diagramme en couches, pas en ressorts.
+3. **Points de connexion affichés par défaut.** Confirmé, et c'est un défaut pur en plus d'un choix : les quatre ancres
+   se montrent au survol de **n'importe quel** nœud et sur tout élément sélectionné ; sur une annotation sélectionnée,
+   l'ancre de milieu de côté se superpose exactement à la poignée de redimensionnement du même côté
+   (`4-note-selectionnee.png`) : on ne sait pas ce qu'on va saisir. Les poignées (8 unités du plan, non compensées par le
+   zoom) rapetissent en dézoomant alors que les ancres gardent leur taille d'écran. Le benchmark converge : les points de
+   connexion n'apparaissent **que pendant qu'on tire un connecteur** (ou avec l'outil connecteur armé), jamais au repos.
+4. **Mise en forme par le panneau, pas d'accès rapide.** Confirmé : aucune barre contextuelle ; chaque réglage demande
+   d'aller dans le panneau de droite, de déplier une section, de trouver la rangée. Lucidchart, Miro, FigJam, Visio
+   (mini-barre) posent une barre au-dessus de la sélection pour les réglages fréquents ; le panneau reste pour le reste.
+   Au passage : la **bulle au survol** se montre aussi sur l'élément qu'on vient de sélectionner et recouvre ses poignées
+   (`4-note-selectionnee.png`) ; aucun éditeur ne fait ça.
+
+### 4.2 Les interactions que tout éditeur a, absentes ici
+
+- **Sélection mixte** : impossible d'avoir un équipement et une annotation dans la même sélection, donc impossible de
+  les déplacer, aligner, dupliquer ou supprimer ensemble. C'est la lacune la plus structurante : tout ce qui suit
+  (presse-papiers, barre contextuelle, alignement, guides) suppose une sélection qui accepte toutes les sortes.
+- **Rectangle de sélection** : seulement avec Maj ; le glissé nu déplace la vue. Visio, draw.io, Lucidchart, Figma,
+  tldraw, Excalidraw font l'inverse (glissé nu = rectangle, Espace ou bouton du milieu = vue) ; Miro fait comme nous.
+- **Suppr / Retour arrière** sur ce qui est sélectionné ; **Ctrl+A** ; **Ctrl+clic** pour ajouter ; **Alt + glissé** pour
+  dupliquer.
+- **Raccourcis de zoom** (Maj+1 tout, Maj+2 la sélection, Maj+0 100 %, Ctrl+= / Ctrl+−), **indicateur de zoom** avec
+  menu ; **molette = défilement, Ctrl + molette = zoom** (draw.io, Lucidchart, Figma, Visio ; chez nous la molette zoome).
+- **Guides d'alignement intelligents** (bords, centres, espacement égal) pendant un glissé ou un redimensionnement ;
+  **aimant aux objets**, pas seulement à la grille.
+- **Avancer / reculer / premier plan / arrière-plan** avec raccourcis ; un **ordre** entre éléments d'un même plan.
+- **Copier / coller le style**, **dernier style utilisé** à l'insertion, **même largeur / hauteur**.
+- **Redimensionner plusieurs éléments** à la fois ; redimensionner depuis le panneau (existe) et depuis les poignées à
+  taille d'écran constante avec le curseur qui change.
+- **Export** PNG / SVG / PDF, impression, **mode présentation** (interface masquée).
+- **Aide-mémoire des raccourcis** (`?` ou Ctrl+/).
+- **Édition en place** sur tout texte (existe : note, cellule, étiquette de connecteur ; manque : l'étiquette d'une forme
+  et le nom d'un groupe sur la toile).
+- **Flèches du clavier** sur tout ce qui est sélectionné (ici : équipements seulement).
+
+### 4.3 Défauts purs trouvés en passant (à corriger dans le lot qui touche le fichier)
+
+- Poignées d'annotation de 8 **unités du plan** (`annotation.tsx:272, 317`) : illisibles sous 0,5, énormes à 3.
+- Ancre et poignée de milieu de côté au même point (`anchors.tsx:160-161`, `annotation.tsx:273-274`).
+- Annotation attachée en plan « dessous » dessinée au-dessus de sa carte : React Flow donne à un enfant `z = parent + 1`
+  (`Flow.tsx:199-201`) ; le réglage ment pour toute annotation attachée.
+- `zoom-near` posé sur la toile (`Flow.tsx:556`) sans aucune règle CSS : mort.
+- Largeur commune mesurée avec le rôle HA et le stack (`model.ts:523`) alors que la carte ne les écrit plus
+  (`Flow.tsx:120`) : des cartes plus larges que nécessaire.
+- « Supprimer le groupe » immédiat depuis le menu contextuel (`ContextMenu.tsx:92`), avec confirmation depuis la fiche.
+- Bulle au survol visible sur l'élément sélectionné, par-dessus ses poignées (`Flow.tsx:84`, `bubble.ts`).
+- Le centre d'un voisin inconnu (16 × 16) tombe hors grille quand son coin est aimanté ; le placement automatique
+  n'aimante rien (`layout.ts:206`).
+- Pas d'`extent` sur les enfants React Flow : une annotation attachée peut sortir de son parent sans que rien ne le dise
+  (comportement acceptable, à documenter, pas à corriger).
+
+### 4.4 Pourquoi ça ne fait « pas moderne »
+
+Pas une question de palette : les jetons, la typographie et les pastilles tiennent. Ce qui manque est ce que la main
+attend d'un éditeur et qui donne l'impression de « fluidité » :
+
+- aucune réaction au survol avant le clic (pas de liseré, pas de curseur `grab` / `move` / `nwse-resize`) ;
+- des poignées carrées qui changent de taille avec le zoom, des ancres partout ;
+- rien n'apparaît **près** de ce qu'on manipule : ni barre contextuelle, ni badge de taille pendant un redimensionnement,
+  ni badge de position pendant un glissé, ni distance aux voisins ;
+- insertion au centre de la vue sans feedback (l'élément apparaît, point) ; aucun mouvement court qui explique ;
+- la barre d'outils haute mélange des commandes de vue (cadrer) et d'insertion, et les alignements y arrivent par
+  surprise quand deux équipements sont sélectionnés ;
+- le panneau est dense (c'est voulu, c'est un inspecteur), mais il est la **seule** porte.
+
+### 4.5 Robustesse : ce qui casserait à l'usage
+
+- **Toile reconstruite à chaque version**, sélection comprise ; chaque connecteur abonné à **tous** les nœuds
+  (`connector.tsx:102`) ; aucune mesure au-delà de 60 équipements pour la face React Flow. La jauge du projet est
+  500 équipements / 1 500 câbles : à vérifier avant d'ajouter des couches d'interaction.
+- **Pages concurrentes aveugles** : rien ne relit l'intention ; deux personnes sur la même infrastructure se voient au
+  rechargement seulement. `expected_revision` (docs/08 Q5) toujours parqué.
+- Aucune indication quand l'API ne répond plus pendant une édition (l'écriture échoue en silence relatif : un message
+  d'état, pas d'état « hors ligne »).
+- Les identifiants d'annotation naissent côté serveur (`a<révision>-<n>`) : un collage de dix éléments = dix créations
+  dans une requête ; la réponse doit rendre les dix identifiants dans l'ordre (à vérifier dans le lot presse-papiers).
+
+## 5. Les décisions à trancher (recommandation en premier)
+
+| # | Question | Recommandation | Autre option |
+|---|---|---|---|
+| D1 | Glissé nu sur le fond | **rectangle de sélection**, comme Visio, draw.io, Lucidchart et Figma ; la vue se déplace par Espace + glissé ou le bouton du milieu (et par le glissé nu en Contrôle, où rien ne s'édite) | garder le panoramique (Miro), rectangle avec Maj |
+| D2 | Molette | **défilement** (vertical ; Maj = horizontal), **Ctrl + molette = zoom**, pincement = zoom | garder molette = zoom |
+| D3 | Ancres | **jamais au repos** ; visibles sur l'élément survolé **pendant** qu'on tire un bout de connecteur, et sur tous les éléments survolés quand l'**outil connecteur** est armé (`C`, bouton de la barre ; Échap le range) | flèches rapides au survol d'un élément sélectionné (AutoConnect de Visio / draw.io), en plus |
+| D4 | Taille des cartes | **nom 15 → 18 px**, carte et grille inchangées ; **niveau de détail** sous 0,6 : nom agrandi, icône réduite, nom lisible jusqu'à 0,35 ; **arrangements** à la demande (lot 6) ; pas de taille par équipement | échelle d'affichage partagée (×1,25, ×1,5) comme intention de l'infrastructure, en plus |
+| D5 | Suppr sur un équipement | **rien, et la page le dit** (« un équipement vient de la donnée : masquer ? » avec le bouton) ; Suppr vide les annotations, connecteurs et groupes de la sélection | Suppr = masquer |
+| D6 | Copier un équipement | **ses noms en texte** (utile ailleurs) ; coller des équipements ne crée rien | rien |
+| D7 | Ordre de superposition | **`order` entier additif** (Intent 1.6.0) dans chacun des deux plans gardés ; avancer / reculer / devant / derrière | fusionner les plans en un seul ordre |
+| D8 | Export | **PNG d'abord** par capture du DOM (court), **SVG et PDF ensuite** par un rendu SVG pur de la scène (long) | SVG pur d'abord |
+| D9 | Multi-utilisateur | **relecture de l'intention toutes les 15 s** quand l'onglet est visible (`ETag`, 304 sinon), fusion, « mis à jour par X » ; puis `expected_revision` | rien avant une vraie identité |
+| D10 | Barre contextuelle | **les alignements quittent la barre haute** pour elle ; la barre haute garde annuler, rétablir, vue, insertion ; le panneau reste la fiche complète | garder les alignements aux deux endroits |
+| D11 | Texte riche des notes | **Markdown restreint** (gras, italique, listes, lien) dans le texte existant, rendu par la toile | rien (texte brut) |
+| D12 | Style par défaut à l'insertion | **le dernier style utilisé par sorte**, préférence du navigateur | intention de l'infrastructure |
+
+## 6. Les lots
+
+Chaque lot se lit seul. Un agent qui le prend lit d'abord le lot 0, puis son lot, puis les fichiers que le lot nomme.
+Taille : S (une demi-session), M (une session), L (une session longue ou deux). Les priorités : P0 = les quatre points
+d'Orhan et ce qu'ils supposent, P1 = ce que tout éditeur a, P2 = finition et robustesse.
+
+### Lot 0 — Règles communes à tous les lots (à lire en premier)
+
+- **Lire** : `CLAUDE.md` § Règles de travail et § Conventions ; `docs/10-intentions-etendues.md` (le modèle des
+  intentions, ses règles I0 à I6, G, A, C) ; `engine/README.md` § L'application et § Règles ; `backend/README.md`
+  § L'application ; ce document, §2 à §5. Les deux inventaires de §9 disent où est chaque chose.
+- **Annoncer avant de coder** : le lot est validé ici, mais l'agent écrit, avant la première ligne, un plan court
+  (fichiers touchés, décisions non triviales, ce qu'il ne fera pas) ; il le laisse en tête de son rapport final.
+- **Pur d'abord** : toute règle nouvelle (géométrie, sélection, guides, presse-papiers, ordre) vit dans un module `.ts`
+  sans DOM ni React, dans `engine/src/canvas/` (partagé) ou `engine/src/app/state/` / `app/canvas/*.ts` (propre à
+  l'application), testé sous Node dans `backend/tests/js/app.test.js` (ou `viewer.test.js` pour `canvas/`). Puis le
+  branchement React, puis **un parcours Chromium** dans `backend/tests/test_app.py` (pilote `backend/tests/browser.py`,
+  serveur par `tests.test_view._serve`, aides `_click`, `_press`, `_shift_rectangle`, `_settled`…). Un test vérifié par
+  mutation vaut mieux qu'un test qui passe du premier coup.
+- **Interdits** : style en ligne (la CSP n'en admet aucun ; les valeurs libres passent par des attributs de présentation
+  SVG ou des variables CSS posées par le CSSOM) ; HTML écrit depuis une donnée (`dangerouslySetInnerHTML` est interdit
+  par un test) ; minuterie (`setTimeout`, `requestAnimationFrame`) dans un module du moteur, la page la fournit ; chaîne
+  française en dur (`strings.mjs` refuse ; tout texte passe par les catalogues `engine/src/i18n/locales/{fr,en}/*.json`,
+  avec sa clé dans les deux langues, test de parité) ; nouvelle dépendance npm ou Python sans décision écrite dans le
+  lot ; toute modification de `/view`, `ld render` et `viewer.js` hors correctif d'un bug (gelés) ; toute modification
+  du snapshot, du diff, de B1.
+- **Contrat `Intent`** : additif seulement (version mineure), `upgraded()` relit les mineures antérieures, schéma
+  régénéré (`cd contracts && uv run ld-contracts schema --out`), `CONTRAT.md` régénéré (`uv run ld-contracts docs --out`),
+  fixtures, tests `contracts/tests/intent/`, store (`backend/tests/test_intent*.py`), API, CLI `ld intent`.
+  **Ce que le contrat de sortie refuse, l'entrée ne le laisse pas passer** : une borne se vérifie des deux côtés.
+- **Toile** : positions entières ; une écriture d'intention part par les hôtes (`IntentHost.apply`, `writers.ts`), jamais
+  par un appel direct ; tout ce qui s'écrit passe dans l'historique (`history.ts`, `undo.ts`) en **une entrée par geste** ;
+  une sélection, une couche, un masque vivent dans l'adresse (`address.ts`), jamais une coordonnée ; rien ne s'écrit sans
+  nom (`useEditable()`), et la vue Contrôle reste en lecture seule.
+- **Commandes** : `cd engine && npm ci && npm run build && npm run check` (types stricts, bundle à jour, chaînes) ;
+  `cd backend && uv run pytest` (suite complète **une fois par lot**, ~10 min ; un test ciblé pendant le travail :
+  `uv run pytest tests/test_app.py -k nom`) ; `cd contracts && uv run pytest` si le contrat bouge ; `ruff check`.
+  **Reconstruire (`npm run build`) juste avant la suite complète** : `app.js` est versionné, un bundle en retard fait
+  échouer le test de dérive.
+- **Captures** : une par retouche visuelle, pas de variantes sauf demande ; 1440 × 900 sombre, et 1280 clair pour ce qui
+  touche la mise en page ; script modèle `.impeccable/planche-audit/scripts/capture_audit.py` ; les captures du lot vont
+  dans `.impeccable/planche-<lot>/` et sont nommées dans le rapport.
+- **Livraison** : tests verts (dire lesquels, avec les nombres), captures, puis la documentation en **une passe à la
+  fin** : `engine/README.md` § L'application (ce qui change pour l'utilisateur et où est le code), ce document (la
+  section du lot : « fait », écarts, parqués), `CLAUDE.md` (une entrée datée dans le journal, courte, qui renvoie ici),
+  et `docs/10` si le contrat bouge. Un commit conventionnel par lot (`feat(app): …`). Pas de revue indépendante pour
+  un lot visuel ; une revue indépendante consignée dans `docs/revues/` pour un lot qui touche le contrat ou l'API
+  (lots 3, 9, 12).
+- **Accessibilité** : focus visible, `aria-label` sur toute icône, Échap ferme, tout ce que la souris fait a un chemin
+  clavier ou est dit « la fiche suffit » dans `engine/README.md`.
+- **Mesure** : un lot qui touche le rendu ou la toile donne ses temps sur `demo-dc` et sur une série du générateur à
+  500 équipements (`cd contracts && uv run ld-contracts generate --seed 7 --devices 500 --runs 1 --out /tmp/s500`).
+
+### Lot 1 — Poignées, ancres, survol : l'élément qu'on manipule (P0, M)
+
+**En une phrase** : ce qu'on saisit se voit, se distingue, et rien ne vient s'y superposer.
+
+**Pourquoi** : §4.1 points 3 et 4, §4.3. Les ancres sont partout, les poignées coïncident avec elles et changent de
+taille avec le zoom, la bulle recouvre l'élément sélectionné.
+
+**Spécification**
+
+- **Ancres** (décision D3) : aucune au repos, ni au survol, ni sur la sélection. Elles se dessinent (a) sur l'élément
+  survolé pendant qu'un bout de connecteur est tiré (brouillon ou connecteur existant ; existe : `.anchor-dots.target`),
+  (b) sur tout élément survolé quand l'**outil connecteur** est armé. Pendant le glissé d'un bout, l'élément survolé
+  montre **deux cibles distinctes** (draw.io) : son contour en accent = bout `auto` (flottant, suit l'autre bout), ses
+  quatre ancres = bout fixe (`n e s w`) ; l'ancre à portée (14 px) grossit, comme aujourd'hui. L'outil : le bouton « insérer un connecteur » de
+  la barre devient un outil à bascule (`aria-pressed`), raccourci `C` ; armé, le curseur est `crosshair`, tirer depuis une
+  ancre ou depuis l'intérieur d'un élément (bout `auto`) crée le connecteur, un clic sur le fond pose un bout libre puis
+  le second clic finit ; Échap ou un second appui le range ; il se range seul après une création (pas de création en
+  série, sauf Maj maintenue). Les entrées « tirer un connecteur » du menu contextuel et de la fiche restent.
+- **Poignées de redimensionnement** : taille d'écran constante (1 / zoom, comme les ancres, `anchors.tsx:134-136`) ;
+  quatre coins en carrés de 8 px, quatre milieux de côté en **barres** de 14 × 5 px posées sur le bord (plus de disque
+  au même endroit) ; curseurs `nwse-resize`, `nesw-resize`, `ns-resize`, `ew-resize` ; Maj garde le rapport (coins, existe),
+  **Alt redimensionne depuis le centre** ; minimum 20, maximum 4 000 (existe). Pendant le geste : une **pastille de
+  taille** « L × H » en unités du plan, collée au coin saisi, à taille d'écran ; pendant un glissé d'annotation : une
+  pastille « X, Y ». Les pastilles réutilisent `canvas/pill.ts` (`tone-muted`).
+- **Survol** : un liseré d'accent à 50 % (1 px écran) sur l'annotation, le connecteur, le cadre survolés quand on peut
+  écrire ; curseur `move` sur une annotation non verrouillée, `grab` sur le fond quand le glissé nu déplace la vue (lot 2
+  peut le changer), `default` en Contrôle.
+- **Bulle** : jamais sur l'élément sélectionné, jamais pendant un geste (glissé, redimensionnement, rectangle, brouillon
+  de connecteur), jamais quand un éditeur en place est ouvert. Elle revient quand la sélection change ou se vide.
+- **Défauts purs du même fichier** : annotation attachée en plan « dessous » : le choix « dessous » **disparaît de la
+  fiche et du menu quand l'annotation est attachée** et la fiche dit « une annotation attachée se dessine au-dessus de
+  son ancre » ; `zoom-near` retiré ; la largeur commune se mesure sans rôle ni stack (`model.ts:523`) ; le menu contextuel
+  d'un groupe confirme la suppression comme la fiche, ou les deux passent en suppression directe avec « Ctrl+Z pour
+  annuler » (choisir la seconde : cohérent avec les annotations).
+
+**Code** : `engine/src/app/canvas/anchors.tsx` (visibilité, outil), `annotation.tsx` (poignées, pastilles, curseurs),
+`Flow.tsx` (bulle, outil armé, brouillon à deux clics), `app/styles/canvas.css`, `components/Toolbar.tsx` (outil),
+`state/store.tsx` (état `tool`), `engine/src/canvas/model.ts:523`. Module pur nouveau : `app/canvas/handles.ts` (géométrie
+des poignées et des pastilles à partir d'une boîte et d'un zoom, Alt depuis le centre, Maj rapport), testé sous Node.
+
+**Tests** : Node sur `handles.ts` (boîte résultante pour chaque poignée, Maj, Alt, bornes) ; Chromium : aucune ancre au
+repos ni à la sélection, ancres visibles sur l'élément survolé pendant un glissé de bout, outil `C` armé puis rangé par
+Échap, création à deux clics, poignée de milieu saisie sans créer de connecteur, bulle absente sur l'élément sélectionné,
+taille de poignée identique à l'écran à 0,4 et à 2.
+
+**Acceptation** : captures `1-note-selectionnee` (poignées seules), `2-outil-connecteur` (ancres sur le survol),
+`3-redimensionnement` (pastille L × H), à 1440 × 900 ; aucun constat du détecteur Impeccable sur les fichiers touchés.
+
+**Fait le 2026-10-13** : ancres jamais au repos ni sur la sélection (D3) ; elles se dessinent sur la cible d'un bout
+qu'on tire (outil, ou bout d'un connecteur existant) et sous le pointeur quand l'outil connecteur est armé, avec deux
+cibles comme draw.io (contour en accent plein = `auto`, quatre ancres = fixe, celle à portée grossit), dans une couche
+unique par-dessus la toile (`app/canvas/drawing.tsx`, état à part : le pointeur ne redessine pas la toile). L'outil :
+bouton à bascule de la barre (`aria-pressed`, libellé « outil connecteur »), touche C hors d'un champ, croix ; tirer
+depuis une ancre ou l'intérieur d'un élément, ou deux clics ; Échap ou un second appui le range, une création aussi
+sauf Maj tenue ; état `tool` dans le store (rangé en Contrôle et au changement de run). Décision pure dans
+`app/canvas/tool.ts`, marques et règle de la bulle dans `app/canvas/hover.ts`, poignées dans `app/canvas/handles.ts`
+(coins 8 px, barres 14 × 5 sur les côtés, taille d'écran constante, Maj rapport, Alt centre, bornes 20 / 4 000, pastilles
+« L × H » et « X, Y » par `PillSvg`, ton `muted`), tous testés sous Node (quatre tests, sept mutations vérifiées) ; la
+bulle sort de `Flow.tsx` dans `app/canvas/tips.tsx` (jamais sur la sélection, jamais pendant un geste, l'outil armé ni
+une édition en place). Liseré d'accent à 50 % au survol (annotation, cadre, connecteur) quand on peut écrire, curseur
+`move` sur une annotation non verrouillée, `default` en Contrôle. Défauts purs : « dessous » retiré de la fiche et du
+menu d'une annotation attachée (la fiche le dit) ; `zoom-near` retiré de l'application (`/view`, gelée, garde le sien) ;
+suppression d'un groupe directe depuis la fiche comme depuis le menu (« groupe supprimé (nom) · Ctrl+Z pour annuler ») ;
+la largeur commune était déjà corrigée par le lot 5. Captures et script : `.impeccable/planche-lot-1/`.
+**Écarts** : (1) les ancres ne sont plus des éléments de chaque nœud (`Anchors` par carte, disque, annotation, cadre :
+retiré) mais une seule couche qui dessine les marques de la cible, et l'outil prend les appuis de la toile à la capture
+(pointer events annulés : ni glissé, ni panoramique, ni rectangle de React Flow) ; plus de DOM par nœud, et un seul
+chemin pour « tirer depuis une ancre » et « tirer depuis l'intérieur ». (2) Le bouton s'appelle « outil connecteur »
+(« insérer un connecteur » ne disait plus ce qu'il fait) ; « insérer un connecteur ici » du menu du fond reste. (3) Un clic
+sans glisser sur un élément pose aussi le départ (attaché, `auto`), comme sur le fond. (4) La bulle se tait aussi tant
+que l'outil est armé (ses marques occupent le survol). (5) Pendant un redimensionnement par le haut, la gauche ou le
+centre, la boîte suit désormais en direct (elle grandissait vers la droite jusqu'à la relâche) ; l'opacité de
+l'annotation ne s'applique plus aux poignées. (6) Une barre de côté n'est pas dessinée sur un côté de moins de 40 px à
+l'écran (elle se confondrait avec les coins). (7) L'annotation glissée ou redimensionnée passe devant le temps du geste,
+pour que sa pastille ne passe pas sous une carte. **Parqués** : la confirmation de suppression d'une annotation et d'un
+connecteur dans leur fiche (le lot ne visait que les groupes) ; Échap pendant un redimensionnement vide la sélection, la
+boîte d'avant revient et rien ne s'écrit (pas d'annulation propre au geste) ; les
+barres de frontière d'un tableau (`table.tsx`, 6 unités du plan) ne sont pas encore à taille d'écran.
+
+### Lot 2 — Sélection mixte et clavier de base (P0, L)
+
+**En une phrase** : une sélection accepte tout ce qui se dessine, et le clavier fait ce que tout éditeur fait.
+
+**Pourquoi** : §4.2 premier point. Sans sélection mixte, ni presse-papiers (lot 3), ni barre contextuelle (lot 4), ni
+guides (lot 7) ne tiennent.
+
+**Spécification**
+
+- **Modèle** : `Selection = { hosts: string[], annotations: string[], connectors: string[], groups: string[] }`, triée,
+  dans `toile.ts` ; un **élément principal** (le dernier ajouté) décide de la fiche quand la sélection est d'une seule
+  sorte ; une sélection de plusieurs sortes ouvre `MultiCard`, qui compte par sorte. Clusters, câbles et faisceaux restent
+  seuls (ils ne s'éditent pas). L'adresse garde une seule clé de sélection quand elle est simple ; une sélection multiple
+  reste transitoire (existant).
+- **Souris** (décisions D1, D2) : clic = sélectionne ; **Maj + clic ou Ctrl + clic** = ajoute ou retire ; **glissé nu sur
+  le fond = rectangle** en mode « touche » (`SelectionMode.Partial`, existant) qui **remplace** la sélection ; **Maj +
+  rectangle ajoute** ; **Ctrl tenu pendant le rectangle = englobés seulement** (tldraw ; option, si le temps le permet) ; la vue se déplace par Espace + glissé, le bouton du milieu, ou le glissé nu **en Contrôle** (rien
+  ne s'y sélectionne au rectangle). Molette = défilement, Maj + molette = horizontal, Ctrl + molette = zoom, pincement =
+  zoom (`panOnScroll`, `zoomOnScroll={false}`, `zoomActivationKeyCode`). Les éléments verrouillés sont pris par le clic,
+  pas par le rectangle.
+- **Glissé** : une sélection mixte glisse d'un bloc (React Flow déplace les nœuds `selected` ; `onNodeDragStop` traite
+  déjà annotations et équipements, `Flow.tsx:482-510`) ; les bouts **libres** des connecteurs sélectionnés suivent ; un
+  cadre sélectionné entraîne ses membres (existe) ; **une seule entrée d'historique** pour le geste (épingles + patchs).
+- **Clavier** : **Ctrl+A** sélectionne tout ce qui est visible (équipements, annotations, connecteurs ; pas les cadres) ;
+  **Suppr / Retour arrière** supprime annotations, connecteurs et groupes de la sélection en une requête et une entrée
+  d'historique, dit « n supprimés, Ctrl+Z pour annuler », et pour les équipements (D5) dit « un équipement vient de la
+  donnée » avec « masquer » ; **flèches** déplacent toute la sélection (annotations et bouts libres compris), 20 ou 100
+  avec Maj, une rafale = une entrée (existe pour les équipements) ; **Échap** garde sa chaîne ; **F2** ou Entrée sur une
+  note, une étiquette de forme, un nom de groupe ouvre l'édition en place ; **Tab** cycle sur les éléments sélectionnables
+  dans l'ordre de lecture (haut-gauche → bas-droite) et Maj+Tab à rebours, le focus suit la sélection.
+- **Alignement et répartition** : sur toute sélection d'au moins deux boîtes (cartes et annotations ; les connecteurs
+  sont exclus, les cadres aussi) : gauche, centre, droite, haut, milieu, bas, répartir H / V, par les **boîtes** et non
+  les centres (`align.ts` étendu avec une boîte par élément ; les cartes gardent la règle actuelle quand la sélection n'a
+  que des cartes, pour ne pas changer les captures existantes). Équipements → épingles, annotations → patchs, une entrée.
+- **Édition en place** : l'étiquette d'une forme et le nom d'un groupe (sur le cadre) s'éditent au double-clic comme une
+  note.
+
+**Code** : `app/canvas/toile.ts` (modèle de sélection, `select`, `selectMany`, `toggle`, `nudge` étendu), `Flow.tsx`
+(`syncSelection` réécrit, `onSelectionChange`, rectangle, props de pan / zoom, Tab), `state/store.tsx` (Suppr, Ctrl+A),
+`components/Shell.tsx` (clavier), `engine/src/canvas/align.ts` (boîtes), `state/history.ts` (entrée composée),
+`cards/MultiCard.tsx` (comptes par sorte), `state/describe.ts` (zone live). Module pur nouveau : `app/state/selection.ts`
+(ajout, retrait, sortes, principal, ordre de Tab), testé sous Node.
+
+**Tests** : Node (`selection.ts`, `align.ts` sur des boîtes, historique composé) ; Chromium : rectangle nu qui prend une
+carte et une note, Ctrl+clic, glissé du bloc (épingle + patch, une entrée Ctrl+Z), Suppr (note et connecteur partis,
+équipement resté avec le message), Ctrl+A, flèches sur une note, molette = défilement, Ctrl + molette = zoom, Tab.
+
+**Acceptation** : captures `1-selection-mixte`, `2-alignement-mixte` ; le parcours Chromium existant
+(`test_the_application_end_to_end_in_a_browser`) adapté sans perte d'assertion.
+
+### Lot 3 — Presse-papiers : copier, couper, coller, dupliquer (P0, M)
+
+**En une phrase** : Ctrl+C / X / V / D et Alt + glissé sur tout ce qui s'édite, dans la page et d'une page à l'autre.
+
+**Dépend de** : lot 2 (sélection mixte). **Pourquoi** : §4.1 point 1.
+
+**Spécification**
+
+- **Charge utile** (module pur `app/state/clipboard.ts`) : `{ "living-diagram": 1, infrastructure, annotations: [...],
+  connectors: [...], hosts: [...] }`. Annotations : contenu, style, boîte, ancrage **conservé** si l'ancre fait partie du
+  collage ou existe dans l'infrastructure de destination (équipement du même nom, groupe du même id), sinon **libre** à la
+  même place du plan ; images : l'empreinte `sha256` de l'image. Connecteurs : gardés si leurs deux bouts sont dans la
+  charge ou existent à destination ; un bout absent devient un point libre à sa dernière position. Équipements (D6) : leurs
+  noms, en texte seulement.
+- **Écriture** : `navigator.clipboard.write` avec deux représentations : `web application/x-living-diagram+json`
+  (Chromium) et `text/plain` (la charge JSON entière pour les annotations, ou les noms d'équipements un par ligne quand il
+  n'y a qu'eux). Lecture : le format propre d'abord, sinon un `text/plain` qui commence par `{"living-diagram"` est une
+  charge ; sinon le comportement actuel (image → annotation image, texte → note). Un presse-papiers interne (mémoire de
+  l'onglet) double le système quand l'API refuse (contexte non sécurisé, permission).
+- **Coller** : si le pointeur est sur la toile au moment du Ctrl+V, la boîte englobante du collage se pose **au
+  pointeur** (coin haut gauche aimanté à la grille si l'aimant est actif) ; sinon à la place d'origine décalée de +20 / +20,
+  et chaque collage répété décale encore. D'une autre infrastructure : même règle, les images sont **renvoyées** au
+  magasin de destination (`GET /api/intent/assets/<sha>` puis `POST`) avant la création ; une image introuvable donne une
+  annotation image avec le texte alternatif seul et un message.
+- **Dupliquer** : Ctrl+D = copier + coller à +20 / +20 (un pas de notre grille ; +10 / +10 chez draw.io et Excalidraw,
+  dont la grille fait 10) sans toucher au presse-papiers système ; après un Alt + glissé, le Ctrl+D suivant **répète
+  l'écart** du clone (tldraw, Figma) tant que la sélection est la copie. **Alt + glissé** : un
+  fantôme suit le pointeur (copie locale, opacité 0,6), la copie se crée au relâchement à la position du fantôme ; sans
+  Alt au départ, glissé normal. Couper : Ctrl+X = copier puis supprimer (lot 2).
+- **Serveur** : un collage de `n` éléments = **une** requête `POST /api/intent/patches` avec `n` opérations
+  `annotation_create` / `connector_create` (l'exemple « Copy and Paste » de React Flow est payant : rien à en reprendre) ; vérifier que la réponse rend les identifiants **dans l'ordre des
+  opérations** (sinon l'ajouter, additif, dans `backend/src/ld_backend/api.py` et `schemas.py`) ; les connecteurs qui
+  visent une annotation collée sont créés **après** elle, dans la même requête, avec son identifiant rendu, ou dans une
+  seconde requête si l'API ne permet pas de référencer une création de la même requête (choisir la seconde, plus simple,
+  si le premier n'existe pas). **Une entrée d'historique** pour le collage entier.
+- **Menu contextuel et barre contextuelle** : copier, couper, coller, dupliquer, avec leurs raccourcis écrits.
+- **Hors périmètre** : coller des équipements, coller dans `/view`, coller un groupe (ses membres sont de la donnée ;
+  coller un groupe recrée un groupe **vide de style identique** ? non : rien, dit dans le message).
+
+**Code** : `app/state/clipboard.ts` (pur : sérialiser, désérialiser, remapper, décaler, texte des équipements),
+`state/store.tsx` (commandes), `components/Shell.tsx` (`copy`, `cut`, `paste` natifs, Ctrl+D), `Flow.tsx` (Alt + glissé,
+fantôme), `api/writers.ts` (créations en lot), `state/history.ts`, `components/ContextMenu.tsx`, `state/context.ts`.
+
+**Tests** : Node sur `clipboard.ts` (aller-retour, ancre conservée / libérée, connecteur orphelin, décalage cumulé,
+texte des équipements, charge étrangère ignorée) ; backend : identifiants d'un lot de créations dans l'ordre ; Chromium :
+Ctrl+C / Ctrl+V d'une note et d'un connecteur attaché (deux annotations, un connecteur, une entrée Ctrl+Z), collage au
+pointeur, Ctrl+D, Alt + glissé, collage entre deux infrastructures avec une image.
+
+**Acceptation** : capture `1-collage` (original, copie décalée, barre contextuelle avec « coller »).
+
+### Lot 4 — La barre contextuelle flottante (P0, L)
+
+**En une phrase** : les réglages fréquents de l'élément sélectionné sont à un clic, au-dessus de lui.
+
+**Dépend de** : lot 1 (poignées), lot 2 (sélection mixte). **Pourquoi** : §4.1 point 4 ; décision D10.
+
+**Spécification**
+
+- **Où** : au-dessus de la boîte englobante de la sélection, centrée, 8 px au-dessus, à taille d'écran ; passe dessous
+  quand le haut manque ; jamais sous la barre du haut, la barre d'outils ni le panneau (zone visible = insets de la
+  toile, comme la bulle) ; suit l'élément pendant un déplacement de la vue ; **cachée pendant un geste** (glissé,
+  redimensionnement, rectangle, brouillon) et pendant une édition en place, revient 120 ms après ; **Maj tenue la cache** (Miro) le temps d'un Maj + clic. Base technique :
+  `NodeToolbar` de React Flow (`nodeId` accepte une liste, **obligatoire** pour une sélection multiple : sans liste la
+  barre disparaît dès que deux nœuds sont sélectionnés ; `isVisible` piloté par nous), ou un portail en coordonnées
+  d'écran si `NodeToolbar` ne couvre pas les connecteurs (ce sont des nœuds : il les couvre).
+- **Forme** : une capsule de 36 px, fond `--panel` opaque, bordure `--line`, ombre `--shadow-2`, boutons d'icône 28 px
+  (Lucide 16), séparateurs fins, infobulle « libellé · raccourci » ; les choix (teinte, taille, pointes) s'ouvrent en
+  **volet** sous le bouton (le même `HuePicker` que l'inspecteur, grille 6 × 2) ; un volet se ferme à Échap ou au clic
+  dehors ; le bouton actif est relevé (`--ctl-line`), jamais cyan (règle de l'inspecteur).
+- **Contenu par sorte** (de gauche à droite ; `|` = séparateur) :
+  - note : teinte | taille du texte (S / M / L = 12 / 13 / 15) · gras · alignement H (cycle) | plan · verrou | dupliquer ·
+    supprimer ;
+  - forme : teinte · remplissage (0 / 25 / 50 / 100 %) · bordure (plein / tirets / points / aucune) · coins | étiquette
+    (édite en place) | plan · verrou | dupliquer · supprimer ;
+  - tableau : ligne + · colonne + · fusionner (si plage) · en-tête | teinte | plan | supprimer ;
+  - image : remplacer · opacité | plan · verrou | supprimer ;
+  - connecteur : pointes (cycle des quatre) · tracé (droit / coudé / courbe) | teinte · épaisseur (1 / 2 / 3 / 4) · style |
+    inverser · verrou | supprimer ;
+  - groupe : teinte · forme (rectangle / ellipse) · position de l'étiquette (volet 3 × 3) | sélectionner les membres ·
+    appliquer la teinte aux membres | supprimer ;
+  - équipement : teinte | épingler / désépingler · grouper ou ajouter à un groupe | note attachée · connecteur | masquer ·
+    isoler ;
+  - sélection multiple : aligner (6) · répartir (2) (**retirés de la barre haute**, D10) | grouper · teinte | dupliquer ·
+    supprimer · verrou.
+  Tout ce que la barre fait, l'inspecteur le fait aussi (même état, mêmes hôtes) ; la barre n'a rien que l'inspecteur n'a pas.
+- **Clavier** : depuis la toile, **Alt+T** (ou F10 ?) donne le focus à la barre, ← → entre les boutons, Échap rend le
+  focus à la toile ; chaque bouton a son `aria-label` ; la barre est un `role="toolbar"`.
+- **Pas de barre** : en Contrôle, sans nom (lecture seule : la barre ne montre que centrer et, pour un équipement,
+  masquer / isoler ; ou rien : choisir rien, la fiche dit déjà pourquoi), sur un cluster, un câble, un faisceau.
+
+**Code** : `components/FloatingBar.tsx` (nouveau) et `cards/style.tsx` (réutiliser `HuePicker`, `StrokeRow`),
+`app/styles/app.css` (`.fbar`), `Flow.tsx` (`NodeToolbar`, visibilité pendant les gestes), `components/Toolbar.tsx`
+(alignements retirés), `state/store.tsx` (commandes déjà existantes : réutiliser), catalogues `shell` / `panel`.
+Module pur nouveau : `app/state/floating.ts` (quels boutons pour quelle sélection, et quelle position pour quelle boîte
+dans quelle zone), testé sous Node.
+
+**Tests** : Node (`floating.ts` : boutons par sorte et par droit, position qui passe dessous) ; Chromium : barre
+présente sur une note, absente pendant son glissé, teinte posée par la barre (document écrit), alignement depuis la barre
+sur une sélection mixte, Alt+T puis ← → puis Échap, absente en Contrôle.
+
+**Acceptation** : captures `1-note`, `2-connecteur`, `3-multi` (barre au-dessus, volet ouvert sur l'une) ; critique
+Impeccable à deux agents sur ces captures en fin de lot, les P1 corrigés dans le lot.
+
+### Lot 5 — Lisibilité des cartes : le nom, le niveau de détail (P0, S)
+
+**En une phrase** : un nom d'équipement se lit à tout zoom où on travaille.
+
+**Pourquoi** : §4.1 point 2 ; décision D4 (sans l'échelle partagée, parquée).
+
+**Spécification**
+
+- **Nom** : `LABEL_PX` 15 → **18**, la carte reste 80 de haut ; `LABEL_MAX` 22 inchangé ; la largeur commune suit
+  (0,62 em × 18) ; vérifier que la largeur maximale 360 tient 22 caractères, sinon `MAX_W` 400 (multiple de 40).
+  `/view` lit `card.ts` aussi : elle suit, capture à joindre (correctif admis sur une page gelée : partagé).
+- **Niveau de détail** (`Flow.tsx` : classes `zoom-far` < 0,6 ; ajouter `zoom-tiny` < 0,4) : en `zoom-far`, l'icône
+  passe à 28 et le nom à **24 px** sur une seule ligne, centré sur la carte, rail conservé, pastilles cachées sauf
+  `tone-danger` (existe) ; en `zoom-tiny`, l'icône disparaît, le nom seul à 30 px ; les étiquettes de port, de faisceau,
+  de vitesse restent cachées. Les tailles sont posées par le CSS (`.zoom-far .node-label { font-size }`), la géométrie
+  du plan ne change pas (la carte garde sa boîte : le placement et les câbles ne bougent pas) ; le nom peut être
+  raccourci plus court en `zoom-tiny` (14 caractères) par une seconde ligne de texte déjà rendue et affichée par classe.
+- **Ouverture** : `READ_ZOOM` 0,67 → mesurer avec le nouveau nom ; si 18 px à 0,55 donne ≥ 10 px, baisser à 0,55 pour
+  cadrer plus d'équipements à l'ouverture.
+- **Voisins inconnus** : disque 8 → 10, nom 10,5 → 12 px ; centre sur la grille (coin aimanté : décaler la boîte à 20 × 20).
+
+**Code** : `engine/src/canvas/card.ts`, `app/styles/canvas.css`, `Flow.tsx:55`, `app/canvas/opening.ts`, `nodes.tsx`
+(seconde ligne de texte pour le niveau de détail). Pas de contrat.
+
+**Tests** : Node (`card.ts` : largeur commune avec 18 px, 22 caractères dans `MAX_W`) ; Chromium sur la série à 60
+équipements : taille rendue du nom ≥ 10 px à l'ouverture et à « cadrer tout » (`test_the_application_opens_a_large_infrastructure_where_names_read` étendu) ; captures `/view` inchangées hors le nom.
+
+**Acceptation** : captures `1-ouverture`, `2-cadrer-tout` sur `demo-dc` et sur 60 équipements ; les noms se lisent
+sur `2-cadrer-tout` (≥ 10 px mesurés).
+
+**Fait le 2026-10-13** : nom 15 → 18 dans la même carte (80 de haut) ; `MAX_W` 360 tient 22 caractères à 18 (334),
+gardé. Deux niveaux de détail dans la même boîte, calculés par `card.ts` (`plan().far`, `plan().tiny`, purs, testés sous
+Node) et montrés par classe (`canvas.css`, `nodes.tsx`) : `zoom-far` sous 0,6 (icône 28, nom 24 centré à droite du rail),
+`zoom-tiny` sous 0,4, posée avec `zoom-far` (le nom seul à 30, 14 caractères au plus) ; placement et câbles inchangés.
+`READ_ZOOM` 0,67 → **0,55** : à 0,55 la carte est déjà « de loin », le nom rendu fait 24 × 0,55 = 13,2 px (mesuré) ; le
+plus petit nom rendu au-dessus de 0,55 est à 0,6 (10,8 px). Voisins inconnus : disque 8 → 10, nom 10,5 → 12, nœud React
+Flow de 40 × 40 autour du disque (centre sur la grille quand le coin s'aimante ; câbles, accrochage et connecteurs lisent
+toujours le disque). Défaut du lot 1 corrigé : la largeur commune se mesure sur les noms seuls (`model.ts`). `/view` suit
+`card.ts` (nom à 18 dans `viewer.css`, disque de 10), rien d'autre. Mesures (taille rendue du nom, 1440 × 900) :
+
+| Cas | Avant | Après |
+|---|---|---|
+| `demo-dc`, ouverture | 0,67 → 10,1 px | 0,55 → 13,2 px (de loin) |
+| `demo-dc`, « cadrer tout » | 0,446 → 6,7 px | 0,391 → 11,7 px (de très loin) |
+| 60 équipements, ouverture | 0,67 → 10,1 px | 0,55 → 13,2 px |
+| 60 équipements, « cadrer tout » | 0,306 → 4,6 px | 0,324 → **9,7 px** |
+| `demo-dc` 1280 clair, « cadrer tout » | — | 0,328 → 9,8 px |
+
+**Écarts** : l'acceptation « ≥ 10 px à cadrer tout sur 60 équipements » n'est pas tenue (9,7 px). Le nom de très loin est
+déjà le plus grand que la carte tienne (12 caractères à 30 dans 240) : à 0,324, la carte fait 78 px à l'écran et 12
+caractères à 10 px en demandent 74 ; aucune taille dans la carte n'y arrive sans toucher ses bords. D4 promettait
+« lisible jusqu'à 0,35 » : tenu (≥ 10 px dès 1/3). Le test Chromium vérifie ≥ 10 px à l'ouverture et, à « cadrer tout »,
+le nom de très loin à ses 30 unités. Leviers, à trancher : un placement plus serré (lot 6), ou un nom de très loin qui
+déborde un peu de sa carte. Les cartes s'élargissent (`demo-dc` : 200 → 240), le placement s'écarte d'autant
+(« cadrer tout » de `demo-dc` 0,446 → 0,391) ; une infrastructure déjà mémorisée garde ses centres. À l'ouverture
+(0,55), les pastilles de carte (ACTIF, stack) sont cachées comme sous 0,6 : conséquence de D4, visible. De loin, un nom
+qui ne tient pas avec l'icône est raccourci au milieu (22 caractères dans une carte de 360 → 20). Captures et scripts :
+`.impeccable/planche-lot-5/`. **Parqués** : l'étiquette des clusters HA (14 unités) reste illisible de loin ; la ligne
+du dessous de `/view` (rôle, stack) peut élargir une carte au-delà de la largeur commune si elle dépasse le nom (aucun cas
+sur `demo-dc`).
+
+### Lot 6 — Arrangements : en couches, en grille, radial (P0, M)
+
+**En une phrase** : « ranger » place la sélection, ou tout, comme un ingénieur réseau dessinerait : le cœur en haut,
+l'accès en bas, les paires côte à côte.
+
+**Pourquoi** : §4.1 point 2 ; le placement force-dirigé est le seul arrangement, et c'est celui qu'aucun éditeur
+n'impose. Le placement mémorisé (docs/09) reste la mémoire ; un arrangement est une **commande** dont le résultat
+s'enregistre comme des épingles (avec un nom) ou des déplacements locaux (sans), donc annulable, comme l'alignement.
+
+**Spécification**
+
+- **Commandes** (menu « ranger » dans la barre contextuelle de la sélection multiple et dans le menu contextuel du fond
+  pour « tout ») : **en couches**, **en grille**, **radial**, **organique** (le placement actuel, relancé sur la sélection).
+  S'applique à la sélection d'au moins deux équipements, sinon à tous les équipements visibles. Les annotations attachées
+  suivent (enfants), les libres ne bougent pas.
+- **En couches** (module pur `engine/src/canvas/arrange.ts`) : racines = la sélection « racine » si l'utilisateur en a
+  marqué une (option : « ranger en couches depuis ici » sur un équipement), sinon automatiques : les équipements de type
+  `router` et `firewall` d'abord, à défaut les plus connectés (degré) ; couches par distance (BFS) aux racines sur les
+  câbles visibles ; dans une couche, ordre par barycentre des voisins de la couche d'au-dessus (deux passes descendante
+  et montante, Sugiyama simplifié), **membres d'un cluster HA et d'une paire MLAG adjacents** ; espacement horizontal =
+  largeur commune + 60, vertical = 80 × 2,5 ; couche centrée ; positions entières sur la grille ; les équipements
+  épinglés hors sélection ne bougent pas, le rangement s'écrit autour d'eux (le résultat est translaté pour ne pas les
+  recouvrir, `layout.separate` en finition). Orientation : haut → bas par défaut ; gauche → droite en option.
+- **En grille** : colonnes = `ceil(sqrt(n × 1,6))`, ordre par nom (ou par l'ordre de la sélection), espacement comme
+  ci-dessus ; **radial** : racine au centre (règle des racines), anneaux par distance, rayon = max(largeur commune × 1,2,
+  périmètre / n) ; **organique** : `layout.run` sur la sélection avec les autres fixés (existe : `extend`).
+- **Résultat** : positions entières, aimantées à la grille ; un paquet d'épingles (nom) ou des déplacements locaux ;
+  **une entrée d'historique** ; message « 24 équipements rangés en couches (orhan) ». La vue cadre la sélection
+  rangée. Rien n'est écrit dans le placement mémorisé par cette commande (il suit par `syncPlaces` comme un glissé).
+- **Hors périmètre** : rangement automatique à l'ingestion (le placement mémorisé reste la règle), orthogonalisation
+  des câbles, rangement des annotations.
+
+**Code** : `engine/src/canvas/arrange.ts` (pur, testé : couches, ordre, adjacence HA / MLAG, grille, radial, grille
+entière, épingles respectées), `app/canvas/toile.ts` (`arrange(kind, hosts)` → `moveTo` + paquet), `components/FloatingBar.tsx`
+et `ContextMenu.tsx` (entrées), `state/history.ts`.
+
+**Tests** : Node (sur `demo-dc` : les deux cœurs en couche 0 ou 1 selon les racines, les accès dessous, le cluster HA
+adjacent, aucune collision de cartes, déterminisme) ; Chromium : « ranger en couches » depuis le menu du fond, épingles
+écrites sous le nom, Ctrl+Z rend les places.
+
+**Acceptation** : captures `1-couches`, `2-grille`, `3-radial` sur `demo-dc` ; temps < 200 ms à 500 équipements.
+
+### Lot 7 — Zoom, navigation, raccourcis, présentation (P1, S)
+
+**En une phrase** : la vue se commande au clavier et se lit, et l'interface sait s'effacer.
+
+**Spécification**
+
+- **Raccourcis** : **Maj+1** cadrer tout, **Maj+2** cadrer la sélection, **Maj+0** zoom 100 % (la convention de
+  FigJam, Excalidraw et tldraw ; Ctrl+1 à Ctrl+9 changent d'onglet dans Chromium et ne s'interceptent pas), Ctrl+0 cadrer
+  tout aussi, Ctrl+= / Ctrl+− par pas de 1,2 autour du centre de la vue, Ctrl + molette zoom au pointeur (lot 2),
+  Espace + glissé et bouton du milieu (lot 2) ; Origine = cadrer tout ; **`?`** ou Ctrl+/ ouvre l'**aide-mémoire des raccourcis** (dialogue `Dialog`, deux colonnes,
+  généré depuis une table unique `app/state/shortcuts.ts` qui alimente aussi les infobulles : une seule source).
+- **Indicateur de zoom** dans `Controls` : « 67 % » cliquable → menu : 50, 100, 200 %, cadrer tout, cadrer la sélection.
+- **Mode présentation** : **Ctrl+\\** (Figma) ou le bouton « plein écran » de `Controls` : passe en plein écran
+  (`requestFullscreen`, admis par la CSP ? oui, pas une ressource) et masque toute l'interface flottante sauf un bouton
+  de sortie discret ; la toile reste manipulable en lecture ; Échap sort. Préférence du navigateur : non (transitoire).
+- **Curseurs** : `grab` / `grabbing` pour le panoramique, `crosshair` pour le rectangle (lot 1 / 2 posent le reste).
+
+**Code** : `app/state/shortcuts.ts` (table, pure), `components/Shell.tsx`, `components/Controls.tsx`,
+`components/Shortcuts.tsx` (dialogue), `app/canvas/toile.ts` (`zoomTo`, `zoomBy`, `fitSelection`), `app.css`.
+
+**Tests** : Node (table des raccourcis sans doublon de combinaison, chaque entrée a sa clé de catalogue dans les deux
+langues) ; Chromium : Ctrl+0 / 1 / 2, indicateur, `?`, mode présentation masque la barre et Échap la rend.
+
+**Acceptation** : captures `1-aide-memoire`, `2-presentation`.
+
+### Lot 8 — Guides d'alignement intelligents et aimant aux objets (P1, M)
+
+**En une phrase** : pendant un glissé ou un redimensionnement, des lignes disent « aligné avec » et la boîte s'y colle.
+
+**Dépend de** : lot 2. **Pourquoi** : §4.2 ; aucun éditeur du benchmark n'en est dépourvu.
+
+**Spécification**
+
+- **Module pur** `engine/src/canvas/guides.ts` : entrées = la ou les boîtes qui bougent (une boîte englobante quand il y
+  en a plusieurs), les boîtes **candidates** (cartes, annotations, cadres visibles dans la zone de la vue élargie de
+  50 %, 400 au plus, les plus proches d'abord), le zoom, la tolérance (**8 px écran**, le seuil d'Excalidraw et de tldraw). Sorties = la correction `(dx, dy)` à
+  appliquer et les **lignes** à dessiner : bords (gauche, droite, haut, bas) et centres (H, V) alignés ; **espacement
+  égal** : quand la boîte est entre deux candidates ou à côté d'une paire déjà espacée, la distance se propose (v2 du
+  lot si le temps manque : v1 = bords et centres). Priorité : centre > bord, le plus proche gagne, une ligne par axe.
+- **Pendant un glissé** : `onNodeDrag` lit la position proposée, demande la correction, l'applique (`setNodes` ou
+  l'API de position de React Flow ; l'exemple « Helper Lines » de xyflow fait cela mais il est **payant**, on n'en
+  reprend rien, le module est à nous) ; les lignes se dessinent
+  dans une couche SVG en coordonnées d'écran (comme la bulle), couleur `--guide` (rose / rouge, jeton nouveau dans les
+  deux thèmes, contraste ≥ 3:1 sur le fond), 1 px, avec un petit nombre pour une distance. **Alt** pendant le geste
+  suspend l'aimantation (grille et guides) ; l'aimant de grille, quand il est actif, s'applique **après** les guides.
+- **Pendant un redimensionnement** : le bord tiré s'aligne de même (lot 1 fournit les poignées).
+- **Flèches du clavier** : pas de guides (déplacement d'un carreau).
+- **Préférence** : « guides » dans `Controls`, actif par défaut (`ld-prefs.guides`).
+
+**Code** : `engine/src/canvas/guides.ts` (pur, testé), `app/canvas/Flow.tsx` (`onNodeDrag`), `app/canvas/annotation.tsx`
+(redimensionnement), `app/canvas/GuideLayer.tsx` (nouveau, SVG écran), `components/Controls.tsx`, `state/prefs.ts`,
+`styles/tokens.css` (`--guide`).
+
+**Tests** : Node (`guides.ts` : bord, centre, priorité, tolérance en unités du plan selon le zoom, espacement égal, aucune
+candidate hors zone, 400 candidates en < 2 ms) ; Chromium : un glissé qui passe à 6 px écran d'un alignement se colle et
+la ligne se voit, Alt l'empêche, préférence rangée.
+
+**Acceptation** : capture `1-guide-centre`, `2-espacement-egal` prises **pendant** le glissé (le pilote tient le bouton).
+
+### Lot 9 — Ordre de superposition et verrou (P1, M) — contrat `Intent` 1.6.0
+
+**En une phrase** : devant, derrière, avancer, reculer, et un cadenas qui se voit.
+
+**Pourquoi** : §4.2 ; décision D7. Deux plans ne suffisent plus dès trois annotations qui se chevauchent.
+
+**Spécification**
+
+- **Contrat** : `order: int` (−100 000 à 100 000, défaut 0) sur `annotations[]` et `connectors[]` ; `locked: bool` sur
+  `groups[]` (comme les annotations) ; `upgraded()` pose `order = 0` et `locked = false` sur un 1.5.x ; les deux plans
+  (`plane`) restent. Rendu : `zIndex = base du plan + order` (dessous : −40 000 + order ; dessus : 20 000 + order),
+  les cadres gardent leur rangement par aire sous tout. Opérations : `annotation_update` / `connector_update` /
+  `group_update` acceptent déjà des patchs partiels (`order`, `locked` s'y ajoutent) ; pas de nouvelle opération.
+- **Commandes** : premier plan (Ctrl+Maj+]) = `max(order du plan) + 1` ; arrière-plan (Ctrl+Maj+[) = `min − 1` ;
+  avancer (Ctrl+]) / reculer (Ctrl+[) = échange avec l'élément **qui chevauche** le plus proche dans l'ordre (sinon
+  rien, message « déjà devant ») ; sur une sélection multiple, chaque élément garde son rang relatif. Menu contextuel,
+  barre contextuelle (volet « ordre » à quatre boutons), inspecteur (rangée « ordre » : les quatre boutons).
+- **Verrou** : un élément verrouillé ne se glisse pas, ne se redimensionne pas, ne se supprime pas par Suppr, n'entre
+  pas dans un rectangle, se sélectionne au clic (ses réglages restent modifiables) ; un **cadenas** à taille d'écran au
+  coin haut droit (`pill.ts`, `tone-muted`), visible au survol et à la sélection ; **verrouiller un équipement =
+  épingler** (déjà le cas : le dire dans la fiche) ; les groupes gagnent le verrou (cadre non glissable, membres
+  glissables) ; Ctrl+Maj+L bascule.
+- **Annotation attachée** : toujours au-dessus de son ancre (lot 1 le dit) ; son `order` ne joue qu'entre annotations
+  attachées à la même ancre.
+
+**Code** : `contracts/src/ld_contracts/intent/annotations.py`, `connectors.py`, `groups.py`, `upgrade`, schéma,
+`CONTRAT.md`, fixtures ; `backend/src/ld_backend/intent.py` (opérations), `cli` (`ld intent` imprime l'ordre et le
+verrou) ; `engine/src/canvas/annotations.ts` (`Z`), `app/canvas/Flow.tsx` (zIndex), `app/state/order.ts` (pur : devant,
+derrière, avancer, reculer par chevauchement), `history.ts`, `ContextMenu.tsx`, `FloatingBar.tsx`, `cards/*`.
+
+**Tests** : contrats (bornes, défaut, montée de version), store, API, CLI ; Node (`order.ts` : échange par chevauchement,
+rang relatif d'une sélection) ; Chromium : trois notes qui se chevauchent, Ctrl+] en change l'ordre visible (élément
+sous le pointeur), verrou qui refuse le rectangle et accepte le clic, Ctrl+Z. **Revue indépendante** (contrat).
+
+**Acceptation** : capture `1-trois-notes-ordre`, `2-verrou`.
+
+### Lot 10 — Styles : copier le style, dernier style, même taille (P1, S)
+
+**Spécification**
+
+- **Copier le style** Ctrl+Alt+C sur un élément, **coller le style** Ctrl+Alt+V sur la sélection (annotations et
+  connecteurs ; un style de note sur une forme pose ce qui est commun : teinte, remplissage, bordure, coins, opacité,
+  texte) ; menu contextuel et barre contextuelle (« pipette »). Une entrée d'historique par collage.
+- **Dernier style utilisé** (D12) : à l'insertion, une note, une forme, un tableau, un connecteur prennent le dernier
+  style **modifié** par l'utilisateur pour cette sorte (`ld-prefs.lastStyle[kind]`, posé quand un style change par la
+  fiche ou la barre, jamais par un collage de style) ; « rétablir les défauts » dans l'inspecteur (volet « … »).
+- **Même taille** : sur une sélection d'annotations, « même largeur », « même hauteur », « même taille » prennent celles
+  du **dernier sélectionné** (principal), dans le menu de la sélection multiple et la barre contextuelle.
+
+**Code** : `app/state/styles.ts` (pur : style commun, application à une sorte), `state/prefs.ts`, `state/store.tsx`,
+`Shell.tsx`, `ContextMenu.tsx`, `FloatingBar.tsx`. Pas de contrat.
+
+**Tests** : Node (style commun entre sortes, préférence bornée) ; Chromium : copier / coller le style, dernier style
+à l'insertion, même largeur.
+
+### Lot 11 — Export : PNG, puis SVG et PDF, et impression (P1, S puis L)
+
+**En une phrase** : le diagramme sort de l'application tel qu'il se voit, avec ses annotations, pour un auditeur.
+
+**Pourquoi** : §2 ; « Living Diagram va servir de référentiel solide en interne et pour les auditeurs » (docs/10 §6),
+la sortie figée est parquée depuis le 2026-10-08. Décision D8.
+
+**11 a, PNG (S)** : menu « exporter › PNG » (barre haute, menu, Ctrl+Maj+E) : volet avec **tout / la sélection**,
+échelle 1 / 2 / 3, fond (thème / transparent), grille oui / non ; capture du conteneur React Flow par `html-to-image`
+(dépendance **à décider** dans le lot : MIT, embarquée, pas de CDN, **1.11.11** comme l'exemple « Download Image » de
+React Flow qui l'épingle en « latest working version » ; sinon le rendu manuel du lot 11 b) avec les polices
+embarquées en `data:` (lire `fonts/*.woff2` par `fetch` sous `font-src 'self'`) ; l'interface flottante n'y est pas
+(`filter` sur les classes) ; nom `<infrastructure>-<run>.png` ; téléchargement par `blob:` (CSP : `img-src blob:`
+existe ; vérifier `download`). Message avec la taille.
+
+**11 b, SVG et PDF (L)** : `engine/src/canvas/svg.ts` (pur) écrit la **scène** en SVG autonome à partir des mêmes
+fonctions que la toile (`card.ts`, `icons.ts`, `pill.ts`, `geometry.ts`, `groups.ts`, `annotations.ts`, `connectors.ts`,
+`tags.ts`), avec les couleurs **résolues** (les jetons lus par `getComputedStyle` sur la racine, passés en paramètres :
+le module reste pur) et les polices en `@font-face` `data:` ; texte sélectionnable, identifiants `data-host` ; images
+en `data:` (le magasin par `GET` avec le jeton). PDF = impression du SVG dans une page dédiée (`window.print`, feuille
+`@page`) ; feuille d'impression de l'application (`@media print` : toile seule, fond blanc, pas d'interface) pour
+Ctrl+P. Mode « sélection » = la boîte englobante de la sélection avec marge 40.
+
+**Code** : `components/Export.tsx` (volet), `app/state/export.ts` (options, nom de fichier, pur), `app/canvas/svg.ts`,
+`api/client.ts` (lecture des polices et des images), `app.css` (`@media print`).
+
+**Tests** : Node (`svg.ts` : un SVG valide pour `demo-dc` avec une annotation et un connecteur, même nombre de cartes,
+dimensions de la sélection, aucune URL externe) ; backend : le SVG écrit passe le test « aucune URL » ; Chromium :
+export PNG déclenche un téléchargement (`Page.setDownloadBehavior`), fichier non vide, dimensions ×2.
+
+**Acceptation** : le PNG et le SVG de `demo-dc` joints au rapport, ouverts dans Chromium, identiques à l'écran (icônes,
+polices, teintes, annotations).
+
+### Lot 12 — Multi-utilisateur : une page qui voit les autres (P1, M)
+
+**En une phrase** : ce qu'un autre écrit apparaît sans recharger, et une écriture périmée ne l'écrase pas en silence.
+
+**Pourquoi** : §4.5 ; docs/08 Q5 ; décision D9.
+
+**Spécification**
+
+- **API** : `GET /api/intent?infrastructure=` renvoie un `ETag` (la révision) et répond **304** à `If-None-Match` ; même
+  chose pour `GET /api/placement`. Coût d'un 304 : lecture de la révision seule (le store la connaît sans relire le
+  document : à vérifier, sinon mettre en cache `(taille, date) → révision`).
+- **Page** : toutes les 15 s quand l'onglet est visible (`visibilitychange`, et une relecture immédiate au retour),
+  `GET` conditionnel ; une réponse 200 **fusionne** : le document reçu remplace celui de la page, les épingles,
+  couleurs, groupes, annotations, connecteurs se redessinent ; une boîte en cours de glissé ou un éditeur en place
+  ouvert ne sautent pas (le local en attente garde la main jusqu'à sa propre écriture) ; message discret « intention
+  mise à jour (par X il y a 20 s) », X lu dans la dernière ligne du journal (`GET /api/intent/journal?infrastructure=&…`,
+  une page de 1) ; l'historique (Ctrl+Z) garde sa règle « une clé modifiée par un autre est sautée ».
+- **Précondition** : `POST /api/intent/patches` accepte `expected_revision` ; **409** avec le document courant si la
+  révision a bougé ; la page relit, **rejoue ses opérations** sur le document frais si elles ne touchent pas une clé
+  modifiée entre-temps (une épingle, une couleur, un patch d'annotation sont idempotents par clé), sinon elle dit ce
+  qu'elle a laissé ; trois essais au plus (règle du placement). Sans `expected_revision`, comportement d'aujourd'hui
+  (compatibilité avec `/view`).
+- **Option, si le temps le permet** : « voir les changements récents » (Miro) : les éléments modifiés par d'autres depuis
+  l'ouverture de la page gardent un liseré discret jusqu'au prochain clic sur eux.
+- **Hors périmètre** : présence (qui regarde), curseurs partagés, verrou d'édition ; `WebSocket` / SSE (la relecture
+  suffit à 15 s ; à revoir si le besoin de « temps réel » est dit).
+
+**Code** : `backend/src/ld_backend/api.py` (ETag, 304, `expected_revision`), `intent.py` (révision sans relecture),
+`schemas.py`, `openapi.py`, `problems.py` (`stale_revision`) ; `engine/src/app/api/client.ts` (conditionnel),
+`shell/intent.ts` (`refresh`, fusion), `api/writers.ts` (précondition, rejeu), `state/store.tsx` (minuterie fournie par
+la page), catalogues.
+
+**Tests** : backend (ETag, 304, 409 avec document, rejeu), Node (fusion qui garde le local en attente), Chromium à
+deux onglets (une épingle posée dans l'un se voit dans l'autre sans rechargement ; une écriture périmée est rejouée ou
+dite). **Revue indépendante** (API).
+
+### Lot 13 — Performance de la toile à la jauge (P1, M)
+
+**En une phrase** : 500 équipements et 1 500 câbles se sélectionnent et se glissent sans attendre.
+
+**Spécification**
+
+- **Mesure d'abord** (série du générateur, 500 équipements, pilote Chromium, `Performance.getMetrics` et des
+  horodatages posés par la page) : temps jusqu'au premier dessin, temps d'une sélection (clic → fiche ouverte), images
+  par seconde pendant un glissé de 60 images, temps de « cadrer tout », mémoire. Les chiffres vont dans le rapport et
+  dans `engine/README.md`.
+- **Cibles** : sélection < 50 ms, glissé ≥ 50 images / s, premier dessin < 2 s (hors placement), sans régression du
+  déterminisme.
+- **Corrections attendues** (dans l'ordre, chacune mesurée) : `React.memo` sur les composants de nœud et d'arête avec
+  des props stables (données par identité, pas par objet neuf) ; reconstruction **incrémentale** dans `Flow.tsx`
+  (ne recalculer que les nœuds et arêtes dont la version propre a changé : la scène garde une version par élément, la
+  sélection ne reconstruit que les deux éléments qui changent de classe) ; connecteurs abonnés à **leurs bouts**
+  seulement (`useNodesData([a, b])`) ; `placeCableTags` et `speedGroups` recalculés à un changement de positions, pas de
+  sélection ; `onlyRenderVisibleElements` évalué (gain / risque sur `measured`) ; le glissé d'un cadre ne fait plus un
+  `map` sur tous les nœuds (ne déplacer que ses membres par `updateNode`).
+- **Garde** : un test Chromium à 500 équipements avec des bornes larges (sélection < 200 ms, glissé sans image > 100 ms),
+  marqué lent, lancé dans la suite complète.
+
+**Code** : `app/canvas/Flow.tsx`, `nodes.tsx`, `edges.tsx`, `connector.tsx`, `toile.ts` (versions par élément),
+`backend/tests/test_app.py` (`test_the_application_at_the_gauge`).
+
+### Lot 14 — La passe visuelle « moderne » (P2, M) — après les lots 1 à 5
+
+**En une phrase** : ce que la main fait, l'œil le voit venir et le voit se faire.
+
+**Spécification** (une capture par retouche, pas de variantes) : curseurs partout (`grab`, `grabbing`, `move`,
+`crosshair`, `text`, redimensionnement) ; liseré de survol et anneau de sélection (2 px écran, accent, coins suivis) ;
+poignées et pastilles de geste (lot 1) relues ; apparition de la barre contextuelle (120 ms, 4 px, `--t-tip`), de
+l'élément inséré (un pulse d'opacité, 200 ms), du collage (même pulse), fondu de la bulle (existe) ; fantôme d'Alt +
+glissé ; messages d'état en bas à gauche empilés avec icône et bouton d'action (« masquer », « annuler ») au lieu de
+la ligne centrale ; barre d'outils haute en deux groupes (vue · insertion) ; état vide du diagramme (aucun équipement
+visible : une phrase et « tout montrer ») ; mouvement réduit respecté. **Critique Impeccable** à deux agents isolés sur
+cinq captures (ouverture, sélection d'une note avec barre, sélection mixte, glissé avec guides, présentation) ; cible
+≥ 30 / 40 ; les P1 corrigés dans le lot, le reste consigné.
+
+### Lot 15 — Texte riche restreint dans les notes (P2, S) — si D11 est retenue
+
+Markdown restreint dans `note.text` (contrat inchangé : c'est du texte) : `**gras**`, `_italique_`, `- liste`, `[lien](https://…)`
+(ouvert dans un nouvel onglet, `rel="noopener"`, `http(s)` seulement) ; rendu par la toile (`annotations.ts` : le retour à
+la ligne apprend les jetons, `annotation.tsx` : `tspan` par style) ; l'éditeur en place reste un `textarea` ; un bouton
+« gras » dans la barre contextuelle entoure la sélection du champ. Un texte qui ne parse pas s'affiche brut. Test Node
+du parseur (pur), Chromium (gras rendu, lien cliquable, mutation : `<script>` reste du texte).
+
+### Déjà planifiés, inchangés, après ces lots (docs/10 §8)
+
+Épingles d'étiquettes et styles de câbles ; masque par règle enregistré ; câbles déclarés. Puis la revue indépendante de
+`docs/10` complet. Parqués et le restent : rotation, polygones, calques par audience, plusieurs ancres par côté,
+connecteur à segments libres, présence en temps réel, tactile.
+
+## 7. Ordre recommandé
+
+| Ordre | Lot | Priorité | Taille | Dépend de | Modèle |
+|---|---|---|---|---|---|
+| 1 | 5 Lisibilité des cartes | P0 | S | — | Sonnet ou Opus |
+| 2 | 1 Poignées, ancres, survol | P0 | M | — | Opus |
+| 3 | 2 Sélection mixte et clavier | P0 | L | 1 | Opus |
+| 4 | 3 Presse-papiers | P0 | M | 2 | Opus |
+| 5 | 4 Barre contextuelle | P0 | L | 1, 2 | Opus |
+| 6 | 6 Arrangements | P0 | M | 2 | Opus |
+| 7 | 7 Zoom, raccourcis, présentation | P1 | S | 2 | Sonnet ou Opus |
+| 8 | 8 Guides | P1 | M | 1, 2 | Opus |
+| 9 | 9 Ordre et verrou (Intent 1.6.0) | P1 | M | 4 | Opus + revue |
+| 10 | 10 Styles | P1 | S | 4 | Sonnet ou Opus |
+| 11 | 13 Performance | P1 | M | 2 | Opus |
+| 12 | 11 Export (a puis b) | P1 | S + L | — | Opus |
+| 13 | 12 Multi-utilisateur | P1 | M | — | Opus + revue |
+| 14 | 14 Passe visuelle | P2 | M | 1 à 8 | Opus |
+| 15 | 15 Texte riche | P2 | S | 4 | Sonnet ou Opus |
+
+Les lots 11 et 12 n'ont pas de dépendance : ils peuvent partir en parallèle des lots 2 à 4 sur une branche à part,
+à condition de ne pas toucher `Flow.tsx` (lot 11 a) ou de le toucher en dernier (lot 12, fusion). Les lots 1 à 4 sont
+**séquentiels** : ils réécrivent la même sélection et la même toile.
+
+## 8. Ce qui reste ouvert après ce document
+
+- Les douze décisions de §5.
+- L'échelle d'affichage partagée (D4, option), à revoir après le lot 5 sur capture.
+- La tolérance de la jauge pour React Flow : si le lot 13 ne tient pas les cibles, le pari « React Flow pour
+  l'application » se rediscute (la toile TypeScript de `/view` tient 500 équipements).
+- Une identité réelle des utilisateurs (préférences côté serveur, présence, droits) : hors de ce document.
+
+## 9. Annexes consignées
+
+- §9.1 `docs/revues/2026-10-13-inventaire-ui-commandes.md` : l'inventaire des commandes, du clavier, de la souris, de
+  la persistance, et des absences vérifiées par grep.
+- §9.2 `docs/revues/2026-10-13-inventaire-ui-toile.md` : l'inventaire des tailles, des poignées, des ancres, des types
+  de nœuds, du rendu et de la performance.
+- §9.3 `docs/revues/2026-10-13-benchmark-editeurs.md` : le benchmark des sept éditeurs et de l'outil réseau, avec
+  ses sources (une fiche par produit, douze points chacune, puis la synthèse et le détail de React Flow 12).

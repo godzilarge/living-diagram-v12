@@ -135,7 +135,8 @@ def test_an_unexpected_error_keeps_the_problem_shape(settings, monkeypatch):
     monkeypatch.setattr(BundleArchive, "list_runs", boom)
     client = TestClient(create_app(settings), raise_server_exceptions=False)
     res = client.get(URL, params=PARAMS, headers={"Authorization": f"Bearer {settings.api_token}"})
-    assert res.status_code == 500 and res.json() == {"detail": "erreur interne, intervention nécessaire"}
+    assert res.status_code == 500
+    assert res.json() == {"code": "internal_error", "detail": "internal error: administrator action needed"}
     assert "/srv/secret" not in res.text
 
 
@@ -143,4 +144,5 @@ def test_every_body_too_large_says_body_not_bundle(client: TestClient, auth, bun
     assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
     huge = b"x" * (settings.max_asset_bytes + 1)
     res = client.post(ASSETS, params=PARAMS, content=huge, headers={**auth, "Content-Type": "image/png"})
-    assert res.status_code == 413 and res.json()["detail"].startswith("corps trop volumineux")
+    assert res.status_code == 413 and res.json()["detail"].startswith("body too large")
+    assert res.json()["code"] == "body_too_large" and isinstance(res.json()["params"]["limit"], int)

@@ -9,6 +9,7 @@ import { defaultFilters, newer, queryOf } from "./journal";
 import { csvName, csvOf } from "./journal-csv";
 import type { JournalEntry, JournalFilters, JournalPage } from "./journal";
 import type { Action, AppState, JournalUi, ViewState } from "./types";
+import { sayText } from "./said";
 
 export interface JournalDeps {
   dispatch: (action: Action) => void;
@@ -74,11 +75,11 @@ export function journalCommands(deps: JournalDeps): JournalCommands {
     do {
       // un lien vers une entrée n'est pas un filtre : l'export prend aussi les plus récentes (revue, M5)
       const result = await fetchJournal(session().token, queryOf({ ...filters, rev: null }, infra, at, before, RELOAD_MAX));
-      if (!result.ok) { if (result.status === 401) deps.dropToken(); return { ok: false, message: result.message }; }
+      if (!result.ok) { if (result.status === 401) deps.dropToken(); return { ok: false, message: sayText(result.message) }; }
       entries.push(...result.page.entries);
       before = result.page.next;
     } while (before && entries.length < EXPORT_MAX);
-    const scope = filters.infrastructure === "*" ? "toutes" : filters.infrastructure || infra;
+    const scope = filters.infrastructure === "*" ? "" : filters.infrastructure || infra; // toutes : `csvName` le dit dans la langue
     return { ok: true, csv: csvOf(entries), name: csvName(scope, new Date(at)), count: entries.length, truncated: !!before };
   }
   return {

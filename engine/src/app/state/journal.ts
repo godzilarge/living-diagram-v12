@@ -3,12 +3,15 @@
 // révision, opérations telles que reçues) ; ses sujets (groupe, annotation, connecteur) portent le nom connu à cette
 // révision, rejoué par le serveur. Les phrases : `journal-text.ts`. Pur, testé sous Node ; les formes de l'API sont
 // écrites à la main, comme celles du placement (backend `journal.py`, OpenAPI `JournalPage`).
-import { categoryOf, changedFields, count, destroys, detailGroups, factsOf, firstRef, headline, hiddenHit, majority, marks, sentenceOf, textOf, visibleMatch } from "./journal-text";
+import { labelMap, locale, t } from "../../i18n";
+import { categoryOf, changedFields, destroys, detailGroups, factsOf, firstRef, headline, hiddenHit, majority, marks, sentenceOf, textOf, visibleMatch } from "./journal-text";
 
 export type JournalCategory = "positions" | "colors" | "groups" | "annotations" | "connectors" | "other";
 /** L'action d'une entrée (`journal_index.py`) : créé, modifié, supprimé ; une purge du journal compte comme supprimé. */
 export type JournalAction = "created" | "modified" | "deleted";
-export interface JournalSubject { id: string; kind: "group" | "annotation" | "connector"; label: string; form: string }
+/** Un bout du nom d'un connecteur sans étiquette : un nom saisi, ou la sorte d'un objet sans nom (`free` = point libre). */
+export interface JournalNamePart { text?: string | null; unnamed?: string | null }
+export interface JournalSubject { id: string; kind: "group" | "annotation" | "connector"; label: string; form: string; unnamed?: string; parts?: JournalNamePart[] }
 export interface JournalOp { op: string; [key: string]: unknown }
 /** Le regroupement d'une entrée, calculé par le serveur sur le journal entier (`journal_groups.py`) : une session de
  *  positions, ou la répétition d'un même geste ; `size` = ses entrées dans le journal entier (un filtre en cache). */
@@ -23,14 +26,14 @@ export interface JournalPage {
 }
 
 export const CATEGORIES: JournalCategory[] = ["positions", "colors", "groups", "annotations", "connectors", "other"];
-export const CATEGORY_LABEL: Record<JournalCategory, string> = { positions: "Positions", colors: "Couleurs", groups: "Groupes", annotations: "Annotations", connectors: "Connecteurs", other: "Autres" };
+export const CATEGORY_LABEL = labelMap("journal:category", CATEGORIES) as Record<JournalCategory, string>;
 export const ACTIONS: JournalAction[] = ["created", "modified", "deleted"];
-export const ACTION_LABEL: Record<JournalAction, string> = { created: "Créé", modified: "Modifié", deleted: "Supprimé" };
+export const ACTION_LABEL = labelMap("journal:action", ACTIONS) as Record<JournalAction, string>;
 /** La période : relative à maintenant, ou une plage de jours (`range`, bornes `from` et `to` incluses, en heure locale :
  *  « qui a supprimé quoi entre le 1er et le 15 septembre », revue Impeccable du 2026-10-10). */
 export type Period = "all" | "24h" | "7d" | "30d" | "range";
 export const PERIODS: Period[] = ["24h", "7d", "30d", "all"];
-export const PERIOD_LABEL: Record<Period, string> = { "24h": "24 h", "7d": "7 jours", "30d": "30 jours", all: "Tout", range: "Plage" };
+export const PERIOD_LABEL = labelMap("journal:period", ["24h", "7d", "30d", "all", "range"]) as Record<Period, string>;
 const PERIOD_MS: Record<"24h" | "7d" | "30d", number> = { "24h": 864e5, "7d": 7 * 864e5, "30d": 30 * 864e5 };
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** Un jour `AAAA-MM-JJ` lu en heure locale (minuit) ; `null` s'il ne se lit pas. */
@@ -41,15 +44,23 @@ export function localDay(day: string): Date | null {
   return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d ? date : null;
 }
 const iso = (d: Date): string => d.toISOString().replace(/\.\d{3}Z$/, "Z");
-const RANGE_DAY = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" });
-const RANGE_YEAR = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+// Les formats de date suivent la langue de la page (`locale()`), un formateur par langue et par forme.
+const formats = new Map<string, Intl.DateTimeFormat>();
+function format(name: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = locale() + "|" + name;
+  let found = formats.get(key);
+  if (!found) { found = new Intl.DateTimeFormat(locale(), options); formats.set(key, found); }
+  return found;
+}
+const RANGE_DAY = (): Intl.DateTimeFormat => format("range-day", { day: "numeric", month: "short" });
+const RANGE_YEAR = (): Intl.DateTimeFormat => format("range-year", { day: "numeric", month: "short", year: "numeric" });
 /** La plage en mots courts, pour le bouton : « 1 sept. – 15 sept. », « depuis le 1 sept. », « jusqu'au 15 sept. ». */
 export function rangeLabel(from: string, to: string, now: number): string {
   const a = localDay(from), b = localDay(to), year = new Date(now).getFullYear();
-  const fmt = (d: Date): string => (d.getFullYear() === year ? RANGE_DAY : RANGE_YEAR).format(d);
+  const fmt = (d: Date): string => (d.getFullYear() === year ? RANGE_DAY() : RANGE_YEAR()).format(d);
   if (a && b) return a.getTime() === b.getTime() ? fmt(a) : fmt(a) + " – " + fmt(b);
-  if (a) return "depuis le " + fmt(a);
-  if (b) return "jusqu'au " + fmt(b);
+  if (a) return t("journal:since", { date: fmt(a) });
+  if (b) return t("journal:until", { date: fmt(b) });
   return PERIOD_LABEL.range;
 }
 
@@ -125,17 +136,18 @@ export function formatFilters(f: JournalFilters): string[] {
 
 
 // ---- le temps
-const DAY = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-const TIME = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const DAY = (): Intl.DateTimeFormat => format("day", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const TIME = (): Intl.DateTimeFormat => format("time", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 const dayKey = (d: Date): string => d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
-/** Le jour d'une date, en heure locale : « aujourd'hui », « hier », sinon la date en toutes lettres. */
+/** Le jour d'une date, en heure locale : « aujourd'hui », « hier », sinon la date en toutes lettres (« jeudi 1er octobre
+ *  2026 » : le premier du mois s'écrit selon la langue, `journal:firstDay`). */
 export function dayLabel(at: string, now: number): string {
   const d = new Date(at), today = new Date(now), yesterday = new Date(now - 864e5);
-  if (dayKey(d) === dayKey(today)) return "aujourd'hui";
-  if (dayKey(d) === dayKey(yesterday)) return "hier";
-  return DAY.format(d);
+  if (dayKey(d) === dayKey(today)) return t("journal:today");
+  if (dayKey(d) === dayKey(yesterday)) return t("journal:yesterday");
+  return DAY().formatToParts(d).map((p) => (p.type === "day" && p.value === "1" ? t("journal:firstDay") : p.value)).join("");
 }
-export const timeLabel = (at: string): string => TIME.format(new Date(at));
+export const timeLabel = (at: string): string => TIME().format(new Date(at));
 /** Le fuseau des heures affichées (un audit doit le savoir) : « UTC+2 », « UTC+5:30 », « UTC ». */
 export function zoneLabel(now: number): string {
   const minutes = -new Date(now).getTimezoneOffset();
@@ -223,6 +235,6 @@ export function byDay(items: JournalItem[], now: number): { day: string; items: 
 export type { DetailGroup, Fact, Piece, RefKind, Sentence } from "./journal-text";
 export const journal = {
   CATEGORIES, CATEGORY_LABEL, PERIODS, defaultFilters, queryOf, parseFilters, formatFilters, filtered, changedFields, sentenceOf, headline, majority,
-  detailGroups, factsOf, marks, visibleMatch, hiddenHit, firstRef, textOf, count, dayLabel, zoneLabel, newer, fold, mergedOp, byDay, categoryOf,
+  detailGroups, factsOf, marks, visibleMatch, hiddenHit, firstRef, textOf, dayLabel, zoneLabel, newer, fold, mergedOp, byDay, categoryOf,
   sessionHosts, rangeLabel, localDay, destroys, entryLink, isTrace, ACTIONS, ACTION_LABEL,
 };

@@ -76,7 +76,7 @@ def test_upload_read_cite_and_delete(client: TestClient, auth, bundle_dict):
     assert (made["w"], made["h"]) == (320, 240), "la taille par défaut d'une image"
     unknown = {"op": "annotation_create", "content": {"kind": "image", "asset": "1" * 64, "alt": ""}}
     res = client.post(PATCHES, params=PARAMS, json={"author": "orhan", "ops": [unknown]}, headers=auth)
-    assert res.status_code == 422 and "image inconnue" in res.text
+    assert res.status_code == 422 and res.json()["errors"][0]["code"] == "unknown_asset"
     assert client.delete(ASSETS, params={**PARAMS, "asset": receipt["asset"]}, headers=auth).status_code == 409
     delete = {"op": "annotation_delete", "id": "a1-1"}
     assert (
@@ -92,7 +92,8 @@ def test_refusals_svg_wrong_type_too_large_no_run_no_token(client: TestClient, a
     assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
     svg = b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"
     res = client.post(ASSETS, params=PARAMS, content=svg, headers=as_png)
-    assert res.status_code == 422 and "octets de tête" in res.text
+    assert res.status_code == 422 and res.json()["code"] == "asset_rejected"
+    assert res.json()["errors"][0]["code"] == "asset_unrecognized" and "leading bytes" in res.text
     as_svg = {**auth, "Content-Type": "image/svg+xml"}
     assert client.post(ASSETS, params=PARAMS, content=svg, headers=as_svg).status_code == 415
     assert client.post(ASSETS, params=PARAMS, content=png(), headers={"Content-Type": "image/png"}).status_code == 401

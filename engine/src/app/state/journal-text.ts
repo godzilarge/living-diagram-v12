@@ -2,14 +2,24 @@
 // catégorie majoritaire), le détail regroupé par verbe (« a placé 500 équipements : » puis les noms), les faits d'une
 // opération en mots (position, teinte, membres…), et le surlignage de la recherche. Le journal ne garde que la valeur
 // nouvelle : on écrit « a placé », jamais « de A vers B ». Pur, testé sous Node.
+// Les mots viennent du catalogue `journal` (2026-10-10, lot 5 de la langue). Une phrase s'écrit sans son auxiliaire
+// (`say.pin` = « placé {{ref}} ») et le reçoit par `withAux` (« a {{phrase}} » en français, rien en anglais) : la tête
+// d'une ligne a une colonne Auteur, l'auxiliaire n'y est dit qu'au lecteur d'écran (shared.tsx, `Phrase`). Un objet cité
+// entre dans la phrase par `{{ref}}`, remplacé par une marque puis découpé : il reste un morceau qu'on peut montrer.
+import type { ParseKeys } from "i18next";
+import { t, locale } from "../../i18n";
 import { TYPE_SHORT_LABEL } from "../../canvas/format";
 import { hueLabel } from "../../canvas/hues";
+import { STYLE_LABEL } from "../../canvas/groups";
+import { LABEL as ANNOTATION_WORD } from "../../canvas/annotations";
 import type { JournalCategory, JournalEntry, JournalOp, JournalSubject } from "./journal";
 
 /** Un morceau de phrase : du texte, ou un objet cité (équipement, groupe, annotation, connecteur) qu'on peut montrer. */
 export type RefKind = "node" | "group" | "annotation" | "connector";
 export type Piece = string | { ref: RefKind; id: string; text: string };
-export interface Sentence { pieces: Piece[]; category: JournalCategory }
+/** `verb` : la phrase commence par un verbe (auxiliaire compris), que la tête de ligne marque ; `destroy` : elle
+ *  retire quelque chose (verbe en rouge dans le fil). */
+export interface Sentence { pieces: Piece[]; category: JournalCategory; verb?: boolean; destroy?: boolean }
 /** Un fait d'une opération : un libellé, une valeur en mots, ou une liste (des membres, des équipements). */
 export interface Fact { label: string; value: string; list?: string[] }
 /** Un bloc du détail : une phrase, et les équipements qu'elle résume (une rafale d'un même verbe). */
@@ -20,8 +30,14 @@ const num = (value: unknown): string => (typeof value === "number" ? String(valu
 const record = (value: unknown): Record<string, unknown> | null => (value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null);
 const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []);
 const given = (value: unknown): boolean => value !== null && value !== undefined;
-export const count = (n: number, word: string, words?: string): string => n + " " + (n > 1 ? words || word + "s" : word);
 const TYPE_LABEL = (type: string): string => TYPE_SHORT_LABEL[type] || type;
+/** Une clé du catalogue `journal`, vérifiée par `tsc` (revue de l'interface bilingue, B8) ; une clé composée
+ *  (`"style." + k`) passe par `dyn`, toujours derrière un ensemble fermé. */
+type JournalKey = ParseKeys<"journal">;
+const dyn = (key: string): JournalKey => key as JournalKey;
+const tx = (key: JournalKey, values?: Record<string, unknown>): string => t(("journal:" + key) as never, values as never) as unknown as string;
+/** L'auxiliaire seul (« a » en français, rien en anglais) : ce que la tête de ligne retire du verbe affiché. */
+export const auxiliary = (): string => tx("withAux", { phrase: "" });
 
 export function categoryOf(op: string): JournalCategory {
   if (op === "pin" || op === "unpin") return "positions";
@@ -32,20 +48,16 @@ export function categoryOf(op: string): JournalCategory {
   return "other";
 }
 
-const KIND_WORD: Record<string, string> = { note: "une note", shape: "une forme", table: "un tableau", image: "une image" };
-// l'annotation nommée par sa sorte : « a modifié le tableau VLAN · NAME », « a supprimé la note Salle B »
-const THE_KIND: Record<string, string> = { note: "la note ", shape: "la forme ", table: "le tableau ", image: "l'image " };
-const theAnnotation = (s: JournalSubject | null): string => (s && THE_KIND[s.form]) || "l'annotation ";
-const FIELD_WORD: Record<string, string> = {
-  x: "position", y: "position", w: "taille", h: "taille", content: "contenu", style: "style", anchor: "ancrage", z: "plan", locked: "verrou",
-  leader: "ligne de rappel", label: "nom", description: "description", members: "membres", start: "bouts", end: "bouts", heads: "pointes", route: "tracé", bend: "courbure",
+const FIELD_KEY: Record<string, string> = {
+  x: "position", y: "position", w: "size", h: "size", content: "content", style: "style", anchor: "anchor", z: "plane", locked: "lock",
+  leader: "leader", label: "name", description: "description", members: "members", start: "ends", end: "ends", heads: "heads", route: "route", bend: "bend",
 };
 /** Ce qu'une modification change : ses clés renseignées (le journal écrit aussi les clés nulles), en mots, sans doublon. */
 export function changedFields(op: JournalOp): string[] {
   const words: string[] = [];
   for (const [key, value] of Object.entries(op)) {
     if (key === "op" || key === "id" || !given(value)) continue;
-    const word = FIELD_WORD[key] || key;
+    const word = FIELD_KEY[key] ? tx(dyn("field." + FIELD_KEY[key])) : key;
     if (!words.includes(word)) words.push(word);
   }
   return words;
@@ -62,74 +74,84 @@ function subjectOf(entry: JournalEntry, op: JournalOp, index: number): JournalSu
   return entry.subjects.find((s) => s.id === id) || { id, kind, label: "", form: "" };
 }
 const node = (host: string): Piece => ({ ref: "node", id: host, text: host });
+const FORMS = ["note", "shape", "table", "image"];
+// Le nom d'un sujet reçu du serveur : un nom saisi ne se traduit jamais ; un connecteur sans étiquette se nomme par ses
+// bouts, dont le serveur marque ceux qui n'ont pas de nom (`parts[].unnamed` : `free`, `group`, `note`…), que la page dit
+// dans sa langue (revue de l'interface bilingue, B3 : la page traduisait avant par comparaison de texte, et un groupe
+// nommé « point libre » devenait « free point »).
+const UNNAMED_KINDS = new Set(["note", "shape", "table", "image", "annotation", "group", "connector", "free"]);
+/** Le nom d'un sujet dans la langue de la page ; vide s'il n'en a pas (la phrase dit alors sa sorte). */
+export function subjectLabel(s: Pick<JournalSubject, "label" | "parts">): string {
+  if (s.parts && s.parts.length) return s.parts.map((p) => (p.unnamed && UNNAMED_KINDS.has(p.unnamed) ? tx(dyn("unnamedRef." + p.unnamed)) : p.text || "")).join(" → ");
+  return s.label;
+}
 // Un sujet sans nom se dit par sa sorte, jamais par son identité (revue Impeccable du 2026-10-10 : « la forme a980-1 »
 // ne parlait à personne ; l'identité reste dans l'infobulle et dans « brut »). La phrase dit déjà la sorte : « la forme
 // sans titre », « la note vide ». Les mêmes mots que le serveur pour un bout de connecteur (`journal.py`, `_UNNAMED`).
-const UNNAMED: Record<string, string> = { note: "vide", shape: "sans titre", table: "vide", image: "sans titre" };
-const UNNAMED_REF: Record<string, string> = { note: "note vide", shape: "forme sans titre", table: "tableau vide", image: "image sans titre" };
-const unnamed = (s: JournalSubject): string => (s.kind === "annotation" ? UNNAMED[s.form] || "sans titre" : "sans nom");
+const unnamed = (s: JournalSubject): string => (s.kind === "annotation" ? tx(dyn("unnamed." + (FORMS.includes(s.form) ? s.form : "annotation"))) : tx("unnamed.other"));
 /** Un sujet cité : son nom d'alors, sinon sa sorte. */
-const subject = (s: JournalSubject | null): Piece => (s ? { ref: s.kind, id: s.id, text: s.label || unnamed(s) } : "");
+const subject = (s: JournalSubject | null): Piece => (s ? { ref: s.kind, id: s.id, text: subjectLabel(s) || unnamed(s) } : "");
 /** Un groupe ou une annotation cités par un ancrage ou un bout : leur nom, sinon leur sorte (le serveur les cite). */
 function refName(entry: JournalEntry | undefined, ref: string): string {
   const s = entry ? entry.subjects.find((x) => x.id === ref) : undefined;
-  if (!s) return ref.startsWith("g") ? "un groupe" : ref.startsWith("a") ? "une annotation" : ref;
-  if (s.label) return (s.kind === "group" ? "groupe " : "") + s.label;
-  return s.kind === "group" ? "groupe sans nom" : UNNAMED_REF[s.form] || "annotation sans titre";
+  if (!s) return ref.startsWith("g") ? tx("unnamedRef.aGroup") : ref.startsWith("a") ? tx("unnamedRef.anAnnotation") : ref;
+  if (subjectLabel(s)) return s.kind === "group" ? tx("groupNamed", { label: subjectLabel(s) }) : subjectLabel(s);
+  return s.kind === "group" ? tx("unnamedRef.group") : tx(dyn("unnamedRef." + (FORMS.includes(s.form) ? s.form : "annotation")));
 }
 /** Une phrase qui retire quelque chose : elle ressort dans le fil (verbe en rouge). */
-export const destroys = (sentence: Sentence): boolean => typeof sentence.pieces[0] === "string" && sentence.pieces[0].startsWith("a supprimé");
-const changes = (op: JournalOp): string => { const f = changedFields(op); return f.length ? " : " + f.join(", ") : ""; };
+export const destroys = (sentence: Sentence): boolean => sentence.destroy === true;
+const changes = (op: JournalOp): string => { const f = changedFields(op); return f.length ? tx("fieldsSep") + f.join(tx("listSep")) : ""; };
+
+const MARK = "\u0001";
+/** La phrase d'une clé, auxiliaire compris, l'objet cité (`ref`) découpé en morceau à part. */
+function phrase(key: string, values: Record<string, unknown>, ref: Piece = ""): Piece[] {
+  const text = tx("withAux", { phrase: tx(dyn(key), { ...values, ref: MARK }) });
+  const [before, after = ""] = text.split(MARK);
+  return [before, ref, after].filter((p) => p !== "");
+}
 
 // ---- la purge (`ld journal prune`, côté serveur) : une ligne de trace, jamais une requête de la page
-const CATEGORY_WORD: Record<string, string> = { positions: "positions", colors: "couleurs", groups: "groupes", annotations: "annotations", connectors: "connecteurs", other: "autres" };
 /** Une date de purge, en UTC (une date seule est minuit UTC : en heure locale, elle tomberait la veille). */
 export function utcDay(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  const day = d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).replace(/^1 /, "1er ");
+  const day = d.toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).replace(/^1 /, tx("firstDay") + " ");
   const midnight = d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
-  return midnight ? day : day + ", " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+  return midnight ? day : day + ", " + d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
 }
-const pruneCategories = (op: JournalOp): string => strings(op.categories).map((c) => CATEGORY_WORD[c] || c).join(", ");
-function pruneText(op: JournalOp): string {
-  const n = typeof op.removed === "number" ? op.removed : 0, cats = pruneCategories(op);
-  return "a purgé le journal : " + count(n, "entrée") + (n > 1 ? " antérieures" : " antérieure") + " au " + utcDay(str(op.before)) + (cats ? " (" + cats + ")" : "");
-}
+const CATEGORY_KEYS = new Set(["positions", "colors", "groups", "annotations", "connectors", "other"]);
+const categoryWord = (c: string): string => (CATEGORY_KEYS.has(c) ? tx(dyn("category." + c)).toLocaleLowerCase(locale()) : c);
+const pruneCategories = (op: JournalOp): string => strings(op.categories).map(categoryWord).join(tx("listSep"));
+
+const DELETES = new Set(["group_delete", "annotation_delete", "connector_delete"]);
+const say = (op: JournalOp, pieces: Piece[], verb = true): Sentence => ({ pieces, category: categoryOf(op.op), verb, destroy: DELETES.has(op.op) });
+const kindKey = (s: JournalSubject | null, kind: unknown): string => { const k = str(kind) || (s ? s.form : ""); return FORMS.includes(k) ? k : "other"; };
 
 /** Une opération en une phrase. */
 export function sentenceOf(entry: JournalEntry, op: JournalOp, index: number): Sentence {
   const host = str(op.hostname), s = subjectOf(entry, op, index);
-  const say = (...pieces: Piece[]): Sentence => ({ pieces: pieces.filter((p) => p !== ""), category: categoryOf(op.op) });
+  const members = strings(op.members).length;
   switch (op.op) {
-    case "pin": return say("a placé ", node(host));
-    case "unpin": return say("a désépinglé ", node(host));
-    case "color": return say("a coloré ", node(host), " en " + hueLabel(str(op.hue)));
-    case "uncolor": return say("a rendu ", node(host), " à la couleur de son type");
-    case "color_type": return say("a coloré le type " + TYPE_LABEL(str(op.type)) + " en " + hueLabel(str(op.hue)));
-    case "uncolor_type": return say("a rendu le type " + TYPE_LABEL(str(op.type)) + " à sa teinte par défaut");
-    case "group_create": return say("a créé le groupe ", subject(s), " (" + count(strings(op.members).length, "membre") + ")");
-    case "group_update": return say("a modifié le groupe ", subject(s), changes(op));
-    case "group_add": return say("a ajouté " + count(strings(op.members).length, "membre") + " au groupe ", subject(s));
-    case "group_remove": return say("a retiré " + count(strings(op.members).length, "membre") + " du groupe ", subject(s));
-    case "group_delete": return say("a supprimé le groupe ", subject(s));
-    case "annotation_create": return say("a ajouté " + (KIND_WORD[str(record(op.content)?.kind)] || "une annotation") + " ", subject(s));
-    case "annotation_update": return say("a modifié " + theAnnotation(s), subject(s), changes(op));
-    case "annotation_delete": return say("a supprimé " + theAnnotation(s), subject(s));
-    case "connector_create": return say("a tracé le connecteur ", subject(s));
-    case "connector_update": return say("a modifié le connecteur ", subject(s), changes(op));
-    case "connector_delete": return say("a supprimé le connecteur ", subject(s));
-    case "journal_prune": return say(pruneText(op));
-    default: return say("opération inconnue « " + op.op + " »");
+    case "pin": case "unpin": case "uncolor": return say(op, phrase("say." + op.op, {}, node(host)));
+    case "color": return say(op, phrase("say.color", { hue: hueLabel(str(op.hue)) }, node(host)));
+    case "color_type": return say(op, phrase("say.color_type", { type: TYPE_LABEL(str(op.type)), hue: hueLabel(str(op.hue)) }));
+    case "uncolor_type": return say(op, phrase("say.uncolor_type", { type: TYPE_LABEL(str(op.type)) }));
+    case "group_create": case "group_add": case "group_remove": return say(op, phrase("say." + op.op, { count: members }, subject(s)));
+    case "group_update": case "connector_update": return say(op, [...phrase("say." + op.op, {}, subject(s)), changes(op)].filter((p) => p !== ""));
+    case "group_delete": case "connector_create": case "connector_delete": return say(op, phrase("say." + op.op, {}, subject(s)));
+    case "annotation_create": return say(op, phrase("say.annotation_create." + kindKey(null, record(op.content)?.kind), {}, subject(s)));
+    case "annotation_update": return say(op, [...phrase("say.annotation_update." + kindKey(s, ""), {}, subject(s)), changes(op)].filter((p) => p !== ""));
+    case "annotation_delete": return say(op, phrase("say.annotation_delete." + kindKey(s, ""), {}, subject(s)));
+    case "journal_prune": {
+      const cats = pruneCategories(op);
+      return say(op, phrase("say.journal_prune", { count: typeof op.removed === "number" ? op.removed : 0, date: utcDay(str(op.before)), categories: cats ? " (" + cats + ")" : "" }));
+    }
+    default: return say(op, [tx("say.unknown", { op: op.op })], false);
   }
 }
 
 // Une rafale d'une même opération (glisser une sélection, retirer toutes les épingles) se dit en une phrase.
-const BATCH: Record<string, [string, string]> = {
-  pin: ["a placé ", "équipement"], unpin: ["a désépinglé ", "équipement"], color: ["a coloré ", "équipement"], uncolor: ["a rendu à la couleur de leur type ", "équipement"],
-  group_create: ["a créé ", "groupe"], group_delete: ["a supprimé ", "groupe"], annotation_create: ["a ajouté ", "annotation"], annotation_update: ["a modifié ", "annotation"],
-  annotation_delete: ["a supprimé ", "annotation"], connector_create: ["a tracé ", "connecteur"], connector_update: ["a modifié ", "connecteur"], connector_delete: ["a supprimé ", "connecteur"],
-};
+const BATCH = new Set(["pin", "unpin", "color", "uncolor", "group_create", "group_delete", "annotation_create", "annotation_update", "annotation_delete", "connector_create", "connector_update", "connector_delete"]);
 const HOST_OPS = new Set(["pin", "unpin", "color", "uncolor"]);
 // une rafale de `color` se regroupe par teinte : « a coloré 4 équipements en rouge : »
 const groupKey = (op: JournalOp): string => op.op + (op.op === "color" ? ":" + str(op.hue) : "");
@@ -144,9 +166,8 @@ function grouped(ops: JournalOp[]): { key: string; ops: JournalOp[]; first: numb
   return out;
 }
 function batchSentence(ops: JournalOp[]): Sentence {
-  const [verb, word] = BATCH[ops[0].op];
-  const hue = ops[0].op === "color" ? " en " + hueLabel(str(ops[0].hue)) : "";
-  return { pieces: [verb + count(ops.length, word) + hue], category: categoryOf(ops[0].op) };
+  const hue = ops[0].op === "color" ? hueLabel(str(ops[0].hue)) : "";
+  return say(ops[0], phrase("batch." + ops[0].op, { count: ops.length, hue }));
 }
 
 /** La catégorie qui porte l'entrée : la plus fréquente parmi ses opérations (à égalité, la première rencontrée). */
@@ -162,13 +183,14 @@ export function majority(entry: JournalEntry): JournalCategory {
  *  du reste ; la catégorie est celle de la majorité des opérations. */
 export function headline(entry: JournalEntry): Sentence {
   const ops = entry.ops;
-  if (!ops.length) return { pieces: ["requête sans opération"], category: "other" };
+  if (!ops.length) return { pieces: [tx("say.empty")], category: "other" };
   const groups = grouped(ops);
   const main = groups.reduce((a, b) => (b.ops.length > a.ops.length ? b : a));
-  const lead = main.ops.length > 1 && BATCH[main.ops[0].op] ? batchSentence(main.ops) : sentenceOf(entry, main.ops[0], main.first);
-  const rest = ops.length - (main.ops.length > 1 && BATCH[main.ops[0].op] ? main.ops.length : 1);
-  const pieces = rest ? lead.pieces.concat(" et " + count(rest, "autre modification", "autres modifications")) : lead.pieces;
-  return { pieces, category: majority(entry) };
+  const batch = main.ops.length > 1 && BATCH.has(main.ops[0].op);
+  const lead = batch ? batchSentence(main.ops) : sentenceOf(entry, main.ops[0], main.first);
+  const rest = ops.length - (batch ? main.ops.length : 1);
+  const pieces = rest ? lead.pieces.concat(tx("andMore", { count: rest })) : lead.pieces;
+  return { ...lead, pieces, category: majority(entry) };
 }
 
 /** Le détail d'une entrée de plusieurs opérations : une phrase par groupe d'un même verbe sur des équipements (avec
@@ -194,83 +216,86 @@ export function detailGroups(entry: JournalEntry, max = 50): DetailGroup[] {
 
 // ---- les faits d'une opération, en mots (le détail d'une entrée d'une seule opération)
 const HUE = (v: unknown): string => hueLabel(str(v));
-const STYLE_WORD: Record<string, [string, (v: unknown) => string]> = {
-  hue: ["teinte", HUE], shape: ["forme", str], fill_opacity: ["remplissage", (v) => num(v) + " %"], opacity: ["opacité", (v) => num(v) + " %"],
-  stroke_width: ["trait", num], stroke_style: ["bordure", str], padding: ["marge", num], radius: ["coins", num], label_position: ["étiquette", str],
-  label_placement: ["étiquette", str], label_size: ["taille du texte", num], label_weight: ["graisse", str], label_font: ["police", str],
-  label_color: ["couleur du texte", str], text_size: ["taille du texte", num], text_weight: ["graisse", str], text_font: ["police", str],
-  text_color: ["couleur du texte", str], text_align: ["alignement", str], text_valign: ["alignement vertical", str],
+const PERCENT = (v: unknown): string => t("common:punct.percent", { value: num(v) });
+/** Une valeur énumérée du style dans la langue de la page (`solid`, `top_left`, `mono` : revue de l'interface bilingue, B7). */
+const STYLE_WORD = (v: unknown): string => STYLE_LABEL[str(v)] || ANNOTATION_WORD[str(v)] || str(v);
+const STYLE_FORMAT: Record<string, (v: unknown) => string> = {
+  hue: HUE, fill_opacity: PERCENT, opacity: PERCENT, stroke_width: num, padding: num, radius: num, label_size: num, text_size: num,
 };
+const STYLE_KEYS = new Set(["hue", "shape", "fill_opacity", "opacity", "stroke_width", "stroke_style", "padding", "radius", "label_position", "label_placement", "label_size",
+  "label_weight", "label_font", "label_color", "text_size", "text_weight", "text_font", "text_color", "text_align", "text_valign"]);
 function styleText(value: unknown): string {
   const style = record(value);
   if (!style) return "";
   return Object.entries(style).filter(([, v]) => given(v)).map(([k, v]) => {
-    const [label, fmt] = STYLE_WORD[k] || [k, (x: unknown) => String(x)];
-    return label + " " + fmt(v);
-  }).join(", ");
+    if (!STYLE_KEYS.has(k)) return k + " " + String(v);
+    return tx(dyn("style." + k)) + " " + (STYLE_FORMAT[k] || STYLE_WORD)(v);
+  }).join(tx("listSep"));
 }
+const quoted = (text: string): string => tx("fact.quoted", { text });
+const kindWord = (kind: string): string => t(("common:annotationKind." + kind) as never) as unknown as string;
 function contentText(value: unknown): string {
   const c = record(value);
   if (!c) return "";
-  if (c.kind === "note") { const text = str(c.text).trim().replace(/\s+/g, " "); return "note « " + (text.length > 80 ? text.slice(0, 79) + "…" : text) + " »"; }
-  if (c.kind === "table") { const rows = Array.isArray(c.rows) ? c.rows : []; return "tableau " + rows.length + " × " + Math.max(0, ...rows.map((r) => (Array.isArray(r) ? r.length : 0))); }
-  if (c.kind === "image") return "image" + (str(c.alt) ? " « " + str(c.alt) + " »" : "");
-  if (c.kind === "shape") return (str(c.shape) || "forme") + (str(c.label) ? " « " + str(c.label) + " »" : "");
+  if (c.kind === "note") { const text = str(c.text).trim().replace(/\s+/g, " "); return kindWord("note") + " " + quoted(text.length > 80 ? text.slice(0, 79) + "…" : text); }
+  if (c.kind === "table") { const rows = Array.isArray(c.rows) ? c.rows : []; return tx("fact.table", { rows: rows.length, cols: Math.max(0, ...rows.map((r) => (Array.isArray(r) ? r.length : 0))) }); }
+  if (c.kind === "image") return kindWord("image") + (str(c.alt) ? " " + quoted(str(c.alt)) : "");
+  if (c.kind === "shape") return (STYLE_WORD(c.shape) || kindWord("shape")) + (str(c.label) ? " " + quoted(str(c.label)) : "");
   return str(c.kind);
 }
-const SIDE: Record<string, string> = { n: "haut", e: "droite", s: "bas", w: "gauche" };
+const SIDES = new Set(["n", "e", "s", "w"]);
 function endText(value: unknown, entry?: JournalEntry): string {
   const e = record(value);
   if (!e) return "";
-  if (e.kind === "free") return "point (" + num(e.x) + ", " + num(e.y) + ")";
-  const side = SIDE[str(e.side)];
-  return (e.kind === "device" ? str(e.ref) : refName(entry, str(e.ref))) + (side ? ", côté " + side : "");
+  if (e.kind === "free") return tx("fact.point", { x: num(e.x), y: num(e.y) });
+  const side = SIDES.has(str(e.side)) ? tx("fact.side", { side: t(("common:side." + str(e.side)) as never) }) : "";
+  return (e.kind === "device" ? str(e.ref) : refName(entry, str(e.ref))) + side;
 }
-const ROUTE: Record<string, string> = { straight: "droit", elbow: "coudé", curve: "courbe" };
-const HEAD: Record<string, string> = { none: "aucune", arrow: "flèche" };
+const ROUTES = new Set(["straight", "elbow", "curve"]), HEADS = new Set(["none", "arrow"]);
+const word = (set: Set<string>, value: unknown): string => (set.has(str(value)) ? t(("common:connectorWord." + str(value)) as never) as unknown as string : str(value));
 
 /** Les faits d'une opération : ce qu'elle a posé, en mots ; les clés nulles ne disent rien. `entry` nomme les groupes et
  *  annotations qu'elle cite (ancrage, bouts). */
 export function factsOf(op: JournalOp, entry?: JournalEntry): Fact[] {
   const facts: Fact[] = [];
   const add = (label: string, value: string, list?: string[]): void => { if (value || (list && list.length)) facts.push({ label, value, list }); };
+  const f = (key: string): string => tx(dyn("fact." + key));
   if (op.op === "journal_prune") {
-    add("retirées", typeof op.removed === "number" ? String(op.removed) : "");
-    if (typeof op.first_revision === "number" && typeof op.last_revision === "number") add("révisions", "r" + op.first_revision + " à r" + op.last_revision);
-    add("avant le", utcDay(str(op.before)));
-    add("catégories", pruneCategories(op) || "toutes");
-    add("archive", str(op.archive));
-    add("empreinte", str(op.sha256) ? "sha256 " + str(op.sha256) : "");
+    add(f("removed"), typeof op.removed === "number" ? String(op.removed) : "");
+    if (typeof op.first_revision === "number" && typeof op.last_revision === "number") add(f("revisions"), tx("fact.revisionRange", { first: op.first_revision, last: op.last_revision }));
+    add(f("before"), utcDay(str(op.before)));
+    add(f("categories"), pruneCategories(op) || f("allCategories"));
+    add(f("archive"), str(op.archive));
+    add(f("digest"), str(op.sha256) ? "sha256 " + str(op.sha256) : "");
     return facts;
   }
-  if (given(op.x) || given(op.y)) add("position", num(op.x) + ", " + num(op.y));
-  if (given(op.w) || given(op.h)) add("taille", num(op.w) + " × " + num(op.h));
-  if (given(op.hue)) add("teinte", HUE(op.hue));
-  if (given(op.type)) add("type", TYPE_LABEL(str(op.type)));
-  if (given(op.label)) add("nom", str(op.label) || "(vide)");
-  if (str(op.description)) add("description", str(op.description));
-  if (given(op.members)) add(count(strings(op.members).length, "membre"), "", strings(op.members));
-  if (given(op.content)) add("contenu", contentText(op.content));
+  if (given(op.x) || given(op.y)) add(f("position"), num(op.x) + ", " + num(op.y));
+  if (given(op.w) || given(op.h)) add(f("size"), num(op.w) + " × " + num(op.h));
+  if (given(op.hue)) add(f("hue"), HUE(op.hue));
+  if (given(op.type)) add(f("type"), TYPE_LABEL(str(op.type)));
+  if (given(op.label)) add(f("name"), str(op.label) || f("emptyName"));
+  if (str(op.description)) add(f("description"), str(op.description));
+  if (given(op.members)) add(tx("fact.members", { count: strings(op.members).length }), "", strings(op.members));
+  if (given(op.content)) add(f("content"), contentText(op.content));
   const anchor = record(op.anchor);
-  if (anchor) add("ancrage", anchor.kind === "free" ? "libre" : anchor.kind === "device" ? str(anchor.ref) : refName(entry, str(anchor.ref)));
-  if (given(op.start)) add("départ", endText(op.start, entry));
-  if (given(op.end)) add("arrivée", endText(op.end, entry));
+  if (anchor) add(f("anchor"), anchor.kind === "free" ? t("common:annotationWord.free") : anchor.kind === "device" ? str(anchor.ref) : refName(entry, str(anchor.ref)));
+  if (given(op.start)) add(f("start"), endText(op.start, entry));
+  if (given(op.end)) add(f("end"), endText(op.end, entry));
   const heads = record(op.heads);
-  if (heads) add("pointes", (HEAD[str(heads.start)] || str(heads.start)) + " → " + (HEAD[str(heads.end)] || str(heads.end)));
-  if (given(op.route)) add("tracé", ROUTE[str(op.route)] || str(op.route));
-  if (given(op.bend)) add("courbure", num(op.bend));
-  if (given(op.z)) add("plan", op.z === "back" ? "dessous" : "dessus");
-  if (given(op.locked)) add("verrou", op.locked ? "verrouillé" : "déverrouillé");
-  if (given(op.leader)) add("ligne de rappel", op.leader ? "oui" : "non");
-  if (given(op.style)) add("style", styleText(op.style));
+  if (heads) add(f("heads"), word(HEADS, heads.start) + " → " + word(HEADS, heads.end));
+  if (given(op.route)) add(f("route"), word(ROUTES, op.route));
+  if (given(op.bend)) add(f("bend"), num(op.bend));
+  if (given(op.z)) add(f("plane"), t(op.z === "back" ? "common:annotationWord.back" : "common:annotationWord.front"));
+  if (given(op.locked)) add(f("lock"), f(op.locked ? "locked" : "unlocked"));
+  if (given(op.leader)) add(f("leader"), f(op.leader ? "yes" : "no"));
+  if (given(op.style)) add(f("style"), styleText(op.style));
   return facts;
 }
 
 /** Une session de positions en une phrase : « a placé 48 équipements », « … et désépinglé 3 ». */
 export function sessionSentence(placed: number, unpinned: number): Sentence {
-  const pieces = placed ? ["a placé " + count(placed, "équipement") + (unpinned ? " et désépinglé " + unpinned : "")]
-    : ["a désépinglé " + count(unpinned, "équipement")];
-  return { pieces, category: "positions" };
+  const text = placed ? tx("batch.pin", { count: placed }) + (unpinned ? tx("andUnpinned", { total: unpinned }) : "") : tx("batch.unpin", { count: unpinned });
+  return { pieces: [tx("withAux", { phrase: text })], category: "positions", verb: true };
 }
 
 // ---- la recherche, surlignée
@@ -310,7 +335,7 @@ export const visibleMatch = (s: Sentence, author: string, words: string[]): bool
  *  mot cherché, à dire sur la ligne (« trouvé : dc01-core-02 ») ; `null` si la correspondance est ailleurs (contenu). */
 export function hiddenHit(entry: JournalEntry, words: string[]): string | null {
   const wanted = words.map(foldText);
-  const names = entry.ops.flatMap((op) => [str(op.hostname), ...strings(op.members)]).concat(entry.subjects.map((s) => s.label));
+  const names = entry.ops.flatMap((op) => [str(op.hostname), ...strings(op.members)]).concat(entry.subjects.map((s) => subjectLabel(s)));
   return names.find((n) => n && wanted.some((w) => foldText(n).includes(w))) || null;
 }
 /** Le premier objet cité par une entrée (ce que « o » ouvre au clavier). */

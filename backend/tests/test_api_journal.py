@@ -41,7 +41,9 @@ def test_every_accepted_request_is_an_entry_filtered_and_paged(client: TestClien
         (2, "alice", ["groups"]),
         (1, "orhan", ["positions"]),
     ]
-    assert page["entries"][1]["subjects"] == [{"id": "g2-1", "kind": "group", "label": "Cœur", "form": ""}]
+    assert page["entries"][1]["subjects"] == [
+        {"id": "g2-1", "kind": "group", "label": "Cœur", "form": "", "unnamed": "", "parts": []}
+    ]
     assert page["infrastructures"] == [{"value": "infra-lab", "count": 3}]
     params = [("author", "orhan"), ("author", "alice"), ("category", "groups"), ("category", "positions")]
     filtered = client.get(JOURNAL_URL, params=params, headers=auth).json()

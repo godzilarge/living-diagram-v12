@@ -11,6 +11,7 @@ import { apps } from "./apps";
 import type { App, BootOptions, Placer, Writer } from "./apps";
 import { describe, show } from "./inspect";
 import { createIntentHost } from "./intent";
+import { createIntentTab } from "./intent-tab";
 import { createPlacementHost } from "./placement";
 import type { PlacementHost } from "./placement";
 import { tables } from "./tables";
@@ -82,6 +83,10 @@ function header(model: Model, graph: Graph, status: Status, openChecks: (severit
     diffChip(), intentChip()));
 }
 
+// Ce que « replacer » fait dans cette page, pour son infobulle (le texte de `/view`, hors de l'hôte partagé).
+const replaceTitle = (placements: PlacementHost): string => "recalcule tout le placement autour des épingles enregistrées ; les déplacements non enregistrés sont oubliés"
+  + (placements.needsConfirmation() ? ", et le nouveau placement remplace celui mémorisé, pour tout le monde" : "");
+
 function toolbar(model: Model, graph: Graph, status: Status, placements: PlacementHost): void {
   const stubs = model.kindCounts.get("stub") || 0;
   // Les stubs changent le placement (recadrer) ; les noms des ports ne demandent qu'un repeint ; les changements
@@ -103,8 +108,8 @@ function toolbar(model: Model, graph: Graph, status: Status, placements: Placeme
     } }, "légende"),
     // « Replacer » renouvelle le placement mémorisé : dans une page servie, c'est pour tout le monde, donc confirmé.
     placements.needsConfirmation()
-      ? confirmable("replacer", () => status(graph.replaceAll()), { title: placements.replaceTitle() })
-      : h("button", { type: "button", title: placements.replaceTitle(), onclick: () => status(graph.replaceAll()) }, "replacer"),
+      ? confirmable("replacer", () => status(graph.replaceAll()), { title: replaceTitle(placements) })
+      : h("button", { type: "button", title: replaceTitle(placements), onclick: () => status(graph.replaceAll()) }, "replacer"),
     h("span", { class: "muted", id: "graph-status" })));
 }
 
@@ -222,7 +227,7 @@ export function boot(data: PageData, options: BootOptions = {}): App {
   const intents = createIntentHost(model, writer, {
     graph: g, openInGraph, refreshPage, note: (text) => { note = text; status(); },
     mounted: () => built.has("intent"), container: () => byId("view-intent"),
-  });
+  }, createIntentTab);
   // Ce que le graphe affiche, lu dans ce qu'il a dessiné : les éléments de la run d'un côté (le même total que
   // l'en-tête), les fantômes du diff de l'autre, jamais mêlés ni comptés comme « masqués » (revue, M4).
   const drawn = (): { nodes: number; links: number; ghosts: number } => {

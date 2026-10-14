@@ -8,7 +8,7 @@ export const initialState = (): AppState => ({
   token: "", author: "", address: { infrastructure: "", runId: "", from: "" }, runs: null, runsMessage: null, listing: false,
   run: { kind: "idle" }, view: defaultView(), prefs: defaultPrefs(), selection: null, hosts: [], wanted: null, palette: { open: false, text: "" },
   expanded: false, menuOpen: false, connectOpen: false, colorsOpen: false, note: null, history: { undo: null, redo: null }, revision: 0, walk: null,
-  context: null, editRequest: null, journal: { kind: "idle" }, journalUi: { open: [], scroll: 0, back: false, active: null, refocus: false },
+  context: null, editRequest: null, tool: null, journal: { kind: "idle" }, journalUi: { open: [], scroll: 0, back: false, active: null, refocus: false },
 });
 
 const sameHosts = (a: string[], b: string[]): boolean => a.length === b.length && a.every((host, i) => host === b[i]);
@@ -29,7 +29,7 @@ export function reducer(state: AppState, action: Action): AppState {
       const token = state.run.kind === "ready" && state.selection ? tokenOf(state.run.model, state.selection) : null;
       const carried = state.wanted || (token ? { kind: token[0], token: token[1] } : null);
       return { ...state, run: { kind: "loading", infrastructure: action.infrastructure, runId: action.runId }, wanted: carried, selection: null, hosts: [],
-        connectOpen: false, menuOpen: false, colorsOpen: false, walk: null, context: null, editRequest: null };
+        connectOpen: false, menuOpen: false, colorsOpen: false, walk: null, context: null, editRequest: null, tool: null };
     }
     case "failed":
       return { ...state, run: { kind: "failed", message: action.message }, connectOpen: true };
@@ -37,8 +37,11 @@ export function reducer(state: AppState, action: Action): AppState {
       // Une autre run : la sélection par identité traverse (la toile la résout), la sélection multiple non.
       return { ...state, run: { kind: "ready", model: action.model, data: action.data, warnings: action.warnings, remembered: action.remembered }, runs: action.runs === null ? state.runs : action.runs,
         hosts: [], expanded: false, connectOpen: false, palette: { ...state.palette, open: false } };
-    case "view":
-      return { ...state, view: { ...state.view, ...action.patch } };
+    case "view": {
+      // un outil ne s'arme qu'en Diagramme : passer en Contrôle ou au Journal le range
+      const view = { ...state.view, ...action.patch };
+      return { ...state, view, tool: view.mode === "diagram" ? state.tool : null };
+    }
     case "prefs":
       return { ...state, prefs: { ...state.prefs, ...action.patch } };
     case "select": {
@@ -70,6 +73,8 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, context: action.menu, menuOpen: action.menu ? false : state.menuOpen };
     case "editRequest":
       return { ...state, editRequest: action.request };
+    case "tool":
+      return { ...state, tool: action.tool && state.view.mode === "diagram" ? action.tool : null, context: null };
     case "journal":
       return { ...state, journal: action.journal };
     case "journalUi":

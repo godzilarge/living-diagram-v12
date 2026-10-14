@@ -8,7 +8,8 @@ import type { Intent, Model } from "../../canvas/types";
 import type { Op } from "../../shell/apps";
 import type { IntentHost } from "../../shell/intent";
 import type { AppWriter } from "../api/writers";
-import { createdIds, discard, moved, plan, push, record } from "../state/history";
+import { t } from "../../i18n";
+import { createdIds, discard, labelText, moved, plan, push, record, whoOf } from "../state/history";
 import type { Stack } from "../state/history";
 import type { Toile } from "./toile";
 
@@ -19,8 +20,6 @@ export interface Undo {
   /** Un geste de déplacement fini (`onMoved` de la toile) : une entrée locale quand rien ne s'enregistre (sans nom). */
   onMoved: (before: Map<string, Point>, after: Map<string, Point>) => void;
 }
-
-const who = (hosts: string[]): string => (hosts.length === 1 ? hosts[0] : hosts.length + " équipements");
 
 export function createUndo(model: Model, writer: AppWriter | null, intents: IntentHost, toile: () => Toile, holder: StackHolder, note: (text: string) => void): Undo {
   let busy = false;
@@ -40,7 +39,7 @@ export function createUndo(model: Model, writer: AppWriter | null, intents: Inte
 
   function onMoved(before: Map<string, Point>, after: Map<string, Point>): void {
     if (intents.canWrite()) return; // l'écriture acceptée fera son entrée
-    holder.set(push(holder.get(), { kind: "local", label: "déplacement local de " + who(Array.from(after.keys())), before, after }));
+    holder.set(push(holder.get(), { kind: "local", label: { key: "movedLocal", who: whoOf(Array.from(after.keys())) }, before, after }));
   }
 
   async function step(direction: "undo" | "redo"): Promise<void> {
@@ -49,24 +48,25 @@ export function createUndo(model: Model, writer: AppWriter | null, intents: Inte
     const stack = holder.get();
     const entry = (direction === "undo" ? stack.undo : stack.redo).slice(-1)[0];
     if (!entry) return;
-    const verb = direction === "undo" ? "annulé" : "rétabli";
+    const what = labelText(entry.label);
+    const done = (detail: string): string => t(direction === "undo" ? "history.undone" : "history.redone", { what: what + detail });
     if (entry.kind === "local") {
       toile().restore(direction === "undo" ? entry.before : entry.after);
       holder.set(moved(stack, direction, new Map(), undefined, entry));
-      note(verb + " : " + entry.label);
+      note(done(""));
       return;
     }
     const p = plan(model.intent, entry.changes, direction);
     if (!p.ops.length) {
       holder.set(discard(stack, direction));
-      note("rien à " + (direction === "undo" ? "annuler" : "rétablir") + " : " + entry.label + ", modifié depuis par quelqu'un d'autre");
+      note(t(direction === "undo" ? "history.undoStale" : "history.redoStale", { what }));
       return;
     }
-    const skipped = p.skipped.length ? " (" + p.skipped.length + " modifié" + (p.skipped.length > 1 ? "s" : "") + " depuis par quelqu'un d'autre, laissé" + (p.skipped.length > 1 ? "s" : "") + " tel" + (p.skipped.length > 1 ? "s" : "") + ")" : "";
+    const skipped = p.skipped.length ? " (" + t("history.skipped", { count: p.skipped.length }) + ")" : "";
     busy = true;
     p.ops.forEach((op) => replayed.add(op));
     try {
-      const intent = await intents.apply(p.ops, verb + " : " + entry.label + skipped);
+      const intent = await intents.apply(p.ops, done(skipped));
       if (intent) holder.set(moved(holder.get(), direction, createdIds(p.created, intent), p.applied, entry));
     } finally { busy = false; }
   }

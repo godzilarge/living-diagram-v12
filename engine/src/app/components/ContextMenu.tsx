@@ -10,6 +10,7 @@ import { useEditable, useModel, useStore } from "../state/store";
 import { menuItems } from "../state/context";
 import type { ContextTarget, MenuItem } from "../state/context";
 import type { TableContent } from "../../contracts/intent";
+import { t } from "../../i18n";
 
 const WIDTH = 240, ROW = 30, MARGIN = 8;
 
@@ -48,7 +49,7 @@ export function ContextMenu() {
   // La position vient du clic : posée par des variables CSS sur l'élément (le CSSOM, pas un style en ligne).
   const place = (el: HTMLDivElement | null): void => { if (el) { el.style.setProperty("--menu-x", left + "px"); el.style.setProperty("--menu-y", top + "px"); } };
   return (
-    <div ref={(el) => { (ref as { current: HTMLDivElement | null }).current = el; place(el); }} className="context-menu glass" role="menu" aria-label="menu contextuel" onKeyDown={keys} onContextMenu={(event) => event.preventDefault()}>
+    <div ref={(el) => { (ref as { current: HTMLDivElement | null }).current = el; place(el); }} className="context-menu glass" role="menu" aria-label={t("shell:context.label")} onKeyDown={keys} onContextMenu={(event) => event.preventDefault()}>
       {items.map((item, i) => (item.sep ? <hr key={"s" + i} className="context-sep" />
         : <button key={item.id} type="button" role={item.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={item.checked === undefined ? undefined : item.checked ? "true" : "false"}
           className={"context-item" + (item.danger ? " danger" : "") + (item.checked ? " checked" : "")} onClick={() => run(item)}>{item.label}</button>))}
@@ -73,9 +74,9 @@ function execute(target: ContextTarget, id: string, plan: { x: number; y: number
     else if (id === "hide") commands.hideHosts(hosts);
     else if (id === "isolate") commands.isolateHosts(hosts);
     else if (id === "unpin") commands.unpin(hosts);
-    else if (id === "note") commands.annotationCreate({ kind: "note", text: "Note" }, { anchor: { kind: "device", ref: target.id }, x: 60, y: -120, leader: true });
+    else if (id === "note") commands.annotationCreate({ kind: "note", text: t("shell:context.defaultNote") }, { anchor: { kind: "device", ref: target.id }, x: 60, y: -120, leader: true });
     else if (id === "connect") commands.connectorCreate({ start: { kind: "device", ref: target.id, side: "auto" }, end: { kind: "free", x: Math.round(plan.x + DEFAULT_LENGTH), y: Math.round(plan.y) } });
-    else if (id === "group") commands.groupCreate("Groupe", commands.selectedHosts());
+    else if (id === "group") commands.groupCreate(t("shell:context.defaultGroup"), commands.selectedHosts());
     else if (id.startsWith("align:")) commands.align(id.slice(6) as "horizontal" | "vertical");
     return;
   }
@@ -86,7 +87,7 @@ function execute(target: ContextTarget, id: string, plan: { x: number; y: number
     else if (id === "members") commands.selectHosts(members);
     else if (id === "hide") commands.hideHosts(members);
     else if (id === "isolate") commands.isolateHosts(members);
-    else if (id === "note") commands.annotationCreate({ kind: "note", text: "Note" }, { anchor: { kind: "group", ref: target.id }, x: 0, y: -100, leader: true });
+    else if (id === "note") commands.annotationCreate({ kind: "note", text: t("shell:context.defaultNote") }, { anchor: { kind: "group", ref: target.id }, x: 0, y: -100, leader: true });
     else if (id === "connect") commands.connectorCreate({ start: { kind: "group", ref: target.id, side: "auto" }, end: { kind: "free", x: Math.round(plan.x + DEFAULT_LENGTH), y: Math.round(plan.y) } });
     else if (id === "delete") commands.groupDelete(target.id);
     return;

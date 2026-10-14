@@ -10,7 +10,8 @@ import { KIND_LABEL as ANNOTATION_KIND, summary } from "./annotations";
 import { create, text } from "./bubble";
 import type { Block, Dot, End, HeadIcon, Pill, Tone, Value } from "./bubble";
 import { summary as connectorSummary } from "./connectors";
-import { COLLECTION_LABEL, HA_MODE_LABEL, speedText, SOURCE_LABEL, STATUS_LABEL, TYPE_SHORT_LABEL } from "./format";
+import { t } from "../i18n/core";
+import { COLLECTION_LABEL, DIFF_LABEL, haModeText, speedText, SOURCE_LABEL, STATUS_LABEL, TYPE_SHORT_LABEL } from "./format";
 import { defaultHue, hueOfNode } from "./hues";
 import { interfaceAt, SEVERITY_RANK } from "./model";
 import type { EndLike } from "./model";
@@ -27,7 +28,7 @@ const MAX_CHECK_LINES = 6;
 const MAX_NAME = 36, MAX_TEXT = 72;
 const STATUS_TONE: Record<string, Tone> = { confirmed: "ok", observed_only: "observed", documented_only: "documented" };
 const COLLECTION_DOT: Record<string, Dot> = { success: "ok", partial: "warning", failed: "danger", unreachable: "danger", not_collected: "muted" };
-const KIND_PILL: Record<string, string> = { external: "autre infra", stub: "voisin inconnu" };
+const KIND_PILL: Record<string, () => string> = { external: () => t("common:tip.external"), stub: () => t("common:tip.stub") };
 /** Les contrôles de R5 qui visent une rangée du tableau d'un câble : la rangée porte leur gravité. */
 const ROW_OF_CHECK: Record<string, "speed" | "duplex" | "media" | "state"> = { link_speed_mismatch: "speed", link_duplex_mismatch: "duplex", link_oper_mismatch: "state" };
 const SEVERITY_DOT: Record<string, Dot> = { error: "danger", warning: "warning", info: "muted" };
@@ -39,7 +40,6 @@ const note = (text: string, tone?: Tone): Block => ({ kind: "note", text: clipTe
 const rule: Block = { kind: "rule" }, space: Block = { kind: "space" };
 const present = (candidate: Block | null): candidate is Block => candidate !== null;
 const portName = (end: EndLike): string => (end.interface === null || end.interface === undefined ? "?" : end.interface);
-const plural = (count: number, word: string): string => count + " " + word + (count > 1 ? "s" : "");
 /** Un nom raccourci au milieu au-delà de `MAX_NAME` (même règle que la carte, seuil plus large). */
 export const clipName = (name: string): string => (name.length <= MAX_NAME ? name : name.slice(0, 18) + "…" + name.slice(-17));
 const clipText = (text: string): string => (text.length <= MAX_TEXT ? text : text.slice(0, MAX_TEXT - 1) + "…");
@@ -59,7 +59,7 @@ function endFacts(model: Model, end: EndLike, removed: boolean): EndFacts {
   const itf = found.itf;
   return { present: true, ghost: found.ghost, speed: speedText(itf.speed_mbps), duplex: itf.duplex, media: itf.media, state: itf.oper_status, reason: itf.oper_reason };
 }
-const endNote = (f: EndFacts): string | null => (!f.present ? "absent de interfaces[]" : f.ghost ? "interface retirée, valeurs de la run d'avant" : null);
+const endNote = (f: EndFacts): string | null => (!f.present ? t("common:tip.absent") : f.ghost ? t("common:tip.ghostInterface") : null);
 
 // Les contrôles, une ligne par (sévérité, code) avec son nombre d'occurrences, les plus graves d'abord ; au-delà de
 // six lignes, le reste est compté en contrôles, pas en codes (revue, M3).
@@ -75,13 +75,12 @@ function checkBlocks(checks: Pick<CheckEntry, "severity" | "code">[]): Block[] {
 }
 
 // Ce que le diff dit de l'élément, en une pastille : ajouté, retiré, ou changé avec ses chemins (quatre au plus).
-const DIFF_WORD: Record<string, string> = { added: "ajouté", removed: "retiré", changed: "changé" };
-const DIFF_TEXT: Record<string, string> = { added: "dans cette run", removed: "depuis la run d'avant", changed: "" };
+const DIFF_TEXT: Record<string, () => string> = { added: () => t("common:tip.addedText"), removed: () => t("common:tip.removedText"), changed: () => "" };
 function diffBlock(change: Pick<Change, "kind"> & Partial<Change> | null): Block | null {
   if (!change) return null;
   const fields = change.fields || [];
-  const paths = change.kind === "changed" ? fields.slice(0, 4).map((f) => f.path).join(", ") + (fields.length > 4 ? "…" : "") : DIFF_TEXT[change.kind];
-  return { kind: "pills", pills: [{ text: DIFF_WORD[change.kind], tone: change.kind }], text: paths ? clipText(paths) : null, mono: change.kind === "changed" };
+  const paths = change.kind === "changed" ? fields.slice(0, 4).map((f) => f.path).join(", ") + (fields.length > 4 ? "…" : "") : DIFF_TEXT[change.kind]();
+  return { kind: "pills", pills: [{ text: DIFF_LABEL[change.kind], tone: change.kind }], text: paths ? clipText(paths) : null, mono: change.kind === "changed" };
 }
 
 function sourcesText(sources: string[]): string {
@@ -105,12 +104,12 @@ export function linkLines(model: Model, link: ModelLink, opts: TipOptions = ALL)
   const rowDot = (key: string): Dot | null => (flagged.has(key) ? SEVERITY_DOT[flagged.get(key) as string] : null);
   const trait = (label: string, key: "speed" | "duplex" | "media"): Block | null => (facts.some((f) => f[key] !== null)
     ? { kind: "row", label, dot: rowDot(key), values: facts.map((f) => (f[key] === null ? val(DASH, { muted: true }) : val(f[key], { tone: tone(key) }))) } : null);
-  const traits = [trait("vitesse", "speed"), trait("duplex", "duplex"), trait("média", "media")].filter(present);
+  const traits = [trait(t("common:tip.speed"), "speed"), trait(t("common:tip.duplex"), "duplex"), trait(t("common:tip.media"), "media")].filter(present);
   const state: Block | null = facts.some((f) => f.state !== null)
-    ? { kind: "row", label: "état", dot: rowDot("state"),
+    ? { kind: "row", label: t("common:tip.state"), dot: rowDot("state"),
       values: facts.map((f) => (f.state === null ? val(DASH, { muted: true }) : val(f.state, { dot: stateDot(f.state), sub: f.reason, tone: tone("state") }))) } : null;
   const verdict: Block | null = control ? { kind: "pills", text: sourcesText(link.sources),
-    pills: [{ text: STATUS_LABEL[link.status], tone: STATUS_TONE[link.status] || "neutral" }, ...(link.raw.oper === "down" ? [{ text: "down", tone: "danger" as Tone }] : [])] } : null;
+    pills: [{ text: STATUS_LABEL[link.status], tone: STATUS_TONE[link.status] || "neutral" }, ...(link.raw.oper === "down" ? [{ text: t("common:tip.down"), tone: "danger" as Tone }] : [])] } : null;
   const footer = [verdict, diffBlock(link.ghost ? { kind: "removed" } : model.changeOf("link", link.id)), ...(control ? checkBlocks(link.checks) : [])].filter(present);
   const hueOf = (hostname: string): string => { const node = model.nodeByHost.get(hostname); return node ? hueOfNode(model, node) : defaultHue(null); };
   const heads: Block = { kind: "ends", icon: { kind: "link", hues: [hueOf(link.a.hostname), hueOf(link.b.hostname)] },
@@ -118,15 +117,14 @@ export function linkLines(model: Model, link: ModelLink, opts: TipOptions = ALL)
   const blocks: (Block | null)[] = [
     heads,
     space,
-    ...(traits.length ? traits : [note("vitesse, duplex, média : aucune valeur")]),
+    ...(traits.length ? traits : [note(t("common:tip.noValues"))]),
     state,
     ...(footer.length ? [rule, ...footer] : []),
   ];
   return blocks.filter(present);
 }
 
-const priorityText = (member: HaClusterMember): string | null => (member.priority !== null && member.priority !== undefined ? "priorité " + member.priority : null);
-const modeLabel = (mode: string): string => HA_MODE_LABEL[mode] || mode;
+const priorityText = (member: HaClusterMember): string | null => (member.priority !== null && member.priority !== undefined ? t("common:tip.priority", { value: member.priority }) : null);
 
 export function nodeLines(model: Model, node: ModelNode, opts: TipOptions = ALL): Block[] {
   const control = opts.control !== false;
@@ -137,21 +135,21 @@ export function nodeLines(model: Model, node: ModelNode, opts: TipOptions = ALL)
   const system = [node.os_name, node.os_version].filter(Boolean).join(" ");
   const pills: Pill[] = [
     ...(node.type ? [{ text: TYPE_SHORT_LABEL[node.type] || node.type, tone: "neutral" as Tone }] : []),
-    ...(KIND_PILL[node.kind] ? [{ text: KIND_PILL[node.kind], tone: "muted" as Tone, dashed: true }] : []),
+    ...(KIND_PILL[node.kind] ? [{ text: KIND_PILL[node.kind](), tone: "muted" as Tone, dashed: true }] : []),
   ];
   const facts: Block[] = [
-    row("câbles", val(links.length, { sub: ghosts ? plural(ghosts, "retiré") : null })),
-    node.stack ? row("stack", val(plural(node.stack.member_count, "membre"))) : null,
-    node.evidence && node.evidence.capabilities.length ? row("capacités", val(clipText(node.evidence.capabilities.join(", ")))) : null,
+    row(t("common:tip.cables"), val(links.length, { sub: ghosts ? t("common:tip.removed", { count: ghosts }) : null })),
+    node.stack ? row(t("common:tip.stack"), val(t("common:tip.members", { count: node.stack.member_count }))) : null,
+    node.evidence && node.evidence.capabilities.length ? row(t("common:tip.capabilities"), val(clipText(node.evidence.capabilities.join(", ")))) : null,
     ...memberships.flatMap((ha) => [ // tous ses clusters (revue, B4)
-      row("cluster HA", val(clipName(ha.cluster.raw.cluster_name || ha.cluster.hosts.join(" + ")), { sub: modeLabel(ha.cluster.raw.mode) })),
-      row("rôle", val(ha.member.role, { sub: priorityText(ha.member) })),
-      row("état", val(ha.member.state, { dot: stateDot(ha.member.state) })),
+      row(t("common:tip.haCluster"), val(clipName(ha.cluster.raw.cluster_name || ha.cluster.hosts.join(" + ")), { sub: haModeText(ha.cluster.raw.mode) })),
+      row(t("common:tip.role"), val(ha.member.role, { sub: priorityText(ha.member) })),
+      row(t("common:tip.state"), val(ha.member.state, { dot: stateDot(ha.member.state) })),
     ]),
   ].filter(present);
   const footer = [
     diffBlock(node.ghost ? { kind: "removed" } : model.changeOf("node", node.hostname)),
-    control && node.collection ? row("collecte", val(COLLECTION_LABEL[node.collection] || node.collection, { dot: COLLECTION_DOT[node.collection] || "muted" })) : null,
+    control && node.collection ? row(t("common:tip.collection"), val(COLLECTION_LABEL[node.collection] || node.collection, { dot: COLLECTION_DOT[node.collection] || "muted" })) : null,
     ...(control ? checkBlocks(model.checksByNode.get(node.hostname) || []) : []),
   ].filter(present);
   return [
@@ -171,9 +169,9 @@ export function beamLines(beam: Pick<Beam, "a" | "b" | "known" | "links" | "degr
   return [
     { kind: "ends", icon: { kind: "beam" }, ends: [{ name: clipName(beam.a.hostname), port: beam.a.aggregate }, { name: clipName(beam.b.hostname), port: beam.b.aggregate }], pills: nature },
     space,
-    row("câbles", val(beam.links.length)),
-    ...(protocols.length ? [row("protocole", val(protocols.join(" / ")))] : []),
-    ...(beam.degraded ? [note("un agrégat dégradé", "warning")] : []),
+    row(t("common:tip.cables"), val(beam.links.length)),
+    ...(protocols.length ? [row(t("common:tip.protocol"), val(protocols.join(" / ")))] : []),
+    ...(beam.degraded ? [note(t("common:tip.degraded"), "warning")] : []),
     ...(checks.length ? [rule, ...checks] : []),
   ];
 }
@@ -182,18 +180,18 @@ export function beamLines(beam: Pick<Beam, "a" | "b" | "known" | "links" | "degr
 export function groupLines(group: Group, shown: number): Block[] {
   const first = group.description.split("\n").find((text) => text.trim()) || "";
   return [
-    head(clipText(group.label), { kind: "group" }, [], shown + " / " + plural(group.members.length, "membre") + " · " + group.author),
+    head(clipText(group.label), { kind: "group" }, [], t("common:tip.groupMembers", { shown, count: group.members.length, author: group.author })),
     ...(first ? [note(first)] : []),
   ];
 }
 
 /** La bulle d'une annotation (docs/10 §6) : sa sorte, un résumé, qui, quand : reconnaissable comme une intention. */
 export function annotationLines(a: Annotation): Block[] {
-  const where = a.anchor.kind === "free" ? "libre" : "attachée à " + a.anchor.ref;
+  const where = a.anchor.kind === "free" ? t("common:annotationWord.free") : t("common:tip.attachedTo", { ref: a.anchor.ref });
   return [
     head(ANNOTATION_KIND[a.content.kind] || a.content.kind, { kind: "note" }, [{ text: where, tone: "muted" }]),
     note(summary(a)),
-    note("annotation de " + a.author + ", le " + a.at.slice(0, 10)),
+    note(t("common:tip.annotationBy", { author: a.author, date: a.at.slice(0, 10) })),
   ];
 }
 
@@ -201,7 +199,7 @@ export function annotationLines(a: Annotation): Block[] {
 export function clusterLines(cluster: Cluster, opts: TipOptions = ALL): Block[] {
   const checks = opts.control !== false ? checkBlocks(cluster.checks) : [];
   return [
-    head(clipName(cluster.raw.cluster_name || cluster.hosts.join(" + ")), { kind: "cluster" }, [{ text: "HA", tone: "structure" }], modeLabel(cluster.raw.mode)),
+    head(clipName(cluster.raw.cluster_name || cluster.hosts.join(" + ")), { kind: "cluster" }, [{ text: "HA", tone: "structure" }], haModeText(cluster.raw.mode)),
     space,
     ...cluster.raw.members.map((m): Block => ({ kind: "row", mono: true, label: clipName(m.hostname),
       values: [val(m.role), val(m.state, { dot: stateDot(m.state) }), ...(priorityText(m) ? [val(priorityText(m), { muted: true })] : [])] })),
@@ -212,8 +210,8 @@ export function clusterLines(cluster: Cluster, opts: TipOptions = ALL): Block[] 
 /** La bulle d'un connecteur (docs/10 §6, 1.4.0) : ses bouts, son étiquette, qui, quand. */
 export function connectorLines(c: Connector): Block[] {
   return [
-    head(clipText(connectorSummary(c)), { kind: "connector" }, [{ text: c.route === "elbow" ? "coudé" : c.route === "curve" ? "courbe" : "droit", tone: "muted" }, { text: c.locked ? "verrouillé" : "glissable", tone: "muted" }]),
-    note("connecteur de " + c.author + ", le " + c.at.slice(0, 10)),
+    head(clipText(connectorSummary(c)), { kind: "connector" }, [{ text: t(`common:connectorWord.${c.route === "elbow" || c.route === "curve" ? c.route : "straight"}`), tone: "muted" }, { text: t(c.locked ? "common:tip.locked" : "common:tip.draggable"), tone: "muted" }]),
+    note(t("common:tip.connectorBy", { author: c.author, date: c.at.slice(0, 10) })),
   ];
 }
 export const tip = { groupLines, annotationLines, connectorLines, create, text, clipName, linkLines, nodeLines, beamLines, clusterLines };

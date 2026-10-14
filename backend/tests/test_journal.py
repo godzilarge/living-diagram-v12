@@ -1,6 +1,7 @@
 """Le journal de l'intention, relu (`journal.py`) : entrées, catégories, sujets, filtres, curseur, facettes."""
 
 import json
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -71,14 +72,18 @@ def test_all_infrastructures_newest_first_with_categories_and_created_ids(root: 
 
 def test_subjects_carry_the_label_known_at_that_revision(root: Path):
     by_rev = {e["revision"]: e for e in _read(root, infrastructure=LAB)["entries"]}
-    assert by_rev[2]["subjects"] == [{"id": "g2-1", "kind": "group", "label": "Cœur DC02", "form": ""}]
-    assert by_rev[3]["subjects"] == [{"id": "g2-1", "kind": "group", "label": "Cœur", "form": ""}], (
-        "renommé à cette révision"
-    )
-    assert by_rev[6]["subjects"] == [{"id": "g2-1", "kind": "group", "label": "Cœur", "form": ""}], (
-        "supprimé : son dernier nom"
-    )
-    assert by_rev[5]["subjects"] == [{"id": "a5-1", "kind": "annotation", "label": "Salle B", "form": "note"}]
+    assert by_rev[2]["subjects"] == [
+        {"id": "g2-1", "kind": "group", "label": "Cœur DC02", "form": "", "unnamed": "", "parts": []}
+    ]
+    assert by_rev[3]["subjects"] == [
+        {"id": "g2-1", "kind": "group", "label": "Cœur", "form": "", "unnamed": "", "parts": []}
+    ], "renommé à cette révision"
+    assert by_rev[6]["subjects"] == [
+        {"id": "g2-1", "kind": "group", "label": "Cœur", "form": "", "unnamed": "", "parts": []}
+    ], "supprimé : son dernier nom"
+    assert by_rev[5]["subjects"] == [
+        {"id": "a5-1", "kind": "annotation", "label": "Salle B", "form": "note", "unnamed": "", "parts": []}
+    ]
 
 
 def test_filters_by_infrastructure_author_category_and_period(root: Path):
@@ -201,7 +206,7 @@ def test_a_connector_read_from_a_legacy_line_keeps_its_name(tmp_path: Path):
     ]
     (folder / "journal.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     assert _read(tmp_path)["entries"][0]["subjects"] == [
-        {"id": "c5-1", "kind": "connector", "label": "vers le WAN", "form": ""}
+        {"id": "c5-1", "kind": "connector", "label": "vers le WAN", "form": "", "unnamed": "", "parts": []}
     ]
 
 
@@ -289,6 +294,24 @@ def test_search_finds_the_words_the_page_shows_without_case_or_accents(tmp_path:
     assert found("tableau") == [6, 5], "la sorte d'une annotation, même dans une mise à jour sans contenu"
     assert found("tableau position") == [6], "les champs modifiés, comme la page les dit"
     assert found("routeur ambre") == [7]
+    # les mêmes mots en anglais (2026-10-10 : la page parle aussi anglais, le serveur ne sait pas laquelle)
+    assert found("deleted") == [4]
+    assert found("placed") == [1]
+    assert found("table position") == [6]
+    assert found("router amber") == [7]
+
+
+def test_search_finds_an_unnamed_object_in_english_too(tmp_path: Path):
+    """Le serveur nomme en français un objet sans nom (« forme sans titre → point libre ») ; la page anglaise affiche
+    « untitled shape → free point » : la recherche trouve les deux."""
+    store = IntentStore(tmp_path)
+    shape = {"kind": "shape", "shape": "rectangle", "label": ""}
+    _write(store, LAB, "o", [{"op": "annotation_create", "content": shape}], 0)
+    ends = {"start": {"kind": "annotation", "ref": "a1-1", "side": "auto"}, "end": {"kind": "free", "x": 0, "y": 0}}
+    _write(store, LAB, "o", [{"op": "connector_create", **ends}], 1)
+    revisions = [e["revision"] for e in _read(tmp_path, q="free point")["entries"]]
+    assert revisions == [2]
+    assert [e["revision"] for e in _read(tmp_path, q="point libre")["entries"]] == [2]
 
 
 def test_groups_are_computed_on_the_whole_file_never_on_a_filter(tmp_path: Path):
@@ -330,24 +353,69 @@ def test_groups_are_computed_on_the_whole_file_never_on_a_filter(tmp_path: Path)
     ], "filtrées, les positions ne fusionnent pas en une session de cinq"
 
 
+LOCALES = Path(__file__).parents[2] / "engine" / "src" / "i18n" / "locales"
+
+
+def _catalog(language: str) -> dict:
+    return json.loads((LOCALES / language / "journal.json").read_text(encoding="utf-8"))
+
+
+def _templates(tree: dict, prefix: str = "") -> Iterator[tuple[str, str]]:
+    """Les phrases d'un catalogue, à plat : (opération, texte) ; un pluriel donne sa forme `other`, une sorte
+    d'annotation (`say.annotation_create.note`) compte pour son opération."""
+    for key, value in tree.items():
+        if isinstance(value, dict):
+            yield from _templates(value, prefix or key)
+        elif not key.endswith(("_one", "_many", "_zero")):
+            yield (prefix or key.removesuffix("_other")), value
+
+
 def test_every_verb_the_page_writes_is_searchable():
-    """La recherche lit les mots de la page (`journal_words.py`) : chaque verbe de `sentenceOf` (journal-text.ts) doit
-    être dans le vocabulaire de son opération, sinon une phrase affichée ne se trouve pas."""
+    """La recherche lit les mots de la page (`journal_words.py`) : chaque verbe des phrases du catalogue `journal`
+    (`say.*`, `batch.*`), dans chaque langue, doit être dans le vocabulaire de son opération, et le nom d'une rafale
+    aussi (« a placé 3 équipements », « placed 3 devices ») ; sinon une phrase affichée ne se trouve pas."""
     import re
 
     from ld_backend.journal_words import OP_WORDS, fold
 
-    source = Path(__file__).parents[2] / "engine" / "src" / "app" / "state" / "journal-text.ts"
-    cases = re.findall(r'case "(\w+)": return say\("a (\w+)', source.read_text(encoding="utf-8"))
-    assert len(cases) >= 17, "les phrases de la page se lisent encore"
-    for op, verb in cases:
-        assert fold(verb) in fold(" ".join(OP_WORDS.get(op, ()))), (op, verb)
-    # les rafales (`BATCH`) : « a placé 3 équipements », le verbe et le nom au pluriel (revue, M4)
-    batches = re.findall(r'(\w+): \["a (\w+) [^"]*", "(\w+)"\]', source.read_text(encoding="utf-8"))
-    assert len(batches) >= 12, "la table des rafales se lit encore"
-    for op, verb, noun in batches:
-        words = fold(" ".join(OP_WORDS.get(op, ())))
-        assert fold(verb) in words and fold(noun + "s") in words, (op, verb, noun)
+    for language in ("fr", "en"):
+        catalog = _catalog(language)
+        says = [(op, text) for op, text in _templates(catalog["say"]) if op in OP_WORDS]
+        assert len(says) >= 18, (language, "les phrases du catalogue se lisent encore")
+        for op, text in says:
+            verb = re.sub(r"\{\{\w+\}\}", "", text).split()[0]
+            assert fold(verb) in fold(" ".join(OP_WORDS[op])), (language, op, verb)
+        batches = [(op, text) for op, text in _templates(catalog["batch"]) if text.split()]
+        assert len(batches) >= 12, (language, "la table des rafales se lit encore")
+        for op, text in batches:
+            words = fold(" ".join(OP_WORDS.get(op, ())))
+            verb, noun = text.split()[0], text.split("{{count}}")[1].split()[0]
+            assert fold(verb) in words and fold(noun) in words, (language, op, verb, noun)
+
+
+def test_the_page_and_the_search_know_every_kind_the_server_marks_as_unnamed():
+    """Le serveur marque un objet sans nom par sa sorte (`unnamed`, `parts`) ; la page la dit dans sa langue
+    (`journal:unnamedRef`) et la recherche la connaît dans les deux (`UNNAMED_WORDS`) : les trois listes disent la même
+    chose, et les mots français du serveur (`label`, gardé pour la recherche) sont ceux de la page."""
+    from ld_backend.journal_replay import UNNAMED_TEXT
+    from ld_backend.journal_words import UNNAMED_WORDS
+
+    fr, en = _catalog("fr")["unnamedRef"], _catalog("en")["unnamedRef"]
+    assert set(UNNAMED_TEXT) == set(UNNAMED_WORDS)
+    for kind, text in UNNAMED_TEXT.items():
+        assert fr[kind] == text and UNNAMED_WORDS[kind] == (fr[kind], en[kind]), kind
+
+
+def test_a_name_typed_by_a_user_is_never_taken_for_an_unnamed_object(tmp_path: Path):
+    """Revue de l'interface bilingue, B3 : un groupe nommé « point libre » reste un nom ; un bout libre est marqué."""
+    store = IntentStore(tmp_path)
+    _write(store, LAB, "o", [{"op": "group_create", "label": "point libre", "members": ["sw-core-01"]}], 0)
+    ends = {"start": {"kind": "group", "ref": "g1-1", "side": "auto"}, "end": {"kind": "free", "x": 0, "y": 0}}
+    _write(store, LAB, "o", [{"op": "connector_create", **ends}], 1)
+    subjects = {s["id"]: s for e in _read(tmp_path)["entries"] for s in e["subjects"]}
+    assert subjects["g1-1"]["label"] == "point libre" and subjects["g1-1"]["unnamed"] == ""
+    assert subjects["c2-1"]["parts"] == [{"text": "point libre", "unnamed": None}, {"text": None, "unnamed": "free"}]
+    assert subjects["c2-1"]["unnamed"] == "", "un connecteur nommé par ses bouts a un nom"
 
 
 def test_actions_are_created_modified_deleted_and_a_purge_counts_as_deleted(root: Path):
@@ -445,3 +513,21 @@ def test_a_legacy_line_is_in_the_history_of_the_connector_it_became(tmp_path: Pa
     folder.mkdir(parents=True)
     (folder / "journal.jsonl").write_text(line + "\n", encoding="utf-8")
     assert [e["revision"] for e in _read(tmp_path, infrastructure=LAB, object="c5-1")["entries"]] == [5]
+
+
+@pytest.mark.parametrize("language", ["fr", "en"])
+def test_the_search_words_say_what_the_page_shows(language):
+    """Revue de l'interface bilingue, B9 : les teintes, les types, les catégories, les sortes d'annotation et les champs
+    que la page écrit se cherchent avec ces mots-là, dans chaque langue ; renommer un mot dans un catalogue sans la
+    table de recherche recréerait le faux négatif du 2026-10-10 (« tester une recherche avec les mots affichés »)."""
+    from ld_backend.journal_words import CATEGORY_WORDS, FIELD_WORDS, HUE_WORDS, KIND_WORDS, TYPE_WORDS, fold
+
+    common = json.loads((LOCALES / language / "common.json").read_text(encoding="utf-8"))
+    page = _catalog(language)
+    pairs = ((HUE_WORDS, common["hue"]), (TYPE_WORDS, common["type"]), (CATEGORY_WORDS, page["category"]),
+             (KIND_WORDS, common["annotationKind"]))  # fmt: skip
+    for table, shown in pairs:
+        for key, words in table.items():
+            assert fold(shown[key]) in {fold(w) for w in words}, (language, key, shown[key])
+    fields = {fold(w) for words in FIELD_WORDS.values() for w in words}
+    assert {fold(text) for text in page["field"].values()} <= fields, language

@@ -28,7 +28,8 @@ def test_reading_needs_the_token_and_an_unknown_infrastructure_reads_empty(clien
 def test_recording_needs_an_archived_run_then_the_first_place_stays(client: TestClient, auth, bundle_dict):
     assert client.post(PLACEMENT_URL, params=PARAMS, json=body(PLACE)).status_code == 401
     res = client.post(PLACEMENT_URL, params=PARAMS, json=body(PLACE), headers=auth)
-    assert res.status_code == 404 and "aucune run" in res.json()["detail"] and "infra-lab" not in res.json()["detail"]
+    assert res.status_code == 404 and res.json()["code"] == "no_archived_run"
+    assert "infra-lab" not in res.json()["detail"]
     assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
     res = client.post(PLACEMENT_URL, params=PARAMS, json=body(PLACE), headers=auth)
     assert res.status_code == 200
@@ -88,7 +89,7 @@ def test_invalid_requests_are_refused_in_the_shape_of_the_api(client: TestClient
     for item in bad:
         res = client.post(PLACEMENT_URL, params=PARAMS, json=item, headers=auth)
         assert res.status_code == 422, str(item)[:200]
-        assert res.json()["detail"] == "corps de requête invalide" and res.json()["errors"], str(item)[:200]
+        assert res.json()["code"] == "invalid_body" and res.json()["errors"], str(item)[:200]
         assert "sw-core-01" not in json.dumps(res.json()) and "oui" not in json.dumps(res.json()), (
             "jamais une valeur dans un message"
         )

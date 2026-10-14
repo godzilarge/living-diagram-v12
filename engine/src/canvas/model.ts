@@ -518,9 +518,13 @@ export function cardExtrasOf(model: Model, node: ModelNode): CardExtras {
   return { role: ha ? ha.member.role : null, stack: node.stack ? node.stack.member_count : null };
 }
 // La largeur commune des cartes de la run, fantômes compris (ils se dessinent aussi) ; un voisin inconnu reste un disque.
+// Mesurée sur le nom seul (lot 5 de docs/11, 2026-10-13) : l'application n'écrit plus le rôle HA ni le stack sous le
+// nom (pastilles du bord haut), une largeur réservée pour eux restait vide. `/view` les écrit encore : une carte dont la
+// ligne du dessous dépasse son nom s'y élargit d'elle-même (card.plan, jamais plus étroite que son contenu).
+const NAME_ONLY: CardExtras = { role: null, stack: null };
 function commonCardWidth(model: Model): number {
   const cards = model.nodes.concat(model.ghostNodes).filter((node) => node.kind !== "stub");
-  return uniformWidth(cards.map((node) => cardWidthOf(displayName(node.hostname), cardExtrasOf(model, node))));
+  return uniformWidth(cards.map((node) => cardWidthOf(displayName(node.hostname), NAME_ONLY)));
 }
 
 export const model = {

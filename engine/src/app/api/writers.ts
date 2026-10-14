@@ -5,6 +5,7 @@
 import type { Intent, Placement } from "../../canvas/types";
 import type { Op, Placer, PlacementWrite, PlaceResult, SaveResult, Writer } from "../../shell/apps";
 import { call, explain, isRecord, ROUTES } from "../../shell/http";
+import { t } from "../../i18n";
 import type { Session } from "./client";
 
 /** Ce qui observe les écritures acceptées (la pile d'annulation) : le document avant la requête, puis celui rendu. */
@@ -16,8 +17,8 @@ export type AppWriter = Writer & { observer: WriteObserver | null; locked: boole
 export function makeWriter(session: () => Session, author: string, onAuthor: (name: string) => void): AppWriter {
   let queue: Promise<unknown> = Promise.resolve();
   const send = async (ops: Op[]): Promise<SaveResult> => {
-    if (me.locked) return { ok: false, message: "intention illisible : modifications coupées" };
-    if (!me.author) return { ok: false, message: "donnez votre nom (en haut à droite)" };
+    if (me.locked) return { ok: false, message: t("shell:messages.intentLocked") };
+    if (!me.author) return { ok: false, message: t("shell:messages.giveName") };
     const current = session();
     const observer = me.observer, before = observer ? observer.before() : null; // lu au départ de la requête, dans la file
     try {
@@ -28,7 +29,7 @@ export function makeWriter(session: () => Session, author: string, onAuthor: (na
         return { ok: true, intent };
       }
       return { ok: false, message: explain(done.status, done.body) };
-    } catch (error) { return { ok: false, message: "l'API ne répond pas" }; }
+    } catch (error) { return { ok: false, message: t("shell:messages.apiDown") }; }
   };
   let name = author;
   const me: AppWriter = {
@@ -53,7 +54,7 @@ export function makePlacer(session: () => Session): Placer {
       if (done.status === 200 && isRecord(done.body)) return { ok: true, placement: done.body as unknown as Placement };
       if (done.status === 409 && isRecord(done.body)) return { ok: false, stale: true, placement: done.body as unknown as Placement };
       return { ok: false, message: explain(done.status, done.body) };
-    } catch (error) { return { ok: false, message: "l'API ne répond pas" }; }
+    } catch (error) { return { ok: false, message: t("shell:messages.apiDown") }; }
   };
   return { save: send };
 }

@@ -44,8 +44,9 @@ PAGE = """<!doctype html>
 </head>
 <body>
 <div id="app"></div>
-<noscript><p class="fatal">Cette application a besoin de JavaScript : tout le rendu se fait dans le \
-navigateur.</p></noscript>
+<noscript><p class="fatal" lang="fr">Cette application a besoin de JavaScript : tout le rendu se fait dans le \
+navigateur.</p><p class="fatal" lang="en">This application needs JavaScript: everything is drawn in the browser.</p>\
+</noscript>
 <script type="application/json" id="ld-catalogue">{catalogue}</script>
 </body>
 </html>

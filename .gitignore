@@ -59,3 +59,8 @@ docs/revues/sondes-*/tmp*/
 
 # Note : `uv.lock` est versionné volontairement (déterminisme des dépendances).
 .impeccable/planche-*/archive*/
+
+# --- Captures d'écran : régénérables par les scripts versionnés à côté -------
+# On versionne les scripts de capture et de sonde, jamais les PNG qu'ils produisent.
+.impeccable/planche-*/**/*.png
+docs/revues/sondes-*/**/*.png

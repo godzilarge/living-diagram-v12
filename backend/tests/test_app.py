@@ -112,6 +112,20 @@ def test_the_application_passes_its_node_tests():
     assert done.returncode == 0, done.stdout[-4000:] + done.stderr[-2000:]
 
 
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node absent : les tests de la langue ne tournent pas")
+def test_the_application_languages_hold_together():
+    """Les catalogues fr / en : mêmes clés, mêmes variables, pluriels de chaque langue ; le bundle change de langue."""
+    done = subprocess.run(
+        ["node", "--test", str(JS_TESTS / "i18n.test.js")],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={**os.environ, "LD_APP": str(ASSETS / "app.js"), "LD_LOCALES": str(ENGINE / "src" / "i18n" / "locales")},
+        check=False,
+    )
+    assert done.returncode == 0, done.stdout[-4000:] + done.stderr[-2000:]
+
+
 SHIFT = 8  # Input.dispatchMouseEvent : le modificateur Maj
 CTRL = 2  # et Ctrl
 NODES = "document.querySelectorAll('.flow [data-node]').length"
@@ -130,14 +144,6 @@ def _screen(tab, hostname: str) -> dict:
         f"(() => {{ const el = document.querySelector('.react-flow__node[data-id=' + {name} + ']');"
         " const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()"
     )
-
-
-def _anchor(node_id: str, side: str) -> str:
-    """Le point d'ancrage `side` d'un nœud (expression JS) ; sans côté, la liste de ses ancres."""
-    node = f".react-flow__node[data-id={json.dumps(node_id)}]"
-    if not side:
-        return f"document.querySelectorAll('{node} .anchor')"
-    return f"document.querySelector('{node} .anchor[data-side=\"{side}\"] .anchor-hit')"
 
 
 def _box(node_id: str) -> str:
@@ -252,9 +258,10 @@ def _pick_hue(tab, name: str) -> None:
     tab.js(f"document.querySelector('.panel .hue-swatch[aria-label={json.dumps(name)}]').click()")
 
 
-def _delete_from_panel(tab) -> None:
+def _delete_from_panel(tab, *, confirm: bool = True) -> None:
     """Supprime ce que montre la fiche : « … » puis « supprimer » (ou la corbeille directe, quand le menu ne
-    contiendrait qu'elle), puis la confirmation dans l'en-tête."""
+    contiendrait qu'elle), puis la confirmation dans l'en-tête ; un groupe se supprime sans confirmation (lot 1 de
+    docs/11 : Ctrl+Z le défait)."""
     from tests.test_view import _wait
 
     if tab.js("!!document.querySelector('.panel .insp-menu')"):
@@ -263,6 +270,8 @@ def _delete_from_panel(tab) -> None:
         _button(tab, "supprimer", ".panel .menu")
     else:
         tab.js("document.querySelector('.panel .insp-actions [aria-label=supprimer]').click()")
+    if not confirm:
+        return
     _wait(tab, "!!document.querySelector('.panel .insp-confirm')")
     _button(tab, "supprimer", ".panel .insp-confirm")
 
@@ -461,7 +470,8 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             _wait(tab, f"/annulé : déplacement de sw-core-02/.test({NOTE})")
             undone = {p["hostname"]: (p["x"], p["y"]) for p in _intent_pins(base, auth)}
             assert undone.get("sw-core-02") != pinned["sw-core-02"]
-            assert tab.js("LDApp.debug.state().history.redo") == "déplacement de sw-core-02"
+            redo = "document.querySelector('.toolbar [aria-label^=\"rétablir\"]').getAttribute('aria-label')"
+            assert tab.js(redo) == "rétablir : déplacement de sw-core-02", "le libellé, écrit dans la langue de la page"
             _press(tab, "y", 89, CTRL)
             _wait(tab, f"/rétabli : déplacement de sw-core-02/.test({NOTE})")
             assert {p["hostname"]: (p["x"], p["y"]) for p in _intent_pins(base, auth)} == pinned
@@ -529,12 +539,14 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             # les commandes de la toile : grille, thème ; des préférences du navigateur, jamais dans l'adresse
             assert tab.js("!!document.querySelector('.react-flow__minimap')"), "la minimap, par défaut"
             assert not tab.js("!!document.querySelector('.react-flow__background')"), "pas de grille par défaut"
-            # supprimer le groupe : confirmation dans la fiche, le cadre disparaît, la sélection aussi
+            # supprimer le groupe depuis la fiche : direct, sans confirmation (lot 1 de docs/11, comme le menu) ; le
+            # cadre disparaît, la sélection aussi, la ligne d'état dit Ctrl+Z
             tab.js(f"LDApp.debug.handle().toile.reveal({{ kind: 'group', id: {json.dumps(gid)} }})")
             _wait(tab, "!!document.querySelector('.panel .insp-title-input')")
-            _delete_from_panel(tab)
+            _delete_from_panel(tab, confirm=False)
             gone = f"!document.querySelector('.react-flow__node[data-id=\"group:{gid}\"]')"
-            _wait(tab, f"/groupe supprimé \\(orhan\\)/.test({NOTE}) && {gone}")
+            _wait(tab, f"/groupe supprimé \\(orhan\\) · Ctrl\\+Z/.test({NOTE}) && {gone}")
+            assert not tab.js("!!document.querySelector('.panel .insp-confirm')"), "aucune confirmation"
             assert _intent_doc(base, auth)["groups"] == []
             tab.js("document.querySelector('.controls [aria-label=\"afficher la grille\"]').click()")
             _wait(tab, "!!document.querySelector('.react-flow__background')")
@@ -551,7 +563,7 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             _wait(tab, f"document.querySelector('.panel').getBoundingClientRect().width > {before} + 100")
             prefs = json.loads(tab.js("localStorage.getItem('ld-prefs')"))
             assert 460 <= prefs.pop("panelWidth") <= 470, "la largeur glissée est rangée à la relâche"
-            assert prefs == {"theme": "light", "grid": True, "snap": False, "minimap": True}
+            assert prefs == {"theme": "light", "language": None, "grid": True, "snap": False, "minimap": True}
             tab.js(
                 "document.querySelector('.panel .panel-resize')"
                 ".dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))"
@@ -669,6 +681,20 @@ VIEW_ZOOM = (
     "Number((document.querySelector('.react-flow__viewport').style.transform.match(/scale\\(([0-9.]+)\\)/)"
     " || [0, 0])[1])"
 )
+# Le nom des cartes tel qu'il est rendu (lot 5 de docs/11) : sur chaque carte, les textes de nom affichés (un seul par
+# niveau de détail), leur taille de police calculée × l'échelle de la toile à l'écran. Rend le nombre de noms affichés
+# par carte, la plus petite taille et le niveau de détail posé sur la toile.
+NAMES_RENDERED = """(() => {
+  const showing = (el) => getComputedStyle(el).display !== 'none';
+  const cards = Array.from(document.querySelectorAll('.react-flow__node-card svg.node'));
+  const shown = cards.map((svg) => Array.from(svg.querySelectorAll('text.node-label')).filter(showing));
+  const sizes = shown.flat().map((t) => parseFloat(getComputedStyle(t).fontSize) * t.getScreenCTM().a);
+  const icons = cards.map((svg) => Array.from(svg.querySelectorAll('.node-icon')).filter(showing).length);
+  const flow = document.querySelector('.react-flow');
+  const lod = ['zoom-far', 'zoom-tiny'].filter((c) => flow.classList.contains(c));
+  const perCard = Array.from(new Set(shown.map((s) => s.length)));
+  return { cards: cards.length, perCard, icons: Array.from(new Set(icons)), min: Math.min(...sizes), lod };
+})()"""
 
 
 @pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
@@ -703,7 +729,12 @@ def test_the_application_opens_a_large_infrastructure_where_names_read(settings)
             floor = tab.js("LDApp.opening.READ_ZOOM")
             opened = tab.js(VIEW_ZOOM)
             assert abs(opened - floor) < 1e-6, f"ouverte au zoom de lecture, pas en pelote : {opened}"
-            # la liste d'un stack à taille d'écran : 280 px de large au moins, même à 0,67
+            # lot 5 : à l'ouverture (0,55, sous 0,6), la carte est de loin : un nom, agrandi, une icône ; ≥ 10 px rendus
+            names = tab.js(NAMES_RENDERED)
+            assert names["lod"] == ["zoom-far"], names
+            assert names["perCard"] == [1] and names["icons"] == [1], f"un nom et une icône par carte : {names}"
+            assert names["min"] >= 10, f"le nom se lit à l'ouverture : {names}"
+            # la liste d'un stack à taille d'écran : 280 px de large au moins, même au zoom de lecture
             tab.js("document.querySelector('.chip-stack').dispatchEvent(new MouseEvent('click', { bubbles: true }))")
             _wait(tab, "!!document.querySelector('.stack-list')")
             assert tab.js("document.querySelector('.stack-list').getBoundingClientRect().width") >= 279
@@ -712,6 +743,14 @@ def test_the_application_opens_a_large_infrastructure_where_names_read(settings)
             # « cadrer tout » : tout, quitte à passer sous le zoom de lecture
             tab.js("document.querySelector(\".toolbar button[aria-label='cadrer tout']\").click()")
             _wait(tab, f"{VIEW_ZOOM} < {floor} - 0.01")
+            # « cadrer tout » passe sous 0,4 : le nom seul, sans icône, à 30 unités (le plus grand que la carte tienne).
+            # Il fait ≥ 10 px tant que le zoom est ≥ 1/3 (D4 : « lisible jusqu'à 0,35 ») ; ici « cadrer tout » tombe à
+            # 0,324 et le nom à 9,7 px : écart à l'acceptation du lot 5, consigné dans docs/11 (lot 5, « Fait »).
+            _wait(tab, "document.querySelector('.react-flow').classList.contains('zoom-tiny')")
+            names = tab.js(NAMES_RENDERED)
+            fitted = tab.js(VIEW_ZOOM)
+            assert names["perCard"] == [1] and names["icons"] == [0], f"de très loin, le nom seul : {names}"
+            assert abs(names["min"] - 30 * fitted) < 0.05, f"nom à 30 unités, cadré à {fitted:.3f} : {names}"
         noise = [entry for entry in chrome.console if "Refused" in json.dumps(entry)]
         assert not noise, noise
     finally:
@@ -774,6 +813,32 @@ def _node(annotation_id: str) -> str:
     return f"document.querySelector('.react-flow__node[data-id=\"annotation:{annotation_id}\"]')"
 
 
+ALT = 1  # Input.dispatchMouseEvent : le modificateur Alt
+TOOL = "document.querySelector(\".toolbar button[aria-label='outil connecteur']\")"
+TOOL_ON = f"{TOOL}.getAttribute('aria-pressed') === 'true' && !!document.querySelector('.flow.tool-connector')"
+TOOL_OFF = f"{TOOL}.getAttribute('aria-pressed') === 'false' && !document.querySelector('.flow.tool-connector')"
+TIP_SHOWN = "document.querySelector('.tip-layer .tip').getAttribute('visibility') === 'visible'"
+# Les marques de la cible d'un bout (lot 1) : la couche du dessus, son contour, ses ancres.
+MARKS = "document.querySelector('.sketch-layer [data-target]')"
+SIZE = (
+    "(() => {{ const r = {0}.getBoundingClientRect();"
+    " return [Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10]; }})()"
+)
+
+
+def _drag_with(tab, start: tuple[float, float], end: tuple[float, float], modifiers: int, *, hold=None) -> None:
+    """Un glissé réel avec un modificateur tenu (Alt : `ALT`) ; `hold` est appelé bouton enfoncé, avant la relâche."""
+    mouse = {"button": "left", "clickCount": 1, "modifiers": modifiers}
+    tab.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": start[0], "y": start[1], "buttons": 0, **mouse})
+    tab.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": start[0], "y": start[1], "buttons": 1, **mouse})
+    for step in range(1, 7):
+        x, y = start[0] + (end[0] - start[0]) * step / 6, start[1] + (end[1] - start[1]) * step / 6
+        tab.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y, "buttons": 1, **mouse})
+    if hold:
+        hold()
+    tab.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": end[0], "y": end[1], "buttons": 0, **mouse})
+
+
 @pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
 def test_the_application_annotations_in_a_browser(settings, bundle_dict, tmp_path):
     """docs/10 §6 : « insérer une note » la pose au centre de la vue par l'API sous le nom donné et ouvre sa fiche ;
@@ -824,6 +889,55 @@ def test_the_application_annotations_in_a_browser(settings, bundle_dict, tmp_pat
             _wait(tab, f"(() => {{ const r = {ANNOTATION.format('a1-1')}; return r.w > 220 && r.h > 80; }})()")
             sized = _intent_doc(base, auth)["annotations"][0]
             assert sized["w"] > 220 and sized["h"] > 80 and sized["x"] == moved["x"], sized
+            # lot 1 de docs/11 : aucune ancre au repos ni sur la sélection ; sélectionnée, ses poignées seules
+            assert tab.js("document.querySelectorAll('.anchor-dot').length") == 0, "aucune ancre"
+            assert tab.js(f"{node}.querySelectorAll('.annotation-handle').length") == 8
+            # la poignée du milieu à droite (une barre, plus aucun disque au même endroit) : saisie, elle redimensionne,
+            # la pastille « L × H » suit le geste ; aucun connecteur n'est créé
+            bar = f"{node}.querySelector('.handle-e .annotation-handle-hit')"
+            b = _still(tab, bar)
+            pill = []
+            sizing = f"{node}.querySelector('.gesture-pill')"
+
+            def read_pill() -> None:
+                _wait(tab, f"!!{sizing}")
+                pill.append(tab.js(f"{sizing}.textContent"))
+
+            _drag_with(tab, (b["x"], b["y"]), (b["x"] + 40, b["y"]), 0, hold=read_pill)
+            _wait(tab, f"{ANNOTATION.format('a1-1')}.w > {sized['w']}")
+            wide = _intent_doc(base, auth)["annotations"][0]
+            assert re.fullmatch(r"\d+ × \d+", pill[0]) and pill[0].endswith(f"× {sized['h']}"), pill
+            assert (wide["x"], wide["h"]) == (sized["x"], sized["h"]) and _intent_doc(base, auth)["connectors"] == []
+            # Alt : depuis le centre (le côté opposé bouge d'autant, le centre reste)
+            b = _still(tab, bar)
+            _drag_with(tab, (b["x"], b["y"]), (b["x"] + 30, b["y"]), ALT)
+            _wait(tab, f"{ANNOTATION.format('a1-1')}.w > {wide['w'] + 20}")
+            centred = _intent_doc(base, auth)["annotations"][0]
+            middle = (centred["x"] + centred["w"] / 2, wide["x"] + wide["w"] / 2)
+            assert centred["x"] < wide["x"] and abs(middle[0] - middle[1]) <= 1, (wide, centred)
+            # les poignées gardent leur taille d'écran : un coin de 8 et une barre de 14 × 5 à 0,4 comme à 2
+            view = tab.js("LDApp.debug.handle().toile.viewport()")
+            sizes = []
+            for zoom in (0.4, 2):
+                tab.js(f"LDApp.debug.handle().toile.restoreView({{ x: {view['x']}, y: {view['y']}, zoom: {zoom} }})")
+                _wait(tab, f"Math.abs(LDApp.debug.handle().toile.viewport().zoom - {zoom}) < 1e-6")
+                threading.Event().wait(0.3)
+                corner = tab.js(SIZE.format(f"{node}.querySelector('.handle-se .annotation-handle')"))
+                top = tab.js(SIZE.format(f"{node}.querySelector('.handle-n .annotation-handle')"))
+                sizes.append((corner, top))
+            assert sizes[0] == sizes[1] == ([8, 8], [14, 5]), sizes
+            tab.js(f"LDApp.debug.handle().toile.restoreView({json.dumps(view)})")
+            _wait(tab, f"Math.abs(LDApp.debug.handle().toile.viewport().zoom - {view['zoom']}) < 1e-6")
+            # la bulle : jamais sur l'élément sélectionné ; sur une carte voisine, oui
+            here = _still(tab, node)
+            tab.mouse_move(here["x"], here["y"])
+            threading.Event().wait(0.4)
+            assert not tab.js(TIP_SHOWN), "pas de bulle sur l'annotation sélectionnée"
+            card = _settled(tab, "sw-core-01")
+            tab.mouse_move(card["x"], card["y"])
+            _wait(tab, TIP_SHOWN)
+            tab.mouse_move(here["x"], here["y"])
+            _wait(tab, f"!({TIP_SHOWN})")
             # double-clic : le texte s'édite en place ; Ctrl+Entrée enregistre
             r2 = tab.js(CENTER.format(node))
             _double_click(tab, r2["x"], r2["y"])
@@ -906,16 +1020,46 @@ def test_the_application_annotations_in_a_browser(settings, bundle_dict, tmp_pat
             _wait(tab, f"Array.isArray({ANNOTATION.format(tid)}.content.widths)")
             widths = tab.js(f"{ANNOTATION.format(tid)}.content.widths")
             assert widths[0] > widths[1] and sum(widths) == tab.js(f"{ANNOTATION.format(tid)}.w"), widths
-            # un connecteur : inséré libre, puis son bout d'arrivée glissé sur le cœur s'y attache ; le menu le courbe
-            tab.js("document.querySelector(\".toolbar button[aria-label='insérer un connecteur']\").click()")
+            # l'outil connecteur (lot 1 de docs/11) : C l'arme (bouton enfoncé, la croix), Échap le range ; armé, deux
+            # clics sur le fond posent un connecteur libre, sélectionné, et l'outil se range
+            _press(tab, "Escape", 27)
+            _press(tab, "c", 67)
+            _wait(tab, TOOL_ON)
+            assert tab.js("getComputedStyle(document.querySelector('.react-flow__pane')).cursor") == "crosshair"
+            _press(tab, "Escape", 27)
+            _wait(tab, TOOL_OFF)
+            tab.js(f"{TOOL}.click()")
+            _wait(tab, TOOL_ON)
+            first = json.loads(tab.js(PANE_POINT.format(560, 470)))
+            second = json.loads(tab.js(PANE_POINT.format(first[0] + 160, first[1])))
+            _click_at(tab, *first)
+            _wait(tab, "!!document.querySelector('.sketch-layer .connector-line')")  # le brouillon suit le pointeur
+            tab.mouse_move(*second)
+            _click_at(tab, *second)
             _wait(tab, f"{PICKED} && {PICKED}.kind === 'connector'")
+            _wait(tab, TOOL_OFF)
             cid = tab.js(f"{PICKED}.id")
+            assert tab.js(f"[{CONNECTOR.format(cid)}.start.kind, {CONNECTOR.format(cid)}.end.kind]") == ["free", "free"]
+            # son bout d'arrivée glissé sur le cœur : le contour (bout `auto`) et les quatre ancres de la carte se
+            # montrent pendant le geste, la relâche l'y attache ; le menu le courbe
             line = f"document.querySelector('.react-flow__node[data-id=\"connector:{cid}\"]')"
             _wait(tab, f"!!{line} && {line}.querySelectorAll('.connector-handle.end').length === 2")
             end = f"{line}.querySelectorAll('.connector-handle.end')[1]"
             e = _still(tab, end)
             core = _settled(tab, "sw-core-01")
-            tab.drag((e["x"], e["y"]), (core["x"], core["y"]))
+            seen = []
+            marks = (
+                f"[{MARKS} && {MARKS}.dataset.target, document.querySelectorAll('.sketch-layer .anchor-dot').length,"
+                " !!document.querySelector('.sketch-layer .target-outline.floating')]"
+            )
+
+            def read_marks() -> None:
+                _wait(tab, f"!!{MARKS}")
+                seen.append(tab.js(marks))
+
+            _drag_with(tab, (e["x"], e["y"]), (core["x"], core["y"]), 0, hold=read_marks)
+            assert seen == [["device:sw-core-01", 4, True]], seen
+            _wait(tab, f"!{MARKS}")
             _wait(
                 tab,
                 f"{CONNECTOR.format(cid)}.end.kind === 'device' && {CONNECTOR.format(cid)}.end.ref === 'sw-core-01'",
@@ -928,6 +1072,20 @@ def test_the_application_annotations_in_a_browser(settings, bundle_dict, tmp_pat
             _button(tab, "tracé courbe", ".context-menu")
             _wait(tab, f"{CONNECTOR.format(cid)}.route === 'curve'")
             assert tab.js(f"{line}.querySelector('.connector-head') !== null"), "une flèche à l'arrivée"
+            # revue d'usage, M4 : un clic droit sur la poignée de courbure ouvre le menu, il ne courbe ni n'écrit rien
+            tab.js("document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))")
+            _wait(tab, "!document.querySelector('.context-menu')")
+            tab.js(f"LDApp.debug.handle().toile.select({{ kind: 'connector', id: '{cid}' }})")
+            _wait(tab, f"!!{line}.querySelector('.connector-handles.shown .connector-handle.bend')")
+            revision = tab.js("LDApp.debug.handle().toile.model.intent.revision")
+            bend = tab.js(f"{CONNECTOR.format(cid)}.bend")
+            knob = _still(tab, f"{line}.querySelector('.connector-handle.bend')")
+            _right_click(tab, knob["x"] + 2, knob["y"] + 2)
+            _wait(tab, "!!document.querySelector('.context-menu')")
+            tab.js("document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))")
+            threading.Event().wait(0.6)
+            assert tab.js("LDApp.debug.handle().toile.model.intent.revision") == revision
+            assert tab.js(f"{CONNECTOR.format(cid)}.bend") == bend
             # les ancres (1.5.0) : le bout de départ glissé près du haut de l'autre cœur s'accroche à son ancre « n »
             assert tab.js(f"{CONNECTOR.format(cid)}.end.side") == "auto", "relâché au milieu : le contour"
             start = _still(tab, f"{line}.querySelectorAll('.connector-handle.end')[0]")
@@ -936,16 +1094,24 @@ def test_the_application_annotations_in_a_browser(settings, bundle_dict, tmp_pat
             tab.drag((start["x"], start["y"]), (core2["x"], top + 2))
             _wait(tab, f"{CONNECTOR.format(cid)}.start.kind === 'device' && {CONNECTOR.format(cid)}.start.side === 'n'")
             assert tab.js(f"{CONNECTOR.format(cid)}.start.ref") == "sw-core-02"
-            # tirer un connecteur depuis une ancre : la carte sélectionnée montre quatre points ; glisser depuis celui
-            # de gauche (celui de droite est sous la fiche) jusqu'au premier cœur en crée un, ancré à gauche au départ,
-            # au contour à l'arrivée ; Ctrl+Z le défait
+            # tirer un connecteur depuis une ancre : sélectionnée, la carte ne montre aucune ancre ; l'outil armé (C),
+            # survolée, elle montre son contour et ses quatre ancres, celle de gauche à portée grossit ; glisser depuis
+            # elle (celle de droite est sous la fiche) jusqu'au premier cœur en crée un, ancré à gauche au départ, au
+            # contour à l'arrivée ; l'outil se range ; Ctrl+Z le défait
             _click_at(tab, core2["x"], core2["y"])
-            dot = _anchor("sw-core-02", "w")
-            _wait(tab, f"!!{dot} && {_anchor('sw-core-02', '')}.length === 4")
-            east = _still(tab, dot)
+            _wait(tab, f"{PICKED} && {PICKED}.kind === 'node'")
+            assert tab.js("document.querySelectorAll('.anchor-dot').length") == 0, "aucune ancre sur la sélection"
+            _press(tab, "c", 67)
+            _wait(tab, TOOL_ON)
+            box = tab.js(f"(() => {{ const r = {_box('sw-core-02')}; return [r.left, r.top + r.height / 2]; }})()")
+            tab.mouse_move(box[0] + 2, box[1])
+            _wait(tab, f"!!{MARKS} && {MARKS}.dataset.target === 'device:sw-core-02'")
+            assert tab.js("document.querySelector('.sketch-layer .anchor-dot.near').dataset.side") == "w"
+            assert tab.js("document.querySelectorAll('.sketch-layer .anchor-dot').length") == 4
             core = _settled(tab, "sw-core-01")
-            tab.drag((east["x"], east["y"]), (core["x"], core["y"]))
+            tab.drag((box[0] + 2, box[1]), (core["x"], core["y"]))
             _wait(tab, "LDApp.debug.handle().toile.model.connectorById.size === 2")
+            _wait(tab, TOOL_OFF)
             drawn = tab.js(
                 f"Array.from(LDApp.debug.handle().toile.model.connectorById.keys()).find((k) => k !== '{cid}')"
             )
@@ -1018,9 +1184,7 @@ STROKE = (
     "(() => {{ const el = document.querySelector({0}); return el ? getComputedStyle(el).stroke"
     " + ' ' + getComputedStyle(el).strokeDasharray : null; }})()"
 )
-SECTIONS = (
-    "Array.from(document.querySelectorAll('.panel .insp-section-title')).map((el) => el.textContent).join('|')"
-)
+SECTIONS = "Array.from(document.querySelectorAll('.panel .insp-section-title')).map((el) => el.textContent).join('|')"
 
 
 @pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
@@ -1385,3 +1549,137 @@ def test_the_application_journal_keeps_its_place_in_a_browser(settings, bundle_d
     finally:
         server.should_exit = True
         thread.join(timeout=5)
+
+
+LANG_TEXT = "document.querySelector({0}) ? document.querySelector({0}).textContent : null"
+# Les textes qu'un anglophone voit ou entend, où une lettre du français trahirait une chaîne oubliée.
+FRENCH_LEFT = (
+    "(() => { const out = new Set(); const re = /[àâæçéèêëîïôœùûüÿ]/i;"
+    " document.body.innerText.split('\\n').forEach((line) => { if (re.test(line)) out.add(line.trim()); });"
+    " document.querySelectorAll('[aria-label],[title],[placeholder],[aria-roledescription]').forEach((el) => {"
+    " for (const a of ['aria-label', 'title', 'placeholder', 'aria-roledescription']) {"
+    " const v = el.getAttribute(a); if (v && re.test(v)) out.add(a + ': ' + v); } });"
+    " out.delete('Français');"  # le nom d'une langue s'écrit dans sa langue (sélecteur du menu)
+    " return Array.from(out).slice(0, 20); })()"
+)
+PICK_LANGUAGE = "document.querySelector({0} + ' .language-switch [role=radio][lang={1}]').click()"
+
+
+@pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
+def test_the_application_speaks_the_browser_language_until_one_is_chosen(settings, bundle_dict):
+    """La langue (2026-10-10) : un navigateur anglophone voit l'accueil en anglais, `<html lang="en">` ; choisir
+    « Français » sur l'accueil traduit sans recharger, se range dans `ld-prefs` et tient au rechargement malgré le
+    navigateur ; le menu ramène l'anglais ; l'adresse ne porte jamais la langue."""
+    import httpx
+
+    from tests.browser import Chrome
+    from tests.conftest import TOKEN
+    from tests.test_view import _serve, _wait
+
+    server, thread, base = _serve(settings)
+    try:
+        auth = {"Authorization": f"Bearer {TOKEN}"}
+        assert httpx.post(f"{base}/api/ingest/bundles", json=bundle_dict, headers=auth, timeout=60).status_code == 201
+        with Chrome(CHROMIUM, lang="en-US") as chrome:
+            tab = chrome.open(f"{base}/?infrastructure=infra-lab")
+            submit = json.dumps(".sheet button[type=submit]")
+            _wait(tab, f"({LANG_TEXT.format(submit)} || '').includes('open the latest run')")
+            assert tab.js("document.documentElement.lang") == "en"
+            assert tab.js("document.querySelector('.sheet [role=radio][aria-checked=true]').textContent") == "English"
+            # choisir le français sur l'accueil : traduit sur place, rangé dans le navigateur, rien dans l'adresse
+            tab.js(PICK_LANGUAGE.format(json.dumps(".sheet"), "fr"))
+            _wait(tab, f"({LANG_TEXT.format(submit)} || '').includes('ouvrir la dernière run')")
+            assert tab.js("document.documentElement.lang") == "fr"
+            assert json.loads(tab.js("localStorage.getItem('ld-prefs')"))["language"] == "fr"
+            assert tab.js("location.search + location.hash") == "?infrastructure=infra-lab"
+            # le choix tient au rechargement, malgré un navigateur anglophone ; la run s'ouvre en français
+            tab.js(f"sessionStorage.setItem('ld-api-token', {json.dumps(TOKEN)})")
+            tab.navigate(f"{base}/?infrastructure=infra-lab")
+            _wait(tab, READY)
+            # comparée à une run inconnue : un avertissement « diff indisponible » reste dans la barre
+            run_id = tab.js("LDApp.debug.state().address.runId")
+            tab.navigate(f"{base}/?infrastructure=infra-lab&run_id={run_id}&from=nope")
+            _wait(tab, READY + " && !!document.querySelector('.bar-warn')")
+            mode = json.dumps(".mode-item .word")
+            assert tab.js(LANG_TEXT.format(mode)) == "Diagramme"
+            warn = json.dumps(".bar-warn")
+            assert tab.js(LANG_TEXT.format(warn)).startswith("diff indisponible")
+            tab.js("LDApp.debug.handle().toile.select({ kind: 'node', id: 'sw-core-01' })")
+            _wait(tab, "document.getElementById('live').textContent === 'sélection : équipement sw-core-01'")
+            assert tab.js("document.querySelector('.counts').getAttribute('aria-label')") == "comptes de la run"
+            # le menu ramène l'anglais : la barre suit sans recharger
+            tab.js("document.querySelector('.writer-name').closest('button').click()")
+            _wait(tab, "!!document.querySelector('.menu .language-switch')")
+            tab.js(PICK_LANGUAGE.format(json.dumps(".menu"), "en"))
+            _wait(tab, f"{LANG_TEXT.format(mode)} === 'Diagram'")
+            # revue de l'interface bilingue, M2 : tout suit la bascule dans le même rendu, ce que l'état garde compris
+            assert tab.js("document.getElementById('live').textContent") == "device sw-core-01 selected"
+            assert tab.js(LANG_TEXT.format(warn)).startswith("diff unavailable")
+            tab.js("LDApp.debug.handle().toile.select(null)")
+            assert tab.js("document.querySelector('.counts').getAttribute('aria-label')") == "run counts"
+            assert tab.js("document.documentElement.lang") == "en"
+            assert json.loads(tab.js("localStorage.getItem('ld-prefs')"))["language"] == "en"
+            assert "lang" not in tab.js("location.search + location.hash")
+            # lot 2 : recherche, barre d'outils, panneau Affichage, bande des runs, en anglais
+            assert tab.js("document.querySelector('.search-input').placeholder") == "search: name, port, group…"
+            assert tab.js("document.querySelector('.toolbar').getAttribute('aria-label')") == "canvas actions"
+            assert tab.js(LANG_TEXT.format(json.dumps(".display-toggle .word"))) == "display"
+            assert tab.js(LANG_TEXT.format(json.dumps(".band-compare"))).startswith("compare with")
+            tab.js("document.querySelector('.display-toggle').click()")
+            _wait(tab, "!!document.querySelector('.display .layer-label')")
+            labels = tab.js(
+                "Array.from(document.querySelectorAll('.display .layer-label')).map((e) => e.textContent).join('|')"
+            )
+            assert labels.startswith("port-channels and vPC|speeds|port names"), labels
+            # lot 3 : la fiche d'un équipement, en anglais (sections, libellés des faits)
+            tab.js("document.querySelector('.display-toggle').click()")
+            tab.js("LDApp.debug.handle().toile.select({ kind: 'node', id: 'sw-core-01' })")
+            _wait(tab, "!!document.querySelector('.panel .insp-section-title')")
+            sections = tab.js(SECTIONS)
+            assert "Identity" in sections and "Cables" in sections, sections
+            panel_label = tab.js("document.querySelector('.panel').getAttribute('aria-label')")
+            assert panel_label == "details of the selected item"
+            # lot 4 : la toile, en anglais (pastilles HA, nom accessible d'une carte, bulle au survol)
+            tab.js("LDApp.debug.handle().toile.select(null)")
+            ha_text = "document.querySelector('.react-flow__node[data-id=\"{}\"] .chip-ha text').textContent"
+            assert tab.js(ha_text.format("fw-edge-01")) == "ACTIVE" and tab.js(ha_text.format("fw-edge-02")) == "DOWN"
+            card = "document.querySelector('.react-flow__node[data-id=\"sw-core-01\"]')"
+            assert "collected device · switch" in tab.js(f"{card}.getAttribute('aria-label')")
+            box = json.loads(tab.js(f"JSON.stringify({card}.getBoundingClientRect())"))
+            tab.mouse_move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+            _wait(tab, "document.querySelector('.tip')?.getAttribute('visibility') === 'visible'")
+            bubble = tab.js("document.querySelector('.tip').textContent")
+            assert "cables" in bubble and "câbles" not in bubble, bubble
+            # lot 5 : la vue Journal, en anglais (titre, état vide, facettes)
+            tab.js("document.querySelector('.mode-item:last-child').click()")
+            _wait(tab, "!!document.querySelector('.journal h1') && !!document.querySelector('.j-state, .j-list')")
+            assert tab.js(LANG_TEXT.format(json.dumps(".journal h1"))) == "Log"
+            assert tab.js(LANG_TEXT.format(json.dumps(".j-state p"))).startswith("No change recorded yet.")
+            assert tab.js("document.querySelector('.j-side').getAttribute('aria-label')") == "log filters"
+            # lot 6 : le sens des contrôles (le code est la clé) et le mode HA en mots, en vue Contrôle
+            tab.js("document.querySelector('.mode-item:nth-child(2)').click()")
+            _wait(tab, "location.hash.includes('mode=control') && !!document.querySelector('.react-flow__node')")
+            tab.js("LDApp.debug.handle().toile.select({ kind: 'node', id: 'fw-edge-02' })")
+            _wait(tab, "!!document.querySelector('.panel .insp-check-what')")
+            checks = tab.js(
+                "Array.from(document.querySelectorAll('.panel .insp-check-what')).map((e) => e.textContent).join('|')"
+            )
+            assert "device unreachable during the run" in checks and "injoignable" not in checks, checks
+            assert "active-passive" in tab.js("document.querySelector('.panel').textContent")
+            # lot 8 : la zone lue par un lecteur d'écran dit la sélection dans la langue de la page
+            assert tab.js("document.getElementById('live').textContent") == "device fw-edge-02 selected"
+            # lot 7 : un refus de l'API se dit d'après son code, dans la langue de la page
+            refusal = "LDApp.http.explain(404, { code: 'diff_run_unknown', params: { side: 'to' }, detail: 'x' })"
+            assert tab.js(refusal) == "run `to`: unknown run for this infrastructure"
+            # revue de l'interface bilingue : aucune lettre du français dans ce que l'anglais montre ou fait lire
+            # (texte, noms accessibles, infobulles, rôles), en vue Contrôle avec une fiche ouverte, puis en Diagramme
+            for view in ("control", "diagram"):
+                if view == "diagram":
+                    tab.js("document.querySelector('.mode-item:nth-child(1)').click()")
+                    _wait(tab, "!location.hash.includes('mode=control')")
+                    tab.js("LDApp.debug.handle().toile.select({ kind: 'node', id: 'sw-core-01' })")
+                    _wait(tab, "!!document.querySelector('.panel .insp-section-title')")
+                assert tab.js(FRENCH_LEFT) == [], view
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)

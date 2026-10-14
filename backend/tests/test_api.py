@@ -118,7 +118,7 @@ def test_get_bundle_with_corrupt_bytes_is_a_neutral_500(client: TestClient, auth
         "{corrupt", encoding="utf-8"
     )
     res = client.get(BUNDLE_URL, params=RUN, headers=auth)
-    assert res.status_code == 500 and "corrupt" not in res.text.replace("corrompue", "")
+    assert res.status_code == 500 and res.json()["code"] == "archive_corrupt" and "{corrupt" not in res.text
 
 
 def test_streamed_body_is_cut_before_the_end_asgi_level(settings, bundle_dict):
@@ -202,7 +202,7 @@ def test_unauthorized_rejects_raw_token_or_other_scheme_and_advertises_bearer(cl
         response = client.get(URL, params={"infrastructure": "infra-lab"}, headers=headers)
         assert response.status_code == 401, headers
         assert response.headers["www-authenticate"] == "Bearer"
-        assert response.json() == {"detail": "jeton d'API absent ou invalide"}
+        assert response.json() == {"code": "token_invalid", "detail": "missing or invalid API token"}
 
 
 def test_docs_page_is_served(client: TestClient):

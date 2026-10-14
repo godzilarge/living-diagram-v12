@@ -4,22 +4,26 @@
 import { History, Lock, User } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { KIND_LABEL, shortPort } from "../../../canvas/format";
+import { useTranslation } from "react-i18next";
+import { COLLECTION_LABEL, haModeText, KIND_LABEL, SEVERITY_LABEL, STATUS_LABEL, shortPort } from "../../../canvas/format";
 import { HUES, HUE_LABEL, defaultHue } from "../../../canvas/hues";
 import type { HueName } from "../../../canvas/hues";
 import { glyph, LABEL as ICON_LABEL } from "../../../canvas/icons";
 import { endLabel, haRoleGroup } from "../../../canvas/model";
 import type { CheckEntry, Model, ModelLink } from "../../../canvas/types";
+import { i18n, t } from "../../../i18n";
+import { checkMeaning } from "../../state/checks";
 import { useControl, useStore, useWriteLock } from "../../state/store";
-import { Badge, DiffBadge, plural } from "../../ui";
+import { Badge, DiffBadge } from "../../ui";
 import { Hint, HueField, IconButton, List, ListRow, MoreLink, Section, Select } from "../../ui/inspector";
 
 /** Ce qu'il manque pour écrire : un nom, ou une intention lisible (si elle n'a pas pu être lue avec la run, l'écriture
  *  est coupée pour ne rien écraser). Une ligne grise : un fait sur la page, pas un défaut des données. */
 export function WriteHint({ action }: { action: string }) {
   const lock = useWriteLock();
+  const { t } = useTranslation("panel");
   if (lock) return <Hint icon={<Lock aria-hidden="true" />}>{lock}</Hint>;
-  return <Hint icon={<User aria-hidden="true" />}>Lecture seule : donnez votre nom (en haut à droite) pour {action}.</Hint>;
+  return <Hint icon={<User aria-hidden="true" />}>{t("write.readOnly", { action })}</Hint>;
 }
 
 export function HostLink({ hostname }: { hostname: string }) {
@@ -34,8 +38,9 @@ export const signed = (author: string, at: string): string => author + " · " + 
 /** L'icône d'un type, dans sa teinte (celle de l'équipement ou du type, docs/10 ; sinon le défaut du moteur). */
 export function TypeIcon({ type, hue }: { type: string | null | undefined; hue?: string }) {
   const g = glyph(type);
+  const { t } = useTranslation("panel");
   return (
-    <span className={"type-icon hue-" + (hue || defaultHue(type))} title={type ? ICON_LABEL[type] || type : "type inconnu"}>
+    <span className={"type-icon hue-" + (hue || defaultHue(type))} title={type ? ICON_LABEL[type] || type : t("unknownType")}>
       <svg viewBox="0 0 32 32" aria-hidden="true"><path className="icon-body" d={g.body} /><path className="icon-shade" d={g.shade} /><path className="icon-mark" d={g.mark} /></svg>
     </span>
   );
@@ -45,15 +50,17 @@ export const kindBadge = (kind: string) => (kind === "device" ? null : <Badge ki
 
 /** Une teinte nommée parmi les douze (docs/10) ; `null` = celle du dessus (`inherited`). */
 export function HueSetting({ value, inherited, allowDefault = true, onPick }: { value: string | null; inherited: string | null; allowDefault?: boolean; onPick: (hue: HueName | null) => void }) {
-  return <HueField label="teinte" hues={HUES} names={HUE_LABEL} value={value as HueName | null} inherited={inherited as HueName | null} allowDefault={allowDefault} onPick={onPick} />;
+  const { t } = useTranslation("panel");
+  return <HueField label={t("hue")} hues={HUES} names={HUE_LABEL} value={value as HueName | null} inherited={inherited as HueName | null} allowDefault={allowDefault} onPick={onPick} />;
 }
 
 /** « Ajouter à un groupe » : la liste des groupes de l'infrastructure (docs/10 §5) ; choisir envoie `group_add`. */
 export function GroupPicker({ model, hosts, exclude = [] }: { model: Model; hosts: string[]; exclude?: string[] }) {
   const { commands } = useStore();
+  const { t } = useTranslation("panel");
   const groups = Array.from(model.groupById.values()).filter((group) => !exclude.includes(group.id)).sort((a, b) => a.label.localeCompare(b.label));
   if (!groups.length || !hosts.length) return null;
-  return <Select label="ajouter à un groupe" value="" placeholder="choisir un groupe…" options={groups.map((group) => ({ value: group.id, label: group.label }))} onChange={(id) => { if (id) commands.groupAdd(id, hosts); }} />;
+  return <Select label={t("addToGroup")} value="" placeholder={t("pickGroup")} options={groups.map((group) => ({ value: group.id, label: group.label }))} onChange={(id) => { if (id) commands.groupAdd(id, hosts); }} />;
 }
 
 /** Un texte du catalogue où `ceci` désigne un champ : rendu en code, sans les backticks. */
@@ -63,15 +70,17 @@ export function CodeText({ text }: { text: string }) {
 }
 
 const SEVERITIES = ["error", "warning", "info"] as const;
-const SEVERITY_WORDS: Record<string, [string, string]> = { error: ["erreur", "erreurs"], warning: ["avertissement", "avertissements"], info: ["info", "infos"] };
+/** Une sévérité comptée, en mots (« 2 erreurs ») ; une sévérité inconnue reste son code. */
+const severityWords = (sev: string, n: number): string => (sev === "error" || sev === "warning" || sev === "info" ? t(`panel:checks.${sev}`, { count: n }) : sev);
 
-/** Les comptes par sévérité, comme dans la barre : un point de couleur et un nombre ; le mot pour les lecteurs d'écran. */
+/** Les comptes par sévérité, comme dans la barre : un point de couleur et un nombre ; pour un lecteur d'écran, le nombre
+ *  et le mot une seule fois (« 1 erreur », jamais « 1 1 erreur » : revue d'usage, B2). */
 function SeverityCounts({ counts }: { counts: Map<string, number> }) {
   return (
     <span className="insp-sev">
       {SEVERITIES.filter((sev) => counts.has(sev)).map((sev) => {
         const n = counts.get(sev) || 0;
-        return <span key={sev} className="insp-sev-count" title={plural(n, SEVERITY_WORDS[sev][0], SEVERITY_WORDS[sev][1])}><span className={"insp-dot " + sev} aria-hidden="true" />{n}<span className="sr-only"> {n > 1 ? SEVERITY_WORDS[sev][1] : SEVERITY_WORDS[sev][0]}</span></span>;
+        return <span key={sev} className="insp-sev-count" title={severityWords(sev, n)}><span className={"insp-dot " + sev} aria-hidden="true" /><span aria-hidden="true">{n}</span><span className="sr-only">{severityWords(sev, n)}</span></span>;
       })}
     </span>
   );
@@ -96,28 +105,29 @@ const SHORT = 4;
  *  le reste à un clic) : le sens en clair d'abord, le code dessous, en identifiant. */
 export function ChecksSection({ checks, model }: { checks: CheckEntry[]; model: Model }) {
   const [all, setAll] = useState(false);
+  const { t: tr } = useTranslation("panel");
   const counts = new Map<string, number>();
   checks.forEach((check) => counts.set(check.severity, (counts.get(check.severity) || 0) + 1));
   const lines = checkLines(checks);
   const shown = all ? lines : lines.slice(0, SHORT);
-  const meaningOf = (code: string): ReactNode => { const meaning = (model.catalogue[code] || { meaning: "" }).meaning; return meaning ? <CodeText text={meaning} /> : null; };
+  const meaningOf = (code: string): ReactNode => { const meaning = checkMeaning(code, model); return meaning ? <CodeText text={meaning} /> : null; };
   return (
-    <Section title="Contrôles" count={checks.length} action={checks.length ? <SeverityCounts counts={counts} /> : undefined}>
+    <Section title={tr("checks.title")} count={checks.length} action={checks.length ? <SeverityCounts counts={counts} /> : undefined}>
       {checks.length ? (
         <ul className="insp-checks">
           {shown.map((line) => {
             const meaning = meaningOf(line.code);
             return (
               <li key={line.key} className="insp-check">
-                <span className={"insp-dot " + line.severity} aria-label={SEVERITY_WORDS[line.severity] ? SEVERITY_WORDS[line.severity][0] : line.severity} />
+                <span className={"insp-dot " + line.severity} aria-label={SEVERITY_LABEL[line.severity] || line.severity} />
                 <p className="insp-check-what">{meaning || <code>{line.code}</code>}{line.times > 1 ? <span className="insp-times">× {line.times}</span> : null}</p>
                 {meaning ? <code className="insp-check-code">{line.code}</code> : null}
               </li>
             );
           })}
         </ul>
-      ) : <p className="insp-hint">aucun contrôle</p>}
-      {lines.length > SHORT ? <MoreLink onClick={() => setAll(!all)}>{all ? "moins" : "et " + plural(lines.length - SHORT, "autre", "autres")}</MoreLink> : null}
+      ) : <p className="insp-hint">{tr("checks.none")}</p>}
+      {lines.length > SHORT ? <MoreLink onClick={() => setAll(!all)}>{all ? tr("less") : tr("moreOthers", { count: lines.length - SHORT })}</MoreLink> : null}
     </Section>
   );
 }
@@ -134,12 +144,13 @@ export function LinkDot({ link }: { link: Pick<ModelLink, "status" | "raw"> }) {
 export function Cables({ hostname, links }: { hostname: string; links: ModelLink[] }) {
   const { commands } = useStore();
   const [all, setAll] = useState(false);
+  const { t: tr } = useTranslation("panel");
   const limit = 8;
   const shown = all ? links : links.slice(0, limit);
-  if (!links.length) return <p className="insp-hint">aucun câble</p>;
+  if (!links.length) return <p className="insp-hint">{tr("noCables")}</p>;
   return (
     <>
-      <List label="câbles">
+      <List label={tr("cables")}>
         {shown.map((link) => {
           const local = link.a.hostname === hostname ? link.a : link.b, remote = local === link.a ? link.b : link.a;
           return (
@@ -152,7 +163,7 @@ export function Cables({ hostname, links }: { hostname: string; links: ModelLink
           );
         })}
       </List>
-      {links.length > limit ? <MoreLink onClick={() => setAll(!all)}>{all ? "moins" : "et " + plural(links.length - limit, "autre câble", "autres câbles")}</MoreLink> : null}
+      {links.length > limit ? <MoreLink onClick={() => setAll(!all)}>{all ? tr("less") : tr("moreCables", { count: links.length - limit })}</MoreLink> : null}
     </>
   );
 }
@@ -161,11 +172,12 @@ export function Cables({ hostname, links }: { hostname: string; links: ModelLink
 export function HaRows({ model, hostname }: { model: Model; hostname: string }) {
   const { commands } = useStore();
   const memberships = model.haMembershipsByHost.get(hostname) || [];
+  const { t: tr } = useTranslation("panel");
   if (!memberships.length) return null;
   return (
-    <List label="clusters HA">
+    <List label={tr("haClusters")}>
       {memberships.map((ha) => (
-        <ListRow key={ha.cluster.id} trailing={<>{ha.cluster.raw.mode}{ha.member.priority !== null && ha.member.priority !== undefined ? " · prio " + ha.member.priority : ""}</>}>
+        <ListRow key={ha.cluster.id} trailing={<>{haModeText(ha.cluster.raw.mode)}{ha.member.priority !== null && ha.member.priority !== undefined ? " · " + tr("priority", { value: ha.member.priority }) : ""}</>}>
           <button type="button" className="linklike" onClick={() => commands.reveal({ kind: "cluster", id: ha.cluster.id })}>{ha.cluster.raw.cluster_name || ha.cluster.hosts.join(" + ")}</button>
           <Badge kind="ha" value={haRoleGroup(ha.cluster.raw.mode, ha.member.role)} label={ha.member.role} />
           {ha.member.state !== "up" ? <Badge kind="state" value={ha.member.state} label={ha.member.state} /> : null}
@@ -175,12 +187,28 @@ export function HaRows({ model, hostname }: { model: Model; hostname: string }) 
   );
 }
 
+/** Une valeur du diff en mots : une énumération connue dans la langue de la page, une liste jointe, « — » pour une
+ *  valeur vide (liste vide comprise : revue d'usage, M3, « root → » sans rien après). */
+const VALUE_WORDS: Record<string, Record<string, string>> = { collection: COLLECTION_LABEL, status: STATUS_LABEL, type: ICON_LABEL };
+function shown(path: string, value: unknown): string {
+  if (value === null || value === undefined || value === "" || (Array.isArray(value) && !value.length)) return "—";
+  if (Array.isArray(value)) return value.map((v) => shown(path, v)).join(", ");
+  if (typeof value === "object") return JSON.stringify(value);
+  const words = VALUE_WORDS[path];
+  return (words && words[String(value)]) || String(value);
+}
+/** Le nom d'un champ du diff : son libellé (`panel:diffField`) s'il est connu, sinon son chemin, lisible. */
+export const changeLabel = (path: string): string =>
+  (i18n.exists("panel:diffField." + path) ? t(("panel:diffField." + path) as never) as unknown as string : path.replace(/_/g, " "));
 /** Une ligne « avant → après » d'un champ changé (diff). */
-const shown = (value: unknown): string => (value === null || value === undefined || value === "" ? "—" : String(value));
-export const changeText = (before: unknown, after: unknown): string => shown(before) + " → " + shown(after);
+export const changeText = (path: string, before: unknown, after: unknown): string => shown(path, before) + " → " + shown(path, after);
+/** Les lignes d'une section « Changements » : six champs au plus. */
+export const changeRows = (fields: { path: string; before?: unknown; after?: unknown }[]): [string, string][] =>
+  fields.slice(0, 6).map((f) => [changeLabel(f.path), changeText(f.path, f.before, f.after)]);
 
 /** L'historique d'un objet au Journal (2026-10-10) : tout ce qui l'a touché ou cité, qui, quand ; Retour ramène ici. */
 export function HistoryButton({ object }: { object: string }) {
   const { commands } = useStore();
-  return <IconButton label="historique au journal" onClick={() => commands.openHistory(object)}><History /></IconButton>;
+  const { t: tr } = useTranslation("panel");
+  return <IconButton label={tr("history")} onClick={() => commands.openHistory(object)}><History /></IconButton>;
 }

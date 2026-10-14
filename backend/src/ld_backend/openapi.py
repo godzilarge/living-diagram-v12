@@ -61,8 +61,9 @@ les deux sont des libellés libres venus de l'amont.
 **Jeton.** Toutes les routes sauf `/api/health` exigent `Authorization: Bearer <LD_API_TOKEN>` ; ici, bouton \
 « Authorize », coller le jeton seul.
 
-**Erreurs.** Un refus a la forme `Problem` (`detail`, et `errors` sur un 422 : chemin et règle, jamais la valeur \
-reçue).
+**Erreurs.** Un refus a la forme `Problem` : `code` stable, `detail` en anglais, `params` (les valeurs du serveur \
+qui l'écrivent) et `errors` sur un 422 (chemin, code et règle de chaque champ, jamais la valeur reçue). Un client \
+écrit son propre texte d'après les codes ; les messages du validateur du contrat restent dans sa langue.
 
 **Pages.** Hors de ce document, servies sans jeton et sans donnée : l'application (`/`) et la page de lecture \
 de B1 (`/view`) ; le jeton s'y saisit dans la page et n'entre jamais dans l'adresse.

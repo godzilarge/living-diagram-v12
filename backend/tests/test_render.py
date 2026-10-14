@@ -226,14 +226,21 @@ VIEWER = Path(cli.__file__).parent / "render/assets/js/viewer.js"
 
 def test_the_viewer_never_writes_html_from_data():
     """Sur les sources TypeScript de la toile et sur le fichier construit qui est embarqué dans la page."""
-    files = [*sorted((ENGINE / "src").rglob("*.ts")), VIEWER]
+    files = sorted((ENGINE / "src").rglob("*.ts"))
     assert len(files) > 10, "les sources de la toile sont dans engine/src"
     sources = "".join(p.read_text(encoding="utf-8") for p in files)
+    built = VIEWER.read_text(encoding="utf-8")
     forbidden = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "DOMParser"]
-    forbidden += ["createContextualFragment", "srcdoc", "javascript:", "setTimeout(", "setInterval("]
+    forbidden += ["createContextualFragment", "srcdoc", "javascript:"]
     for word in forbidden:
         assert word not in sources, word
-    assert not re.search(r"""setAttribute\(\s*["'](href|src|on\w+)""", sources)
+        assert word not in built, word
+    # nos sources n'ont aucun minuteur (la page les tient) ; le fichier construit embarque i18next (2026-10-10),
+    # dont les minuteurs prennent une fonction : seule la forme qui évalue une chaîne est interdite
+    for word in ("setTimeout(", "setInterval("):
+        assert word not in sources, word
+    assert not re.search(r"""set(Timeout|Interval)\(\s*["'`]""", built)
+    assert not re.search(r"""setAttribute\(\s*["'](href|src|on\w+)""", sources + built)
 
 
 def test_the_csp_allows_exactly_the_two_inline_blocks(bundle_dict):
@@ -342,6 +349,7 @@ def test_the_built_viewer_matches_the_engine_sources():
         ["node", str(TSC), "--noEmit", "-p", str(ENGINE)],
         ["node", str(ENGINE / "build.mjs"), "--check"],
         ["node", str(ENGINE / "types.mjs"), "--check"],
+        ["node", str(ENGINE / "strings.mjs"), "--check"],  # aucune chaîne française en dur dans l'application
     )
     for command in commands:
         done = subprocess.run(command, capture_output=True, text=True, timeout=180, check=False)

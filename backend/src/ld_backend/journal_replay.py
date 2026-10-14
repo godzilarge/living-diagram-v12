@@ -7,7 +7,36 @@ from dataclasses import dataclass, field
 from typing import Any
 
 LABEL_MAX = 60
-_UNNAMED = {"note": "note vide", "shape": "forme sans titre", "table": "tableau vide", "image": "image sans titre"}
+# Un objet sans nom se dit par sa sorte : le serveur le marque (`{"unnamed": sorte}`), la page le dit dans sa langue,
+# jamais en comparant un texte (revue de l'interface bilingue, B3 : un groupe nommé « point libre » par un utilisateur
+# devenait « free point »). Les mots français ne servent plus qu'à `label`, le nom lisible gardé pour la recherche.
+UNNAMED_TEXT = {
+    "free": "point libre",
+    "group": "groupe sans nom",
+    "connector": "connecteur sans nom",
+    "note": "note vide",
+    "shape": "forme sans titre",
+    "table": "tableau vide",
+    "image": "image sans titre",
+    "annotation": "annotation sans titre",
+}
+_LEGACY = {text: kind for kind, text in UNNAMED_TEXT.items()}  # bouts écrits en mots par une purge d'avant le marqueur
+End = str | dict[str, str]
+FREE: dict[str, str] = {"unnamed": "free"}
+
+
+def end_words(end: End) -> str:
+    """Le texte d'un bout : son nom, ou les mots français de sa sorte."""
+    return UNNAMED_TEXT.get(end.get("unnamed", ""), "") if isinstance(end, dict) else end
+
+
+def _end_of(value: Any) -> End | None:
+    """Un bout lu dans un delta : marqué, ou en mots (purge d'avant le marqueur : seule source de ces huit textes)."""
+    if isinstance(value, dict) and value.get("unnamed") in UNNAMED_TEXT:
+        return {"unnamed": value["unnamed"]}
+    if isinstance(value, str):
+        return {"unnamed": _LEGACY[value]} if value in _LEGACY else value
+    return None
 
 
 def _short(text: str) -> str:
@@ -45,23 +74,28 @@ class NameReplay:
 
     names: dict[str, str] = field(default_factory=dict)
     forms: dict[str, str] = field(default_factory=dict)
-    ends: dict[str, list[str]] = field(default_factory=dict)
+    ends: dict[str, list[End]] = field(default_factory=dict)
 
-    def end_text(self, end: Any) -> str:
+    def end_text(self, end: Any) -> End:
         if not isinstance(end, dict) or end.get("kind") == "free" or not isinstance(end.get("ref"), str):
-            return "point libre"
+            return dict(FREE)
         ref = end["ref"]
         if end.get("kind") not in ("group", "annotation"):
             return ref
-        return self.names.get(ref) or self.unnamed(ref)
+        return self.names.get(ref) or {"unnamed": self.unnamed_kind(ref)}
+
+    def unnamed_kind(self, subject: str) -> str:
+        """La sorte d'un sujet sans nom (revue Impeccable du 2026-10-10 : « a848-1 » ne parlait à personne)."""
+        if subject[:1] == "g":
+            return "group"
+        if subject[:1] == "c":
+            return "connector"
+        form = self.forms.get(subject, "")
+        return form if form in ("note", "shape", "table", "image") else "annotation"
 
     def unnamed(self, subject: str) -> str:
-        """Un sujet sans nom, dit par sa sorte (revue Impeccable du 2026-10-10 : « a848-1 » ne parlait à personne)."""
-        if subject[:1] == "g":
-            return "groupe sans nom"
-        if subject[:1] == "c":
-            return "connecteur sans nom"
-        return _UNNAMED.get(self.forms.get(subject, ""), "annotation sans titre")
+        """Un sujet sans nom, en mots français (le nom lisible gardé pour la recherche)."""
+        return UNNAMED_TEXT[self.unnamed_kind(subject)]
 
     def note(self, subject: str, op: dict[str, Any]) -> None:
         """Ce que l'opération dit de son sujet (le journal écrit aussi les clés nulles : `None` ne dit rien)."""
@@ -78,7 +112,7 @@ class NameReplay:
                 self.names[subject] = self.names[legacy]  # un connecteur relu d'un 1.3.x : une ligne ou flèche `a…`
             if isinstance(op.get("label"), str):
                 self.names[subject] = _short(op["label"])
-            ends = self.ends.setdefault(subject, ["point libre", "point libre"])
+            ends = self.ends.setdefault(subject, [dict(FREE), dict(FREE)])
             for side, key in ((0, "start"), (1, "end")):
                 if op.get(key) is not None:
                     ends[side] = self.end_text(op[key])
@@ -93,13 +127,10 @@ class NameReplay:
             for subject, value in values.items():
                 if value is None:
                     target.pop(subject, None)
-                elif (
-                    key == "ends"
-                    and isinstance(value, list)
-                    and len(value) == 2
-                    and all(isinstance(e, str) for e in value)
-                ):
-                    target[subject] = list(value)
+                elif key == "ends" and isinstance(value, list) and len(value) == 2:
+                    ends = [_end_of(e) for e in value]
+                    if all(e is not None for e in ends):
+                        target[subject] = ends
                 elif key != "ends" and isinstance(value, str):
                     target[subject] = value
 
@@ -107,11 +138,17 @@ class NameReplay:
         return {
             "names": dict(self.names),
             "forms": dict(self.forms),
-            "ends": {k: list(v) for k, v in self.ends.items()},
+            "ends": {k: [dict(e) if isinstance(e, dict) else e for e in v] for k, v in self.ends.items()},
         }
 
     def label(self, subject: str) -> str:
         name = self.names.get(subject, "")
         if name or subject[0] != "c" or subject not in self.ends:
             return name
-        return _short(" → ".join(self.ends[subject]))
+        return _short(" → ".join(end_words(e) for e in self.ends[subject]))
+
+    def parts(self, subject: str) -> list[dict[str, str]]:
+        """Le nom d'un connecteur sans étiquette, bout par bout : `{"text": nom}` ou `{"unnamed": sorte}`."""
+        if self.names.get(subject, "") or subject[0] != "c" or subject not in self.ends:
+            return []
+        return [{"unnamed": e["unnamed"]} if isinstance(e, dict) else {"text": e} for e in self.ends[subject]]

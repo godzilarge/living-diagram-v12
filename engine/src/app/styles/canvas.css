@@ -30,6 +30,16 @@
 .zoom-far .port-label, .zoom-far .beam-tag, .zoom-far .node-role, .zoom-far .node-stack, .zoom-far .speed-pill { display: none; }
 /* de loin, la rangée d'une carte ne garde que le point de gravité et ce qui est tombé */
 .zoom-far .card-pills .pill-svg:not(.tone-danger) { display: none; }
+/* Les niveaux de détail d'une carte (lot 5 de docs/11) : trois dessins dans la même boîte (card.ts), un seul montré.
+   De loin (< 0,6), l'icône réduite à 28 et le nom à 24, centrés ; de très loin (< 0,4, `zoom-tiny` avec `zoom-far`),
+   le nom seul à 30. Les tailles sont celles de card.ts (FAR_LABEL_PX, TINY_LABEL_PX) : à changer ensemble. */
+.lod-far, .lod-tiny { display: none; }
+.zoom-far .lod-base { display: none; }
+.zoom-far .lod-far { display: inline; }
+.zoom-tiny .lod-far { display: none; }
+.zoom-tiny .lod-tiny { display: inline; }
+.node-label.lod-far { font-size: 24px; }
+.node-label.lod-tiny { font-size: 30px; }
 /* la carte : sa teinte (`--type`, posée par la classe `hue-*` : celle du type, ou celle que l'intention donne, docs/10)
    colore le rail et l'icône, sur la carte comme sur l'icône d'une fiche et sur une pastille */
 .node, .type-icon, .swatch, .frame, .annotation, .connector, .tip-end-dot { --type: var(--hue-slate); }
@@ -58,8 +68,8 @@
 .collection-partial .node-shape { stroke: var(--warning); stroke-width: 2.2; }
 .collection-unreachable .node-shape, .collection-failed .node-shape { stroke: var(--error); stroke-width: 2.2; }
 .collection-not_collected .node-shape { stroke: var(--ink-4); stroke-dasharray: 2 3; }
-.node-label { font: 700 15px var(--mono); fill: var(--ink); pointer-events: none; letter-spacing: 0.02em; }
-.kind-stub .node-label { font: 500 10.5px var(--sans); letter-spacing: 0; fill: var(--ink-2); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
+.node-label { font: 700 18px var(--mono); fill: var(--ink); pointer-events: none; letter-spacing: 0.02em; }
+.kind-stub .node-label { font: 500 12px var(--sans); letter-spacing: 0; fill: var(--ink-2); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
 .node-stack { font: 600 11px var(--mono); fill: var(--ink-2); pointer-events: none; }
 .node-pin { display: none; fill: var(--bg-elev); stroke: var(--structure); stroke-width: 1.4; stroke-linejoin: round; pointer-events: none; }
 .node.pinned .node-pin { display: block; }
@@ -108,7 +118,6 @@
 /* le cadre d'un groupe (docs/10 §5) : rempli et bordé à sa teinte (`hue-*`), les valeurs libres en attributs */
 .frame { cursor: grab; }
 .frame-shape { fill: var(--type); stroke: var(--type); transition: stroke var(--t-fast); }
-.frame:hover .frame-shape { stroke-opacity: 1; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--type) 40%, transparent)); }
 .frame.selected .frame-shape { stroke: var(--accent); stroke-dasharray: none; filter: drop-shadow(0 0 6px var(--accent-soft)); }
 .frame-label { fill: var(--type); font-family: var(--sans); pointer-events: none; letter-spacing: 0.01em; }
 .frame-label.font-mono { font-family: var(--mono); letter-spacing: 0.02em; }
@@ -189,8 +198,8 @@
 .searching .link:not(.selected) .link-line { stroke-opacity: 0.18; }
 /* Les annotations (docs/10 §6) : note, forme, tableau, image, à leur teinte (`hue-*`), les valeurs libres en attributs.
    Reconnaissables comme des intentions : fond léger, bordure fine, jamais la couleur d'un statut. */
-.annotation { cursor: grab; }
-.annotation.locked { cursor: default; }
+.annotation { cursor: default; }
+.flow.editable .annotation:not(.locked) { cursor: move; } /* on la saisit pour la déplacer (lot 1 de docs/11) */
 .annotation-shape { fill: var(--type); stroke: var(--type); transition: stroke var(--t-fast); }
 .annotation-stroke { fill: none; stroke: var(--type); }
 .annotation-arrow { fill: var(--type); stroke: none; }
@@ -218,7 +227,6 @@
 .connector.locked .connector-hit { cursor: pointer; }
 .connector-line { fill: none; stroke: var(--type); pointer-events: none; transition: stroke var(--t-fast); }
 .connector-head { fill: var(--type); stroke: none; pointer-events: none; }
-.connector:hover .connector-line { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--type) 45%, transparent)); }
 .connector.selected .connector-line { stroke: var(--accent); filter: drop-shadow(0 0 6px var(--accent-soft)); }
 .connector.selected .connector-head { fill: var(--accent); }
 .connector-label { pointer-events: none; }
@@ -231,33 +239,49 @@
 .connector-handle.attached { fill: var(--accent); }
 .connector-handle.bend { stroke-dasharray: 2 2; cursor: move; }
 .connector-handle:hover { stroke-width: 2.5; }
-/* les points d'ancrage (anchors.tsx) : au milieu des côtés, montrés au survol ou sélectionné quand on peut écrire ;
-   tirer depuis l'un d'eux dessine un connecteur ; sur l'élément visé par un bout glissé, celui qui accroche est plein */
-.anchor-dots { visibility: hidden; }
-.react-flow__node:hover .anchor-dots, .node.selected .anchor-dots, .annotation.selected .anchor-dots, .frame.selected .anchor-dots, .anchor-dots.target { visibility: visible; }
-.anchor-hit { fill: transparent; stroke: none; cursor: crosshair; }
+/* Les marques de la cible d'un bout de connecteur (anchors.tsx, lot 1 de docs/11, décision D3) : jamais au repos, ni
+   au survol, ni sur la sélection ; sur l'élément que vise un bout qu'on tire, ou survolé quand l'outil connecteur est
+   armé. Deux cibles, comme draw.io : le contour en accent plein = le bout s'y posera en `auto` (flottant) ; les quatre
+   ancres = un bout fixe, celle à portée grossit et se remplit. Tout garde sa taille d'écran. */
 .anchor-dot { fill: var(--bg-elev); stroke: var(--accent); stroke-width: 1.5; pointer-events: none; vector-effect: non-scaling-stroke; transition: fill var(--t-fast); }
-.anchor:hover .anchor-dot, .anchor-dot.near { fill: var(--accent); }
-.anchor-dots.target .anchor-dot { pointer-events: none; }
-/* le brouillon d'un connecteur qu'on tire (Flow.tsx, DraftLayer) : dans le plan, sous le pointeur, en pointillé */
-.draft-layer { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
-.draft-layer .connector-line { stroke: var(--accent); stroke-dasharray: 6 4; }
-.draft-layer .connector-head { fill: var(--accent); }
+.anchor-dot.near { fill: var(--accent); }
+.target-outline { fill: none; stroke: var(--accent); stroke-opacity: 0.4; stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.target-outline.floating { fill: var(--accent); fill-opacity: 0.06; stroke-opacity: 1; stroke-width: 2; stroke-dasharray: none; }
+/* la couche du dessus (drawing.tsx) : le brouillon d'un connecteur, dans le plan, en pointillé, et les marques ; elle
+   passe au-dessus des annotations et des connecteurs (z 20, 21) sans rien intercepter */
+.react-flow__viewport-portal { z-index: 1100; pointer-events: none; }
+.sketch-layer { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.sketch-layer .connector-line { stroke: var(--accent); stroke-dasharray: 6 4; }
+.sketch-layer .connector-head { fill: var(--accent); }
+/* l'outil connecteur armé (bouton de la barre, touche C) : la toile prend la croix */
+.tool-connector .react-flow__pane, .tool-connector .react-flow__node, .tool-connector .react-flow__node *, .tool-connector .react-flow__edge * { cursor: crosshair !important; }
+/* le survol, quand on peut écrire : un liseré d'accent à 50 %, 1 px d'écran, sur l'annotation, le cadre, le connecteur */
+.hover-ring { fill: none; stroke: none; pointer-events: none; vector-effect: non-scaling-stroke; }
+.flow.editable:not(.tool-connector) .react-flow__node-annotation:hover .annotation:not(.selected) .hover-ring,
+.flow.editable:not(.tool-connector) .react-flow__node-frame:hover .frame:not(.selected) .hover-ring { stroke: color-mix(in srgb, var(--accent) 50%, transparent); stroke-width: 1; }
+.flow.editable:not(.tool-connector) .connector:not(.selected):hover .hover-ring { stroke: color-mix(in srgb, var(--accent) 50%, transparent); vector-effect: none; }
 .react-flow__node-connector { pointer-events: none; }
 .react-flow__node-connector > svg, .react-flow__node-connector > svg * { pointer-events: visiblePainted; }
 .react-flow__node-connector .connector-hit { pointer-events: stroke; }
 .react-flow__node-connector:focus-visible .connector-line { stroke: var(--accent); }
 .annotation-leader line { stroke: var(--type); stroke-width: 1.2; stroke-dasharray: 4 3; stroke-linecap: round; }
-.annotation:hover .annotation-shape, .annotation:hover .annotation-stroke { stroke-opacity: 1; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--type) 40%, transparent)); }
 .annotation.selected .annotation-shape, .annotation.selected .annotation-stroke { stroke: var(--accent); filter: drop-shadow(0 0 6px var(--accent-soft)); }
 .annotation.selected .annotation-arrow { fill: var(--accent); }
 .annotation.kind-table .annotation-shape { pointer-events: none; }
 .has-selection .annotation:not(.selected):not(.related) { opacity: 0.35; }
-.annotation-handle { fill: var(--bg-elev); stroke: var(--accent); stroke-width: 1.2; cursor: nwse-resize; }
+/* les poignées (handles.ts) : taille d'écran constante, quatre coins carrés, quatre barres posées sur les côtés ; la
+   zone de saisie, transparente, est un peu plus large que ce qui se voit */
+.annotation-handle { fill: var(--bg-elev); stroke: var(--accent); stroke-width: 1.25; vector-effect: non-scaling-stroke; pointer-events: none; }
+.annotation-handle-hit { fill: transparent; stroke: none; }
+.handle-nw, .handle-se { cursor: nwse-resize; }
 .handle-ne, .handle-sw { cursor: nesw-resize; }
 .handle-n, .handle-s { cursor: ns-resize; }
 .handle-e, .handle-w { cursor: ew-resize; }
-.react-flow__node-annotation { cursor: grab; }
+.gesture-pill { pointer-events: none; }
+/* pendant un glissé ou un redimensionnement, l'annotation passe devant (sa pastille aussi), le temps du geste */
+.react-flow__node-annotation.dragging, .react-flow__node-annotation:has(.annotation-handles.resizing) { z-index: 1000 !important; }
+/* la vue Contrôle se lit : rien ne se saisit */
+.mode-control .annotation, .mode-control .frame, .mode-control .connector-hit { cursor: default; }
 .react-flow__node-annotation:focus-visible .annotation-shape { stroke: var(--accent); stroke-width: 2; }
 .note-editor { position: absolute; inset: 0; width: 100%; height: 100%; resize: none; padding: 8px; box-sizing: border-box; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg-elev); color: var(--ink); font: 13px/1.35 var(--sans); outline: none; }
 .react-flow__node:has(.note-editor) { z-index: 1000 !important; }

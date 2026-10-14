@@ -14,7 +14,6 @@ import type { LabelSlot } from "../../canvas/groups";
 import { PIN, glyph } from "../../canvas/icons";
 import type { GroupStyle } from "../../canvas/types";
 import type { StackMember } from "../../contracts/snapshot";
-import { Anchors } from "./anchors";
 import { Chips, StackList } from "./chips";
 import type { HaChip } from "./chips";
 
@@ -31,6 +30,10 @@ export type StubNodeType = Node<StubData, "stub">;
 export type ClusterNodeType = Node<ClusterData, "cluster">;
 export type FrameNodeType = Node<FrameData, "frame">;
 
+/** Le nœud React Flow d'un voisin inconnu : deux carreaux de grille (20) autour de son disque, pour qu'un coin aimanté
+ *  mette son centre sur la grille, comme une carte (largeur multiple de 40, hauteur 80). Lot 5 de docs/11. */
+export const STUB_SLOT = { w: 40, h: 40 } as const;
+
 const Ports = () => (
   <>
     <Handle type="target" position={Position.Top} className="port" isConnectable={false} />
@@ -39,10 +42,10 @@ const Ports = () => (
 );
 
 /** L'icône de type en trois couches : silhouette (couleur du type), bandeau du bas, symbole en réserve. */
-export function TypeGlyph({ type, x, y, scale }: { type: string | null; x: number; y: number; scale: number }) {
+export function TypeGlyph({ type, x, y, scale, lod }: { type: string | null; x: number; y: number; scale: number; lod?: "base" | "far" }) {
   const g = glyph(type);
   return (
-    <g className="node-icon" transform={`translate(${x},${y}) scale(${scale})`}>
+    <g className={lod ? "node-icon lod-" + lod : "node-icon"} transform={`translate(${x},${y}) scale(${scale})`}>
       <path className="icon-body" d={g.body} /><path className="icon-shade" d={g.shade} /><path className="icon-mark" d={g.mark} />
     </g>
   );
@@ -60,11 +63,16 @@ export function CardNode({ data }: NodeProps<CardNodeType>) {
         {data.change && data.change !== "removed" ? <rect className="node-ring" x={-p.w / 2 - 4} y={-p.h / 2 - 4} width={p.w + 8} height={p.h + 8} rx={p.rx + 4} /> : null}
         <rect className="node-shape" x={-p.w / 2} y={-p.h / 2} width={p.w} height={p.h} rx={p.rx} />
         <path className="node-rail" d={p.rail} />
-        <g aria-hidden="true"><TypeGlyph type={data.type} x={p.icon.x} y={p.icon.y} scale={p.icon.scale} /></g>
-        <text className="node-label" x={p.label.x} y={p.label.y} textAnchor={p.label.anchor} aria-hidden="true">{data.name}</text>
+        {/* trois niveaux de détail dans la même boîte (card.ts), un seul montré selon le zoom (canvas.css) */}
+        <g aria-hidden="true">
+          <TypeGlyph type={data.type} x={p.icon.x} y={p.icon.y} scale={p.icon.scale} lod="base" />
+          {p.far.icon ? <TypeGlyph type={data.type} x={p.far.icon.x} y={p.far.icon.y} scale={p.far.icon.scale} lod="far" /> : null}
+        </g>
+        <text className="node-label lod-base" x={p.label.x} y={p.label.y} textAnchor={p.label.anchor} aria-hidden="true">{data.name}</text>
+        <text className="node-label lod-far" x={p.far.label.x} y={p.far.label.y} textAnchor={p.far.label.anchor} aria-hidden="true">{p.far.text}</text>
+        <text className="node-label lod-tiny" x={p.tiny.label.x} y={p.tiny.label.y} textAnchor={p.tiny.label.anchor} aria-hidden="true">{p.tiny.text}</text>
         <path className="node-pin" d={PIN} transform={`translate(${-p.w / 2 - 9},${-p.h / 2 - 9})`} />
         <Chips plan={p} ha={data.ha} count={data.members ? data.members.length : 0} severity={data.severity} open={open} onToggle={toggle} />
-        {data.editable ? <Anchors frame={{ x: -p.w / 2, y: -p.h / 2, w: p.w, h: p.h }} kind="device" id={data.hostname} /> : null}
       </svg>
       {open && data.members ? <StackList hostname={data.hostname} members={data.members} onClose={close} /> : null}
       <Ports />
@@ -73,15 +81,14 @@ export function CardNode({ data }: NodeProps<CardNodeType>) {
 }
 
 export function StubNode({ data }: NodeProps<StubNodeType>) {
-  const d = STUB_R * 2;
+  const w = STUB_SLOT.w, h = STUB_SLOT.h;
   return (
     <>
-      <svg className={"node " + data.classes} width={d} height={d} viewBox={`${-STUB_R} ${-STUB_R} ${d} ${d}`} overflow="visible" aria-hidden="true" data-node={data.hostname}>
+      <svg className={"node " + data.classes} width={w} height={h} viewBox={`${-w / 2} ${-h / 2} ${w} ${h}`} overflow="visible" aria-hidden="true" data-node={data.hostname}>
         {data.change && data.change !== "removed" ? <circle className="node-ring" r={STUB_R + 4} /> : null}
         <circle className="node-shape" r={STUB_R} />
         <text className="node-label" y={STUB_R + 14} textAnchor="middle">{data.name}</text>
         <path className="node-pin" d={PIN} transform={`translate(${-STUB_R - 9},${-STUB_R - 9})`} />
-        {data.editable ? <Anchors frame={{ x: -STUB_R, y: -STUB_R, w: d, h: d }} kind="device" id={data.hostname} /> : null}
       </svg>
       <Ports />
     </>
@@ -109,7 +116,9 @@ export function FrameNode({ data }: NodeProps<FrameNodeType>) {
         ? <ellipse className="frame-shape" cx={data.w / 2} cy={data.h / 2} rx={data.w / 2} ry={data.h / 2} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={data.dash || undefined} strokeLinecap="round" />
         : <rect className="frame-shape" x={0} y={0} width={data.w} height={data.h} rx={s.radius} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={data.dash || undefined} strokeLinecap="round" />}
       <text className={labelClass} x={data.slot.x} y={data.slot.y} textAnchor={data.slot.anchor} dominantBaseline={data.slot.baseline} fontSize={s.label_size} fontWeight={WEIGHT_VALUE[s.label_weight] || 600}>{data.label}</text>
-      {data.editable ? <Anchors frame={{ x: 0, y: 0, w: data.w, h: data.h }} kind="group" id={data.id} /> : null}
+      {s.shape === "ellipse"
+        ? <ellipse className="hover-ring" cx={data.w / 2} cy={data.h / 2} rx={data.w / 2} ry={data.h / 2} />
+        : <rect className="hover-ring" x={0} y={0} width={data.w} height={data.h} rx={s.radius} />}
     </svg>
   );
 }

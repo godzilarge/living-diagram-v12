@@ -2,14 +2,13 @@
 // intervalles égaux entre les deux extrêmes, dans leur ordre actuel. Pur : des positions entrent, des positions
 // sortent, entières (ce qui est épinglé ou mémorisé est ce qui est dessiné, docs/09). Rien n'est déplacé ici :
 // la toile applique, et la page décide d'enregistrer en épingles ou de garder des déplacements locaux.
+import { labelMap } from "../i18n/core";
 import type { Point } from "./layout";
 
 export type AlignMode = "horizontal" | "vertical" | "distribute-horizontal" | "distribute-vertical";
 export const ALIGN_MODES: AlignMode[] = ["horizontal", "vertical", "distribute-horizontal", "distribute-vertical"];
-export const ALIGN_LABEL: Record<AlignMode, string> = {
-  horizontal: "aligner horizontalement", vertical: "aligner verticalement",
-  "distribute-horizontal": "répartir horizontalement", "distribute-vertical": "répartir verticalement",
-};
+/** Le nom d'un alignement, dans la langue de la page (catalogue `common:align`). */
+export const ALIGN_LABEL = labelMap("common:align", ALIGN_MODES) as Record<AlignMode, string>;
 
 const mean = (values: number[]): number => values.reduce((sum, v) => sum + v, 0) / values.length;
 

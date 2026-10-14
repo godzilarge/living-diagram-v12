@@ -27,7 +27,8 @@ def test_patches_need_an_archived_run(client: TestClient, auth, bundle_dict):
     body = {"author": "orhan", "ops": [PIN]}
     assert client.post(PATCHES_URL, params=PARAMS, json=body).status_code == 401
     res = client.post(PATCHES_URL, params=PARAMS, json=body, headers=auth)
-    assert res.status_code == 404 and "aucune run" in res.json()["detail"] and "infra-lab" not in res.json()["detail"]
+    assert res.status_code == 404 and res.json()["code"] == "no_archived_run"
+    assert "infra-lab" not in res.json()["detail"]
     assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
     res = client.post(PATCHES_URL, params=PARAMS, json=body, headers=auth)
     assert res.status_code == 200
@@ -73,7 +74,7 @@ def test_invalid_operations_are_refused_in_the_shape_of_the_api(client: TestClie
     for body in bad:
         res = client.post(PATCHES_URL, params=PARAMS, json=body, headers=auth)
         assert res.status_code == 422, body
-        assert res.json()["detail"] == "corps de requête invalide" and res.json()["errors"], body
+        assert res.json()["code"] == "invalid_body" and res.json()["errors"], body
         text = json.dumps(res.json())
         assert "sw-core-01" not in text and "teleport" not in text and "x" * 81 not in text, (
             "jamais une valeur dans un message"
@@ -138,7 +139,7 @@ def test_a_corrupt_store_is_a_neutral_500(client: TestClient, auth, bundle_dict,
         res = getattr(client, method)(
             INTENT_URL if method == "get" else PATCHES_URL, params=PARAMS, headers=auth, **kwargs
         )
-        assert res.status_code == 500 and "intervention" in res.json()["detail"] and "broken" not in res.text
+        assert res.status_code == 500 and "administrator" in res.json()["detail"] and "broken" not in res.text
     assert broken.read_text(encoding="utf-8") == "{broken"
 
 
@@ -151,7 +152,7 @@ def test_a_corrupt_store_is_a_neutral_500_and_is_logged(client: TestClient, auth
     broken.write_text("{broken", encoding="utf-8")
     with caplog.at_level(logging.WARNING, logger="ld_backend.intent"):
         res = client.get(INTENT_URL, params=PARAMS, headers=auth)
-    assert res.status_code == 500 and "corrompu" in res.json()["detail"]
+    assert res.status_code == 500 and res.json()["code"] == "intent_corrupt"
     assert any("isolé" in record.getMessage() for record in caplog.records), "la trace est au journal du serveur"
 
 
@@ -246,14 +247,14 @@ def test_annotation_operations_create_update_delete_and_refuse_in_the_shape_of_t
     a = Intent.model_validate_json(res.content).annotations[0]
     assert a.anchor.ref == "sw-core-01" and a.leader and a.style.text_size == 16 and a.author == "alice"
     for bad, code in (
-        ({"op": "annotation_delete", "id": "a7-7"}, "annotation inconnue"),
+        ({"op": "annotation_delete", "id": "a7-7"}, "unknown_annotation"),
         (
             {
                 "op": "annotation_update",
                 "id": "a1-1",
                 "content": {"kind": "shape", "shape": "ellipse", "label": ""},
             },
-            "garde sa sorte",
+            "keeps its kind",
         ),
         (
             {"op": "annotation_create", "content": {"kind": "note", "text": "x"}, "leader": True},
@@ -290,7 +291,7 @@ def test_annotation_operations_create_update_delete_and_refuse_in_the_shape_of_t
         res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": [bad]}, headers=auth)
         assert res.status_code == 422, bad
         body = res.json()
-        assert body["detail"] == "corps de requête invalide" and body["errors"], bad
+        assert body["code"] == "invalid_body" and body["errors"], bad
         text = json.dumps(body, ensure_ascii=False)
         if code:
             assert code in text, (code, body)
@@ -335,7 +336,7 @@ def test_connector_operations_create_update_delete_and_refuse_in_the_shape_of_th
     assert c.route == "elbow" and c.bend == -30 and c.style.hue == "teal" and c.author == "alice"
     same = {"kind": "device", "ref": "sw-core-01", "side": "auto"}
     for bad, code in (
-        ({"op": "connector_delete", "id": "c7-7"}, "connecteur inconnu"),
+        ({"op": "connector_delete", "id": "c7-7"}, "unknown_connector"),
         ({"op": "connector_create", "start": same, "end": same}, "même élément"),
         (
             {"op": "connector_create", "start": same, "end": {"kind": "group", "ref": "sw-core-02", "side": "auto"}},
@@ -348,7 +349,7 @@ def test_connector_operations_create_update_delete_and_refuse_in_the_shape_of_th
         res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": [bad]}, headers=auth)
         assert res.status_code == 422, bad
         body = res.json()
-        assert body["detail"] == "corps de requête invalide" and body["errors"], bad
+        assert body["code"] == "invalid_body" and body["errors"], bad
         text = json.dumps(body, ensure_ascii=False)
         if code:
             assert code in text, (code, body)

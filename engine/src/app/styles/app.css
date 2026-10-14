@@ -13,7 +13,7 @@
   border-width: 0 0 1px; border-radius: 0; }
 .bar-left, .bar-center, .bar-right { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 .bar-left, .bar-right { flex: 0 0 auto; }
-.bar-center { flex: 1 1 0; justify-content: center; overflow: hidden; padding: 4px 2px; } /* la marge laisse passer l'anneau du focus */
+.bar-center { flex: 1 1 0; justify-content: safe center; overflow: hidden; padding: 4px 2px; } /* la marge laisse passer l'anneau du focus */
 .mark { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; font-size: var(--fs); letter-spacing: 0.01em; white-space: nowrap; color: var(--ink); }
 .mark-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); }
 .crumb { color: var(--ink-3); }
@@ -220,12 +220,24 @@ button.count.sev-error[aria-pressed="true"], button.count.sev-warning[aria-press
 @keyframes sweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
 .writer-name { font-family: var(--mono); max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .menu { position: absolute; top: calc(var(--bar-h) + 6px); right: var(--sp-3); z-index: var(--z-palette); width: 300px; border-radius: var(--r); box-shadow: var(--shadow); padding: var(--sp-3); display: flex; flex-direction: column; gap: 10px; animation: rise-up var(--t-fast) var(--ease) both; }
+/* la langue : son libellé à gauche, le choix à droite, chaque langue écrite dans sa langue (Language.tsx) */
+.language-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.language-label { color: var(--ink-2); font-size: var(--fs-sm); }
+.language-switch .seg { flex: 0 0 auto; }
+.language-switch .seg-item { padding: 0 10px; }
+/* le nom et son bouton sur une ligne, quelle que soit la longueur du mot (« garder », « save ») */
+.menu form .form-row { flex-wrap: nowrap; }
+.menu form .form-row input { flex: 1 1 0; min-width: 0; }
 
-@media (max-width: 1100px) {
+/* Les bascules de droite gardent leur icône, le mot reste pour le lecteur d'écran : la place va aux comptes. Dès 1366 px,
+   la vue Contrôle et ses comptes de statut ne tenaient plus, en français surtout (revue d'usage, M5 : 147 px à 1280). */
+@media (max-width: 1366px) {
   .count .word { display: none; }
-  .mode-item .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  /* les bascules de droite gardent leur icône, le mot reste pour le lecteur d'écran : la place va aux comptes */
   .bar-right .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (max-width: 1100px) {
+  .mode-item .word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .count { padding: 0 6px; }
 }
 @media (max-width: 900px) {
   /* la bascule des vues reste (en icônes) : sans elle, le Journal n'a plus de sortie ; les comptes et la run cèdent la place */
@@ -238,6 +250,7 @@ button.count.sev-error[aria-pressed="true"], button.count.sev-warning[aria-press
 .toolbar { position: absolute; top: calc(var(--bar-h) + var(--sp-3)); left: 50%; transform: translateX(-50%); z-index: var(--z-band); display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: var(--r); box-shadow: var(--shadow); animation: rise var(--t) var(--ease) both; }
 .toolbar .btn { width: 30px; height: 30px; padding: 0; justify-content: center; }
 .toolbar .btn:disabled { opacity: 0.35; cursor: default; }
+.toolbar .btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); } /* un outil armé (lot 1 de docs/11) */
 .toolbar-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
 /* le menu contextuel (ContextMenu) : à l'endroit du clic (variables posées par le composant), au-dessus de tout */
 .context-menu { position: fixed; left: var(--menu-x, 0px); top: var(--menu-y, 0px); z-index: var(--z-sheet); width: 240px; padding: 6px; border-radius: var(--r); box-shadow: var(--shadow); display: flex; flex-direction: column; animation: rise-up var(--t-fast) var(--ease) both; }

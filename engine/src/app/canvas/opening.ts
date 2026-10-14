@@ -6,8 +6,10 @@
 import { bounds } from "../../canvas/layout";
 import type { Point } from "../../canvas/layout";
 
-/** Le zoom en dessous duquel un nom de carte (15 unités) passe sous 10 px à l'écran. */
-export const READ_ZOOM = 0.67;
+/** Le zoom de lecture : au-dessus, un nom de carte fait au moins 10 px à l'écran. Lot 5 de docs/11 (2026-10-13) : le nom
+ *  fait 18 unités, 24 de loin (zoom < 0,6, canvas.css) ; le plus petit nom rendu au-dessus de 0,55 est donc à 0,6
+ *  (18 × 0,6 = 10,8 px), et à 0,55 il fait 24 × 0,55 = 13,2 px (mesurés dans Chromium). Avant : 0,67 (15 unités). */
+export const READ_ZOOM = 0.55;
 export const FIT_MARGIN = 70, FIT_MAX_ZOOM = 1.6, MIN_ZOOM = 0.05;
 
 export interface Area { x: number; y: number; width: number; height: number }

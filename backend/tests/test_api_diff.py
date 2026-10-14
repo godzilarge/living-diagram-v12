@@ -36,18 +36,21 @@ def test_diff_needs_the_token_and_its_three_parameters(client: TestClient, auth)
     assert client.get(DIFF_URL, params=PAIR).status_code == 401
     without_to = {k: v for k, v in PAIR.items() if k != "to"}
     res = client.get(DIFF_URL, params=without_to, headers=auth)
-    assert res.status_code == 422 and res.json()["detail"] == "paramètres de requête invalides"
+    assert res.status_code == 422 and res.json()["detail"] == "invalid query parameters"
     assert [e["path"] for e in res.json()["errors"]] == ["query.to"]
     assert client.get(DIFF_URL, params={**PAIR, "from": ""}, headers=auth).status_code == 422
 
 
 def test_each_side_has_its_own_404(client: TestClient, auth, bundle_dict, monkeypatch):
     res = client.get(DIFF_URL, params=PAIR, headers=auth)
-    assert res.status_code == 404 and "`from`" in res.json()["detail"] and "inconnue" in res.json()["detail"]
+    assert res.status_code == 404 and res.json()["code"] == "diff_run_unknown"
+    assert res.json()["params"] == {"side": "from"}
+    assert res.json()["detail"] == "run `from`: unknown run for this infrastructure"
     assert RUN["run_id"] not in res.text
     assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
     res = client.get(DIFF_URL, params=PAIR, headers=auth)
-    assert res.status_code == 404 and "`to`" in res.json()["detail"] and "inconnue" in res.json()["detail"]
+    assert res.status_code == 404 and res.json()["code"] == "diff_run_unknown"
+    assert res.json()["params"] == {"side": "to"}
 
     def boom(*_: object) -> None:
         raise RuntimeError("bug de B1")
@@ -105,6 +108,8 @@ def test_two_archived_snapshots_of_different_infrastructures_are_a_neutral_500(
     path.write_text(json.dumps(doc) + "\n", encoding="utf-8")  # entier : la forme canonique finit par une fin de ligne
     res = client.get(DIFF_URL, params=PAIR, headers=auth)
     assert (
-        res.status_code == 500 and "infrastructure" in res.json()["detail"] and "intervention" in res.json()["detail"]
+        res.status_code == 500
+        and res.json()["code"] == "archive_inconsistent"
+        and "administrator" in res.json()["detail"]
     )
     assert "autre-site" not in res.text and "infra-lab" not in res.json()["detail"]

@@ -1,25 +1,28 @@
 // Les mots de la toile : libellés des statuts, sources, sortes, résolutions, changements, et la mise en texte des
-// valeurs (vitesse, écart entre deux runs, détails d'un contrôle). Pur, sans DOM.
+// valeurs (vitesse, écart entre deux runs, détails d'un contrôle). Pur, sans DOM. Les mots viennent du catalogue
+// `common` (i18n, 2026-10-10) : français dans `/view` et `ld render`, la langue choisie dans l'application.
+import { i18n, labelMap, t } from "../i18n/core";
 import { endLabel } from "./model";
 
-export const SOURCE_LABEL: Record<string, string> = { lldp: "LLDP", cdp: "CDP", description: "Description" };
-export const STATUS_LABEL: Record<string, string> = { confirmed: "confirmé", observed_only: "observé seul", documented_only: "documenté seul" };
-export const KIND_LABEL: Record<string, string> = { device: "équipement collecté", external: "équipement d'une autre infra", stub: "voisin inconnu" };
+export const SOURCE_LABEL = labelMap("common:source", ["lldp", "cdp", "description"]);
+export const STATUS_LABEL = labelMap("common:status", ["confirmed", "observed_only", "documented_only"]);
+export const KIND_LABEL = labelMap("common:kind", ["device", "external", "stub"]);
 /** L'état de collecte d'un équipement, en mots (la fiche et la bulle disent la même chose). */
-export const COLLECTION_LABEL: Record<string, string> = { success: "réussie", unreachable: "injoignable", failed: "en échec", partial: "partielle", not_collected: "non collecté" };
+export const COLLECTION_LABEL = labelMap("common:collection", ["success", "unreachable", "failed", "partial", "not_collected"]);
 /** Le mode d'un cluster HA, en mots. */
-export const HA_MODE_LABEL: Record<string, string> = { active_passive: "actif-passif", active_active: "actif-actif", standalone: "autonome", other: "autre" };
+export const HA_MODE_LABEL = labelMap("common:haMode", ["active_passive", "active_active", "standalone", "other"]);
+/** Le type d'une interface en mots (recherche, fiches). */
+export const IFACE_TYPE_LABEL = labelMap("common:ifaceType", ["physical", "aggregate", "subinterface", "svi", "loopback", "tunnel", "management", "other"]);
+/** Le mode d'un cluster HA en mots ; un mode inconnu reste tel qu'enregistré. */
+export const haModeText = (mode: string): string => HA_MODE_LABEL[mode] || mode;
 /** La gravité d'un contrôle, en mots (le point coloré ne suffit pas : WCAG 1.4.1). */
-export const SEVERITY_LABEL: Record<string, string> = { error: "erreur", warning: "avertissement", info: "info" };
+export const SEVERITY_LABEL = labelMap("common:severity", ["error", "warning", "info"]);
 /** Le type d'un équipement en pastille : un mot court (`PILL_MAX`), le libellé complet est dans icons.ts. */
-export const TYPE_SHORT_LABEL: Record<string, string> = { switch: "switch", router: "routeur", firewall: "firewall", load_balancer: "répartiteur", wireless_controller: "WLC", server: "serveur", other: "autre" };
-export const RESOLUTION_LABEL: Record<string, string> = {
-  hostname: "nom exact", hostname_casefold: "nom, à la casse près", reported_hostname: "nom annoncé par l'équipement",
-  address: "adresse (IP ou MAC)", stub: "non résolu : voisin inconnu",
-};
+export const TYPE_SHORT_LABEL = labelMap("common:typeShort", ["switch", "router", "firewall", "load_balancer", "wireless_controller", "server", "other"]);
+export const RESOLUTION_LABEL = labelMap("common:resolution", ["hostname", "hostname_casefold", "reported_hostname", "address", "stub"]);
 // Le diff (B3) : ce qu'un élément est devenu depuis la run d'avant.
-export const DIFF_LABEL: Record<string, string> = { added: "ajouté", removed: "retiré", changed: "changé" };
-export const EVENT_LABEL: Record<string, string> = { rebooted: "redémarré", flapped: "flap" }; // un seul mot partout ; `flapped` reste à confirmer (docs/07 Q4)
+export const DIFF_LABEL = labelMap("common:diff", ["added", "removed", "changed"]);
+export const EVENT_LABEL = labelMap("common:event", ["rebooted", "flapped"]); // un seul mot partout ; `flapped` reste à confirmer (docs/07 Q4)
 
 // La forme courte d'un nom de port, pour les listes (« Te1/0/1 » plutôt que « TenGigabitEthernet1/0/1 ») : l'usage des
 // CLI réseau, seulement quand le préfixe est suivi d'un chiffre ; tout autre nom reste tel quel. Affichage seul : le
@@ -64,32 +67,34 @@ function endWithFacts(value: Record<string, unknown> & { hostname: string; inter
 
 // Une valeur avant / après d'un changement, en bref : une liste d'objets se compte (« 4 éléments »), le reste s'écrit.
 export function brief(value: unknown): string {
-  if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) return value.length + " élément" + (value.length > 1 ? "s" : "");
+  if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) return t("common:format.elements", { count: value.length });
   return plain(value);
 }
 
 // L'écart entre deux runs, lu dans `elapsed_seconds`, signé : « 7 j plus tard », « 3 h plus tôt » ; nul quand les deux
 // runs ont le même début (une run comparée à elle-même).
 export function elapsedText(seconds: number): string {
-  if (seconds === 0) return "même début de collecte";
+  if (seconds === 0) return t("common:format.sameStart");
   const abs = Math.abs(seconds);
-  const amount = abs >= 86400 ? Math.round(abs / 8640) / 10 + " j" : abs >= 3600 ? Math.round(abs / 360) / 10 + " h" : Math.round(abs / 60) + " min";
-  return amount + (seconds < 0 ? " plus tôt" : " plus tard");
+  const amount = abs >= 86400 ? Math.round(abs / 8640) / 10 + " " + t("common:format.day") : abs >= 3600 ? Math.round(abs / 360) / 10 + " " + t("common:format.hour") : Math.round(abs / 60) + " " + t("common:format.minute");
+  return t(seconds < 0 ? "common:format.earlier" : "common:format.later", { amount });
 }
 
 // Une durée lue en secondes (l'uptime d'un équipement), en deux unités au plus : « 12 j 4 h », « 3 h 20 min », « 45 min », « 30 s ».
 export function durationText(seconds: number | null | undefined): string | null {
   if (seconds === null || seconds === undefined || seconds < 0) return null;
   const d = Math.floor(seconds / 86400), h = Math.floor((seconds % 86400) / 3600), m = Math.floor((seconds % 3600) / 60);
-  if (d) return d + " j" + (h ? " " + h + " h" : "");
-  if (h) return h + " h" + (m ? " " + m + " min" : "");
-  return m ? m + " min" : Math.floor(seconds) + " s";
+  const day = t("common:format.day"), hour = t("common:format.hour"), minute = t("common:format.minute");
+  if (d) return d + " " + day + (h ? " " + h + " " + hour : "");
+  if (h) return h + " " + hour + (m ? " " + m + " " + minute : "");
+  return m ? m + " " + minute : Math.floor(seconds) + " " + t("common:format.second");
 }
 
-// Une vitesse lue en Mbit/s, écrite comme on la lit : « 10 Gb/s », « 2,5 Gb/s », « 100 Mb/s » ; non lue, elle reste null.
+// Une vitesse lue en Mbit/s, écrite comme on la lit : « 10 Gb/s », « 2,5 Gb/s » (« 2.5 Gb/s » en anglais), « 100 Mb/s » ;
+// non lue, elle reste null.
 export function speedText(mbps: number | null | undefined): string | null {
   if (mbps === null || mbps === undefined) return null;
-  return mbps >= 1000 ? String(mbps / 1000).replace(".", ",") + " Gb/s" : mbps + " Mb/s";
+  return mbps >= 1000 ? String(mbps / 1000).replace(".", i18n.language === "fr" ? "," : ".") + " Gb/s" : mbps + " Mb/s";
 }
 
 /** Ce que les sources d'un câble ont à dire de lui, en une phrase : qui l'a observé (LLDP, CDP), qui l'a documenté. */
@@ -103,12 +108,11 @@ export function whyText(link: SourcedLink, ports = true): string {
   const witnesses = (keep: (source: string) => boolean): string => Array.from(new Set(link.raw.evidence.filter((e) => keep(e.source)).map((e) => (ports ? endLabel(e.witness) : e.witness.hostname)))).join(", ");
   const seen = witnesses((src) => OBSERVED_SOURCE[src]);
   const written = witnesses((src) => !OBSERVED_SOURCE[src]);
-  const protocols = link.sources.filter((src) => OBSERVED_SOURCE[src]).map((src) => src.toUpperCase()).join(" et ");
+  const protocols = link.sources.filter((src) => OBSERVED_SOURCE[src]).map((src) => src.toUpperCase()).join(t("common:why.and"));
   const parts: string[] = [];
-  if (seen) parts.push("Observé en " + protocols + " depuis " + seen + ".");
-  else parts.push("Aucune observation LLDP ni CDP : ce câble n'existe que par les descriptions d'interface.");
-  parts.push(written ? "Documenté par la description de " + written + "." : "Aucune description ne le documente.");
-  if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push("Attention : une description ne concorde pas avec l'observé, voir le contrôle ci-dessous.");
+  parts.push(seen ? t("common:why.observed", { protocols, witnesses: seen }) : t("common:why.notObserved"));
+  parts.push(written ? t("common:why.documented", { witnesses: written }) : t("common:why.undocumented"));
+  if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push(t("common:why.disagrees"));
   return parts.join(" ");
 }
 

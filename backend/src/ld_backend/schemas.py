@@ -424,13 +424,22 @@ class RunList(ApiModel):
 
 class ProblemField(ApiModel):
     path: str = Field(description="Chemin du paramètre ou du champ fautif, en identifiants pointés (`ops.0.x`).")
-    message: str = Field(description="La règle enfreinte, jamais la valeur reçue.")
+    code: str = Field(
+        description="La règle enfreinte, en code stable : celui de l'API (`unknown_group`, `too_many_pins`…), du "
+        "contrat (`patch_after_update`…) ou de Pydantic (`missing`, `string_too_short`…)."
+    )
+    message: str = Field(description="La règle enfreinte en anglais, jamais la valeur reçue.")
 
 
 class Problem(ApiModel):
-    """Le corps de toute erreur de l'API : un détail lisible, et pour un 422 la liste des champs fautifs."""
+    """Le corps de toute erreur de l'API : un code stable, une phrase en anglais, et pour un 422 la liste des champs
+    fautifs. Un client écrit son propre texte d'après `code` et `params` (la page le fait dans sa langue)."""
 
-    detail: str = Field(description="Ce qui ne va pas, en une phrase, sans valeur reçue.")
+    code: str = Field(description="Le refus, en code stable (`run_unknown`, `token_invalid`, `invalid_body`…).")
+    detail: str = Field(description="Ce qui ne va pas, en une phrase en anglais, sans valeur reçue.")
+    params: dict[str, str | int] | None = Field(
+        default=None, description="Les valeurs du serveur qui écrivent `detail` (côté, limite) ; jamais reçues."
+    )
     errors: list[ProblemField] | None = Field(default=None, description="Présent sur un 422 seulement.")
 
 

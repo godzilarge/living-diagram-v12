@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from functools import partial
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -21,12 +21,21 @@ from ld_contracts.diff.serialize import canonical_json as diff_json
 from ld_contracts.intent.serialize import canonical_json as intent_json
 from ld_contracts.snapshot import Snapshot
 from pydantic import AwareDatetime, ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ld_backend import __version__
 from ld_backend import openapi as doc
 from ld_backend.archive import ArchiveCorruptError, BundleArchive
 from ld_backend.assets import AssetStore, AssetTypeError, AssetUnknownError
-from ld_backend.bodies import IMAGE_MEDIA_TYPE, one_problem, problem, query_problem, read_body, read_json_body
+from ld_backend.bodies import (
+    IMAGE_MEDIA_TYPE,
+    http_problem,
+    one_problem,
+    problem,
+    query_problem,
+    read_body,
+    read_json_body,
+)
 from ld_backend.config import Settings
 from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import CacheKey, DiffCache, SnapshotUnavailableError, load_archived_snapshot
@@ -43,6 +52,7 @@ from ld_backend.placement import (
     PlacementWrite,
     placement_json,
 )
+from ld_backend.problems import PROBLEMS, ApiError, body
 from ld_backend.render import render_shell
 from ld_backend.render.app import APP_ASSET_PREFIX, APP_CSP, APP_ROUTE, read_app_asset, render_app
 from ld_backend.schemas import AssetReceipt, Health, IngestReport, IntentOps, RunEntry, RunList
@@ -61,7 +71,6 @@ INTENT_JOURNAL = "/api/intent/journal"
 PLACEMENT = "/api/placement"
 VIEW = "/view"
 APP_ASSET = APP_ASSET_PREFIX + "{name:path}"
-CORRUPT = "entrée d'archive corrompue, intervention nécessaire"
 
 _bearer = HTTPBearer(
     auto_error=False,
@@ -78,11 +87,9 @@ ToLabel = Annotated[str, Query(min_length=1, alias="to", description="run d'arri
 AssetLabel = Annotated[str, Query(min_length=1, description="empreinte SHA-256 rendue par l'envoi")]
 
 
-def _unauthorized() -> HTTPException:
+def _unauthorized() -> ApiError:
     """Une instance neuve à chaque refus : une exception partagée accumulerait les tracebacks et leurs requêtes."""
-    return HTTPException(
-        status_code=401, detail="jeton d'API absent ou invalide", headers={"WWW-Authenticate": "Bearer"}
-    )
+    return ApiError(401, "token_invalid", headers={"WWW-Authenticate": "Bearer"})
 
 
 def _bearer_guard(settings: Settings) -> Callable[..., None]:
@@ -97,7 +104,7 @@ def _bearer_guard(settings: Settings) -> Callable[..., None]:
 
 def _server_error(_: Request, __: Exception) -> JSONResponse:
     """Une erreur imprévue garde la forme `Problem`, sans rien dire de sa cause ; le serveur la journalise."""
-    return JSONResponse(status_code=500, content={"detail": "erreur interne, intervention nécessaire"})
+    return JSONResponse(status_code=500, content=body("internal_error", PROBLEMS["internal_error"]))
 
 
 def _archived(load: Callable[[], Any]) -> Any:
@@ -105,9 +112,9 @@ def _archived(load: Callable[[], Any]) -> Any:
     try:
         found = load()
     except (ArchiveCorruptError, OSError) as exc:
-        raise HTTPException(status_code=500, detail=CORRUPT) from exc
+        raise ApiError(500, "archive_corrupt") from exc
     if found is None:
-        raise HTTPException(status_code=404, detail="run inconnue pour cette infrastructure")
+        raise ApiError(404, "run_unknown")
     return found
 
 
@@ -117,10 +124,11 @@ def _archived_snapshot(store: BundleArchive, infrastructure: str, run_id: str, s
         return load_archived_snapshot(store, infrastructure, run_id, side)
     except SnapshotUnavailableError as exc:
         if exc.reason == "invalid":
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+            raise ApiError(500, "diff_snapshot_invalid", side=side) from exc
+        code = "diff_snapshot_missing" if exc.reason == "missing" else "diff_run_unknown"
+        raise ApiError(404, code, side=side) from exc
     except (ArchiveCorruptError, OSError) as exc:
-        raise HTTPException(status_code=500, detail=CORRUPT) from exc
+        raise ApiError(500, "archive_corrupt") from exc
 
 
 def _known_run(store: BundleArchive, infrastructure: str, run_id: str, side: str) -> None:
@@ -128,9 +136,9 @@ def _known_run(store: BundleArchive, infrastructure: str, run_id: str, side: str
     try:
         found = store.find_run(infrastructure, run_id)
     except (ArchiveCorruptError, OSError) as exc:
-        raise HTTPException(status_code=500, detail=CORRUPT) from exc
+        raise ApiError(500, "archive_corrupt") from exc
     if found is None:
-        raise HTTPException(status_code=404, detail=str(SnapshotUnavailableError("unknown", side)))
+        raise ApiError(404, "diff_run_unknown", side=side)
 
 
 def _diff_key(store: BundleArchive, infrastructure: str, from_run: str, to_run: str) -> CacheKey | None:
@@ -148,25 +156,25 @@ def _intent_or_500[T](load: Callable[[], T]) -> T:
     try:
         return load()
     except IntentCorruptError as exc:
-        raise HTTPException(status_code=500, detail="document d'intention corrompu, intervention nécessaire") from exc
+        raise ApiError(500, "intent_corrupt") from exc
     except OSError as exc:
-        raise HTTPException(status_code=500, detail="document d'intention illisible, intervention nécessaire") from exc
+        raise ApiError(500, "intent_unreadable") from exc
 
 
 def _placement_or_500(load: Callable[[], Placement]) -> Placement:
     try:
         return load()
     except PlacementCorruptError as exc:
-        detail = "document de placement corrompu : `ld placement --forget` le retire, le placement se recalcule"
-        raise HTTPException(status_code=500, detail=detail) from exc
+        raise ApiError(500, "placement_corrupt") from exc
     except OSError as exc:
-        raise HTTPException(status_code=500, detail="document de placement illisible, intervention nécessaire") from exc
+        raise ApiError(500, "placement_unreadable") from exc
 
 
-async def _require_runs(store: BundleArchive, infrastructure: str, what: str) -> None:
-    """Une écriture n'a de sens que pour une infrastructure archivée ; vérifié hors de la boucle d'événements."""
+async def _require_runs(store: BundleArchive, infrastructure: str, action: str) -> None:
+    """Une écriture n'a de sens que pour une infrastructure archivée ; vérifié hors de la boucle d'événements.
+    `action` est un mot de l'API (`modify`, `illustrate`, `place`), que la page traduit (`common:http.action`)."""
     if not await run_in_threadpool(store.has_runs, infrastructure):
-        raise HTTPException(status_code=404, detail=f"aucune run archivée pour cette infrastructure : rien à {what}")
+        raise ApiError(404, "no_archived_run", action=action)
 
 
 def _json(payload: str | bytes, status_code: int = 200) -> Response:
@@ -190,7 +198,7 @@ def _pages(app: FastAPI) -> None:
     def application_asset(name: str, request: Request) -> Response:
         found = read_app_asset(name)
         if found is None:
-            raise HTTPException(status_code=404, detail="fichier inconnu")
+            raise ApiError(404, "file_unknown")
         content, media_type, etag = found
         headers = {"ETag": etag, "Cache-Control": "no-cache"}
         if request.headers.get("if-none-match") == etag:
@@ -254,7 +262,7 @@ def _run_routes(router: APIRouter, store: BundleArchive) -> None:
         _archived(lambda: store.find_run(infrastructure, run_id))
         raw = _archived(lambda: store.load_snapshot_bytes(infrastructure, run_id) or b"")
         if not raw:
-            raise HTTPException(status_code=404, detail="run archivée sans snapshot : lancer `ld correlate`")
+            raise ApiError(404, "snapshot_missing")
         return _json(raw)
 
 
@@ -278,9 +286,7 @@ def _diff_routes(router: APIRouter, store: BundleArchive, cache: DiffCache) -> N
             try:
                 result = diff(before, after)
             except DiffError as exc:  # deux snapshots d'une même entrée d'archive qui ne se comparent pas
-                raise HTTPException(
-                    status_code=500, detail=f"{exc} : archive incohérente, intervention nécessaire"
-                ) from exc
+                raise ApiError(500, "archive_inconsistent") from exc
             payload = diff_json(result).encode("utf-8")
             if key is not None:
                 cache.put(key, payload)
@@ -309,21 +315,21 @@ def _intent_routes(router: APIRouter, store: BundleArchive, intents: IntentStore
         description=doc.patches_description(),
     )
     async def post_intent_patches(infrastructure: InfraLabel, request: Request) -> Response:
-        await _require_runs(store, infrastructure, "modifier")
+        await _require_runs(store, infrastructure, "modify")
         data = await read_json_body(request, settings.max_intent_bytes)  # borné, comme un bundle (revue B4, H2)
         try:
             ops = await run_in_threadpool(IntentOps.model_validate, data)
         except ValidationError as exc:
-            return problem("corps de requête invalide", list(exc.errors()))
+            return problem("invalid_body", list(exc.errors()))
         now = datetime.now(UTC).replace(microsecond=0)
         try:  # verrou de fichier, `fsync` et journal hors de la boucle d'événements (audit de l'API, 2026-10-09)
             intent = await run_in_threadpool(_intent_or_500, lambda: intents.apply(infrastructure, ops, now))
         except IntentLimitError as exc:
-            return one_problem("corps de requête invalide", "ops", "too_long", str(exc))
+            return one_problem("invalid_body", "ops", exc.code, limit=exc.limit)
         except IntentGroupError as exc:
-            return one_problem("corps de requête invalide", "ops", exc.code, str(exc))
+            return one_problem("invalid_body", "ops", exc.code)
         except ValidationError as exc:  # une annotation incohérente une fois assemblée (ligne de rappel sans ancre)
-            return problem("corps de requête invalide", list(exc.errors()))
+            return problem("invalid_body", list(exc.errors()))
         return _json(intent_json(intent))
 
 
@@ -342,14 +348,14 @@ def _asset_routes(
         "`annotation_create` (`content.kind` = `image`).",
     )
     async def post_intent_asset(infrastructure: InfraLabel, request: Request, response: Response) -> AssetReceipt:
-        await _require_runs(store, infrastructure, "illustrer")
+        await _require_runs(store, infrastructure, "illustrate")
         if not IMAGE_MEDIA_TYPE.match(request.headers.get("content-type", "")):
-            raise HTTPException(status_code=415, detail="`Content-Type` attendu : image/png, image/jpeg ou image/webp")
+            raise ApiError(415, "image_expected")
         data = await read_body(request, settings.max_asset_bytes)
         try:
             info, created = await run_in_threadpool(assets.put, infrastructure, data)
-        except AssetTypeError as exc:
-            return one_problem("fichier refusé", "body", "asset_unrecognized", str(exc))  # type: ignore[return-value]
+        except AssetTypeError:
+            return one_problem("asset_rejected", "body", "asset_unrecognized")  # type: ignore[return-value]
         response.status_code = 201 if created else 200
         return AssetReceipt(**asdict(info))
 
@@ -365,11 +371,9 @@ def _asset_routes(
         try:
             data, media_type = assets.get(infrastructure, asset)
         except AssetUnknownError as exc:
-            raise HTTPException(status_code=404, detail="image inconnue pour cette infrastructure") from exc
+            raise ApiError(404, "asset_unknown") from exc
         except AssetTypeError as exc:
-            raise HTTPException(
-                status_code=500, detail="fichier du magasin illisible : intervention nécessaire"
-            ) from exc
+            raise ApiError(500, "asset_unreadable") from exc
         headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=31536000, immutable"}
         return Response(content=data, media_type=media_type, headers=headers)
 
@@ -388,10 +392,9 @@ def _asset_routes(
                 lambda: intents.release_asset(infrastructure, asset, partial(assets.delete, infrastructure, asset))
             )
         except AssetInUseError as exc:
-            detail = "image citée par une annotation : supprimez l'annotation d'abord"
-            raise HTTPException(status_code=409, detail=detail) from exc
+            raise ApiError(409, "asset_in_use") from exc
         except AssetUnknownError as exc:
-            raise HTTPException(status_code=404, detail="image inconnue pour cette infrastructure") from exc
+            raise ApiError(404, "asset_unknown") from exc
         return Response(status_code=204)
 
 
@@ -430,8 +433,7 @@ def _journal_routes(router: APIRouter, journal: JournalReader) -> None:
         # une révision, comme une identité `g…` / `a…` / `c…`, n'est unique que dans son infrastructure (revue, M3)
         for name, given in (("start", start), ("object", object)):
             if given is not None and infrastructure is None:
-                detail = f"{name} demande une infrastructure (unique dans la sienne seulement)"
-                return one_problem("paramètres de requête invalides", name, "missing_infrastructure", detail)  # type: ignore[return-value]
+                return one_problem("invalid_query", name, "missing_infrastructure", name=name)  # type: ignore[return-value]
         query = JournalQuery(
             infrastructure=infrastructure,
             authors=tuple(author or ()),
@@ -447,10 +449,10 @@ def _journal_routes(router: APIRouter, journal: JournalReader) -> None:
         )
         try:
             return journal.page(query)
-        except JournalCursorError as exc:
-            return one_problem("paramètres de requête invalides", "before", "cursor", str(exc))  # type: ignore[return-value]
+        except JournalCursorError:
+            return one_problem("invalid_query", "before", "cursor")  # type: ignore[return-value]
         except OSError as exc:
-            raise HTTPException(status_code=500, detail="journal illisible, intervention nécessaire") from exc
+            raise ApiError(500, "journal_unreadable") from exc
 
 
 def _placement_routes(router: APIRouter, store: BundleArchive, placements: PlacementStore, settings: Settings) -> None:
@@ -478,17 +480,17 @@ def _placement_routes(router: APIRouter, store: BundleArchive, placements: Place
         "gagnent toujours sur elle.",
     )
     async def post_placement(infrastructure: InfraLabel, request: Request) -> Response:
-        await _require_runs(store, infrastructure, "placer")
+        await _require_runs(store, infrastructure, "place")
         data = await read_json_body(request, settings.max_intent_bytes)
         try:
             write = PlacementWrite.model_validate(data)
         except ValidationError as exc:
-            return problem("corps de requête invalide", list(exc.errors()))
+            return problem("invalid_body", list(exc.errors()))
         now = datetime.now(UTC).replace(microsecond=0)
         try:  # le verrou de fichier et le fsync hors de la boucle d'événements (revue, B3)
             placed = await run_in_threadpool(_placement_or_500, lambda: placements.record(infrastructure, write, now))
         except PlacementLimitError as exc:
-            return one_problem("corps de requête invalide", "places", "too_long", str(exc))
+            return one_problem("invalid_body", "places", "too_many_places", limit=exc.limit)
         except PlacementStaleError as exc:
             return _json(placement_json(exc.current), status_code=409)
         return _json(placement_json(placed))
@@ -503,6 +505,7 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
     )
     app.request_bodies = doc.request_bodies(BUNDLES, INTENT_PATCHES, PLACEMENT, INTENT_ASSETS)
     app.add_exception_handler(RequestValidationError, query_problem)  # type: ignore[arg-type]
+    app.add_exception_handler(StarletteHTTPException, http_problem)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, _server_error)
 
     @app.get("/api/health", tags=[doc.SYSTEM], operation_id="health", summary="Le service répond")

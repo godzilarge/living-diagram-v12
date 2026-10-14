@@ -18,7 +18,7 @@ import { fresh as freshTable, grownBox } from "../../canvas/table";
 import type { TableContent } from "../../contracts/intent";
 import { GRID } from "../canvas/Flow";
 import type { IntentHost } from "../../shell/intent";
-import { plural } from "../ui";
+import { applyLanguage, t } from "../../i18n";
 import type { PlacementHost } from "../../shell/placement";
 import { previousOf } from "../../shell/timeline";
 import { fetchRun, fetchRuns, readAsset, readAuthor, readToken, uploadAsset, writeAuthor, writeToken } from "../api/client";
@@ -35,9 +35,10 @@ import { debug } from "./debug";
 import { readPrefs, writePrefs } from "./prefs";
 import type { Prefs } from "./prefs";
 import { initialState, reducer } from "./reducer";
-import type { Action, AppState, ContextMenuState, SelectionToken, ViewMode, ViewState } from "./types";
+import type { Action, AppState, ContextMenuState, SelectionToken, Tool, ViewMode, ViewState } from "./types";
 import { stepWalk, walkHosts, walkLabel } from "./walk";
 import type { Walk, WalkKind } from "./walk";
+import { said } from "./said";
 
 export interface CanvasHandle { toile: Toile; intents: IntentHost; placements: PlacementHost; writer: Writer; placer: Placer | null; undo: Undo }
 
@@ -104,6 +105,9 @@ export interface Commands extends JournalCommands {
   requestEdit: (id: string, cell: [number, number] | null) => void;
   /** Insérer une annotation ou un connecteur d'une sorte (note, rectangle, ellipse, table, connector) à un point du plan. */
   insertAt: (kind: string, at: Point) => void;
+  /** Armer ou ranger un outil de la toile (lot 1 de docs/11 : l'outil connecteur, bouton de la barre ou touche C). */
+  setTool: (tool: Tool | null) => void;
+  toggleTool: (tool: Tool) => void;
   /** Ouvre le choix d'un fichier d'image (le champ de la barre d'outils). */
   pickImage: () => void;
   /** Une image ou un texte collés (Ctrl+V) : une annotation image (envoyée au magasin) ou une note, au centre de la vue. */
@@ -132,13 +136,13 @@ const StoreContext = createContext<StoreValue | null>(null);
 
 export function useStore(): StoreValue {
   const value = useContext(StoreContext);
-  if (!value) throw new Error("useStore hors du Store");
+  if (!value) throw new Error("useStore outside of <Store>");
   return value;
 }
 export const useModel = (): Model | null => { const { state } = useStore(); return state.run.kind === "ready" ? state.run.model : null; };
 /** L'intention n'a pas pu être lue avec la run : l'écriture est coupée (on écrirait sur un document qu'on n'a pas vu). */
-export const WRITE_LOCK = "L'intention de cette infrastructure n'a pas pu être lue : les modifications sont coupées pour ne rien écraser.";
-export const useWriteLock = (): string | null => { const { state } = useStore(); return state.run.kind === "ready" && !state.run.data.intent ? WRITE_LOCK : null; };
+/** Pourquoi l'écriture est coupée : l'intention n'a pas pu être lue avec la run (dans la langue de la page). */
+export const useWriteLock = (): string | null => { const { state } = useStore(); return state.run.kind === "ready" && !state.run.data.intent ? t("shell:messages.writeLock") : null; };
 /** Vrai en vue Diagramme avec un écrivain qui a un nom : tout ce qui s'édite (couleurs, groupes, annotations, épingles)
  *  passe par ici ; la vue Contrôle se lit seulement (2026-10-09). */
 export const useEditable = (): boolean => { const { state, handle } = useStore(); return state.view.mode === "diagram" && !!handle && handle.intents.canWrite(); };
@@ -204,7 +208,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         dispatch({ type: "runs", runs: null, message: result.message });
         return null;
       }
-      dispatch({ type: "runs", runs: result.runs, message: result.runs.length ? null : "aucune run archivée pour cette infrastructure" });
+      dispatch({ type: "runs", runs: result.runs, message: result.runs.length ? null : said("shell:messages.noRuns") });
       return result.runs;
     }
     // La dernière run, comparée à celle d'avant : ce qu'on veut voir en arrivant, ce qui a changé.
@@ -245,7 +249,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       const snap = (v: number): number => Math.round(v / GRID) * GRID;
       const point = at ? { x: snap(at.x), y: snap(at.y) } : ((c) => ({ x: snap(c.x - w / 2), y: snap(c.y - hh / 2) }))(h.toile.viewCenter());
       const op: Op = { op: "annotation_create", content, x: point.x, y: point.y, w, h: hh, ...extra };
-      void h.intents.onAnnotation([op], "annotation créée").then((intent) => {
+      void h.intents.onAnnotation([op], t("shell:messages.annotationCreated")).then((intent) => {
         if (!intent) return;
         const id = "a" + intent.revision + "-1"; // l'identité que le serveur attribue à la première création d'une requête
         if (h.toile.model.annotationById.has(id)) h.toile.reveal({ kind: "annotation", id });
@@ -258,7 +262,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         sessionRef.current = { token, infrastructure };
         dispatch({ type: "session", token, author });
         dispatch({ type: "address", address: { infrastructure, runId: "", from: "" } });
-        if (!token || !infrastructure) { dispatch({ type: "runs", runs: null, message: "le jeton et l'infrastructure sont nécessaires" }); return; }
+        if (!token || !infrastructure) { dispatch({ type: "runs", runs: null, message: said("shell:messages.needTokenAndInfra") }); return; }
         void openLatest();
       },
       listRuns: () => { void listRuns(); },
@@ -293,7 +297,12 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         dropToken: () => { writeToken(""); sessionRef.current = { ...sessionRef.current, token: "" }; dispatch({ type: "session", token: "" }); dispatch({ type: "connect", open: true }); },
         connect: (fields) => commands.connect(fields),
       }),
-      setPrefs: (patch) => { writePrefs({ ...current().prefs, ...patch }); dispatch({ type: "prefs", patch }); },
+      setPrefs: (patch) => {
+        const next = { ...current().prefs, ...patch };
+        writePrefs(next);
+        if ("language" in patch) applyLanguage(next.language); // avant l'état : le rendu suivant parle déjà la langue (revue, M2)
+        dispatch({ type: "prefs", patch });
+      },
       toggleStatus: (status) => {
         const masked = rules().hiddenStatuses;
         setView({ hiddenStatuses: masked.includes(status) ? masked.filter((st) => st !== status) : masked.concat(status) });
@@ -317,31 +326,31 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       groupCreate: (label, members) => {
         const h = handleRef.current;
         if (!h) return;
-        void h.intents.onGroup([{ op: "group_create", label, members }], "groupe " + label + " créé").then((intent) => {
+        void h.intents.onGroup([{ op: "group_create", label, members }], t("shell:messages.groupCreated", { name: label })).then((intent) => {
           if (!intent) return;
           const id = "g" + intent.revision + "-1"; // l'identité que le serveur attribue à la première création d'une requête
           if (h.toile.model.groupById.has(id)) h.toile.reveal({ kind: "group", id });
         });
       },
-      groupUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_update", id, ...patch }], "groupe modifié"); },
-      groupAdd: (id, members) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_add", id, members }], plural(members.length, "membre") + " ajouté" + (members.length > 1 ? "s" : "") + " au groupe"); },
-      groupRemove: (id, members) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_remove", id, members }], plural(members.length, "membre") + " retiré" + (members.length > 1 ? "s" : "") + " du groupe"); },
+      groupUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_update", id, ...patch }], t("shell:messages.groupChanged")); },
+      groupAdd: (id, members) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_add", id, members }], t("shell:messages.membersAdded", { count: members.length })); },
+      groupRemove: (id, members) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_remove", id, members }], t("shell:messages.membersRemoved", { count: members.length })); },
       groupDelete: (id) => {
         const h = handleRef.current;
         if (!h) return;
-        void h.intents.onGroup([{ op: "group_delete", id }], "groupe supprimé").then(() => {
+        void h.intents.onGroup([{ op: "group_delete", id }], t("shell:messages.groupDeleted")).then(() => {
           if (h.toile.state.selection && h.toile.state.selection.kind === "group") h.toile.select(null);
           // supprimé pour de bon : la ligne d'état dit comment revenir en arrière
-          if (!h.toile.model.groupById.has(id)) dispatch({ type: "note", text: "groupe supprimé (" + h.writer.author + ") · Ctrl+Z pour annuler", at: Date.now() });
+          if (!h.toile.model.groupById.has(id)) dispatch({ type: "note", text: t("shell:messages.groupDeletedUndo", { author: h.writer.author }), at: Date.now() });
         });
       },
       annotationCreate: (content, extra = {}) => createAnnotation(content, null, extra),
-      annotationUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onAnnotation([{ op: "annotation_update", id, ...patch }], "annotation modifiée"); },
+      annotationUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onAnnotation([{ op: "annotation_update", id, ...patch }], t("shell:messages.annotationChanged")); },
       annotationDuplicate: (id) => {
         const h = handleRef.current, a = h ? h.toile.model.annotationById.get(id) : undefined;
         if (!h || !a) return;
         const op: Op = { op: "annotation_create", content: a.content, anchor: a.anchor, x: a.x + GRID, y: a.y + GRID, w: a.w, h: a.h, z: a.z, locked: false, leader: a.leader, style: a.style };
-        void h.intents.onAnnotation([op], "annotation dupliquée").then((intent) => {
+        void h.intents.onAnnotation([op], t("shell:messages.annotationDuplicated")).then((intent) => {
           if (!intent) return;
           const made = "a" + intent.revision + "-1";
           if (h.toile.model.annotationById.has(made)) h.toile.reveal({ kind: "annotation", id: made });
@@ -350,9 +359,9 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       annotationImage: (file, id) => {
         const h = handleRef.current;
         if (!h) return;
-        dispatch({ type: "note", text: "envoi de l'image…", busy: true, at: Date.now() });
+        dispatch({ type: "note", text: t("shell:messages.imageSending"), busy: true, at: Date.now() });
         void uploadAsset(session(), file).then((result) => {
-          if (!result.ok) { dispatch({ type: "note", text: "image non enregistrée : " + result.message, at: Date.now() }); return; }
+          if (!result.ok) { dispatch({ type: "note", text: t("shell:messages.imageNotSaved", { reason: result.message }), at: Date.now() }); return; }
           const r = result.receipt, k = Math.min(1, 600 / Math.max(1, r.width));
           const content = { kind: "image" as const, asset: r.asset, alt: "" };
           if (id) { commands.annotationUpdate(id, { content: { ...content, alt: ((h.toile.model.annotationById.get(id) || { content: { alt: "" } }).content as { alt?: string }).alt || "" } }); return; }
@@ -362,9 +371,9 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       annotationDelete: (id) => {
         const h = handleRef.current;
         if (!h) return;
-        void h.intents.onAnnotation([{ op: "annotation_delete", id }], "annotation supprimée").then(() => {
+        void h.intents.onAnnotation([{ op: "annotation_delete", id }], t("shell:messages.annotationDeleted")).then(() => {
           if (h.toile.state.selection && h.toile.state.selection.kind === "annotation") h.toile.select(null);
-          if (!h.toile.model.annotationById.has(id)) dispatch({ type: "note", text: "annotation supprimée (" + h.writer.author + ") · Ctrl+Z pour annuler", at: Date.now() });
+          if (!h.toile.model.annotationById.has(id)) dispatch({ type: "note", text: t("shell:messages.annotationDeletedUndo", { author: h.writer.author }), at: Date.now() });
         });
       },
       tableUpdate: (id, content) => {
@@ -382,13 +391,13 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       connectorCreate: (fields) => {
         const h = handleRef.current;
         if (!h) return;
-        void h.intents.onConnector([{ op: "connector_create", ...fields }], "connecteur créé").then((intent) => {
+        void h.intents.onConnector([{ op: "connector_create", ...fields }], t("shell:messages.connectorCreated")).then((intent) => {
           if (!intent) return;
           const id = "c" + intent.revision + "-1";
           if (h.toile.model.connectorById.has(id)) h.toile.reveal({ kind: "connector", id });
         });
       },
-      connectorUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onConnector([{ op: "connector_update", id, ...patch }], "connecteur modifié"); },
+      connectorUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onConnector([{ op: "connector_update", id, ...patch }], t("shell:messages.connectorChanged")); },
       connectorDetach: (id) => {
         const h = handleRef.current, c = h ? h.toile.model.connectorById.get(id) : undefined, ends = h ? h.toile.ends.get(id) : undefined;
         if (!h || !c || !ends) return;
@@ -398,9 +407,9 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       connectorDelete: (id) => {
         const h = handleRef.current;
         if (!h) return;
-        void h.intents.onConnector([{ op: "connector_delete", id }], "connecteur supprimé").then(() => {
+        void h.intents.onConnector([{ op: "connector_delete", id }], t("shell:messages.connectorDeleted")).then(() => {
           if (h.toile.state.selection && h.toile.state.selection.kind === "connector") h.toile.select(null);
-          if (!h.toile.model.connectorById.has(id)) dispatch({ type: "note", text: "connecteur supprimé (" + h.writer.author + ") · Ctrl+Z pour annuler", at: Date.now() });
+          if (!h.toile.model.connectorById.has(id)) dispatch({ type: "note", text: t("shell:messages.connectorDeletedUndo", { author: h.writer.author }), at: Date.now() });
         });
       },
       openContext: (menu) => dispatch({ type: "context", menu }),
@@ -408,9 +417,17 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       requestEdit: (id, cell) => dispatch({ type: "editRequest", request: { id, cell, at: Date.now() } }),
       insertAt: (kind, at) => {
         if (kind === "connector") { commands.connectorCreate({ start: { kind: "free", x: Math.round(at.x - DEFAULT_LENGTH / 2), y: Math.round(at.y) }, end: { kind: "free", x: Math.round(at.x + DEFAULT_LENGTH / 2), y: Math.round(at.y) } }); return; }
-        const content: Annotation["content"] | null = kind === "note" ? { kind: "note", text: "Note" } : kind === "rectangle" ? { kind: "shape", shape: "rectangle", label: "" } : kind === "ellipse" ? { kind: "shape", shape: "ellipse", label: "" } : kind === "table" ? freshTable([["Colonne 1", "Colonne 2"], ["", ""]]) : null;
+        const content: Annotation["content"] | null = kind === "note" ? { kind: "note", text: t("shell:messages.defaultNote") } : kind === "rectangle" ? { kind: "shape", shape: "rectangle", label: "" } : kind === "ellipse" ? { kind: "shape", shape: "ellipse", label: "" } : kind === "table" ? freshTable([[t("shell:messages.column", { n: 1 }), t("shell:messages.column", { n: 2 })], ["", ""]]) : null;
         if (content) createAnnotation(content, at, {});
       },
+      setTool: (tool) => {
+        if (current().tool === tool) return;
+        dispatch({ type: "tool", tool });
+        const hint = t("shell:messages.connectorTool"), note = current().note;
+        if (tool === "connector") dispatch({ type: "note", text: hint, at: Date.now() });
+        else if (note && note.text === hint) dispatch({ type: "note", text: null }); // l'outil rangé : son mode d'emploi aussi
+      },
+      toggleTool: (tool) => commands.setTool(current().tool === tool ? null : tool),
       pickImage: () => { const input = typeof document === "undefined" ? null : document.querySelector<HTMLInputElement>(".toolbar input[type=file]"); if (input) input.click(); },
       paste: (data) => {
         const h = handleRef.current;

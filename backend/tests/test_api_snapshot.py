@@ -33,7 +33,7 @@ def test_snapshot_needs_the_token_and_both_parameters(client: TestClient, auth):
 
 def test_unknown_run_and_missing_snapshot_are_two_different_404(client: TestClient, auth, bundle_dict, monkeypatch):
     unknown = client.get(SNAPSHOT_URL, params=RUN, headers=auth)
-    assert unknown.status_code == 404 and "inconnue" in unknown.json()["detail"]
+    assert unknown.status_code == 404 and unknown.json()["code"] == "run_unknown"
 
     def boom(*_: object) -> None:
         raise RuntimeError("bug de B1")

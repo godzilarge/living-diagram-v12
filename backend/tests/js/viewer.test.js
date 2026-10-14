@@ -1181,7 +1181,7 @@ test("sans nom, rien ne s'enregistre et la page dit quoi faire ; donner son nom 
   dragNode(nodeOf(canvas, "sw-core-02"));
   await tick();
   assert.equal(writer.saved.length, 0);
-  assert.match(document.getElementById("graph-status").textContent, /donnez votre nom \(onglet Intentions\)/);
+  assert.match(document.getElementById("graph-status").textContent, /donnez votre nom pour l'enregistrer/);
   app.activate("intent");
   const view = document.getElementById("view-intent");
   assert.match(view.textContent, /Sans nom, vos déplacements restent locaux/);
@@ -1917,11 +1917,57 @@ test("la carte d'un équipement : le nom dedans, l'icône pleine à gauche, les 
   assert.equal(LD.geometry.chord({ x: 0, y: 0 }, { x: 400, y: 0 }, 0).ends[0].x, 78, "sans boîte connue, comme avant");
 });
 
+test("lot 5 : le nom à 18 dans la même carte, et deux niveaux de détail dans la même boîte (card.ts)", () => {
+  const { LD } = load(page, page.data);
+  const none = { role: null, stack: null };
+  assert.equal(LD.card.LABEL_PX, 18, "le nom passe de 15 à 18");
+  assert.equal(LD.card.CARD_H, 80, "la carte garde sa hauteur");
+  // 22 caractères (le plus long nom écrit en entier) à 18 tiennent dans la largeur maximale, sans la dépasser
+  const longest = "X".repeat(LD.card.LABEL_MAX);
+  assert.equal(LD.card.width(longest, none) <= LD.card.MAX_W, true, "22 caractères tiennent dans " + LD.card.MAX_W);
+  const wide = LD.card.plan(longest, none);
+  assert.equal(wide.label.x + LD.card.monoWidth(longest) <= wide.w / 2, true, "le nom de 22 caractères tient dans la carte");
+  assert.equal(LD.card.width("DC01-CORE-01", none), 6 + 12 + 40 + 12 + Math.ceil(12 * 0.62 * 18 + 2) + 16, "la largeur suit 0,62 em × 18");
+  assert.equal(LD.card.uniformWidth([LD.card.width("DC01-CORE-01", none)]), 240);
+  // une boîte, trois dessins : la géométrie (placement, câbles) ne change pas d'un niveau à l'autre
+  const card = LD.card.plan("DC01-CORE-01", none, 240);
+  assert.deepEqual([card.w, card.h], [240, 80]);
+  const inside = (left, right, pad) => left >= -card.w / 2 + 6 + pad - 0.01 && right <= card.w / 2 - pad + 0.01;
+  // de loin : icône 28, nom 24 en entier, le tout centré à droite du rail
+  const far = card.far;
+  assert.equal(far.text, "DC01-CORE-01", "le nom entier quand il tient");
+  assert.equal(far.icon.scale * LD.icons.SIZE, 28, "l'icône à 28");
+  const farRight = far.label.x + LD.card.monoWidth(far.text, LD.card.FAR_LABEL_PX);
+  assert.equal(inside(far.icon.x, farRight, 8), true, "icône et nom tiennent dans la carte");
+  assert.equal(Math.abs((far.icon.x + farRight) / 2 - 3) < 0.01, true, "centrés sur la partie à droite du rail");
+  assert.equal(far.label.y > 0 && far.label.y < 12, true, "sur une ligne, au milieu de la hauteur");
+  // de très loin : le nom seul, 30, centré, 14 caractères au plus
+  const tiny = card.tiny;
+  assert.equal(tiny.icon, null, "plus d'icône");
+  assert.deepEqual([tiny.text, tiny.label.anchor, tiny.label.x], ["DC01-CORE-01", "middle", 3]);
+  const half = LD.card.monoWidth(tiny.text, LD.card.TINY_LABEL_PX) / 2;
+  assert.equal(inside(tiny.label.x - half, tiny.label.x + half, 4), true, "le nom de 12 caractères tient à 30 dans une carte de 240");
+  // un nom long : raccourci au milieu, début et fin du nom d'origine, toujours dans la carte
+  const name = "a-very-long-hostname-indeed-yes";
+  const long = LD.card.plan(LD.card.displayName(name), none);
+  assert.equal(long.tiny.text.length, LD.card.TINY_LABEL_MAX, "de très loin, 14 caractères");
+  assert.equal(long.tiny.text, LD.card.shortName(name.toUpperCase(), 14), "raccourcir un nom raccourci garde le début et la fin d'origine");
+  assert.equal(long.tiny.text, "A-VERY-…ED-YES");
+  assert.equal(long.far.text, "A-VERY-LO…DEED-YES", "de loin, raccourci à ce qui tient (18 caractères dans 334)");
+  assert.equal(LD.card.plan(LD.card.displayName(name), none, 360).far.text.length, 20, "deux de plus dans une carte de 360");
+  assert.equal(long.far.label.x + LD.card.monoWidth(long.far.text, LD.card.FAR_LABEL_PX) <= long.w / 2 - 8 + 0.01, true, "et il tient");
+  assert.equal(LD.card.shortName("ABCDEFGHIJKLMNOP", 14), "ABCDEFG…KLMNOP", "un caractère de plus au début qu'à la fin");
+  assert.equal(LD.card.displayName(name), "A-VERY-LONG…INDEED-YES", "à 22, inchangé");
+  assert.equal(LD.card.STUB_R, 10, "le disque d'un voisin inconnu passe à 10");
+});
+
 test("une largeur de carte unique par run : la plus large, arrondie à deux carreaux de grille ; le placement la respecte", () => {
   const { LD, document } = load(page, page.data);
   const model = LD.app.model;
   const cards = model.nodes.filter((n) => n.kind !== "stub");
-  const natural = cards.map((n) => LD.card.width(LD.card.displayName(n.hostname), LD.model.cardExtrasOf(model, n)));
+  // mesurée sur le nom seul (lot 5 de docs/11) : l'application n'écrit plus le rôle HA ni le stack sous le nom
+  const natural = cards.map((n) => LD.card.width(LD.card.displayName(n.hostname), { role: null, stack: null }));
+  assert.equal(model.cardWidth, LD.card.uniformWidth(natural), "la largeur commune : celle des noms, rien de réservé pour une ligne que la carte n'écrit plus");
   assert.equal(model.cardWidth % LD.card.WIDTH_STEP, 0, "un multiple de " + LD.card.WIDTH_STEP + " : les bords tombent sur la grille");
   assert.equal(model.cardWidth >= Math.max(...natural) && model.cardWidth < Math.max(...natural) + LD.card.WIDTH_STEP, true, "la plus large, arrondie au palier supérieur");
   assert.equal(LD.card.CARD_H % 20, 0, "la hauteur aussi est un multiple de la grille");
@@ -2244,7 +2290,7 @@ test("le modèle indexe les annotations et dit lesquelles sont orphelines ; la s
   assert.equal(LD.model.selectionFromToken(model, "annotation", "a9-9"), null);
   const lines = LD.tip.annotationLines(model.annotationById.get("a2-2"));
   assert.match(LD.tip.text(lines), /tableau · attachée à sw-core-01/);
-  assert.match(LD.tip.text(lines), /annotation de alice/);
+  assert.match(LD.tip.text(lines), /annotation · alice/);
   // Les connecteurs (1.4.0) : indexés par bout, orphelin quand un bout vise un absent, dessinés avec leurs bouts, éclairés avec eux.
   assert.deepEqual(clone(Array.from(model.connectorById.keys())), ["c2-1", "c2-2"]);
   assert.deepEqual(clone((model.connectorsByRef.get("device\u0000sw-core-01") || []).map((c) => c.id)), ["c2-1"]);

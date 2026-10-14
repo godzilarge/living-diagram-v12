@@ -6,6 +6,7 @@
 import { Check, ChevronDown, ChevronsLeftRight, Minus, MoreHorizontal, Plus } from "lucide-react";
 import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
+import { punct, t } from "../../i18n";
 
 const cx = (...names: (string | false | null | undefined)[]): string => names.filter(Boolean).join(" ");
 
@@ -229,7 +230,7 @@ export function NumberField({ label, prefix = <ChevronsLeftRight />, value, min,
   };
   return (
     <span className={cx("ctl ctl-num", disabled && "disabled")}>
-      <span className="ctl-prefix" aria-hidden="true" title={disabled ? undefined : "glisser pour changer"} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>{prefix}</span>
+      <span className="ctl-prefix" aria-hidden="true" title={disabled ? undefined : t("panel:ui.drag")} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>{prefix}</span>
       <input inputMode="numeric" aria-label={label} value={text} disabled={disabled} spellCheck={false}
         onChange={(event) => setText(event.target.value)} onBlur={() => commit(parsed())} onKeyDown={keys} />
       {unit ? <span className="ctl-unit" aria-hidden="true">{unit}</span> : null}
@@ -237,7 +238,8 @@ export function NumberField({ label, prefix = <ChevronsLeftRight />, value, min,
   );
 }
 
-export type Option<T extends string> = { value: T; label: string; icon?: ReactNode };
+/** `lang` : la langue du libellé quand elle n'est pas celle de la page (le nom d'une langue, lu dans sa langue). */
+export type Option<T extends string> = { value: T; label: string; icon?: ReactNode; lang?: string };
 
 /** Un choix exclusif dans une piste ; en icônes quand elles existent (le mot passe en infobulle). ← → au clavier. */
 export function Segmented<T extends string>({ label, options, value, onPick, iconOnly = false, disabled = false }: {
@@ -257,7 +259,7 @@ export function Segmented<T extends string>({ label, options, value, onPick, ico
       {options.map((option) => {
         const on = option.value === value;
         return (
-          <button key={option.value} type="button" role="radio" className="seg-item" aria-checked={on ? "true" : "false"} tabIndex={on ? 0 : -1} disabled={disabled}
+          <button key={option.value} type="button" role="radio" className="seg-item" lang={option.lang} aria-checked={on ? "true" : "false"} tabIndex={on ? 0 : -1} disabled={disabled}
             aria-label={iconOnly ? option.label : undefined} title={iconOnly ? option.label : undefined} onClick={() => onPick(option.value)}>
             {option.icon}{iconOnly && option.icon ? null : <span>{option.label}</span>}
           </button>
@@ -315,10 +317,10 @@ export function HueField<H extends string>({ label, hues, names, value, inherite
   };
   return (
     <div className="ctl-hue" ref={box}>
-      <button type="button" className="ctl hue-trigger" aria-haspopup="true" aria-expanded={open ? "true" : "false"} aria-label={label + " : " + (shown ? names[shown] : "aucune")} onClick={() => setOpen(!open)}>
+      <button type="button" className="ctl hue-trigger" aria-haspopup="true" aria-expanded={open ? "true" : "false"} aria-label={label + punct.colon() + (shown ? names[shown] : t("panel:ui.none"))} onClick={() => setOpen(!open)}>
         <span className={cx("hue-dot", shown && "hue-" + shown)} aria-hidden="true" />
         <span className="hue-name">{shown ? names[shown] : "—"}</span>
-        {value === null && allowDefault ? <span className="hue-origin">défaut</span> : null}
+        {value === null && allowDefault ? <span className="hue-origin">{t("panel:swatches.default")}</span> : null}
         <ChevronDown className="hue-chevron" aria-hidden="true" />
       </button>
       {open ? (
@@ -332,7 +334,7 @@ export function HueField<H extends string>({ label, hues, names, value, inherite
           {allowDefault ? (
             <button type="button" role="radio" className="menu-item hue-default" aria-checked={value === null ? "true" : "false"} onClick={() => pick(null)}>
               <span className={cx("hue-dot", inherited && "hue-" + inherited)} aria-hidden="true" />
-              <span>Défaut{inherited ? " : " + names[inherited] : ""}</span>
+              <span>{t("panel:ui.default")}{inherited ? punct.colon() + names[inherited] : ""}</span>
               {value === null ? <Check className="menu-check" aria-hidden="true" /> : null}
             </button>
           ) : null}
@@ -363,7 +365,7 @@ export function PositionField<T extends string>({ label, options, names, value, 
   };
   return (
     <div className="ctl-pos" ref={box}>
-      <button type="button" className="ctl pos-trigger" aria-haspopup="true" aria-expanded={open ? "true" : "false"} aria-label={label + " : " + (names[value] || value)} onClick={() => setOpen(!open)}>
+      <button type="button" className="ctl pos-trigger" aria-haspopup="true" aria-expanded={open ? "true" : "false"} aria-label={label + punct.colon() + (names[value] || value)} onClick={() => setOpen(!open)}>
         <span className="pos-mini" aria-hidden="true">{options.map((option, i) => <span key={option} className={cx("pos-mini-dot", i === at && "on")} />)}</span>
         <span className="hue-name">{names[value] || value}</span>
         <ChevronDown className="hue-chevron" aria-hidden="true" />
@@ -395,7 +397,7 @@ export function Confirm({ text, action, onConfirm, onCancel }: { text: string; a
   return (
     <div className="insp-confirm" role="alertdialog" aria-label={text} onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onCancel(); } }}>
       <p>{text}</p>
-      <button type="button" className="pbtn" onClick={onCancel}>annuler</button>
+      <button type="button" className="pbtn" onClick={onCancel}>{t("panel:ui.cancel")}</button>
       <button type="button" ref={ref} className="pbtn danger" onClick={onConfirm}>{action}</button>
     </div>
   );
@@ -405,9 +407,9 @@ export function Confirm({ text, action, onConfirm, onCancel }: { text: string; a
 export function Stepper({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
   return (
     <span className="ctl stepper" role="group" aria-label={label}>
-      <IconButton label={"retirer : " + label} disabled={value <= min} onClick={() => onChange(value - 1)}><Minus /></IconButton>
+      <IconButton label={t("panel:ui.remove", { what: label })} disabled={value <= min} onClick={() => onChange(value - 1)}><Minus /></IconButton>
       <span className="stepper-value">{value}</span>
-      <IconButton label={"ajouter : " + label} disabled={value >= max} onClick={() => onChange(value + 1)}><Plus /></IconButton>
+      <IconButton label={t("panel:ui.add", { what: label })} disabled={value >= max} onClick={() => onChange(value + 1)}><Plus /></IconButton>
     </span>
   );
 }

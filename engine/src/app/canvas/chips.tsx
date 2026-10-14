@@ -6,6 +6,7 @@
 import { Layers } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import type { StackMember } from "../../contracts/snapshot";
 import type { CardPlan } from "../../canvas/card";
 import { PILL_H } from "../../canvas/pill";
@@ -14,9 +15,10 @@ import { PillSvg, pillSvgWidth } from "./pill";
 export interface HaChip { letter: "A" | "P"; down: boolean; title: string }
 
 const TOP_ROOM = 64, ROW_INSET = 16, GAP = 6, DOT_R = 5;
-const HA_TEXT = { A: "actif", P: "passif" } as const;
+const HA_KEY = { A: "canvas.haActive", P: "canvas.haPassive" } as const;
 
 export function Chips({ plan, ha, count, severity, open, onToggle }: { plan: CardPlan; ha: HaChip | null; count: number; severity: string | null; open: boolean; onToggle: () => void }) {
+  const { t } = useTranslation();
   const dot = severity === "error" || severity === "warning" ? severity : null;
   if (!ha && !count && !dot) return null;
   const top = -plan.h / 2 - PILL_H / 2;
@@ -25,7 +27,7 @@ export function Chips({ plan, ha, count, severity, open, onToggle }: { plan: Car
   if (dot) right -= 2 * DOT_R + GAP;
   const stackText = String(count), sw = count ? pillSvgWidth(stackText, "icon") : 0, sx = right - sw;
   if (count) right = sx - GAP;
-  const haText = ha ? (ha.down ? "down" : HA_TEXT[ha.letter]) : "", hx = right - (ha ? pillSvgWidth(haText) : 0);
+  const haText = ha ? t(ha.down ? "canvas.haDown" : HA_KEY[ha.letter]) : "", hx = right - (ha ? pillSvgWidth(haText) : 0);
   const toggle = (event: MouseEvent | KeyboardEvent): void => { event.stopPropagation(); event.preventDefault(); onToggle(); };
   const keys = (event: KeyboardEvent): void => { if (event.key === "Enter" || event.key === " ") toggle(event); };
   return (
@@ -37,7 +39,7 @@ export function Chips({ plan, ha, count, severity, open, onToggle }: { plan: Car
       ) : null}
       {count ? (
         <g className={"chip-stack nodrag nopan" + (open ? " open" : "")} role="button" tabIndex={0} aria-expanded={open ? "true" : "false"}
-          aria-label={"stack de " + count + " membres : voir la liste"} onClick={toggle} onKeyDown={keys} onPointerDown={(event) => event.stopPropagation()}>
+          aria-label={t("canvas.stackOpen", { count })} onClick={toggle} onKeyDown={keys} onPointerDown={(event) => event.stopPropagation()}>
           <PillSvg x={sx} y={top} text={stackText} tone="neutral" icon={Layers} />
         </g>
       ) : null}
@@ -48,6 +50,7 @@ export function Chips({ plan, ha, count, severity, open, onToggle }: { plan: Car
 
 /** La liste des membres d'un stack, au-dessus de la carte. */
 export function StackList({ hostname, members, onClose }: { hostname: string; members: StackMember[]; onClose: () => void }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [below, setBelow] = useState(false);
   // Pas la place au-dessus de la carte (sous la barre du haut) : la liste s'ouvre dessous.
@@ -66,8 +69,8 @@ export function StackList({ hostname, members, onClose }: { hostname: string; me
   }, [onClose]);
   const close = (event: MouseEvent): void => { event.stopPropagation(); onClose(); };
   return (
-    <div ref={ref} className={"stack-list nodrag nopan nowheel" + (below ? " below" : "")} role="dialog" aria-label={"membres du stack " + hostname} onClick={close} onPointerDown={(event) => event.stopPropagation()}>
-      <div className="stack-list-head"><Layers aria-hidden="true" />stack · {members.length} membres</div>
+    <div ref={ref} className={"stack-list nodrag nopan nowheel" + (below ? " below" : "")} role="dialog" aria-label={t("canvas.stackList", { host: hostname })} onClick={close} onPointerDown={(event) => event.stopPropagation()}>
+      <div className="stack-list-head"><Layers aria-hidden="true" />{t("canvas.stackHead", { count: members.length })}</div>
       <ol>
         {members.map((m) => (
           <li key={m.slot}>

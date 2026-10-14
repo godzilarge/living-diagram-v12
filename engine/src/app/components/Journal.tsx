@@ -11,21 +11,23 @@
 import { History, Info, Link, RotateCw, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
+import { t } from "../../i18n";
 import { ACTION_LABEL, byDay, CATEGORY_LABEL, entriesOf, isTrace, filtered, firstEntry, fold, PERIOD_LABEL, rangeLabel, zoneLabel } from "../state/journal";
 import type { JournalFilters, JournalItem, JournalPage, RefKind } from "../state/journal";
 import type { Model } from "../../canvas/types";
-import { firstRef } from "../state/journal-text";
+import { firstRef, subjectLabel } from "../state/journal-text";
 import { useModel, useStore } from "../state/store";
-import { Button, plural } from "../ui";
+import { Button } from "../ui";
 import { Facets } from "./journal/Facets";
 import { Row } from "./journal/Row";
-import { goneWord } from "./journal/shared";
+import { goneWord, slotted } from "./journal/shared";
 import type { Presence } from "./journal/shared";
 import { Tools } from "./journal/Tools";
+import { sayText } from "../state/said";
 
-const NOTE = "Le journal garde ce qui a été posé, pas ce qu'il y avait avant ; une annulation (Ctrl+Z) s'y lit comme une modification. L'auteur est le nom saisi dans la page, pas un compte. Les heures sont locales.";
-const totalText = (n: number, narrowed: boolean): string => (!n ? (narrowed ? "aucune modification ne correspond" : "aucune modification")
-  : plural(n, "modification") + (narrowed ? (n > 1 ? " correspondent" : " correspond") : ""));
+const totalText = (n: number, narrowed: boolean): string => (!n ? t(narrowed ? "journal:ui.noneMatch" : "journal:ui.none")
+  : t(narrowed ? "journal:ui.totalMatch" : "journal:ui.total", { count: n }));
 
 /** Ce qu'un objet cité est devenu : on ne le sait que pour l'infrastructure dont la run est ouverte. */
 function usePresence(): Presence {
@@ -42,7 +44,7 @@ function usePresence(): Presence {
 /** Les filtres posés, en mots (l'état vide les rappelle : on sait ce qu'on cherchait). */
 function filtersText(f: JournalFilters): string[] {
   const out: string[] = [];
-  if (f.q.trim()) out.push("« " + f.q.trim() + " »");
+  if (f.q.trim()) out.push(t("journal:fact.quoted", { text: f.q.trim() }));
   if (f.categories.length) out.push(f.categories.map((c) => CATEGORY_LABEL[c]).join(", "));
   if (f.actions.length) out.push(f.actions.map((a) => ACTION_LABEL[a]).join(", "));
   if (f.authors.length) out.push(f.authors.join(", "));
@@ -54,7 +56,7 @@ function filtersText(f: JournalFilters): string[] {
 /** Le nom d'un objet dont on lit l'historique : celui que le journal lui connaît, sinon celui de la run, sinon lui. */
 function objectName(object: string, page: JournalPage | null, model: Model | null): string {
   const cited = page ? page.entries.flatMap((e) => e.subjects).find((s) => s.id === object && s.label) : undefined;
-  if (cited) return cited.label;
+  if (cited) return subjectLabel(cited);
   const group = model ? model.groupById.get(object) : undefined;
   return group && group.label ? group.label : object;
 }
@@ -62,31 +64,31 @@ function objectName(object: string, page: JournalPage | null, model: Model | nul
 /** Sous l'en-tête : l'historique d'un objet (retirable) et le lien vers une entrée (« voir les plus récentes »). */
 function Context({ page }: { page: JournalPage | null }) {
   const { state, commands } = useStore();
+  const { t } = useTranslation("journal");
   const model = useModel();
   const f = state.view.journal;
   if (!f.object && f.rev === null) return null;
   return (
     <div className="j-context">
-      {f.object ? <span className="j-chip"><History aria-hidden="true" />Historique de <b>{objectName(f.object, page, model)}</b>
-        <button type="button" className="j-chip-x" aria-label="quitter l'historique" title="quitter l'historique" onClick={() => commands.setJournal({ object: "" })}><X aria-hidden="true" /></button></span> : null}
+      {f.object ? <span className="j-chip"><History aria-hidden="true" />{slotted((name) => t("ui.historyOf", { name }), <b>{objectName(f.object, page, model)}</b>)}
+        <button type="button" className="j-chip-x" aria-label={t("ui.leaveHistory")} title={t("ui.leaveHistory")} onClick={() => commands.setJournal({ object: "" })}><X aria-hidden="true" /></button></span> : null}
       {f.rev !== null ? <span className="j-linked"><Link aria-hidden="true" />
-        {!page || !page.start_missing ? <>Lien vers la révision r{f.rev}.</>
-          : page.entries.length && isTrace(page.entries[0]) ? <>La révision r{f.rev} a été purgée du journal : voici la purge qui l'a retirée.</>
-          : <>La révision r{f.rev} n'est pas dans le journal (purgée, ou hors des filtres) : voici les entrées les plus proches.</>}
-        <button type="button" className="j-link-btn" onClick={() => commands.setJournal({})}>Voir les plus récentes</button></span> : null}
+        {t(!page || !page.start_missing ? "ui.linkTo" : page.entries.length && isTrace(page.entries[0]) ? "ui.purgedRev" : "ui.missingRev", { rev: f.rev })}
+        <button type="button" className="j-link-btn" onClick={() => commands.setJournal({})}>{t("ui.latest")}</button></span> : null}
     </div>
   );
 }
 
 function States({ narrowed }: { narrowed: boolean }) {
   const { state, commands } = useStore();
+  const { t } = useTranslation("journal");
   const j = state.journal;
   if (j.kind === "failed") {
     return (
       <div className="j-state error" role="alert">
-        <p className="j-state-title"><TriangleAlert aria-hidden="true" />Le journal n'a pas pu être lu.</p>
-        <p className="j-state-detail">{j.message}. Réessayez ; si l'erreur revient, le journal du serveur est à vérifier.</p>
-        <Button onClick={() => commands.loadJournal(false)}><RotateCw /> Réessayer</Button>
+        <p className="j-state-title"><TriangleAlert aria-hidden="true" />{t("ui.failedTitle")}</p>
+        <p className="j-state-detail">{t("ui.failedDetail", { message: sayText(j.message) })}</p>
+        <Button onClick={() => commands.loadJournal(false)}><RotateCw /> {t("ui.retry")}</Button>
       </div>
     );
   }
@@ -95,15 +97,16 @@ function States({ narrowed }: { narrowed: boolean }) {
   const posed = filtersText(state.view.journal);
   return (
     <div className="j-state">{narrowed ? <>
-      <p className="j-state-title">Aucune modification ne correspond.</p>
-      {posed.length ? <p className="j-state-detail">Filtres posés : {posed.join(" · ")}</p> : null}
-      <Button onClick={reset}>Effacer les filtres</Button></>
-      : <p>Aucune modification enregistrée. Chaque épingle, couleur, groupe, annotation ou connecteur enregistré sous un nom s'inscrit ici.</p>}</div>
+      <p className="j-state-title">{t("ui.noMatchTitle")}</p>
+      {posed.length ? <p className="j-state-detail">{t("ui.posed", { filters: posed.join(" · ") })}</p> : null}
+      <Button onClick={reset}>{t("ui.clearFilters")}</Button></>
+      : <p>{t("ui.emptyLog")}</p>}</div>
   );
 }
 
 /** Le volet d'aide : les raccourcis et ce que le journal garde (il était sous cent lignes, en bas de page). */
 function Help({ onClose, onLeave }: { onClose: () => void; onLeave: () => void }) {
+  const { t } = useTranslation("journal");
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     box.current?.focus();
@@ -111,19 +114,19 @@ function Help({ onClose, onLeave }: { onClose: () => void; onLeave: () => void }
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, [onClose]);
-  const keys: [string[], string][] = [[["/"], "chercher"], [["↑", "↓"], "entrée précédente, suivante"], [["Entrée"], "déplier le détail"],
-    [["o"], "montrer l'objet cité dans le Diagramme"], [["Échap"], "vider la recherche"]];
+  const keys: [string[], string][] = [[["/"], t("ui.keySearch")], [["↑", "↓"], t("ui.keyPrevNext")], [[t("ui.keyEnter")], t("ui.keyUnfold")],
+    [["o"], t("ui.keyShow")], [[t("ui.keyEscape")], t("ui.keyClear")]];
   return (
-    <div ref={box} className="j-help" role="dialog" aria-label="aide du journal" tabIndex={-1}
+    <div ref={box} className="j-help" role="dialog" aria-label={t("ui.help")} tabIndex={-1}
       onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); } }}
       onBlur={(event) => { const to = event.relatedTarget as Node | null; if (to && !event.currentTarget.contains(to) && !(to as HTMLElement).closest?.(".j-help-open")) onLeave(); }}>
-      <div className="j-help-head"><h2>Lire le journal</h2><button type="button" className="j-help-close" aria-label="fermer l'aide" onClick={onClose}><X aria-hidden="true" /></button></div>
+      <div className="j-help-head"><h2>{t("ui.helpTitle")}</h2><button type="button" className="j-help-close" aria-label={t("ui.closeHelp")} onClick={onClose}><X aria-hidden="true" /></button></div>
       <dl className="j-keys">{keys.map(([k, what]) => <div key={what}><dt>{k.map((key) => <kbd key={key}>{key}</kbd>)}</dt><dd>{what}</dd></div>)}</dl>
       <ul className="j-help-notes">
-        <li>Une ligne est une requête acceptée ; la révision est celle de l'intention juste après.</li>
-        <li>Le journal garde la valeur posée, pas celle d'avant ; une annulation (Ctrl+Z) s'y lit comme une modification.</li>
-        <li>L'auteur est le nom saisi dans la page : il est déclaré, pas authentifié.</li>
-        <li>Les heures sont locales ; l'export CSV les écrit en UTC.</li>
+        <li>{t("ui.helpOne")}</li>
+        <li>{t("ui.helpTwo")}</li>
+        <li>{t("ui.helpThree")}</li>
+        <li>{t("ui.helpFour")}</li>
       </ul>
     </div>
   );
@@ -131,13 +134,14 @@ function Help({ onClose, onLeave }: { onClose: () => void; onLeave: () => void }
 
 export function Journal() {
   const { state, commands } = useStore();
+  const { t, i18n } = useTranslation("journal");
   const f = state.view.journal, j = state.journal, ui = state.journalUi;
   const page = j.kind === "ready" || j.kind === "loading" ? j.page : null;
   const busy = j.kind === "loading", more = j.kind === "ready" && j.more;
   const presence = usePresence();
   const words = useMemo(() => f.q.trim().split(/\s+/).filter(Boolean), [f.q]);
   const items = useMemo(() => (page ? fold(page.entries) : []), [page]);
-  const days = useMemo(() => byDay(items, Date.now()), [items]);
+  const days = useMemo(() => byDay(items, Date.now()), [items, i18n.language]);
   const main = useRef<HTMLDivElement>(null), head = useRef<HTMLElement>(null), foot = useRef<HTMLDivElement>(null);
   const scrolled = useRef(ui.scroll); // tenu à chaque défilement : au démontage, `.j-main` est déjà détaché (scrollTop = 0)
   const [active, setActive] = useState<string | null>(ui.active);
@@ -235,42 +239,42 @@ export function Journal() {
       if (!item || !ref) return;
       event.preventDefault();
       if (presence(firstEntry(item).infrastructure, ref.ref, ref.id)) show(firstEntry(item).infrastructure, ref.ref, ref.id);
-      else setSaid(ref.text + " : " + goneWord(ref.ref) + ", rien à montrer"); // « o » ne faisait rien, sans le dire
+      else setSaid(t("ui.nothingToShow", { name: ref.text, gone: goneWord(ref.ref) })); // « o » ne faisait rien, sans le dire
     }
   };
   const toList = (): void => { const el = main.current?.querySelector<HTMLElement>('.j-row-head[tabindex="0"]'); if (el) el.focus(); };
   const closeHelp = useCallback(() => { setHelp(false); main.current?.querySelector<HTMLElement>(".j-help-open")?.focus(); }, []);
   const narrowed = filtered(f);
   const all = f.infrastructure === "*";
-  const scope = all ? "toutes les infrastructures" : f.infrastructure && f.infrastructure !== state.address.infrastructure ? f.infrastructure : "";
+  const scope = all ? t("ui.allInfrastructures") : f.infrastructure && f.infrastructure !== state.address.infrastructure ? f.infrastructure : "";
   // pendant une lecture, le compte d'avant reste (une lecture dure quelques millisecondes : « lecture… » clignotait)
-  const status = j.kind === "failed" ? "lecture impossible" : !page ? "lecture…" : totalText(page.total, narrowed);
+  const status = j.kind === "failed" ? t("ui.unreadableStatus") : !page ? t("ui.reading") : totalText(page.total, narrowed);
   return (
-    <section className="journal" aria-label="journal des modifications">
+    <section className="journal" aria-label={t("ui.section")}>
       <div className="j-main" ref={main} onScroll={(event) => { scrolled.current = event.currentTarget.scrollTop; }}>
-        <button type="button" className="j-skip" onClick={toList}>Aller aux entrées</button>
+        <button type="button" className="j-skip" onClick={toList}>{t("ui.skip")}</button>
         <header className="j-head" ref={head}>
           <div className="j-title">
             <div className="j-title-row">
-              <h1>Journal</h1>
-              <button type="button" className="j-help-open" aria-label="aide du journal : raccourcis et limites" aria-expanded={help ? "true" : "false"} aria-haspopup="dialog"
-                title="raccourcis et limites du journal" onClick={() => setHelp((open) => !open)}><Info aria-hidden="true" /></button>
+              <h1>{t("ui.title")}</h1>
+              <button type="button" className="j-help-open" aria-label={t("ui.helpOpen")} aria-expanded={help ? "true" : "false"} aria-haspopup="dialog"
+                title={t("ui.helpOpenTitle")} onClick={() => setHelp((open) => !open)}><Info aria-hidden="true" /></button>
               {help ? <Help onClose={closeHelp} onLeave={() => setHelp(false)} /> : null}
             </div>
-            <p><span aria-live="polite">{status}{scope ? <> · {scope}</> : null}</span> · heures {zoneLabel(Date.now())}</p>
+            <p><span aria-live="polite">{status}{scope ? <> · {scope}</> : null}</span> · {t("ui.zone", { zone: zoneLabel(Date.now()) })}</p>
           </div>
           <Tools />
           <Context page={page} />
         </header>
         <span className="sr-only" aria-live="polite">{said}</span>
-        {page && page.unreadable ? <p className="j-warn"><TriangleAlert aria-hidden="true" />{plural(page.unreadable, "ligne illisible sautée", "lignes illisibles sautées")} dans le journal du serveur</p> : null}
+        {page && page.unreadable ? <p className="j-warn"><TriangleAlert aria-hidden="true" />{t("ui.unreadable", { count: page.unreadable })}</p> : null}
         <States narrowed={narrowed} />
         {page && page.entries.length ? (
           <div className={"j-list" + (busy ? " busy" : "") + (all ? " with-infra" : "")} aria-busy={busy ? "true" : "false"} onKeyDown={keys}>
             <div className="j-table">
               <div className="j-cols" aria-hidden="true">
-                <span>Heure</span><span /><span>Auteur</span><span>Modification</span>{all ? <span className="j-col-infra">Infrastructure</span> : null}
-                <span className="j-col-rev">Révision</span><span />
+                <span>{t("ui.colTime")}</span><span /><span>{t("ui.colAuthor")}</span><span>{t("ui.colChange")}</span>{all ? <span className="j-col-infra">{t("ui.colInfrastructure")}</span> : null}
+                <span className="j-col-rev">{t("ui.colRevision")}</span><span />
               </div>
               {days.map((group) => (
                 <section key={group.day + firstEntry(group.items[0]).at} className="j-day" aria-label={group.day}>
@@ -283,12 +287,12 @@ export function Journal() {
               ))}
             </div>
             <div className="j-foot" ref={foot}>
-              {page.next ? <Button onClick={loadMore} aria-disabled={more ? "true" : undefined}>{more ? "Lecture…" : "Entrées plus anciennes"}</Button> : <span>Début du journal</span>}
-              <span className="j-shown">{f.rev !== null ? page.entries.length + " lues à partir de r" + f.rev + " · " + page.total + " en tout" : page.entries.length + " sur " + page.total}</span>
+              {page.next ? <Button onClick={loadMore} aria-disabled={more ? "true" : undefined}>{more ? t("ui.readingMore") : t("ui.older")}</Button> : <span>{t("ui.start")}</span>}
+              <span className="j-shown">{f.rev !== null ? t("ui.shownFrom", { read: page.entries.length, rev: f.rev, total: page.total }) : t("ui.shownOf", { read: page.entries.length, total: page.total })}</span>
             </div>
           </div>
         ) : null}
-        {page || j.kind === "failed" ? <p className="j-note">{NOTE}</p> : null}
+        {page || j.kind === "failed" ? <p className="j-note">{t("ui.note")}</p> : null}
       </div>
       <Facets />
     </section>

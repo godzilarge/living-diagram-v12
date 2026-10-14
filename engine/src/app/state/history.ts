@@ -4,6 +4,7 @@
 // Une clé modifiée par quelqu'un d'autre depuis (sa valeur n'est plus celle qu'on a laissée) est sautée, jamais
 // écrasée. Les déplacements faits sans nom (locaux) ont leur entrée à part : des positions, rien à envoyer.
 import type { Annotation, Connector, Group, Intent } from "../../canvas/types";
+import { t } from "../../i18n";
 import type { Point } from "../../canvas/layout";
 import type { Op } from "../../shell/apps";
 
@@ -16,8 +17,21 @@ export type AnnotationValue = Pick<Annotation, "anchor" | "x" | "y" | "w" | "h" 
 export type ConnectorValue = Pick<Connector, "start" | "end" | "heads" | "route" | "bend" | "label" | "z" | "locked" | "style">;
 export interface Change { key: string; before: Value; after: Value }
 export type Entry =
-  | { kind: "intent"; label: string; changes: Change[] }
-  | { kind: "local"; label: string; before: Map<string, Point>; after: Map<string, Point> };
+  | { kind: "intent"; label: Label; changes: Change[] }
+  | { kind: "local"; label: Label; before: Map<string, Point>; after: Map<string, Point> };
+
+/** Ce qu'une entrée dit d'elle-même, rangé sans langue (une clé et ses valeurs) : écrit dans la langue de la page au
+ *  moment de le montrer (`labelText`), il suit un changement de langue. */
+export type LabelKey = "moved" | "movedLocal" | "unpinned" | "colored" | "typeColored" | "groupCreated" | "groupDeleted" | "groupChanged"
+  | "annotationCreated" | "annotationDeleted" | "annotationChanged" | "connectorCreated" | "connectorDeleted" | "connectorChanged" | "changed";
+export interface Label { key: LabelKey; who?: { host: string | null; count: number }; name?: string }
+/** Un équipement par son nom, plusieurs par leur nombre. */
+export const whoOf = (hosts: string[]): { host: string | null; count: number } => ({ host: hosts.length === 1 ? hosts[0] : null, count: hosts.length });
+/** « déplacement de 2 équipements », « couleur de sw-01 »… dans la langue de la page. */
+export function labelText(label: Label): string {
+  const who = label.who ? (label.who.host !== null ? label.who.host : t("common:devices", { count: label.who.count })) : "";
+  return t(`history.${label.key}`, { who, name: label.name || "" });
+}
 export interface Plan { ops: Op[]; applied: Change[]; skipped: Change[]; created: string[] }
 
 export const LIMIT = 100;
@@ -137,25 +151,24 @@ export function remap(entry: Entry, ids: Map<string, string>): Entry {
   }) };
 }
 
-const who = (hosts: string[]): string => (hosts.length === 1 ? hosts[0] : hosts.length + " équipements");
-/** Ce que la page dit d'une requête : « déplacement de 2 équipements », « couleur de sw-01 »… */
-export function labelOf(ops: Op[]): string {
+/** Ce que la page dit d'une requête : « déplacement de 2 équipements », « couleur de sw-01 »… (`labelText`). */
+export function labelOf(ops: Op[]): Label {
   const hosts = (kinds: string[]): string[] => Array.from(new Set(ops.flatMap((op) => (kinds.includes(op.op) && "hostname" in op ? [op.hostname] : []))));
-  if (ops.every((op) => op.op === "pin")) return "déplacement de " + who(hosts(["pin"]));
-  if (ops.every((op) => op.op === "unpin")) return "épingle retirée de " + who(hosts(["unpin"]));
-  if (ops.every((op) => op.op === "color" || op.op === "uncolor")) return "couleur de " + who(hosts(["color", "uncolor"]));
-  if (ops.every((op) => op.op === "color_type" || op.op === "uncolor_type")) return "couleur d'un type";
+  if (ops.every((op) => op.op === "pin")) return { key: "moved", who: whoOf(hosts(["pin"])) };
+  if (ops.every((op) => op.op === "unpin")) return { key: "unpinned", who: whoOf(hosts(["unpin"])) };
+  if (ops.every((op) => op.op === "color" || op.op === "uncolor")) return { key: "colored", who: whoOf(hosts(["color", "uncolor"])) };
+  if (ops.every((op) => op.op === "color_type" || op.op === "uncolor_type")) return { key: "typeColored" };
   const create = ops.find((op) => op.op === "group_create");
-  if (create && create.op === "group_create") return "création du groupe " + create.label;
-  if (ops.every((op) => op.op === "group_delete")) return "suppression d'un groupe";
-  if (ops.every((op) => op.op.startsWith("group_"))) return "modification d'un groupe";
-  if (ops.every((op) => op.op === "annotation_create")) return "création d'une annotation";
-  if (ops.every((op) => op.op === "annotation_delete")) return "suppression d'une annotation";
-  if (ops.every((op) => op.op.startsWith("annotation_"))) return "modification d'une annotation";
-  if (ops.every((op) => op.op === "connector_create")) return "création d'un connecteur";
-  if (ops.every((op) => op.op === "connector_delete")) return "suppression d'un connecteur";
-  if (ops.every((op) => op.op.startsWith("connector_"))) return "modification d'un connecteur";
-  return "modification";
+  if (create && create.op === "group_create") return { key: "groupCreated", name: create.label };
+  if (ops.every((op) => op.op === "group_delete")) return { key: "groupDeleted" };
+  if (ops.every((op) => op.op.startsWith("group_"))) return { key: "groupChanged" };
+  if (ops.every((op) => op.op === "annotation_create")) return { key: "annotationCreated" };
+  if (ops.every((op) => op.op === "annotation_delete")) return { key: "annotationDeleted" };
+  if (ops.every((op) => op.op.startsWith("annotation_"))) return { key: "annotationChanged" };
+  if (ops.every((op) => op.op === "connector_create")) return { key: "connectorCreated" };
+  if (ops.every((op) => op.op === "connector_delete")) return { key: "connectorDeleted" };
+  if (ops.every((op) => op.op.startsWith("connector_"))) return { key: "connectorChanged" };
+  return { key: "changed" };
 }
 
 /** La pile : `undo` (le plus récent à la fin), `redo` ; immuable, chaque geste rend une nouvelle pile. */
@@ -165,7 +178,7 @@ export const emptyStack = (): Stack => ({ undo: [], redo: [] });
 export const push = (stack: Stack, entry: Entry): Stack => ({ undo: stack.undo.concat(entry).slice(-LIMIT), redo: [] });
 /** Les entrées locales ne valent que pour la toile qui les a faites : une autre run les oublie. */
 export const dropLocal = (stack: Stack): Stack => ({ undo: stack.undo.filter((e) => e.kind !== "local"), redo: stack.redo.filter((e) => e.kind !== "local") });
-export const labels = (stack: Stack): { undo: string | null; redo: string | null } => ({
+export const labels = (stack: Stack): { undo: Label | null; redo: Label | null } => ({
   undo: stack.undo.length ? stack.undo[stack.undo.length - 1].label : null,
   redo: stack.redo.length ? stack.redo[stack.redo.length - 1].label : null,
 });
@@ -185,4 +198,4 @@ export function discard(stack: Stack, direction: "undo" | "redo"): Stack {
   return direction === "undo" ? { ...stack, undo: stack.undo.slice(0, -1) } : { ...stack, redo: stack.redo.slice(0, -1) };
 }
 
-export const history = { keyOf, valueOf, same, keysOf, record, plan, createdIds, remap, labelOf, emptyStack, push, dropLocal, labels, moved, discard, LIMIT };
+export const history = { keyOf, valueOf, same, keysOf, record, plan, createdIds, remap, labelOf, labelText, emptyStack, push, dropLocal, labels, moved, discard, LIMIT };

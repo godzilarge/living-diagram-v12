@@ -43,6 +43,10 @@ engine/
 └── src/
     ├── index.ts                      assemble `LD`, démarre la page autonome ou la coquille
     ├── contracts/                    GÉNÉRÉS : snapshot.ts, diff.ts, intent.ts (ne pas éditer)
+    ├── i18n/                         la langue de l'interface (2026-10-10) : core.ts (instance i18next sans React, `common` en
+    │                                 français, `t`, `labelMap`, détection : ce que `/view` embarque), index.ts (l'application :
+    │                                 `shell`, `panel`, l'anglais), types.ts (clés typées depuis tous les catalogues français),
+    │                                 locales/<langue>/<espace>.json (fr = référence, en)
     ├── canvas/                       la toile proprement dite, sans rien des pages
     │   ├── types.ts                  le modèle de lecture (entités indexées au-dessus des contrats) et la forme des données de la page
     │   ├── model.ts                  B5 analyse : index du snapshot, du diff et de l'intention, structures, répartition des contrôles
@@ -231,6 +235,12 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   capitales et en chasse fixe (largeur calculée, jamais mesurée), le rôle HA et le compte de stack sur une petite
   ligne dessous. Les couleurs de type sont des jetons (`--type-switch`, `--type-router`, `--type-firewall`…), posées
   par classe `type-*` sur le nœud ; les changer par équipement sera une intention (docs/10).
+- **Le nom se lit en dézoomant** (lot 5 de `docs/11`, 2026-10-13) : le nom fait 18 dans la carte (80 de haut, largeur
+  commune mesurée sur les noms seuls) ; sous 0,6 la toile passe en `zoom-far` (icône 28, nom 24 centré), sous 0,4 en
+  `zoom-tiny` (le nom seul à 30, 14 caractères au plus). Trois dessins dans la même boîte (`card.ts` : `plan().far`,
+  `plan().tiny` ; `nodes.tsx`), un seul montré par classe (`styles/canvas.css`) : placement et câbles ne bougent pas.
+  La run s'ouvre au zoom de lecture 0,55 (`app/canvas/opening.ts`) ; un voisin inconnu est un disque de 10 dans un
+  nœud de 40 × 40, centre sur la grille quand l'aimant est mis.
 - **La couleur d'intention** (`canvas/hues.ts`, `docs/10`) : chaque carte porte la classe `hue-<teinte>` qui pose `--type`
   (rail, icône, minimap, icône de la fiche) ; la teinte vient de l'intention (celle de l'équipement, sinon celle de son
   type) ou du défaut du moteur. Dans la fiche d'un équipement et dans celle d'une sélection multiple (toute la
@@ -247,7 +257,7 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
 - **Les annotations** (`canvas/annotations.ts`, `app/canvas/annotation.tsx`, `cards/AnnotationCard.tsx`, `docs/10` §6) :
   une note, une forme, un tableau ou une image, avec une boîte et un ancrage (libre ; attachée à un équipement ou à un
   groupe : nœud React Flow **enfant** de sa carte ou de son cadre, elle suit le glissé nativement). Sélectionnée et
-  éditable (un nom) : huit poignées (Maj garde le rapport), double-clic sur une note = texte en place ; glissé,
+  éditable (un nom) : huit poignées (Maj garde le rapport, Alt part du centre ; voir plus bas), double-clic sur une note = texte en place ; glissé,
   redimensionnement et édition sont une écriture chacun, la boîte reste posée localement jusqu'à la réponse. Bloc
   **Insérer** dans la barre d'outils (au centre de la vue), couche « annotations » dans Affichage (`notes=0`), fiche
   complète (contenu, ancrage, ligne de rappel, plan, verrou, style, détacher, dupliquer, supprimer en deux clics).
@@ -259,15 +269,86 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   l'écriture ; `components/ContextMenu.tsx` l'exécute par les commandes du store, posé par des variables CSS) ; les
   **connecteurs** (`app/canvas/connector.tsx` : nœud React Flow non glissable qui lit la place vivante de ses bouts dans
   `nodeLookup`, trois poignées à taille d'écran constante visibles au survol ; `cards/ConnectorCard.tsx`) ; **les ancres**
-  (1.5.0 : `app/canvas/anchors.tsx`, quatre points au milieu des côtés de chaque carte, disque, annotation et cadre,
-  survolé ou sélectionné quand on peut écrire ; tirer depuis l'un d'eux crée un connecteur, brouillon dessiné dans le plan
-  par `ViewportPortal` ; `app/canvas/snap.ts`, pur : un bout glissé s'accroche à une ancre à portée, sinon à l'élément
+  (1.5.0, revues au lot 1 de `docs/11` : `app/canvas/anchors.tsx`, quatre points au milieu des côtés de chaque carte,
+  disque, annotation et cadre, **jamais au repos ni sur la sélection**, seulement sur la cible d'un bout qu'on tire ou
+  sous le pointeur quand l'outil connecteur est armé ; `app/canvas/snap.ts`, pur : un bout glissé s'accroche à une ancre à portée, sinon à l'élément
   dessous sur son contour, sinon reste libre, carte avant annotation avant cadre, l'autre bout du connecteur exclu) ; **Ctrl+V** (`Shell.tsx` : une image du presse-papiers part au magasin, un
   texte devient une note).
+- **Ce qu'on manipule se voit** (lot 1 de `docs/11`, 2026-10-13). **Poignées** (`app/canvas/handles.ts`, pur, testé sous
+  Node ; dessinées par `annotation.tsx`) : taille d'écran constante (× 1 / zoom), quatre coins carrés de 8 px, quatre
+  barres de 14 × 5 posées sur les côtés (pas de barre sur un côté de moins de 40 px à l'écran), curseurs de
+  redimensionnement ; Maj garde le rapport (coins), **Alt redimensionne depuis le centre** ; une pastille « L × H » (le
+  `PillSvg` partagé, ton `muted`) colle à la poignée saisie pendant le geste, « X, Y » au-dessus d'une annotation glissée
+  (les valeurs de la fiche) ; l'annotation passe devant le temps du geste. **L'outil connecteur** (`app/canvas/tool.ts`,
+  pur ; `app/canvas/drawing.tsx` le branche) : le bouton de la barre est une bascule (`aria-pressed`), touche **C** hors
+  d'un champ ; armé, la toile prend la croix et ses appuis avant React Flow (ni glissé, ni sélection, ni panoramique) :
+  tirer depuis une ancre (bout fixe) ou l'intérieur d'un élément (bout `auto`) crée le connecteur à la relâche, un clic
+  pose le départ et le clic suivant finit ; Échap ou un second appui le range ; il se range seul après une création,
+  sauf Maj tenue (création en série). État `tool` dans le store, rangé en Contrôle et au changement de run. **Les
+  marques de la cible** (`app/canvas/hover.ts`, pur) : sur l'élément que vise un bout (outil, ou bout d'un connecteur
+  existant), deux cibles comme draw.io : le contour en accent plein = bout `auto`, les quatre ancres = bout fixe, celle à
+  portée (14 px) grossit ; dessinées une seule fois dans une couche par-dessus la toile (`drawing.tsx`, `SketchLayer`,
+  état à part : le pointeur ne redessine qu'elle). **Survol** quand on peut écrire : un liseré d'accent à 50 %, 1 px
+  d'écran, sur l'annotation, le cadre, le connecteur (classe `editable` sur la toile) ; curseur `move` sur une annotation
+  non verrouillée, `default` en Contrôle. **La bulle** (`app/canvas/tips.tsx`, sortie de `Flow.tsx`) ne se montre jamais
+  sur ce qui est sélectionné, ni pendant un geste (glissé, rectangle, redimensionnement, bout tiré, outil armé), ni
+  pendant une édition en place (les nœuds le disent par `hold`). Une annotation attachée se dessine toujours au-dessus de
+  son ancre : sa fiche et son menu ne proposent plus « dessous ». Un groupe se supprime sans confirmation, depuis la fiche
+  comme depuis le menu, et la ligne d'état dit Ctrl+Z.
 - **Les préférences du navigateur** (`state/prefs.ts`, `localStorage` `ld-prefs`, jamais dans l'adresse) : thème
   sombre ou clair (`data-theme` sur la racine, les deux palettes dans `tokens.css`), grille (lignes de 20 unités,
   `Background` de React Flow), aimant (un glissé s'aligne sur la grille, `snapToGrid`), minimap (`MiniMap` de React
   Flow, cartes colorées par type, cadre déplaçable). Réglées par `Controls`, en bas à gauche, avec « cadrer tout ».
+- **La langue** (2026-10-10, `src/i18n/`) : **i18next + react-i18next**, sur une instance propre ; les composants lisent
+  `t` par `useTranslation()` (espace `shell` par défaut, `useTranslation(["shell", "common"])` pour en lire un autre,
+  clé `common:…`), un module TypeScript pur importe `t` de `i18n/`. Catalogues **embarqués** (un JSON par langue et par
+  espace de noms : `common` = vocabulaire partagé, statuts ; `shell` = barre, menu, réglages, accueil), aucune lecture
+  réseau. Le **français est la référence** et type les clés (`tsc` refuse une clé inconnue) ; le repli est le français.
+  **Langue retenue** : celle choisie (menu ou accueil, `LanguageSwitch`, rangée dans `ld-prefs`), sinon la première
+  langue du navigateur que l'on parle, sinon l'anglais ; posée avant le premier rendu avec `<html lang>`, jamais dans
+  l'adresse (un lien partagé reste le même). **Ajouter un texte** : une clé dans `locales/fr/<espace>.json` et la même
+  dans `en/`, avec les mêmes `{{variables}}` ; un pluriel s'écrit par catégories CLDR (`clé_one`, `clé_many`, `clé_other`
+  en français, où `many` sert à 1 000 000 ; `clé_one`, `clé_other` en anglais) et s'appelle `t("clé", { count })`.
+  `_zero` est une forme facultative (« aucun équipement changé ») ; une clé **sans** pluriel ne porte jamais `{{count}}`
+  (i18next y chercherait un pluriel : nommer la variable `total`). Un texte rangé dans l'état (libellé d'annuler, détail
+  d'un résultat de recherche, avertissement de la barre, échec d'une run ou du Journal) se range **sans langue** (clé et
+  valeurs, `history.Label` ; `state/said.ts` : `said(clé, valeurs)` ou `answer(statut, corps)`, écrit par `sayText` à
+  l'affichage) ou se recalcule avec la langue dans sa clé de cache : il suit un changement de langue. Le choix d'une
+  langue passe par `applyLanguage` (`i18n/index.ts`) **avant** de changer l'état (`setPrefs`) : le rendu qui suit parle
+  déjà la nouvelle langue, même un composant qui lit `t` sans le hook. La ponctuation vient du catalogue
+  (`punct.colon()`, `punct.semicolon()`, `common:punct.percent` : « : » avec une espace en français, sans en anglais),
+  jamais `" : "` écrit dans le code. Les clés du Journal sont typées (`tx(clé)`, `ParseKeys<"journal">`) ; une clé
+  composée passe par `dyn(...)`, derrière un ensemble fermé. Les textes que React Flow lit au lecteur d'écran (rôles des
+  nœuds et des arêtes, nom d'un câble) sont posés par `Flow.tsx` depuis `shell:canvas.role` / `cable` / `beam`. **Un module partagé avec `/view`** (`canvas/format.ts`,
+  `hues.ts`, `icons.ts`, `groups.ts`, `annotations.ts`, `connectors.ts`, les hôtes `shell/intent.ts`, `placement.ts`,
+  `http.ts`, la bulle `tip.ts` / `bubble.ts`) lit le catalogue `common` par le noyau (`i18n/core.ts`, sans React) ; ses dictionnaires sont des `labelMap`
+  (lus à chaque accès, `MAP[x] || x` inchangé chez les appelants). `/view` et `ld render` embarquent ce noyau et restent
+  en français : personne n'y change de langue (`viewer.js` passe de 278 à 375 Ko, i18next compris). Espaces de noms :
+  `common` (vocabulaire partagé, messages des hôtes), `shell` (barre, recherche, outils, menus, messages de
+  l'application), `panel` (les fiches), `journal` (la vue Journal), `checks` (le sens des contrôles, le code pour clé ;
+  le français recopie le catalogue du contrat à l'octet, `backend/tests/test_i18n_checks.py` le vérifie ; un code inconnu de
+  la page garde le texte que le serveur embarque, `app/state/checks.ts`). Une date ou un tri passe par `locale()` (`i18n/`),
+  jamais par une locale écrite en dur.
+  `backend/tests/js/i18n.test.js` vérifie tout cela (catégories lues dans `Intl.PluralRules`) et que le fichier construit
+  change de langue. Le Chromium des tests parle `fr-FR` (`tests/browser.py`, `lang=`), un test dédié le met en `en-US`.
+  **Avancement** : lot 1 (socle, barre, menu, réglages, accueil), lot 2 (recherche, barre d'outils et libellés
+  d'annuler / rétablir, panneau Affichage, bande des runs, parcours), lot 3 (les fiches, le menu contextuel, la palette
+  des types, les messages d'état, `format.ts` et les dictionnaires partagés), lot 4 (la toile : bulle `tip.ts` /
+  `bubble.ts` dans `common:tip`, pastilles ACTIVE / PASSIVE et liste d'un stack, noms accessibles des nœuds, aides
+  de React Flow dans `shell:canvas` ; `Flow.tsx` reconstruit ses nœuds et son `ariaLabelConfig` au changement de
+  langue), lot 5 (le Journal : espace `journal`, phrases sans auxiliaire posé par `withAux` (« a {{phrase}} » en
+  français, rien en anglais), dates et tri par `Intl` dans la locale de la langue (`locale()` : `fr-FR`, `en-GB`), « 1er »
+  pour le premier du mois en français, export CSV aux en-têtes et au séparateur de la langue (« ; » / « , »), noms
+  d'objets sans nom venus du serveur traduits par `subjectLabel`), lot 6 (le sens des contrôles, espace `checks` ; le mode
+  d'un cluster HA en mots dans l'application, `haModeText`, `/view` le garde tel qu'enregistré), lot 7 (les refus de l'API : l'API répond en
+  anglais avec un code stable, `shell/http.ts` écrit son texte d'après le code dans `common:http.problem` /
+  `common:http.field`, la phrase anglaise du serveur en repli), lot 8 (**aucune chaîne française en dur** : `strings.mjs`, lancé par
+  `npm run check` et par la suite Python, lit avec le compilateur TypeScript le fichier que l'application livre, arbre
+  secoué et catalogues retirés, et refuse tout texte de `src/` qui a une lettre accentuée du français, un mot outil
+  français, un mot que seul le français des catalogues emploie (lexique tiré des catalogues à chaque lancement, mots
+  du code exclus) ou la typographie française ; une exception se déclare dans `ALLOWED` avec sa raison ; l'onglet Intentions de `/view` vit dans
+  `shell/intent-tab.ts`, que l'application n'embarque plus). **Glossaire anglais** (accepté par Orhan) : équipement = device, câble = cable, contrôle = check,
+  épingle = pin, run = run, jeton = token ; vues Diagram / Checks / Log. `/view` et `ld render` restent en français.
 - **Pas de Tailwind, pas de bibliothèque d'état ni de routeur** (décisions du 2026-10-06) : composants maison dans
   `ui/`, CSS à jetons, `useReducer`.
 

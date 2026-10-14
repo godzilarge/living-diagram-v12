@@ -4,14 +4,13 @@
 // le diff touche (l'équipement lui-même, un câble à un de ses bouts, une interface, un agrégat, son cluster HA) ; le
 // plus touché d'abord, puis par nom.
 import type { Model } from "../../canvas/types";
+import { t } from "../../i18n";
 
 export type WalkKind = "error" | "warning" | "diff";
 export interface Walk { kind: WalkKind; hosts: string[]; index: number }
 
-const WORDS: Record<WalkKind, [string, string]> = { error: ["en erreur", "en erreur"], warning: ["en avertissement", "en avertissement"], diff: ["changé", "changés"] };
-/** « 1 équipement changé », « 4 équipements en erreur », « aucun équipement changé ». */
-export const walkLabel = (kind: WalkKind, n: number): string =>
-  (n ? n + (n > 1 ? " équipements " : " équipement ") : "aucun équipement ") + WORDS[kind][n > 1 ? 1 : 0];
+/** « 1 équipement changé », « 4 équipements en erreur », « aucun équipement changé » (dans la langue de la page). */
+export const walkLabel = (kind: WalkKind, n: number): string => t(`walk.${kind}`, { count: n });
 
 export function walkHosts(model: Model, kind: WalkKind): string[] {
   const weight = new Map<string, number>();

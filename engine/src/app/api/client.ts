@@ -5,21 +5,24 @@ import type { Diff } from "../../contracts/diff";
 import type { Snapshot } from "../../contracts/snapshot";
 import type { CatalogueEntry, IngestData, Intent, PageData, Placement } from "../../canvas/types";
 import type { RunEntry } from "../../shell/apps";
-import { call, explain, isRecord, ROUTES, withParams } from "../../shell/http";
+import { answer, said } from "../state/said";
+import type { Said } from "../state/said";
+import { call, explain, isRecord, problemText, ROUTES, withParams } from "../../shell/http";
+import { t } from "../../i18n";
 import type { JournalPage } from "../state/journal";
 export { explain, readAuthor, readToken, writeAuthor, writeToken } from "../../shell/http";
 
 export interface Session { token: string; infrastructure: string }
-export type RunsResult = { ok: true; runs: RunEntry[] } | { ok: false; status: number; message: string };
-export type RunResult = { ok: true; data: PageData; runs: RunEntry[] | null; warnings: string[]; remembered: boolean } | { ok: false; status: number; message: string };
+export type RunsResult = { ok: true; runs: RunEntry[] } | { ok: false; status: number; message: Said };
+export type RunResult = { ok: true; data: PageData; runs: RunEntry[] | null; warnings: Said[]; remembered: boolean } | { ok: false; status: number; message: Said };
 
 export async function fetchRuns(session: Session): Promise<RunsResult> {
   try {
     const found = await call(ROUTES.runs, { infrastructure: session.infrastructure }, session.token);
     if (found.status === 200 && isRecord(found.body) && Array.isArray(found.body.runs)) return { ok: true, runs: found.body.runs as RunEntry[] };
-    return { ok: false, status: found.status, message: explain(found.status, found.body) };
+    return { ok: false, status: found.status, message: answer(found.status, found.body) };
   } catch (error) {
-    return { ok: false, status: 0, message: "l'API ne répond pas" };
+    return { ok: false, status: 0, message: said("shell:messages.apiDown") };
   }
 }
 
@@ -35,8 +38,8 @@ export async function fetchRun(session: Session, runId: string, from: string, ca
       from ? call(ROUTES.diff, { infrastructure: session.infrastructure, from, to: runId }, token) : Promise.resolve(null),
       call(ROUTES.intent, infra, token), call(ROUTES.placement, infra, token), call(ROUTES.runs, infra, token),
     ]);
-    if (snapshot.status !== 200 || !isRecord(snapshot.body)) return { ok: false, status: snapshot.status, message: explain(snapshot.status, snapshot.body) };
-    const warnings: string[] = [];
+    if (snapshot.status !== 200 || !isRecord(snapshot.body)) return { ok: false, status: snapshot.status, message: answer(snapshot.status, snapshot.body) };
+    const warnings: Said[] = [];
     const reportBody = report.status === 200 && isRecord(report.body) ? report.body : null;
     const data: PageData = {
       snapshot: snapshot.body as unknown as Snapshot,
@@ -45,19 +48,19 @@ export async function fetchRun(session: Session, runId: string, from: string, ca
     };
     if (diff) {
       if (diff.status === 200 && isRecord(diff.body)) data.diff = diff.body as unknown as Diff;
-      else warnings.push("diff indisponible : " + explain(diff.status, diff.body));
+      else warnings.push(said("shell:messages.diffUnavailable", { reason: answer(diff.status, diff.body) }));
     }
     if (intent.status === 200 && isRecord(intent.body)) data.intent = intent.body as unknown as Intent;
-    else warnings.push("intention indisponible : " + explain(intent.status, intent.body));
+    else warnings.push(said("shell:messages.intentUnavailable", { reason: answer(intent.status, intent.body) }));
     let remembered = false;
     if (placement.status === 200 && isRecord(placement.body)) { data.placement = placement.body as unknown as Placement; remembered = true; }
-    else warnings.push("placement mémorisé indisponible : " + explain(placement.status, placement.body));
+    else warnings.push(said("shell:messages.placementUnavailable", { reason: answer(placement.status, placement.body) }));
     let list: RunEntry[] | null = null;
     if (runs.status === 200 && isRecord(runs.body) && Array.isArray(runs.body.runs)) list = runs.body.runs as RunEntry[];
-    else warnings.push("liste des runs indisponible : " + explain(runs.status, runs.body));
+    else warnings.push(said("shell:messages.runsUnavailable", { reason: answer(runs.status, runs.body) }));
     return { ok: true, data, runs: list, warnings, remembered };
   } catch (error) {
-    return { ok: false, status: 0, message: "l'API ne répond pas" };
+    return { ok: false, status: 0, message: said("shell:messages.apiDown") };
   }
 }
 
@@ -74,9 +77,9 @@ export async function uploadAsset(session: Session, file: Blob): Promise<AssetRe
     let body: unknown = null;
     try { body = await response.json(); } catch (error) { body = null; }
     if ((response.status === 201 || response.status === 200) && isRecord(body) && typeof body.asset === "string") return { ok: true, receipt: body as unknown as AssetReceipt };
-    const detail = isRecord(body) && Array.isArray(body.errors) && body.errors.length && isRecord(body.errors[0]) ? String(body.errors[0].message) : "";
-    return { ok: false, message: response.status === 413 ? "image trop lourde (4 Mo au plus)" : response.status === 415 ? "PNG, JPEG ou WebP seulement" : detail || explain(response.status, body) };
-  } catch (error) { return { ok: false, message: "l'API ne répond pas" }; }
+    const refused = response.status === 422 ? problemText(body) : "";
+    return { ok: false, message: response.status === 413 ? t("shell:messages.imageTooLarge") : response.status === 415 ? t("shell:messages.imageFormats") : refused || explain(response.status, body) };
+  } catch (error) { return { ok: false, message: t("shell:messages.apiDown") }; }
 }
 
 /** Lit une image avec le jeton et rend une adresse `blob:` (jamais le jeton dans une adresse) ; `""` si elle manque. */
@@ -86,7 +89,7 @@ export async function readAsset(session: Session, asset: string): Promise<string
   return URL.createObjectURL(await response.blob());
 }
 
-export type JournalResult = { ok: true; page: JournalPage } | { ok: false; status: number; message: string };
+export type JournalResult = { ok: true; page: JournalPage } | { ok: false; status: number; message: Said };
 
 /** Une page du journal des modifications (`GET /api/intent/journal`) ; `params` répétables (`author`, `category`). */
 export async function fetchJournal(token: string, params: [string, string][]): Promise<JournalResult> {
@@ -95,8 +98,8 @@ export async function fetchJournal(token: string, params: [string, string][]): P
     let body: unknown = null;
     try { body = await response.json(); } catch (error) { body = null; }
     if (response.status === 200 && isRecord(body) && Array.isArray(body.entries)) return { ok: true, page: body as unknown as JournalPage };
-    return { ok: false, status: response.status, message: explain(response.status, body) };
+    return { ok: false, status: response.status, message: answer(response.status, body) };
   } catch (error) {
-    return { ok: false, status: 0, message: "l'API ne répond pas" };
+    return { ok: false, status: 0, message: said("shell:messages.apiDown") };
   }
 }

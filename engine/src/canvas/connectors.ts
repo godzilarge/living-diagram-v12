@@ -3,6 +3,7 @@
 // bout). Le tracé est droit, coudé (deux angles droits) ou courbe (un arc) ; la courbure est l'écart du milieu à la
 // corde (courbe) ou le décalage du segment médian (coudé). Ici : les bouts résolus, le chemin SVG, la pointe, la
 // courbure lue d'un glissé, les orphelins, la visibilité. Les deux faces et les tests sous Node lisent la même géométrie.
+import { labelMap, t } from "../i18n/core";
 import { borderPoint } from "./annotations";
 import type { Frame } from "./annotations";
 import type { Point } from "./layout";
@@ -12,7 +13,7 @@ export const ROUTES = ["straight", "elbow", "curve"] as const;
 export const HEADS = ["none", "arrow"] as const;
 export const END_KINDS = ["free", "device", "group", "annotation"] as const;
 export const BOUNDS = { stroke_width: [1, 8], opacity: [10, 100], text_size: [8, 64], bend: [-2000, 2000] } as const;
-export const LABEL: Record<string, string> = { straight: "droit", elbow: "coudé", curve: "courbe", none: "aucune", arrow: "flèche", free: "libre", device: "équipement", group: "groupe", annotation: "annotation" };
+export const LABEL: Record<string, string> = labelMap("common:connectorWord", ["straight", "elbow", "curve", "none", "arrow", "free", "device", "group", "annotation"]);
 /** Les défauts du contrat (`DEFAULT_CONNECTOR_STYLE`, `DEFAULT_HEADS`). */
 export const DEFAULT_STYLE: ConnectorStyle = { hue: "slate", stroke_width: 2, stroke_style: "solid", opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue" };
 export const DEFAULT_HEADS: Connector["heads"] = { start: "none", end: "arrow" };
@@ -23,7 +24,7 @@ export type Side = "auto" | "n" | "e" | "s" | "w";
 export type FixedSide = Exclude<Side, "auto">;
 export const SIDES: readonly Side[] = ["auto", "n", "e", "s", "w"];
 export const FIXED_SIDES: readonly FixedSide[] = ["n", "e", "s", "w"];
-export const SIDE_LABEL: Record<Side, string> = { auto: "automatique", n: "haut", e: "droite", s: "bas", w: "gauche" };
+export const SIDE_LABEL: Record<Side, string> = labelMap("common:side", ["auto", "n", "e", "s", "w"]);
 /** La sortie perpendiculaire d'une ancre fixe, avant le premier coin d'un tracé coudé. */
 export const STUB = 24;
 /** Le contour d'un élément attachable : un rectangle aux coins `rx`, ou une ellipse (un disque de voisin inconnu, une forme). */
@@ -174,7 +175,7 @@ export function bbox(points: Point[], pad = 0): Frame {
 }
 const endText = (e: End): string => (e.kind === "free" ? e.x + ", " + e.y : (LABEL[e.kind] || e.kind) + " " + e.ref + (e.side && e.side !== "auto" ? " (" + SIDE_LABEL[e.side] + ")" : ""));
 /** Un résumé d'une ligne pour une liste ou une bulle. */
-export const summary = (c: Connector): string => (c.heads.start === "arrow" || c.heads.end === "arrow" ? "flèche" : "ligne") + " · " + endText(c.start) + " → " + endText(c.end) + (c.label ? " · " + c.label : "");
+export const summary = (c: Connector): string => t(c.heads.start === "arrow" || c.heads.end === "arrow" ? "common:connectorWord.arrow" : "common:connectorWord.line") + " · " + endText(c.start) + " → " + endText(c.end) + (c.label ? " · " + c.label : "");
 /** Un bout libre à une position du plan, ou attaché. */
 export const freeEnd = (at: Point): End => ({ kind: "free", x: Math.round(at.x), y: Math.round(at.y) });
 export const attachedEnd = (kind: "device" | "group" | "annotation", ref: string, side: Side = "auto"): End => ({ kind, ref, side });

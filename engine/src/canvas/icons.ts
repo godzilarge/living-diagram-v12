@@ -7,6 +7,7 @@
 // la couleur du fond). Tout est en aplat : net à toute échelle, sans trait qui s'affine quand on dézoome. Le type
 // vient du snapshot ; l'icône n'ajoute rien, elle le montre. (Les stencils Visio de Cisco restent la propriété de Cisco
 // et ne se modifient pas : ni recolorables au thème, ni à embarquer dans un bundle ; le vocabulaire est commun, pas le dessin.)
+import { labelMap } from "../i18n/core";
 
 export interface Glyph { body: string; shade: string; mark: string }
 
@@ -89,9 +90,8 @@ const GLYPHS: Record<string, Glyph> = {
   server: { ...box(5, 2, 22, 28, 4), mark: units(5, 2, 22, 28, 3, 1.6) },
   other: { ...box(3, 3, 26, 26, 6), mark: dot(9.5, 16, 2.3) + dot(16, 16, 2.3) + dot(22.5, 16, 2.3) },
 };
-export const LABEL: Record<string, string> = {
-  switch: "switch", router: "routeur", firewall: "firewall", load_balancer: "répartiteur", wireless_controller: "contrôleur Wi-Fi", server: "serveur", other: "autre",
-};
+/** Le nom complet d'un type, dans la langue de la page (catalogue `common:type`). */
+export const LABEL: Record<string, string> = labelMap("common:type", ["switch", "router", "firewall", "load_balancer", "wireless_controller", "server", "other"]);
 /** Le glyphe d'épingle, dans le coin haut gauche d'un équipement épinglé (tracé 16 × 16, au trait). */
 export const PIN = "M8 1.5a4 4 0 0 1 4 4c0 2.8-4 7.5-4 7.5S4 8.3 4 5.5a4 4 0 0 1 4-4z M8 4a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z";
 export const TYPES: string[] = Object.keys(GLYPHS);

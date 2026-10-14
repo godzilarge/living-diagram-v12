@@ -131,7 +131,7 @@
 .j-range { position: absolute; right: 0; top: calc(100% + 8px); z-index: 6; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; width: 320px; padding: 14px;
   border-radius: var(--r); border: 1px solid var(--line-strong); background: var(--bg-elev); box-shadow: var(--shadow); animation: fade var(--t-fast) var(--ease) both; }
 .j-range label { display: flex; flex-direction: column; gap: 5px; font-size: var(--fs-sm); color: var(--ink-2); }
-.j-range input { height: 32px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: var(--fs);
+.j-range input { width: 100%; min-width: 0; box-sizing: border-box; font-variant-numeric: tabular-nums; height: 32px; padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: var(--fs);
   font-variant-numeric: tabular-nums; }
 .j-range input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
 .j-range-note { grid-column: 1 / -1; margin: 0; font-size: var(--fs-sm); color: var(--ink-3); }

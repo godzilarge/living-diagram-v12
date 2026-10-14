@@ -1,14 +1,2669 @@
 // Généré par engine/build.mjs depuis engine/src (TypeScript) : ne pas éditer ici, lancer `npm run build` dans engine/.
 "use strict";
 (() => {
+  // node_modules/i18next/dist/esm/i18next.js
+  var isString = (obj) => typeof obj === "string";
+  var defer = () => {
+    let res;
+    let rej;
+    const promise = new Promise((resolve, reject) => {
+      res = resolve;
+      rej = reject;
+    });
+    promise.resolve = res;
+    promise.reject = rej;
+    return promise;
+  };
+  var makeString = (object) => {
+    if (object == null) return "";
+    return String(object);
+  };
+  var copy = (a, s2, t3) => {
+    a.forEach((m) => {
+      if (s2[m]) t3[m] = s2[m];
+    });
+  };
+  var lastOfPathSeparatorRegExp = /###/g;
+  var cleanKey = (key2) => key2 && key2.includes("###") ? key2.replace(lastOfPathSeparatorRegExp, ".") : key2;
+  var canNotTraverseDeeper = (object) => !object || isString(object);
+  var getLastOfPath = (object, path, Empty) => {
+    const stack = !isString(path) ? path : path.split(".");
+    let stackIndex = 0;
+    while (stackIndex < stack.length - 1) {
+      if (canNotTraverseDeeper(object)) return {};
+      const key2 = cleanKey(stack[stackIndex]);
+      if (!object[key2] && Empty) object[key2] = new Empty();
+      if (Object.prototype.hasOwnProperty.call(object, key2)) {
+        object = object[key2];
+      } else {
+        object = {};
+      }
+      ++stackIndex;
+    }
+    if (canNotTraverseDeeper(object)) return {};
+    return {
+      obj: object,
+      k: cleanKey(stack[stackIndex])
+    };
+  };
+  var setPath = (object, path, newValue) => {
+    const {
+      obj,
+      k
+    } = getLastOfPath(object, path, Object);
+    if (obj !== void 0 || path.length === 1) {
+      obj[k] = newValue;
+      return;
+    }
+    let e = path[path.length - 1];
+    let p = path.slice(0, path.length - 1);
+    let last = getLastOfPath(object, p, Object);
+    while (last.obj === void 0 && p.length) {
+      e = `${p[p.length - 1]}.${e}`;
+      p = p.slice(0, p.length - 1);
+      last = getLastOfPath(object, p, Object);
+      if (last?.obj && typeof last.obj[`${last.k}.${e}`] !== "undefined") {
+        last.obj = void 0;
+      }
+    }
+    last.obj[`${last.k}.${e}`] = newValue;
+  };
+  var pushPath = (object, path, newValue, concat) => {
+    const {
+      obj,
+      k
+    } = getLastOfPath(object, path, Object);
+    obj[k] = obj[k] || [];
+    obj[k].push(newValue);
+  };
+  var getPath = (object, path) => {
+    const {
+      obj,
+      k
+    } = getLastOfPath(object, path);
+    if (!obj) return void 0;
+    if (!Object.prototype.hasOwnProperty.call(obj, k)) return void 0;
+    return obj[k];
+  };
+  var getPathWithDefaults = (data2, defaultData, key2) => {
+    const value2 = getPath(data2, key2);
+    if (value2 !== void 0) {
+      return value2;
+    }
+    return getPath(defaultData, key2);
+  };
+  var deepExtend = (target, source, overwrite) => {
+    for (const prop in source) {
+      if (prop !== "__proto__" && prop !== "constructor") {
+        if (Object.prototype.hasOwnProperty.call(target, prop)) {
+          if (isString(target[prop]) || target[prop] instanceof String || isString(source[prop]) || source[prop] instanceof String) {
+            if (overwrite) target[prop] = source[prop];
+          } else {
+            deepExtend(target[prop], source[prop], overwrite);
+          }
+        } else {
+          target[prop] = source[prop];
+        }
+      }
+    }
+    return target;
+  };
+  var regexEscape = (str) => str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+  var _entityMap = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+    "/": "&#x2F;"
+  };
+  var escape = (data2) => {
+    if (isString(data2)) {
+      return data2.replace(/[&<>"'\/]/g, (s2) => _entityMap[s2]);
+    }
+    return data2;
+  };
+  var RegExpCache = class {
+    constructor(capacity) {
+      this.capacity = capacity;
+      this.regExpMap = /* @__PURE__ */ new Map();
+      this.regExpQueue = [];
+    }
+    getRegExp(pattern) {
+      const regExpFromCache = this.regExpMap.get(pattern);
+      if (regExpFromCache !== void 0) {
+        return regExpFromCache;
+      }
+      const regExpNew = new RegExp(pattern);
+      if (this.regExpQueue.length === this.capacity) {
+        this.regExpMap.delete(this.regExpQueue.shift());
+      }
+      this.regExpMap.set(pattern, regExpNew);
+      this.regExpQueue.push(pattern);
+      return regExpNew;
+    }
+  };
+  var chars = [" ", ",", "?", "!", ";"];
+  var looksLikeObjectPathRegExpCache = new RegExpCache(20);
+  var looksLikeObjectPath = (key2, nsSeparator, keySeparator) => {
+    nsSeparator = nsSeparator || "";
+    keySeparator = keySeparator || "";
+    const possibleChars = chars.filter((c) => !nsSeparator.includes(c) && !keySeparator.includes(c));
+    if (possibleChars.length === 0) return true;
+    const r = looksLikeObjectPathRegExpCache.getRegExp(`(${possibleChars.map((c) => c === "?" ? "\\?" : c).join("|")})`);
+    let matched = !r.test(key2);
+    if (!matched) {
+      const ki = key2.indexOf(keySeparator);
+      if (ki > 0 && !r.test(key2.substring(0, ki))) {
+        matched = true;
+      }
+    }
+    return matched;
+  };
+  var deepFind = (obj, path, keySeparator = ".") => {
+    if (!obj) return void 0;
+    if (obj[path]) {
+      if (!Object.prototype.hasOwnProperty.call(obj, path)) return void 0;
+      return obj[path];
+    }
+    const tokens = path.split(keySeparator);
+    let current = obj;
+    for (let i = 0; i < tokens.length; ) {
+      if (!current || typeof current !== "object") {
+        return void 0;
+      }
+      let next;
+      let nextPath = "";
+      for (let j = i; j < tokens.length; ++j) {
+        if (j !== i) {
+          nextPath += keySeparator;
+        }
+        nextPath += tokens[j];
+        next = current[nextPath];
+        if (next !== void 0) {
+          if (["string", "number", "boolean"].includes(typeof next) && j < tokens.length - 1) {
+            continue;
+          }
+          i += j - i + 1;
+          break;
+        }
+      }
+      current = next;
+    }
+    return current;
+  };
+  var getCleanedCode = (code) => code?.replace(/_/g, "-");
+  var consoleLogger = {
+    type: "logger",
+    log(args) {
+      this.output("log", args);
+    },
+    warn(args) {
+      this.output("warn", args);
+    },
+    error(args) {
+      this.output("error", args);
+    },
+    output(type, args) {
+      console?.[type]?.apply?.(console, args);
+    }
+  };
+  var Logger = class _Logger {
+    constructor(concreteLogger, options = {}) {
+      this.init(concreteLogger, options);
+    }
+    init(concreteLogger, options = {}) {
+      this.prefix = options.prefix || "i18next:";
+      this.logger = concreteLogger || consoleLogger;
+      this.options = options;
+      this.debug = options.debug;
+    }
+    log(...args) {
+      return this.forward(args, "log", "", true);
+    }
+    warn(...args) {
+      return this.forward(args, "warn", "", true);
+    }
+    error(...args) {
+      return this.forward(args, "error", "");
+    }
+    deprecate(...args) {
+      return this.forward(args, "warn", "WARNING DEPRECATED: ", true);
+    }
+    forward(args, lvl, prefix, debugOnly) {
+      if (debugOnly && !this.debug) return null;
+      args = args.map((a) => isString(a) ? a.replace(/[\r\n\x00-\x1F\x7F]/g, " ") : a);
+      if (isString(args[0])) args[0] = `${prefix}${this.prefix} ${args[0]}`;
+      return this.logger[lvl](args);
+    }
+    create(moduleName) {
+      return new _Logger(this.logger, {
+        ...{
+          prefix: `${this.prefix}:${moduleName}:`
+        },
+        ...this.options
+      });
+    }
+    clone(options) {
+      options = options || this.options;
+      options.prefix = options.prefix || this.prefix;
+      return new _Logger(this.logger, options);
+    }
+  };
+  var baseLogger = new Logger();
+  var EventEmitter = class {
+    constructor() {
+      this.observers = {};
+    }
+    on(events, listener) {
+      events.split(" ").forEach((event) => {
+        if (!this.observers[event]) this.observers[event] = /* @__PURE__ */ new Map();
+        const numListeners = this.observers[event].get(listener) || 0;
+        this.observers[event].set(listener, numListeners + 1);
+      });
+      return this;
+    }
+    off(event, listener) {
+      if (!this.observers[event]) return;
+      if (!listener) {
+        delete this.observers[event];
+        return;
+      }
+      this.observers[event].delete(listener);
+    }
+    once(event, listener) {
+      const wrapper = (...args) => {
+        listener(...args);
+        this.off(event, wrapper);
+      };
+      this.on(event, wrapper);
+      return this;
+    }
+    emit(event, ...args) {
+      if (this.observers[event]) {
+        const cloned = Array.from(this.observers[event].entries());
+        cloned.forEach(([observer, numTimesAdded]) => {
+          for (let i = 0; i < numTimesAdded; i++) {
+            observer(...args);
+          }
+        });
+      }
+      if (this.observers["*"]) {
+        const cloned = Array.from(this.observers["*"].entries());
+        cloned.forEach(([observer, numTimesAdded]) => {
+          for (let i = 0; i < numTimesAdded; i++) {
+            observer(event, ...args);
+          }
+        });
+      }
+    }
+  };
+  var ResourceStore = class extends EventEmitter {
+    constructor(data2, options = {
+      ns: ["translation"],
+      defaultNS: "translation"
+    }) {
+      super();
+      this.data = data2 || {};
+      this.options = options;
+      if (this.options.keySeparator === void 0) {
+        this.options.keySeparator = ".";
+      }
+      if (this.options.ignoreJSONStructure === void 0) {
+        this.options.ignoreJSONStructure = true;
+      }
+    }
+    addNamespaces(ns) {
+      if (!this.options.ns.includes(ns)) {
+        this.options.ns.push(ns);
+      }
+    }
+    removeNamespaces(ns) {
+      const index = this.options.ns.indexOf(ns);
+      if (index > -1) {
+        this.options.ns.splice(index, 1);
+      }
+    }
+    getResource(lng, ns, key2, options = {}) {
+      const keySeparator = options.keySeparator !== void 0 ? options.keySeparator : this.options.keySeparator;
+      const ignoreJSONStructure = options.ignoreJSONStructure !== void 0 ? options.ignoreJSONStructure : this.options.ignoreJSONStructure;
+      let path;
+      if (lng.includes(".")) {
+        path = lng.split(".");
+      } else {
+        path = [lng, ns];
+        if (key2) {
+          if (Array.isArray(key2)) {
+            path.push(...key2);
+          } else if (isString(key2) && keySeparator) {
+            path.push(...key2.split(keySeparator));
+          } else {
+            path.push(key2);
+          }
+        }
+      }
+      const result = getPath(this.data, path);
+      if (!result && !ns && !key2 && lng.includes(".")) {
+        lng = path[0];
+        ns = path[1];
+        key2 = path.slice(2).join(".");
+      }
+      if (result || !ignoreJSONStructure || !isString(key2)) return result;
+      return deepFind(this.data?.[lng]?.[ns], key2, keySeparator);
+    }
+    addResource(lng, ns, key2, value2, options = {
+      silent: false
+    }) {
+      const keySeparator = options.keySeparator !== void 0 ? options.keySeparator : this.options.keySeparator;
+      let path = [lng, ns];
+      if (key2) path = path.concat(keySeparator ? key2.split(keySeparator) : key2);
+      if (lng.includes(".")) {
+        path = lng.split(".");
+        value2 = ns;
+        ns = path[1];
+      }
+      this.addNamespaces(ns);
+      setPath(this.data, path, value2);
+      if (!options.silent) this.emit("added", lng, ns, key2, value2);
+    }
+    addResources(lng, ns, resources2, options = {
+      silent: false
+    }) {
+      for (const m in resources2) {
+        if (isString(resources2[m]) || Array.isArray(resources2[m])) this.addResource(lng, ns, m, resources2[m], {
+          silent: true
+        });
+      }
+      if (!options.silent) this.emit("added", lng, ns, resources2);
+    }
+    addResourceBundle(lng, ns, resources2, deep, overwrite, options = {
+      silent: false,
+      skipCopy: false
+    }) {
+      let path = [lng, ns];
+      if (lng.includes(".")) {
+        path = lng.split(".");
+        deep = resources2;
+        resources2 = ns;
+        ns = path[1];
+      }
+      this.addNamespaces(ns);
+      let pack = getPath(this.data, path) || {};
+      if (!options.skipCopy) resources2 = JSON.parse(JSON.stringify(resources2));
+      if (deep) {
+        deepExtend(pack, resources2, overwrite);
+      } else {
+        pack = {
+          ...pack,
+          ...resources2
+        };
+      }
+      setPath(this.data, path, pack);
+      if (!options.silent) this.emit("added", lng, ns, resources2);
+    }
+    removeResourceBundle(lng, ns) {
+      if (this.hasResourceBundle(lng, ns)) {
+        delete this.data[lng][ns];
+      }
+      this.removeNamespaces(ns);
+      this.emit("removed", lng, ns);
+    }
+    hasResourceBundle(lng, ns) {
+      return this.getResource(lng, ns) !== void 0;
+    }
+    getResourceBundle(lng, ns) {
+      if (!ns) ns = this.options.defaultNS;
+      return this.getResource(lng, ns);
+    }
+    getDataByLanguage(lng) {
+      return this.data[lng];
+    }
+    hasLanguageSomeTranslations(lng) {
+      const data2 = this.getDataByLanguage(lng);
+      const n2 = data2 && Object.keys(data2) || [];
+      return !!n2.find((v) => data2[v] && Object.keys(data2[v]).length > 0);
+    }
+    toJSON() {
+      return this.data;
+    }
+  };
+  var postProcessor = {
+    processors: {},
+    addPostProcessor(module) {
+      this.processors[module.name] = module;
+    },
+    handle(processors, value2, key2, options, translator) {
+      processors.forEach((processor) => {
+        value2 = this.processors[processor]?.process(value2, key2, options, translator) ?? value2;
+      });
+      return value2;
+    }
+  };
+  var PATH_KEY = /* @__PURE__ */ Symbol("i18next/PATH_KEY");
+  function createProxy() {
+    const state = [];
+    const handler = /* @__PURE__ */ Object.create(null);
+    let proxy;
+    handler.get = (target, key2) => {
+      proxy?.revoke?.();
+      if (key2 === PATH_KEY) return state;
+      state.push(key2);
+      proxy = Proxy.revocable(target, handler);
+      return proxy.proxy;
+    };
+    return Proxy.revocable(/* @__PURE__ */ Object.create(null), handler).proxy;
+  }
+  function keysFromSelector(selector, opts) {
+    const {
+      [PATH_KEY]: path
+    } = selector(createProxy());
+    const keySeparator = opts?.keySeparator ?? ".";
+    const nsSeparator = opts?.nsSeparator ?? ":";
+    const strict = opts?.enableSelector === "strict";
+    if (path.length > 1 && nsSeparator) {
+      const ns = opts?.ns;
+      const nsList = strict ? Array.isArray(ns) ? ns : ns ? [ns] : null : Array.isArray(ns) ? ns : null;
+      if (nsList) {
+        const candidates2 = strict ? nsList : nsList.length > 1 ? nsList.slice(1) : [];
+        if (candidates2.includes(path[0])) {
+          return `${path[0]}${nsSeparator}${path.slice(1).join(keySeparator)}`;
+        }
+      }
+    }
+    return path.join(keySeparator);
+  }
+  var shouldHandleAsObject = (res) => !isString(res) && typeof res !== "boolean" && typeof res !== "number";
+  var Translator = class _Translator extends EventEmitter {
+    constructor(services, options = {}) {
+      super();
+      copy(["resourceStore", "languageUtils", "pluralResolver", "interpolator", "backendConnector", "i18nFormat", "utils"], services, this);
+      this.options = options;
+      if (this.options.keySeparator === void 0) {
+        this.options.keySeparator = ".";
+      }
+      this.logger = baseLogger.create("translator");
+      this.checkedLoadedFor = {};
+    }
+    changeLanguage(lng) {
+      if (lng) this.language = lng;
+    }
+    exists(key2, o = {
+      interpolation: {}
+    }) {
+      const opt = {
+        ...o
+      };
+      if (key2 == null) return false;
+      const resolved = this.resolve(key2, opt);
+      if (resolved?.res === void 0) return false;
+      const isObject = shouldHandleAsObject(resolved.res);
+      if (opt.returnObjects === false && isObject) {
+        return false;
+      }
+      return true;
+    }
+    extractFromKey(key2, opt) {
+      let nsSeparator = opt.nsSeparator !== void 0 ? opt.nsSeparator : this.options.nsSeparator;
+      if (nsSeparator === void 0) nsSeparator = ":";
+      const keySeparator = opt.keySeparator !== void 0 ? opt.keySeparator : this.options.keySeparator;
+      let namespaces = opt.ns || this.options.defaultNS || [];
+      const wouldCheckForNsInKey = nsSeparator && key2.includes(nsSeparator);
+      const seemsNaturalLanguage = !this.options.userDefinedKeySeparator && !opt.keySeparator && !this.options.userDefinedNsSeparator && !opt.nsSeparator && !looksLikeObjectPath(key2, nsSeparator, keySeparator);
+      if (wouldCheckForNsInKey && !seemsNaturalLanguage) {
+        const m = key2.match(this.interpolator.nestingRegexp);
+        if (m && m.length > 0) {
+          return {
+            key: key2,
+            namespaces: isString(namespaces) ? [namespaces] : namespaces
+          };
+        }
+        const parts = key2.split(nsSeparator);
+        if (nsSeparator !== keySeparator || nsSeparator === keySeparator && this.options.ns.includes(parts[0])) namespaces = parts.shift();
+        key2 = parts.join(keySeparator);
+      }
+      return {
+        key: key2,
+        namespaces: isString(namespaces) ? [namespaces] : namespaces
+      };
+    }
+    translate(keys, o, lastKey) {
+      let opt = typeof o === "object" ? {
+        ...o
+      } : o;
+      if (typeof opt !== "object" && this.options.overloadTranslationOptionHandler) {
+        opt = this.options.overloadTranslationOptionHandler(arguments);
+      }
+      if (typeof opt === "object") opt = {
+        ...opt
+      };
+      if (!opt) opt = {};
+      if (keys == null) return "";
+      if (typeof keys === "function") keys = keysFromSelector(keys, {
+        ...this.options,
+        ...opt
+      });
+      if (!Array.isArray(keys)) keys = [String(keys)];
+      keys = keys.map((k) => typeof k === "function" ? keysFromSelector(k, {
+        ...this.options,
+        ...opt
+      }) : String(k));
+      const returnDetails = opt.returnDetails !== void 0 ? opt.returnDetails : this.options.returnDetails;
+      const keySeparator = opt.keySeparator !== void 0 ? opt.keySeparator : this.options.keySeparator;
+      const {
+        key: key2,
+        namespaces
+      } = this.extractFromKey(keys[keys.length - 1], opt);
+      const namespace = namespaces[namespaces.length - 1];
+      let nsSeparator = opt.nsSeparator !== void 0 ? opt.nsSeparator : this.options.nsSeparator;
+      if (nsSeparator === void 0) nsSeparator = ":";
+      const lng = opt.lng || this.language;
+      const appendNamespaceToCIMode = opt.appendNamespaceToCIMode || this.options.appendNamespaceToCIMode;
+      if (lng?.toLowerCase() === "cimode") {
+        if (appendNamespaceToCIMode) {
+          if (returnDetails) {
+            return {
+              res: `${namespace}${nsSeparator}${key2}`,
+              usedKey: key2,
+              exactUsedKey: key2,
+              usedLng: lng,
+              usedNS: namespace,
+              usedParams: this.getUsedParamsDetails(opt)
+            };
+          }
+          return `${namespace}${nsSeparator}${key2}`;
+        }
+        if (returnDetails) {
+          return {
+            res: key2,
+            usedKey: key2,
+            exactUsedKey: key2,
+            usedLng: lng,
+            usedNS: namespace,
+            usedParams: this.getUsedParamsDetails(opt)
+          };
+        }
+        return key2;
+      }
+      const resolved = this.resolve(keys, opt);
+      let res = resolved?.res;
+      const resUsedKey = resolved?.usedKey || key2;
+      const resExactUsedKey = resolved?.exactUsedKey || key2;
+      const noObject = ["[object Number]", "[object Function]", "[object RegExp]"];
+      const joinArrays = opt.joinArrays !== void 0 ? opt.joinArrays : this.options.joinArrays;
+      const handleAsObjectInI18nFormat = !this.i18nFormat || this.i18nFormat.handleAsObject;
+      const needsPluralHandling = opt.count !== void 0 && !isString(opt.count);
+      const hasDefaultValue = _Translator.hasDefaultValue(opt);
+      const defaultValueSuffix = needsPluralHandling ? this.pluralResolver.getSuffix(lng, opt.count, opt) : "";
+      const defaultValueSuffixOrdinalFallback = opt.ordinal && needsPluralHandling ? this.pluralResolver.getSuffix(lng, opt.count, {
+        ordinal: false
+      }) : "";
+      const needsZeroSuffixLookup = needsPluralHandling && !opt.ordinal && opt.count === 0;
+      const defaultValue = needsZeroSuffixLookup && opt[`defaultValue${this.options.pluralSeparator}zero`] || opt[`defaultValue${defaultValueSuffix}`] || opt[`defaultValue${defaultValueSuffixOrdinalFallback}`] || opt.defaultValue;
+      let resForObjHndl = res;
+      if (handleAsObjectInI18nFormat && !res && hasDefaultValue) {
+        resForObjHndl = defaultValue;
+      }
+      const handleAsObject = shouldHandleAsObject(resForObjHndl);
+      const resType = Object.prototype.toString.apply(resForObjHndl);
+      if (handleAsObjectInI18nFormat && resForObjHndl && handleAsObject && !noObject.includes(resType) && !(isString(joinArrays) && Array.isArray(resForObjHndl))) {
+        if (!opt.returnObjects && !this.options.returnObjects) {
+          if (!this.options.returnedObjectHandler) {
+            this.logger.warn("accessing an object - but returnObjects options is not enabled!");
+          }
+          const r = this.options.returnedObjectHandler ? this.options.returnedObjectHandler(resUsedKey, resForObjHndl, {
+            ...opt,
+            ns: namespaces
+          }) : `key '${key2} (${this.language})' returned an object instead of string.`;
+          if (returnDetails) {
+            resolved.res = r;
+            resolved.usedParams = this.getUsedParamsDetails(opt);
+            return resolved;
+          }
+          return r;
+        }
+        if (keySeparator) {
+          const resTypeIsArray = Array.isArray(resForObjHndl);
+          const copy2 = resTypeIsArray ? [] : {};
+          const newKeyToUse = resTypeIsArray ? resExactUsedKey : resUsedKey;
+          for (const m in resForObjHndl) {
+            if (Object.prototype.hasOwnProperty.call(resForObjHndl, m)) {
+              const deepKey = `${newKeyToUse}${keySeparator}${m}`;
+              if (hasDefaultValue && !res) {
+                copy2[m] = this.translate(deepKey, {
+                  ...opt,
+                  defaultValue: shouldHandleAsObject(defaultValue) ? defaultValue[m] : void 0,
+                  ...{
+                    joinArrays: false,
+                    ns: namespaces
+                  }
+                });
+              } else {
+                copy2[m] = this.translate(deepKey, {
+                  ...opt,
+                  ...{
+                    joinArrays: false,
+                    ns: namespaces
+                  }
+                });
+              }
+              if (copy2[m] === deepKey) copy2[m] = resForObjHndl[m];
+            }
+          }
+          res = copy2;
+        }
+      } else if (handleAsObjectInI18nFormat && isString(joinArrays) && Array.isArray(res)) {
+        res = res.join(joinArrays);
+        if (res) res = this.extendTranslation(res, keys, opt, lastKey);
+      } else {
+        let usedDefault = false;
+        let usedKey = false;
+        if (!this.isValidLookup(res) && hasDefaultValue) {
+          usedDefault = true;
+          res = defaultValue;
+        }
+        if (!this.isValidLookup(res)) {
+          usedKey = true;
+          res = key2;
+        }
+        const missingKeyNoValueFallbackToKey = opt.missingKeyNoValueFallbackToKey || this.options.missingKeyNoValueFallbackToKey;
+        const resForMissing = missingKeyNoValueFallbackToKey && usedKey ? void 0 : res;
+        const updateMissing = hasDefaultValue && defaultValue !== res && this.options.updateMissing;
+        if (usedKey || usedDefault || updateMissing) {
+          this.logger.log(updateMissing ? "updateKey" : "missingKey", lng, namespace, needsPluralHandling && !updateMissing ? `${key2}${this.pluralResolver.getSuffix(lng, opt.count, opt)}` : key2, updateMissing ? defaultValue : res);
+          if (keySeparator) {
+            const fk = this.resolve(key2, {
+              ...opt,
+              keySeparator: false
+            });
+            if (fk && fk.res) this.logger.warn("Seems the loaded translations were in flat JSON format instead of nested. Either set keySeparator: false on init or make sure your translations are published in nested format.");
+          }
+          let lngs = [];
+          const fallbackLngs = this.languageUtils.getFallbackCodes(this.options.fallbackLng, opt.lng || this.language);
+          if (this.options.saveMissingTo === "fallback" && fallbackLngs && fallbackLngs[0]) {
+            for (let i = 0; i < fallbackLngs.length; i++) {
+              lngs.push(fallbackLngs[i]);
+            }
+          } else if (this.options.saveMissingTo === "all") {
+            lngs = this.languageUtils.toResolveHierarchy(opt.lng || this.language);
+          } else {
+            lngs.push(opt.lng || this.language);
+          }
+          const send = (l, k, specificDefaultValue) => {
+            const defaultForMissing = hasDefaultValue && specificDefaultValue !== res ? specificDefaultValue : resForMissing;
+            if (this.options.missingKeyHandler) {
+              this.options.missingKeyHandler(l, namespace, k, defaultForMissing, updateMissing, opt);
+            } else if (this.backendConnector?.saveMissing) {
+              this.backendConnector.saveMissing(l, namespace, k, defaultForMissing, updateMissing, opt);
+            }
+            this.emit("missingKey", l, namespace, k, res);
+          };
+          if (this.options.saveMissing) {
+            if (this.options.saveMissingPlurals && needsPluralHandling) {
+              lngs.forEach((language) => {
+                const suffixes = this.pluralResolver.getSuffixes(language, opt);
+                if (needsZeroSuffixLookup && opt[`defaultValue${this.options.pluralSeparator}zero`] && !suffixes.includes(`${this.options.pluralSeparator}zero`)) {
+                  suffixes.push(`${this.options.pluralSeparator}zero`);
+                }
+                suffixes.forEach((suffix) => {
+                  send([language], key2 + suffix, opt[`defaultValue${suffix}`] || defaultValue);
+                });
+              });
+            } else {
+              send(lngs, key2, defaultValue);
+            }
+          }
+        }
+        res = this.extendTranslation(res, keys, opt, resolved, lastKey);
+        if (usedKey && res === key2 && this.options.appendNamespaceToMissingKey) {
+          res = `${namespace}${nsSeparator}${key2}`;
+        }
+        if ((usedKey || usedDefault) && this.options.parseMissingKeyHandler) {
+          res = this.options.parseMissingKeyHandler(this.options.appendNamespaceToMissingKey ? `${namespace}${nsSeparator}${key2}` : key2, usedDefault ? res : void 0, opt);
+        }
+      }
+      if (returnDetails) {
+        resolved.res = res;
+        resolved.usedParams = this.getUsedParamsDetails(opt);
+        return resolved;
+      }
+      return res;
+    }
+    extendTranslation(res, key2, opt, resolved, lastKey) {
+      if (this.i18nFormat?.parse) {
+        res = this.i18nFormat.parse(res, {
+          ...this.options.interpolation.defaultVariables,
+          ...opt
+        }, opt.lng || this.language || resolved.usedLng, resolved.usedNS, resolved.usedKey, {
+          resolved
+        });
+      } else if (!opt.skipInterpolation) {
+        if (opt.interpolation) this.interpolator.init({
+          ...opt,
+          ...{
+            interpolation: {
+              ...this.options.interpolation,
+              ...opt.interpolation
+            }
+          }
+        });
+        const skipOnVariables = isString(res) && (opt?.interpolation?.skipOnVariables !== void 0 ? opt.interpolation.skipOnVariables : this.options.interpolation.skipOnVariables);
+        let nestBef;
+        if (skipOnVariables) {
+          const nb = res.match(this.interpolator.nestingRegexp);
+          nestBef = nb && nb.length;
+        }
+        let data2 = opt.replace && !isString(opt.replace) ? opt.replace : opt;
+        if (this.options.interpolation.defaultVariables) data2 = {
+          ...this.options.interpolation.defaultVariables,
+          ...data2
+        };
+        res = this.interpolator.interpolate(res, data2, opt.lng || this.language || resolved.usedLng, opt);
+        if (skipOnVariables) {
+          const na = res.match(this.interpolator.nestingRegexp);
+          const nestAft = na && na.length;
+          if (nestBef < nestAft) opt.nest = false;
+        }
+        if (!opt.lng && resolved && resolved.res) opt.lng = this.language || resolved.usedLng;
+        if (opt.nest !== false) res = this.interpolator.nest(res, (...args) => {
+          if (lastKey?.[0] === args[0] && !opt.context) {
+            this.logger.warn(`It seems you are nesting recursively key: ${args[0]} in key: ${key2[0]}`);
+            return null;
+          }
+          return this.translate(...args, key2);
+        }, opt);
+        if (opt.interpolation) this.interpolator.reset();
+      }
+      const postProcess = opt.postProcess || this.options.postProcess;
+      const postProcessorNames = isString(postProcess) ? [postProcess] : postProcess;
+      if (res != null && postProcessorNames?.length && opt.applyPostProcessor !== false) {
+        res = postProcessor.handle(postProcessorNames, res, key2, this.options && this.options.postProcessPassResolved ? {
+          i18nResolved: {
+            ...resolved,
+            usedParams: this.getUsedParamsDetails(opt)
+          },
+          ...opt
+        } : opt, this);
+      }
+      return res;
+    }
+    resolve(keys, opt = {}) {
+      let found;
+      let usedKey;
+      let exactUsedKey;
+      let usedLng;
+      let usedNS;
+      if (isString(keys)) keys = [keys];
+      if (Array.isArray(keys)) keys = keys.map((k) => typeof k === "function" ? keysFromSelector(k, {
+        ...this.options,
+        ...opt
+      }) : k);
+      keys.forEach((k) => {
+        if (this.isValidLookup(found)) return;
+        const extracted = this.extractFromKey(k, opt);
+        const key2 = extracted.key;
+        usedKey = key2;
+        let namespaces = extracted.namespaces;
+        if (this.options.fallbackNS) namespaces = namespaces.concat(this.options.fallbackNS);
+        const needsPluralHandling = opt.count !== void 0 && !isString(opt.count);
+        const needsZeroSuffixLookup = needsPluralHandling && !opt.ordinal && opt.count === 0;
+        const needsContextHandling = opt.context !== void 0 && (isString(opt.context) || typeof opt.context === "number") && opt.context !== "";
+        const codes = opt.lngs ? opt.lngs : this.languageUtils.toResolveHierarchy(opt.lng || this.language, opt.fallbackLng);
+        namespaces.forEach((ns) => {
+          if (this.isValidLookup(found)) return;
+          usedNS = ns;
+          if (!this.checkedLoadedFor[`${codes[0]}-${ns}`] && this.utils?.hasLoadedNamespace && !this.utils?.hasLoadedNamespace(usedNS)) {
+            this.checkedLoadedFor[`${codes[0]}-${ns}`] = true;
+            this.logger.warn(`key "${usedKey}" for languages "${codes.join(", ")}" won't get resolved as namespace "${usedNS}" was not yet loaded`, "This means something IS WRONG in your setup. You access the t function before i18next.init / i18next.loadNamespace / i18next.changeLanguage was done. Wait for the callback or Promise to resolve before accessing it!!!");
+          }
+          codes.forEach((code) => {
+            if (this.isValidLookup(found)) return;
+            usedLng = code;
+            const finalKeys = [key2];
+            if (this.i18nFormat?.addLookupKeys) {
+              this.i18nFormat.addLookupKeys(finalKeys, key2, code, ns, opt);
+            } else {
+              let pluralSuffix;
+              if (needsPluralHandling) pluralSuffix = this.pluralResolver.getSuffix(code, opt.count, opt);
+              const zeroSuffix = `${this.options.pluralSeparator}zero`;
+              const ordinalPrefix = `${this.options.pluralSeparator}ordinal${this.options.pluralSeparator}`;
+              if (needsPluralHandling) {
+                if (opt.ordinal && pluralSuffix.startsWith(ordinalPrefix)) {
+                  finalKeys.push(key2 + pluralSuffix.replace(ordinalPrefix, this.options.pluralSeparator));
+                }
+                finalKeys.push(key2 + pluralSuffix);
+                if (needsZeroSuffixLookup) {
+                  finalKeys.push(key2 + zeroSuffix);
+                }
+              }
+              if (needsContextHandling) {
+                const contextKey = `${key2}${this.options.contextSeparator || "_"}${opt.context}`;
+                finalKeys.push(contextKey);
+                if (needsPluralHandling) {
+                  if (opt.ordinal && pluralSuffix.startsWith(ordinalPrefix)) {
+                    finalKeys.push(contextKey + pluralSuffix.replace(ordinalPrefix, this.options.pluralSeparator));
+                  }
+                  finalKeys.push(contextKey + pluralSuffix);
+                  if (needsZeroSuffixLookup) {
+                    finalKeys.push(contextKey + zeroSuffix);
+                  }
+                }
+              }
+            }
+            let possibleKey;
+            while (possibleKey = finalKeys.pop()) {
+              if (!this.isValidLookup(found)) {
+                exactUsedKey = possibleKey;
+                found = this.getResource(code, ns, possibleKey, opt);
+              }
+            }
+          });
+        });
+      });
+      return {
+        res: found,
+        usedKey,
+        exactUsedKey,
+        usedLng,
+        usedNS
+      };
+    }
+    isValidLookup(res) {
+      return res !== void 0 && !(!this.options.returnNull && res === null) && !(!this.options.returnEmptyString && res === "");
+    }
+    getResource(code, ns, key2, options = {}) {
+      if (this.i18nFormat?.getResource) return this.i18nFormat.getResource(code, ns, key2, options);
+      return this.resourceStore.getResource(code, ns, key2, options);
+    }
+    getUsedParamsDetails(options = {}) {
+      const optionsKeys = ["defaultValue", "ordinal", "context", "replace", "lng", "lngs", "fallbackLng", "ns", "keySeparator", "nsSeparator", "returnObjects", "returnDetails", "joinArrays", "postProcess", "interpolation"];
+      const useOptionsReplaceForData = options.replace && !isString(options.replace);
+      let data2 = useOptionsReplaceForData ? options.replace : options;
+      if (useOptionsReplaceForData && typeof options.count !== "undefined") {
+        data2 = {
+          ...data2,
+          count: options.count
+        };
+      }
+      if (this.options.interpolation.defaultVariables) {
+        data2 = {
+          ...this.options.interpolation.defaultVariables,
+          ...data2
+        };
+      }
+      if (!useOptionsReplaceForData) {
+        data2 = {
+          ...data2
+        };
+        for (const key2 of optionsKeys) {
+          delete data2[key2];
+        }
+      }
+      return data2;
+    }
+    static hasDefaultValue(options) {
+      const prefix = "defaultValue";
+      for (const option in options) {
+        if (Object.prototype.hasOwnProperty.call(options, option) && option.startsWith(prefix) && void 0 !== options[option]) {
+          return true;
+        }
+      }
+      return false;
+    }
+  };
+  var LanguageUtil = class {
+    constructor(options) {
+      this.options = options;
+      this.supportedLngs = this.options.supportedLngs || false;
+      this.logger = baseLogger.create("languageUtils");
+      this.resolveHierarchyCache = {};
+    }
+    clearCache() {
+      this.resolveHierarchyCache = {};
+    }
+    getScriptPartFromCode(code) {
+      code = getCleanedCode(code);
+      if (!code || !code.includes("-")) return null;
+      const p = code.split("-");
+      if (p.length === 2) return null;
+      p.pop();
+      if (p[p.length - 1].toLowerCase() === "x") return null;
+      return this.formatLanguageCode(p.join("-"));
+    }
+    getLanguagePartFromCode(code) {
+      code = getCleanedCode(code);
+      if (!code || !code.includes("-")) return code;
+      const p = code.split("-");
+      return this.formatLanguageCode(p[0]);
+    }
+    formatLanguageCode(code) {
+      if (isString(code) && code.includes("-")) {
+        let formattedCode;
+        try {
+          formattedCode = Intl.getCanonicalLocales(code)[0];
+        } catch (e) {
+        }
+        if (formattedCode && this.options.lowerCaseLng) {
+          formattedCode = formattedCode.toLowerCase();
+        }
+        if (formattedCode) return formattedCode;
+        if (this.options.lowerCaseLng) {
+          return code.toLowerCase();
+        }
+        return code;
+      }
+      return this.options.cleanCode || this.options.lowerCaseLng ? code.toLowerCase() : code;
+    }
+    isSupportedCode(code) {
+      if (this.options.load === "languageOnly" || this.options.nonExplicitSupportedLngs) {
+        code = this.getLanguagePartFromCode(code);
+      }
+      return !this.supportedLngs || !this.supportedLngs.length || this.supportedLngs.includes(code);
+    }
+    getBestMatchFromCodes(codes) {
+      if (!codes) return null;
+      let found;
+      codes.forEach((code) => {
+        if (found) return;
+        const cleanedLng = this.formatLanguageCode(code);
+        if (!this.options.supportedLngs || this.isSupportedCode(cleanedLng)) found = cleanedLng;
+      });
+      if (!found && this.options.supportedLngs) {
+        codes.forEach((code) => {
+          if (found) return;
+          const lngScOnly = this.getScriptPartFromCode(code);
+          if (this.isSupportedCode(lngScOnly)) return found = lngScOnly;
+          const lngOnly = this.getLanguagePartFromCode(code);
+          if (this.isSupportedCode(lngOnly)) return found = lngOnly;
+          found = this.options.supportedLngs.find((supportedLng) => {
+            if (supportedLng === lngOnly) return true;
+            if (!supportedLng.includes("-") && !lngOnly.includes("-")) return false;
+            if (supportedLng.includes("-") && !lngOnly.includes("-") && supportedLng.slice(0, supportedLng.indexOf("-")) === lngOnly) return true;
+            if (supportedLng.startsWith(lngOnly) && lngOnly.length > 1) return true;
+            return false;
+          });
+        });
+      }
+      if (!found) found = this.getFallbackCodes(this.options.fallbackLng)[0];
+      return found;
+    }
+    getFallbackCodes(fallbacks, code) {
+      if (!fallbacks) return [];
+      if (typeof fallbacks === "function") fallbacks = fallbacks(code);
+      if (isString(fallbacks)) fallbacks = [fallbacks];
+      if (Array.isArray(fallbacks)) return fallbacks;
+      if (!code) return fallbacks.default || [];
+      let found = fallbacks[code];
+      if (!found) found = fallbacks[this.getScriptPartFromCode(code)];
+      if (!found) found = fallbacks[this.formatLanguageCode(code)];
+      if (!found) found = fallbacks[this.getLanguagePartFromCode(code)];
+      if (!found) found = fallbacks.default;
+      return found || [];
+    }
+    toResolveHierarchy(code, fallbackCode) {
+      const fallbackLng = this.options.fallbackLng;
+      const fallbackLngKey = Array.isArray(fallbackLng) ? fallbackLng.join("|") : fallbackLng;
+      if (fallbackLngKey !== this._cachedFallbackLng) {
+        this.resolveHierarchyCache = {};
+        this._cachedFallbackLng = fallbackLngKey;
+      }
+      const hasCacheableFallback = fallbackCode === void 0 || fallbackCode === false || isString(fallbackCode);
+      const usesUncacheableOptionsFallback = fallbackCode === void 0 && typeof this.options.fallbackLng === "function";
+      const cacheable = isString(code) && hasCacheableFallback && !usesUncacheableOptionsFallback;
+      let cacheKey = null;
+      if (cacheable) {
+        let fallbackCacheKey;
+        if (fallbackCode === void 0) fallbackCacheKey = "undefined";
+        else if (fallbackCode === false) fallbackCacheKey = "boolean:false";
+        else fallbackCacheKey = `string:${fallbackCode}`;
+        cacheKey = `${code.length}:${code}|${fallbackCacheKey}`;
+      }
+      if (cacheKey !== null) {
+        const cached = this.resolveHierarchyCache[cacheKey];
+        if (cached !== void 0) return cached.slice();
+      }
+      const fallbackCodes = this.getFallbackCodes((fallbackCode === false ? [] : fallbackCode) || this.options.fallbackLng || [], code);
+      const codes = [];
+      const addCode = (c) => {
+        if (!c) return;
+        if (this.isSupportedCode(c)) {
+          codes.push(c);
+        } else {
+          this.logger.warn(`rejecting language code not found in supportedLngs: ${c}`);
+        }
+      };
+      if (isString(code) && (code.includes("-") || code.includes("_"))) {
+        if (this.options.load !== "languageOnly") addCode(this.formatLanguageCode(code));
+        if (this.options.load !== "languageOnly" && this.options.load !== "currentOnly") addCode(this.getScriptPartFromCode(code));
+        if (this.options.load !== "currentOnly") addCode(this.getLanguagePartFromCode(code));
+      } else if (isString(code)) {
+        addCode(this.formatLanguageCode(code));
+      }
+      fallbackCodes.forEach((fc) => {
+        if (!codes.includes(fc)) addCode(this.formatLanguageCode(fc));
+      });
+      if (cacheKey !== null) {
+        this.resolveHierarchyCache[cacheKey] = codes;
+        return codes.slice();
+      }
+      return codes;
+    }
+  };
+  var suffixesOrder = {
+    zero: 0,
+    one: 1,
+    two: 2,
+    few: 3,
+    many: 4,
+    other: 5
+  };
+  var dummyRule = {
+    select: (count) => count === 1 ? "one" : "other",
+    resolvedOptions: () => ({
+      pluralCategories: ["one", "other"]
+    })
+  };
+  var PluralResolver = class {
+    constructor(languageUtils, options = {}) {
+      this.languageUtils = languageUtils;
+      this.options = options;
+      this.logger = baseLogger.create("pluralResolver");
+      this.pluralRulesCache = {};
+    }
+    clearCache() {
+      this.pluralRulesCache = {};
+    }
+    getRule(code, options = {}) {
+      const cleanedCode = getCleanedCode(code === "dev" ? "en" : code);
+      const type = options.ordinal ? "ordinal" : "cardinal";
+      const cacheKey = JSON.stringify({
+        cleanedCode,
+        type
+      });
+      if (cacheKey in this.pluralRulesCache) {
+        return this.pluralRulesCache[cacheKey];
+      }
+      let rule2;
+      try {
+        rule2 = new Intl.PluralRules(cleanedCode, {
+          type
+        });
+      } catch (err) {
+        if (typeof Intl === "undefined") {
+          this.logger.error("No Intl support, please use an Intl polyfill!");
+          return dummyRule;
+        }
+        if (!code.match(/-|_/)) return dummyRule;
+        const lngPart = this.languageUtils.getLanguagePartFromCode(code);
+        rule2 = this.getRule(lngPart, options);
+      }
+      this.pluralRulesCache[cacheKey] = rule2;
+      return rule2;
+    }
+    needsPlural(code, options = {}) {
+      let rule2 = this.getRule(code, options);
+      if (!rule2) rule2 = this.getRule("dev", options);
+      return rule2?.resolvedOptions().pluralCategories.length > 1;
+    }
+    getPluralFormsOfKey(code, key2, options = {}) {
+      return this.getSuffixes(code, options).map((suffix) => `${key2}${suffix}`);
+    }
+    getSuffixes(code, options = {}) {
+      let rule2 = this.getRule(code, options);
+      if (!rule2) rule2 = this.getRule("dev", options);
+      if (!rule2) return [];
+      return rule2.resolvedOptions().pluralCategories.sort((pluralCategory1, pluralCategory2) => suffixesOrder[pluralCategory1] - suffixesOrder[pluralCategory2]).map((pluralCategory) => `${this.options.prepend}${options.ordinal ? `ordinal${this.options.prepend}` : ""}${pluralCategory}`);
+    }
+    getSuffix(code, count, options = {}) {
+      const rule2 = this.getRule(code, options);
+      if (rule2) {
+        return `${this.options.prepend}${options.ordinal ? `ordinal${this.options.prepend}` : ""}${rule2.select(count)}`;
+      }
+      this.logger.warn(`no plural rule found for: ${code}`);
+      return this.getSuffix("dev", count, options);
+    }
+  };
+  var deepFindWithDefaults = (data2, defaultData, key2, keySeparator = ".", ignoreJSONStructure = true) => {
+    let path = getPathWithDefaults(data2, defaultData, key2);
+    if (!path && ignoreJSONStructure && isString(key2)) {
+      path = deepFind(data2, key2, keySeparator);
+      if (path === void 0) path = deepFind(defaultData, key2, keySeparator);
+    }
+    return path;
+  };
+  var regexSafe = (val2) => val2.replace(/\$/g, "$$$$");
+  var Interpolator = class {
+    constructor(options = {}) {
+      this.logger = baseLogger.create("interpolator");
+      this.options = options;
+      this.format = options?.interpolation?.format || ((value2) => value2);
+      this.init(options);
+    }
+    init(options = {}) {
+      if (!options.interpolation) options.interpolation = {
+        escapeValue: true
+      };
+      const {
+        escape: escape$1,
+        escapeValue,
+        useRawValueToEscape,
+        prefix,
+        prefixEscaped,
+        suffix,
+        suffixEscaped,
+        formatSeparator,
+        unescapeSuffix,
+        unescapePrefix,
+        nestingPrefix,
+        nestingPrefixEscaped,
+        nestingSuffix,
+        nestingSuffixEscaped,
+        nestingOptionsSeparator,
+        maxReplaces,
+        alwaysFormat
+      } = options.interpolation;
+      this.escape = escape$1 !== void 0 ? escape$1 : escape;
+      this.escapeValue = escapeValue !== void 0 ? escapeValue : true;
+      this.useRawValueToEscape = useRawValueToEscape !== void 0 ? useRawValueToEscape : false;
+      this.prefix = prefix ? regexEscape(prefix) : prefixEscaped || "{{";
+      this.suffix = suffix ? regexEscape(suffix) : suffixEscaped || "}}";
+      this.formatSeparator = formatSeparator || ",";
+      this.unescapePrefix = unescapeSuffix ? "" : unescapePrefix ? regexEscape(unescapePrefix) : "-";
+      this.unescapeSuffix = this.unescapePrefix ? "" : unescapeSuffix ? regexEscape(unescapeSuffix) : "";
+      this.nestingPrefix = nestingPrefix ? regexEscape(nestingPrefix) : nestingPrefixEscaped || regexEscape("$t(");
+      this.nestingSuffix = nestingSuffix ? regexEscape(nestingSuffix) : nestingSuffixEscaped || regexEscape(")");
+      this.nestingOptionsSeparator = nestingOptionsSeparator || ",";
+      this.maxReplaces = maxReplaces || 1e3;
+      this.alwaysFormat = alwaysFormat !== void 0 ? alwaysFormat : false;
+      this.resetRegExp();
+    }
+    reset() {
+      if (this.options) this.init(this.options);
+    }
+    resetRegExp() {
+      const getOrResetRegExp = (existingRegExp, pattern) => {
+        if (existingRegExp?.source === pattern) {
+          existingRegExp.lastIndex = 0;
+          return existingRegExp;
+        }
+        return new RegExp(pattern, "g");
+      };
+      this.regexp = getOrResetRegExp(this.regexp, `${this.prefix}(.+?)${this.suffix}`);
+      this.regexpUnescape = getOrResetRegExp(this.regexpUnescape, `${this.prefix}${this.unescapePrefix}(.+?)${this.unescapeSuffix}${this.suffix}`);
+      this.nestingRegexp = getOrResetRegExp(this.nestingRegexp, `${this.nestingPrefix}((?:[^()"']+|"[^"]*"|'[^']*'|\\((?:[^()]|"[^"]*"|'[^']*')*\\))*?)${this.nestingSuffix}`);
+    }
+    interpolate(str, data2, lng, options) {
+      let match;
+      let value2;
+      let replaces;
+      const defaultData = this.options && this.options.interpolation && this.options.interpolation.defaultVariables || {};
+      const handleFormat = (key2) => {
+        if (!key2.includes(this.formatSeparator)) {
+          const path = deepFindWithDefaults(data2, defaultData, key2, this.options.keySeparator, this.options.ignoreJSONStructure);
+          return this.alwaysFormat ? this.format(path, void 0, lng, {
+            ...options,
+            ...data2,
+            interpolationkey: key2
+          }) : path;
+        }
+        const p = key2.split(this.formatSeparator);
+        const k = p.shift().trim();
+        const f = p.join(this.formatSeparator).trim();
+        return this.format(deepFindWithDefaults(data2, defaultData, k, this.options.keySeparator, this.options.ignoreJSONStructure), f, lng, {
+          ...options,
+          ...data2,
+          interpolationkey: k
+        });
+      };
+      this.resetRegExp();
+      if (!this.escapeValue && typeof str === "string" && /\$t\([^)]*\{[^}]*\{\{/.test(str)) {
+        this.logger.warn("nesting options string contains interpolated variables with escapeValue: false — if any of those values are attacker-controlled they can inject additional nesting options (e.g. redirect lng/ns). Sanitise untrusted input before passing it to t(), or keep escapeValue: true.");
+      }
+      const missingInterpolationHandler = options?.missingInterpolationHandler || this.options.missingInterpolationHandler;
+      const skipOnVariables = options?.interpolation?.skipOnVariables !== void 0 ? options.interpolation.skipOnVariables : this.options.interpolation.skipOnVariables;
+      const todos = [{
+        regex: this.regexpUnescape,
+        safeValue: (val2) => val2
+      }, {
+        regex: this.regexp,
+        safeValue: (val2) => this.escapeValue ? this.escape(val2) : val2
+      }];
+      todos.forEach((todo) => {
+        replaces = 0;
+        while (match = todo.regex.exec(str)) {
+          const matchedVar = match[1].trim();
+          value2 = handleFormat(matchedVar);
+          if (value2 === void 0) {
+            if (typeof missingInterpolationHandler === "function") {
+              const temp = missingInterpolationHandler(str, match, options);
+              value2 = isString(temp) ? temp : "";
+            } else if (options && Object.prototype.hasOwnProperty.call(options, matchedVar)) {
+              value2 = "";
+            } else if (skipOnVariables) {
+              value2 = match[0];
+              continue;
+            } else {
+              this.logger.warn(`missed to pass in variable ${matchedVar} for interpolating ${str}`);
+              value2 = "";
+            }
+          } else if (!isString(value2) && !this.useRawValueToEscape) {
+            value2 = makeString(value2);
+          }
+          const safeValue = todo.safeValue(value2);
+          str = str.replace(match[0], regexSafe(safeValue));
+          if (skipOnVariables) {
+            todo.regex.lastIndex += safeValue.length;
+            todo.regex.lastIndex -= match[0].length;
+          } else {
+            todo.regex.lastIndex = 0;
+          }
+          replaces++;
+          if (replaces >= this.maxReplaces) {
+            break;
+          }
+        }
+      });
+      return str;
+    }
+    nest(str, fc, options = {}) {
+      let match;
+      let value2;
+      let clonedOptions;
+      const handleHasOptions = (key2, inheritedOptions) => {
+        const sep = this.nestingOptionsSeparator;
+        if (!key2.includes(sep)) return key2;
+        const c = key2.split(new RegExp(`${regexEscape(sep)}[ ]*{`));
+        let optionsString = `{${c[1]}`;
+        key2 = c[0];
+        optionsString = this.interpolate(optionsString, clonedOptions);
+        const matchedSingleQuotes = optionsString.match(/'/g);
+        const matchedDoubleQuotes = optionsString.match(/"/g);
+        if ((matchedSingleQuotes?.length ?? 0) % 2 === 0 && !matchedDoubleQuotes || (matchedDoubleQuotes?.length ?? 0) % 2 !== 0) {
+          optionsString = optionsString.replace(/'/g, '"');
+        }
+        try {
+          clonedOptions = JSON.parse(optionsString);
+          if (inheritedOptions) clonedOptions = {
+            ...inheritedOptions,
+            ...clonedOptions
+          };
+        } catch (e) {
+          this.logger.warn(`failed parsing options string in nesting for key ${key2}`, e);
+          return `${key2}${sep}${optionsString}`;
+        }
+        if (clonedOptions.defaultValue && clonedOptions.defaultValue.includes(this.prefix)) delete clonedOptions.defaultValue;
+        return key2;
+      };
+      while (match = this.nestingRegexp.exec(str)) {
+        let formatters = [];
+        clonedOptions = {
+          ...options
+        };
+        clonedOptions = clonedOptions.replace && !isString(clonedOptions.replace) ? clonedOptions.replace : clonedOptions;
+        clonedOptions.applyPostProcessor = false;
+        delete clonedOptions.defaultValue;
+        const keyEndIndex = /{.*}/s.test(match[1]) ? match[1].lastIndexOf("}") + 1 : match[1].indexOf(this.formatSeparator);
+        if (keyEndIndex !== -1) {
+          formatters = match[1].slice(keyEndIndex).split(this.formatSeparator).map((elem) => elem.trim()).filter(Boolean);
+          match[1] = match[1].slice(0, keyEndIndex);
+        }
+        value2 = fc(handleHasOptions.call(this, match[1].trim(), clonedOptions), clonedOptions);
+        if (value2 && match[0] === str && !isString(value2)) return value2;
+        if (!isString(value2)) value2 = makeString(value2);
+        if (!value2) {
+          this.logger.warn(`missed to resolve ${match[1]} for nesting ${str}`);
+          value2 = "";
+        }
+        if (formatters.length) {
+          value2 = formatters.reduce((v, f) => this.format(v, f, options.lng, {
+            ...options,
+            interpolationkey: match[1].trim()
+          }), value2.trim());
+        }
+        str = str.replace(match[0], regexSafe(makeString(value2)));
+        this.regexp.lastIndex = 0;
+      }
+      return str;
+    }
+  };
+  var parseFormatStr = (formatStr) => {
+    let formatName = formatStr.toLowerCase().trim();
+    const formatOptions = {};
+    if (formatStr.includes("(")) {
+      const p = formatStr.split("(");
+      formatName = p[0].toLowerCase().trim();
+      const optStr = p[1].slice(0, -1);
+      if (formatName === "currency" && !optStr.includes(":")) {
+        if (!formatOptions.currency) formatOptions.currency = optStr.trim();
+      } else if (formatName === "relativetime" && !optStr.includes(":")) {
+        if (!formatOptions.range) formatOptions.range = optStr.trim();
+      } else {
+        const opts = optStr.split(";");
+        opts.forEach((opt) => {
+          if (opt) {
+            const [key2, ...rest] = opt.split(":");
+            const val2 = rest.join(":").trim().replace(/^'+|'+$/g, "");
+            const trimmedKey = key2.trim();
+            if (!formatOptions[trimmedKey]) formatOptions[trimmedKey] = val2;
+            if (val2 === "false") formatOptions[trimmedKey] = false;
+            if (val2 === "true") formatOptions[trimmedKey] = true;
+            if (!isNaN(val2)) formatOptions[trimmedKey] = parseInt(val2, 10);
+          }
+        });
+      }
+    }
+    return {
+      formatName,
+      formatOptions
+    };
+  };
+  var createCachedFormatter = (fn) => {
+    const cache = {};
+    return (v, l, o) => {
+      let optForCache = o;
+      if (o && o.interpolationkey && o.formatParams && o.formatParams[o.interpolationkey] && o[o.interpolationkey]) {
+        optForCache = {
+          ...optForCache,
+          [o.interpolationkey]: void 0
+        };
+      }
+      const key2 = l + JSON.stringify(optForCache);
+      let frm = cache[key2];
+      if (!frm) {
+        frm = fn(getCleanedCode(l), o);
+        cache[key2] = frm;
+      }
+      return frm(v);
+    };
+  };
+  var createNonCachedFormatter = (fn) => (v, l, o) => fn(getCleanedCode(l), o)(v);
+  var Formatter = class {
+    constructor(options = {}) {
+      this.logger = baseLogger.create("formatter");
+      this.options = options;
+      this.init(options);
+    }
+    init(services, options = {
+      interpolation: {}
+    }) {
+      this.formatSeparator = options.interpolation.formatSeparator || ",";
+      const cf = options.cacheInBuiltFormats ? createCachedFormatter : createNonCachedFormatter;
+      this.formats = {
+        number: cf((lng, opt) => {
+          const formatter = new Intl.NumberFormat(lng, {
+            ...opt
+          });
+          return (val2) => formatter.format(val2);
+        }),
+        currency: cf((lng, opt) => {
+          const formatter = new Intl.NumberFormat(lng, {
+            ...opt,
+            style: "currency"
+          });
+          return (val2) => formatter.format(val2);
+        }),
+        datetime: cf((lng, opt) => {
+          const formatter = new Intl.DateTimeFormat(lng, {
+            ...opt
+          });
+          return (val2) => formatter.format(val2);
+        }),
+        relativetime: cf((lng, opt) => {
+          const formatter = new Intl.RelativeTimeFormat(lng, {
+            ...opt
+          });
+          return (val2) => formatter.format(val2, opt.range || "day");
+        }),
+        list: cf((lng, opt) => {
+          const formatter = new Intl.ListFormat(lng, {
+            ...opt
+          });
+          return (val2) => formatter.format(val2);
+        })
+      };
+    }
+    add(name, fc) {
+      this.formats[name.toLowerCase().trim()] = fc;
+    }
+    addCached(name, fc) {
+      this.formats[name.toLowerCase().trim()] = createCachedFormatter(fc);
+    }
+    format(value2, format2, lng, options = {}) {
+      if (!format2) return value2;
+      if (value2 == null) return value2;
+      const rawFormats = format2.split(this.formatSeparator);
+      const formats = [];
+      for (let i = 0; i < rawFormats.length; i++) {
+        let f = rawFormats[i];
+        while (f.indexOf("(") > -1 && !f.includes(")") && i + 1 < rawFormats.length) {
+          f = `${f}${this.formatSeparator}${rawFormats[++i]}`;
+        }
+        formats.push(f);
+      }
+      const result = formats.reduce((mem, f) => {
+        const {
+          formatName,
+          formatOptions
+        } = parseFormatStr(f);
+        if (this.formats[formatName]) {
+          let formatted = mem;
+          try {
+            const valOptions = options?.formatParams?.[options.interpolationkey] || {};
+            const l = valOptions.locale || valOptions.lng || options.locale || options.lng || lng;
+            formatted = this.formats[formatName](mem, l, {
+              ...formatOptions,
+              ...options,
+              ...valOptions
+            });
+          } catch (error) {
+            this.logger.warn(error);
+          }
+          return formatted;
+        } else {
+          this.logger.warn(`there was no format function for ${formatName}`);
+        }
+        return mem;
+      }, value2);
+      return result;
+    }
+  };
+  var removePending = (q, name) => {
+    if (q.pending[name] !== void 0) {
+      delete q.pending[name];
+      q.pendingCount--;
+    }
+  };
+  var Connector = class extends EventEmitter {
+    constructor(backend, store, services, options = {}) {
+      super();
+      this.backend = backend;
+      this.store = store;
+      this.services = services;
+      this.languageUtils = services.languageUtils;
+      this.options = options;
+      this.logger = baseLogger.create("backendConnector");
+      this.waitingReads = [];
+      this.maxParallelReads = options.maxParallelReads || 10;
+      this.readingCalls = 0;
+      this.maxRetries = options.maxRetries >= 0 ? options.maxRetries : 5;
+      this.retryTimeout = options.retryTimeout >= 1 ? options.retryTimeout : 350;
+      this.state = {};
+      this.queue = [];
+      this.backend?.init?.(services, options.backend, options);
+    }
+    queueLoad(languages, namespaces, options, callback) {
+      const toLoad = {};
+      const pending = {};
+      const toLoadLanguages = {};
+      const toLoadNamespaces = {};
+      languages.forEach((lng) => {
+        let hasAllNamespaces = true;
+        namespaces.forEach((ns) => {
+          const name = `${lng}|${ns}`;
+          if (!options.reload && this.store.hasResourceBundle(lng, ns)) {
+            this.state[name] = 2;
+          } else if (this.state[name] < 0) ;
+          else if (this.state[name] === 1) {
+            if (pending[name] === void 0) pending[name] = true;
+          } else {
+            this.state[name] = 1;
+            hasAllNamespaces = false;
+            if (pending[name] === void 0) pending[name] = true;
+            if (toLoad[name] === void 0) toLoad[name] = true;
+            if (toLoadNamespaces[ns] === void 0) toLoadNamespaces[ns] = true;
+          }
+        });
+        if (!hasAllNamespaces) toLoadLanguages[lng] = true;
+      });
+      if (Object.keys(toLoad).length || Object.keys(pending).length) {
+        this.queue.push({
+          pending,
+          pendingCount: Object.keys(pending).length,
+          loaded: {},
+          errors: [],
+          callback
+        });
+      }
+      return {
+        toLoad: Object.keys(toLoad),
+        pending: Object.keys(pending),
+        toLoadLanguages: Object.keys(toLoadLanguages),
+        toLoadNamespaces: Object.keys(toLoadNamespaces)
+      };
+    }
+    loaded(name, err, data2) {
+      const s2 = name.split("|");
+      const lng = s2[0];
+      const ns = s2[1];
+      if (err) this.emit("failedLoading", lng, ns, err);
+      if (!err && data2) {
+        this.store.addResourceBundle(lng, ns, data2, void 0, void 0, {
+          skipCopy: true
+        });
+      }
+      this.state[name] = err ? -1 : 2;
+      if (err && data2) this.state[name] = 0;
+      const loaded = {};
+      this.queue.forEach((q) => {
+        pushPath(q.loaded, [lng], ns);
+        removePending(q, name);
+        if (err) q.errors.push(err);
+        if (q.pendingCount === 0 && !q.done) {
+          Object.keys(q.loaded).forEach((l) => {
+            if (!loaded[l]) loaded[l] = {};
+            const loadedKeys = q.loaded[l];
+            if (loadedKeys.length) {
+              loadedKeys.forEach((n2) => {
+                if (loaded[l][n2] === void 0) loaded[l][n2] = true;
+              });
+            }
+          });
+          q.done = true;
+          if (q.errors.length) {
+            q.callback(q.errors);
+          } else {
+            q.callback();
+          }
+        }
+      });
+      this.emit("loaded", loaded);
+      this.queue = this.queue.filter((q) => !q.done);
+    }
+    read(lng, ns, fcName, tried = 0, wait = this.retryTimeout, callback) {
+      if (!lng.length) return callback(null, {});
+      if (this.readingCalls >= this.maxParallelReads) {
+        this.waitingReads.push({
+          lng,
+          ns,
+          fcName,
+          tried,
+          wait,
+          callback
+        });
+        return;
+      }
+      this.readingCalls++;
+      const resolver = (err, data2) => {
+        this.readingCalls--;
+        if (this.waitingReads.length > 0) {
+          const next = this.waitingReads.shift();
+          this.read(next.lng, next.ns, next.fcName, next.tried, next.wait, next.callback);
+        }
+        if (err && data2 && tried < this.maxRetries) {
+          setTimeout(() => {
+            this.read(lng, ns, fcName, tried + 1, wait * 2, callback);
+          }, wait);
+          return;
+        }
+        callback(err, data2);
+      };
+      const fc = this.backend[fcName].bind(this.backend);
+      if (fc.length === 2) {
+        try {
+          const r = fc(lng, ns);
+          if (r && typeof r.then === "function") {
+            r.then((data2) => resolver(null, data2)).catch(resolver);
+          } else {
+            resolver(null, r);
+          }
+        } catch (err) {
+          resolver(err);
+        }
+        return;
+      }
+      return fc(lng, ns, resolver);
+    }
+    prepareLoading(languages, namespaces, options = {}, callback) {
+      if (!this.backend) {
+        this.logger.warn("No backend was added via i18next.use. Will not load resources.");
+        return callback && callback();
+      }
+      if (isString(languages)) languages = this.languageUtils.toResolveHierarchy(languages);
+      if (isString(namespaces)) namespaces = [namespaces];
+      const toLoad = this.queueLoad(languages, namespaces, options, callback);
+      if (!toLoad.toLoad.length) {
+        if (!toLoad.pending.length) callback();
+        return null;
+      }
+      toLoad.toLoad.forEach((name) => {
+        this.loadOne(name);
+      });
+    }
+    load(languages, namespaces, callback) {
+      this.prepareLoading(languages, namespaces, {}, callback);
+    }
+    reload(languages, namespaces, callback) {
+      this.prepareLoading(languages, namespaces, {
+        reload: true
+      }, callback);
+    }
+    loadOne(name, prefix = "") {
+      const s2 = name.split("|");
+      const lng = s2[0];
+      const ns = s2[1];
+      this.read(lng, ns, "read", void 0, void 0, (err, data2) => {
+        if (err) this.logger.warn(`${prefix}loading namespace ${ns} for language ${lng} failed`, err);
+        if (!err && data2) this.logger.log(`${prefix}loaded namespace ${ns} for language ${lng}`, data2);
+        this.loaded(name, err, data2);
+      });
+    }
+    saveMissing(languages, namespace, key2, fallbackValue, isUpdate, options = {}, clb = () => {
+    }) {
+      if (this.services?.utils?.hasLoadedNamespace && !this.services?.utils?.hasLoadedNamespace(namespace)) {
+        this.logger.warn(`did not save key "${key2}" as the namespace "${namespace}" was not yet loaded`, "This means something IS WRONG in your setup. You access the t function before i18next.init / i18next.loadNamespace / i18next.changeLanguage was done. Wait for the callback or Promise to resolve before accessing it!!!");
+        return;
+      }
+      if (key2 === void 0 || key2 === null || key2 === "") return;
+      if (this.backend?.create) {
+        const opts = {
+          ...options,
+          isUpdate
+        };
+        const fc = this.backend.create.bind(this.backend);
+        if (fc.length < 6) {
+          try {
+            let r;
+            if (fc.length === 5) {
+              r = fc(languages, namespace, key2, fallbackValue, opts);
+            } else {
+              r = fc(languages, namespace, key2, fallbackValue);
+            }
+            if (r && typeof r.then === "function") {
+              r.then((data2) => clb(null, data2)).catch(clb);
+            } else {
+              clb(null, r);
+            }
+          } catch (err) {
+            clb(err);
+          }
+        } else {
+          fc(languages, namespace, key2, fallbackValue, clb, opts);
+        }
+      }
+      if (!languages || !languages[0]) return;
+      this.store.addResource(languages[0], namespace, key2, fallbackValue);
+    }
+  };
+  var get = () => ({
+    debug: false,
+    initAsync: true,
+    ns: ["translation"],
+    defaultNS: ["translation"],
+    fallbackLng: ["dev"],
+    fallbackNS: false,
+    supportedLngs: false,
+    nonExplicitSupportedLngs: false,
+    load: "all",
+    preload: false,
+    keySeparator: ".",
+    nsSeparator: ":",
+    pluralSeparator: "_",
+    contextSeparator: "_",
+    enableSelector: false,
+    partialBundledLanguages: false,
+    saveMissing: false,
+    updateMissing: false,
+    saveMissingTo: "fallback",
+    saveMissingPlurals: true,
+    missingKeyHandler: false,
+    missingInterpolationHandler: false,
+    postProcess: false,
+    postProcessPassResolved: false,
+    returnNull: false,
+    returnEmptyString: true,
+    returnObjects: false,
+    joinArrays: false,
+    returnedObjectHandler: false,
+    parseMissingKeyHandler: false,
+    appendNamespaceToMissingKey: false,
+    appendNamespaceToCIMode: false,
+    overloadTranslationOptionHandler: (args) => {
+      let ret = {};
+      if (typeof args[1] === "object") ret = args[1];
+      if (isString(args[1])) ret.defaultValue = args[1];
+      if (isString(args[2])) ret.tDescription = args[2];
+      if (typeof args[2] === "object" || typeof args[3] === "object") {
+        const options = args[3] || args[2];
+        Object.keys(options).forEach((key2) => {
+          ret[key2] = options[key2];
+        });
+      }
+      return ret;
+    },
+    interpolation: {
+      escapeValue: true,
+      prefix: "{{",
+      suffix: "}}",
+      formatSeparator: ",",
+      unescapePrefix: "-",
+      nestingPrefix: "$t(",
+      nestingSuffix: ")",
+      nestingOptionsSeparator: ",",
+      maxReplaces: 1e3,
+      skipOnVariables: true
+    },
+    cacheInBuiltFormats: true
+  });
+  var transformOptions = (options) => {
+    if (isString(options.ns)) options.ns = [options.ns];
+    if (isString(options.fallbackLng)) options.fallbackLng = [options.fallbackLng];
+    if (isString(options.fallbackNS)) options.fallbackNS = [options.fallbackNS];
+    if (options.supportedLngs && !options.supportedLngs.includes("cimode")) {
+      options.supportedLngs = options.supportedLngs.concat(["cimode"]);
+    }
+    return options;
+  };
+  var noop = () => {
+  };
+  var bindMemberFunctions = (inst) => {
+    const mems = Object.getOwnPropertyNames(Object.getPrototypeOf(inst));
+    mems.forEach((mem) => {
+      if (typeof inst[mem] === "function") {
+        inst[mem] = inst[mem].bind(inst);
+      }
+    });
+  };
+  var I18n = class _I18n extends EventEmitter {
+    constructor(options = {}, callback) {
+      super();
+      this.options = transformOptions(options);
+      this.services = {};
+      this.logger = baseLogger;
+      this.modules = {
+        external: []
+      };
+      bindMemberFunctions(this);
+      if (callback && !this.isInitialized && !options.isClone) {
+        if (!this.options.initAsync) {
+          this.init(options, callback);
+          return this;
+        }
+        setTimeout(() => {
+          this.init(options, callback);
+        }, 0);
+      }
+    }
+    init(options = {}, callback) {
+      this.isInitializing = true;
+      if (typeof options === "function") {
+        callback = options;
+        options = {};
+      }
+      if (options.defaultNS == null && options.ns) {
+        if (isString(options.ns)) {
+          options.defaultNS = options.ns;
+        } else if (!options.ns.includes("translation")) {
+          options.defaultNS = options.ns[0];
+        }
+      }
+      const defOpts = get();
+      this.options = {
+        ...defOpts,
+        ...this.options,
+        ...transformOptions(options)
+      };
+      this.options.interpolation = {
+        ...defOpts.interpolation,
+        ...this.options.interpolation
+      };
+      if (options.keySeparator !== void 0) {
+        this.options.userDefinedKeySeparator = options.keySeparator;
+      }
+      if (options.nsSeparator !== void 0) {
+        this.options.userDefinedNsSeparator = options.nsSeparator;
+      }
+      if (typeof this.options.overloadTranslationOptionHandler !== "function") {
+        this.options.overloadTranslationOptionHandler = defOpts.overloadTranslationOptionHandler;
+      }
+      const createClassOnDemand = (ClassOrObject) => {
+        if (!ClassOrObject) return null;
+        if (typeof ClassOrObject === "function") return new ClassOrObject();
+        return ClassOrObject;
+      };
+      if (!this.options.isClone) {
+        if (this.modules.logger) {
+          baseLogger.init(createClassOnDemand(this.modules.logger), this.options);
+        } else {
+          baseLogger.init(null, this.options);
+        }
+        let formatter;
+        if (this.modules.formatter) {
+          formatter = this.modules.formatter;
+        } else {
+          formatter = Formatter;
+        }
+        const lu = new LanguageUtil(this.options);
+        this.store = new ResourceStore(this.options.resources, this.options);
+        const s2 = this.services;
+        s2.logger = baseLogger;
+        s2.resourceStore = this.store;
+        s2.languageUtils = lu;
+        s2.pluralResolver = new PluralResolver(lu, {
+          prepend: this.options.pluralSeparator
+        });
+        if (formatter) {
+          s2.formatter = createClassOnDemand(formatter);
+          if (s2.formatter.init) s2.formatter.init(s2, this.options);
+          this.options.interpolation.format = s2.formatter.format.bind(s2.formatter);
+        }
+        s2.interpolator = new Interpolator(this.options);
+        s2.utils = {
+          hasLoadedNamespace: this.hasLoadedNamespace.bind(this)
+        };
+        s2.backendConnector = new Connector(createClassOnDemand(this.modules.backend), s2.resourceStore, s2, this.options);
+        s2.backendConnector.on("*", (event, ...args) => {
+          this.emit(event, ...args);
+        });
+        if (this.modules.languageDetector) {
+          s2.languageDetector = createClassOnDemand(this.modules.languageDetector);
+          if (s2.languageDetector.init) s2.languageDetector.init(s2, this.options.detection, this.options);
+        }
+        if (this.modules.i18nFormat) {
+          s2.i18nFormat = createClassOnDemand(this.modules.i18nFormat);
+          if (s2.i18nFormat.init) s2.i18nFormat.init(this);
+        }
+        this.translator = new Translator(this.services, this.options);
+        this.translator.on("*", (event, ...args) => {
+          this.emit(event, ...args);
+        });
+        this.modules.external.forEach((m) => {
+          if (m.init) m.init(this);
+        });
+      }
+      this.format = this.options.interpolation.format;
+      if (!callback) callback = noop;
+      if (this.options.fallbackLng && !this.services.languageDetector && !this.options.lng) {
+        const codes = this.services.languageUtils.getFallbackCodes(this.options.fallbackLng);
+        if (codes.length > 0 && codes[0] !== "dev") this.options.lng = codes[0];
+      }
+      if (!this.services.languageDetector && !this.options.lng) {
+        this.logger.warn("init: no languageDetector is used and no lng is defined");
+      }
+      const storeApi = ["getResource", "hasResourceBundle", "getResourceBundle", "getDataByLanguage"];
+      storeApi.forEach((fcName) => {
+        this[fcName] = (...args) => this.store[fcName](...args);
+      });
+      const storeApiChained = ["addResource", "addResources", "addResourceBundle", "removeResourceBundle"];
+      storeApiChained.forEach((fcName) => {
+        this[fcName] = (...args) => {
+          this.store[fcName](...args);
+          return this;
+        };
+      });
+      const deferred = defer();
+      const load = () => {
+        const finish = (err, t3) => {
+          this.isInitializing = false;
+          if (this.isInitialized && !this.initializedStoreOnce) this.logger.warn("init: i18next is already initialized. You should call init just once!");
+          this.isInitialized = true;
+          if (!this.options.isClone) this.logger.log("initialized", this.options);
+          this.emit("initialized", this.options);
+          deferred.resolve(t3);
+          callback(err, t3);
+        };
+        if ((this.languages || this.isLanguageChangingTo) && !this.isInitialized) return finish(null, this.t.bind(this));
+        this.changeLanguage(this.options.lng, finish);
+      };
+      if (this.options.resources || !this.options.initAsync) {
+        load();
+      } else {
+        setTimeout(load, 0);
+      }
+      return deferred;
+    }
+    loadResources(language, callback = noop) {
+      let usedCallback = callback;
+      const usedLng = isString(language) ? language : this.language;
+      if (typeof language === "function") usedCallback = language;
+      if (!this.options.resources || this.options.partialBundledLanguages) {
+        if (usedLng?.toLowerCase() === "cimode" && (!this.options.preload || this.options.preload.length === 0)) return usedCallback();
+        const toLoad = [];
+        const append = (lng) => {
+          if (!lng) return;
+          if (lng === "cimode") return;
+          const lngs = this.services.languageUtils.toResolveHierarchy(lng);
+          lngs.forEach((l) => {
+            if (l === "cimode") return;
+            if (!toLoad.includes(l)) toLoad.push(l);
+          });
+        };
+        if (!usedLng) {
+          const fallbacks = this.services.languageUtils.getFallbackCodes(this.options.fallbackLng);
+          fallbacks.forEach((l) => append(l));
+        } else {
+          append(usedLng);
+        }
+        this.options.preload?.forEach?.((l) => append(l));
+        this.services.backendConnector.load(toLoad, this.options.ns, (e) => {
+          if (!e && !this.resolvedLanguage && this.language) this.setResolvedLanguage(this.language);
+          usedCallback(e);
+        });
+      } else {
+        usedCallback(null);
+      }
+    }
+    reloadResources(lngs, ns, callback) {
+      const deferred = defer();
+      if (typeof lngs === "function") {
+        callback = lngs;
+        lngs = void 0;
+      }
+      if (typeof ns === "function") {
+        callback = ns;
+        ns = void 0;
+      }
+      if (!lngs) lngs = this.languages;
+      if (!ns) ns = this.options.ns;
+      if (!callback) callback = noop;
+      this.services.backendConnector.reload(lngs, ns, (err) => {
+        deferred.resolve();
+        callback(err);
+      });
+      return deferred;
+    }
+    use(module) {
+      if (!module) throw new Error("You are passing an undefined module! Please check the object you are passing to i18next.use()");
+      if (!module.type) throw new Error("You are passing a wrong module! Please check the object you are passing to i18next.use()");
+      if (module.type === "backend") {
+        this.modules.backend = module;
+      }
+      if (module.type === "logger" || module.log && module.warn && module.error) {
+        this.modules.logger = module;
+      }
+      if (module.type === "languageDetector") {
+        this.modules.languageDetector = module;
+      }
+      if (module.type === "i18nFormat") {
+        this.modules.i18nFormat = module;
+      }
+      if (module.type === "postProcessor") {
+        postProcessor.addPostProcessor(module);
+      }
+      if (module.type === "formatter") {
+        this.modules.formatter = module;
+      }
+      if (module.type === "3rdParty") {
+        this.modules.external.push(module);
+      }
+      return this;
+    }
+    setResolvedLanguage(l) {
+      if (!l || !this.languages) return;
+      if (["cimode", "dev"].includes(l)) return;
+      for (let li = 0; li < this.languages.length; li++) {
+        const lngInLngs = this.languages[li];
+        if (["cimode", "dev"].includes(lngInLngs)) continue;
+        if (this.store.hasLanguageSomeTranslations(lngInLngs)) {
+          this.resolvedLanguage = lngInLngs;
+          break;
+        }
+      }
+      if (!this.resolvedLanguage && !this.languages.includes(l) && this.store.hasLanguageSomeTranslations(l)) {
+        this.resolvedLanguage = l;
+        this.languages.unshift(l);
+      }
+    }
+    changeLanguage(lng, callback) {
+      this.isLanguageChangingTo = lng;
+      const deferred = defer();
+      this.emit("languageChanging", lng);
+      const setLngProps = (l) => {
+        this.language = l;
+        this.languages = this.services.languageUtils.toResolveHierarchy(l);
+        this.resolvedLanguage = void 0;
+        this.setResolvedLanguage(l);
+      };
+      const done = (err, l) => {
+        if (l) {
+          if (this.isLanguageChangingTo === lng) {
+            setLngProps(l);
+            this.translator.changeLanguage(l);
+            this.isLanguageChangingTo = void 0;
+            this.emit("languageChanged", l);
+            this.logger.log("languageChanged", l);
+          }
+        } else {
+          this.isLanguageChangingTo = void 0;
+        }
+        deferred.resolve((...args) => this.t(...args));
+        if (callback) callback(err, (...args) => this.t(...args));
+      };
+      const setLng = (lngs) => {
+        if (!lng && !lngs && this.services.languageDetector) lngs = [];
+        const fl = isString(lngs) ? lngs : lngs && lngs[0];
+        const l = this.store.hasLanguageSomeTranslations(fl) ? fl : this.services.languageUtils.getBestMatchFromCodes(isString(lngs) ? [lngs] : lngs);
+        if (l) {
+          if (!this.language) {
+            setLngProps(l);
+          }
+          if (!this.translator.language) this.translator.changeLanguage(l);
+          this.services.languageDetector?.cacheUserLanguage?.(l);
+        }
+        this.loadResources(l, (err) => {
+          done(err, l);
+        });
+      };
+      if (!lng && this.services.languageDetector && !this.services.languageDetector.async) {
+        setLng(this.services.languageDetector.detect());
+      } else if (!lng && this.services.languageDetector && this.services.languageDetector.async) {
+        if (this.services.languageDetector.detect.length === 0) {
+          this.services.languageDetector.detect().then(setLng);
+        } else {
+          this.services.languageDetector.detect(setLng);
+        }
+      } else {
+        setLng(lng);
+      }
+      return deferred;
+    }
+    getFixedT(lng, ns, keyPrefix, fixedOpts) {
+      const scopeNs = fixedOpts?.scopeNs;
+      const fixedT = (key2, opts, ...rest) => {
+        let o;
+        if (typeof opts !== "object") {
+          o = this.options.overloadTranslationOptionHandler([key2, opts].concat(rest));
+        } else {
+          o = {
+            ...opts
+          };
+        }
+        o.lng = o.lng || fixedT.lng;
+        o.lngs = o.lngs || fixedT.lngs;
+        const explicitCallNs = o.ns !== void 0 && o.ns !== null;
+        o.ns = o.ns || fixedT.ns;
+        if (o.keyPrefix !== "") o.keyPrefix = o.keyPrefix || keyPrefix || fixedT.keyPrefix;
+        const selectorOpts = {
+          ...this.options,
+          ...o
+        };
+        if (Array.isArray(scopeNs) && !explicitCallNs) selectorOpts.ns = scopeNs;
+        if (typeof o.keyPrefix === "function") o.keyPrefix = keysFromSelector(o.keyPrefix, selectorOpts);
+        const keySeparator = this.options.keySeparator || ".";
+        let resultKey;
+        if (o.keyPrefix && Array.isArray(key2)) {
+          resultKey = key2.map((k) => {
+            if (typeof k === "function") k = keysFromSelector(k, selectorOpts);
+            return `${o.keyPrefix}${keySeparator}${k}`;
+          });
+        } else {
+          if (typeof key2 === "function") key2 = keysFromSelector(key2, selectorOpts);
+          resultKey = o.keyPrefix ? `${o.keyPrefix}${keySeparator}${key2}` : key2;
+        }
+        return this.t(resultKey, o);
+      };
+      if (isString(lng)) {
+        fixedT.lng = lng;
+      } else {
+        fixedT.lngs = lng;
+      }
+      fixedT.ns = ns;
+      fixedT.keyPrefix = keyPrefix;
+      return fixedT;
+    }
+    t(...args) {
+      return this.translator?.translate(...args);
+    }
+    exists(...args) {
+      return this.translator?.exists(...args);
+    }
+    setDefaultNamespace(ns) {
+      this.options.defaultNS = ns;
+    }
+    hasLoadedNamespace(ns, options = {}) {
+      if (!this.isInitialized) {
+        this.logger.warn("hasLoadedNamespace: i18next was not initialized", this.languages);
+        return false;
+      }
+      if (!this.languages || !this.languages.length) {
+        this.logger.warn("hasLoadedNamespace: i18n.languages were undefined or empty", this.languages);
+        return false;
+      }
+      const lng = options.lng || this.resolvedLanguage || this.languages[0];
+      const fallbackLng = this.options ? this.options.fallbackLng : false;
+      const lastLng = this.languages[this.languages.length - 1];
+      if (lng.toLowerCase() === "cimode") return true;
+      const loadNotPending = (l, n2) => {
+        const loadState = this.services.backendConnector.state[`${l}|${n2}`];
+        return loadState === -1 || loadState === 0 || loadState === 2;
+      };
+      if (options.precheck) {
+        const preResult = options.precheck(this, loadNotPending);
+        if (preResult !== void 0) return preResult;
+      }
+      if (this.hasResourceBundle(lng, ns)) return true;
+      if (!this.services.backendConnector.backend || this.options.resources && !this.options.partialBundledLanguages) return true;
+      if (loadNotPending(lng, ns) && (!fallbackLng || loadNotPending(lastLng, ns))) return true;
+      return false;
+    }
+    loadNamespaces(ns, callback) {
+      const deferred = defer();
+      if (!this.options.ns) {
+        if (callback) callback();
+        return Promise.resolve();
+      }
+      if (isString(ns)) ns = [ns];
+      ns.forEach((n2) => {
+        if (!this.options.ns.includes(n2)) this.options.ns.push(n2);
+      });
+      this.loadResources((err) => {
+        deferred.resolve();
+        if (callback) callback(err);
+      });
+      return deferred;
+    }
+    loadLanguages(lngs, callback) {
+      const deferred = defer();
+      if (isString(lngs)) lngs = [lngs];
+      const preloaded = this.options.preload || [];
+      const newLngs = lngs.filter((lng) => !preloaded.includes(lng) && this.services.languageUtils.isSupportedCode(lng));
+      if (!newLngs.length) {
+        if (callback) callback();
+        return Promise.resolve();
+      }
+      this.options.preload = preloaded.concat(newLngs);
+      this.loadResources((err) => {
+        deferred.resolve();
+        if (callback) callback(err);
+      });
+      return deferred;
+    }
+    dir(lng) {
+      if (!lng) lng = this.resolvedLanguage || (this.languages?.length > 0 ? this.languages[0] : this.language);
+      if (!lng) return "rtl";
+      try {
+        const l = new Intl.Locale(lng);
+        if (l && l.getTextInfo) {
+          const ti = l.getTextInfo();
+          if (ti && ti.direction) return ti.direction;
+        }
+      } catch (e) {
+      }
+      const rtlLngs = ["ar", "shu", "sqr", "ssh", "xaa", "yhd", "yud", "aao", "abh", "abv", "acm", "acq", "acw", "acx", "acy", "adf", "ads", "aeb", "aec", "afb", "ajp", "apc", "apd", "arb", "arq", "ars", "ary", "arz", "auz", "avl", "ayh", "ayl", "ayn", "ayp", "bbz", "pga", "he", "iw", "ps", "pbt", "pbu", "pst", "prp", "prd", "ug", "ur", "ydd", "yds", "yih", "ji", "yi", "hbo", "men", "xmn", "fa", "jpr", "peo", "pes", "prs", "dv", "sam", "ckb"];
+      const languageUtils = this.services?.languageUtils || new LanguageUtil(get());
+      if (lng.toLowerCase().indexOf("-latn") > 1) return "ltr";
+      return rtlLngs.includes(languageUtils.getLanguagePartFromCode(lng)) || lng.toLowerCase().indexOf("-arab") > 1 ? "rtl" : "ltr";
+    }
+    static createInstance(options = {}, callback) {
+      const instance2 = new _I18n(options, callback);
+      instance2.createInstance = _I18n.createInstance;
+      return instance2;
+    }
+    cloneInstance(options = {}, callback = noop) {
+      const forkResourceStore = options.forkResourceStore;
+      if (forkResourceStore) delete options.forkResourceStore;
+      const mergedOptions = {
+        ...this.options,
+        ...options,
+        ...{
+          isClone: true
+        }
+      };
+      const clone = new _I18n(mergedOptions);
+      if (options.debug !== void 0 || options.prefix !== void 0) {
+        clone.logger = clone.logger.clone(options);
+      }
+      const membersToCopy = ["store", "services", "language"];
+      membersToCopy.forEach((m) => {
+        clone[m] = this[m];
+      });
+      clone.services = {
+        ...this.services
+      };
+      clone.services.utils = {
+        hasLoadedNamespace: clone.hasLoadedNamespace.bind(clone)
+      };
+      if (forkResourceStore) {
+        const clonedData = Object.keys(this.store.data).reduce((prev, l) => {
+          prev[l] = {
+            ...this.store.data[l]
+          };
+          prev[l] = Object.keys(prev[l]).reduce((acc, n2) => {
+            acc[n2] = {
+              ...prev[l][n2]
+            };
+            return acc;
+          }, prev[l]);
+          return prev;
+        }, {});
+        clone.store = new ResourceStore(clonedData, mergedOptions);
+        clone.services.resourceStore = clone.store;
+      }
+      if (options.interpolation) {
+        const defOpts = get();
+        const mergedInterpolation = {
+          ...defOpts.interpolation,
+          ...this.options.interpolation,
+          ...options.interpolation
+        };
+        const mergedForInterpolator = {
+          ...mergedOptions,
+          interpolation: mergedInterpolation
+        };
+        clone.services.interpolator = new Interpolator(mergedForInterpolator);
+      }
+      clone.translator = new Translator(clone.services, mergedOptions);
+      clone.translator.on("*", (event, ...args) => {
+        clone.emit(event, ...args);
+      });
+      clone.init(mergedOptions, callback);
+      clone.translator.options = mergedOptions;
+      clone.translator.backendConnector.services.utils = {
+        hasLoadedNamespace: clone.hasLoadedNamespace.bind(clone)
+      };
+      return clone;
+    }
+    toJSON() {
+      return {
+        options: this.options,
+        store: this.store,
+        language: this.language,
+        languages: this.languages,
+        resolvedLanguage: this.resolvedLanguage
+      };
+    }
+  };
+  var instance = I18n.createInstance();
+  var createInstance = instance.createInstance;
+  var dir = instance.dir;
+  var init = instance.init;
+  var loadResources = instance.loadResources;
+  var reloadResources = instance.reloadResources;
+  var use = instance.use;
+  var changeLanguage = instance.changeLanguage;
+  var getFixedT = instance.getFixedT;
+  var t = instance.t;
+  var exists = instance.exists;
+  var setDefaultNamespace = instance.setDefaultNamespace;
+  var hasLoadedNamespace = instance.hasLoadedNamespace;
+  var loadNamespaces = instance.loadNamespaces;
+  var loadLanguages = instance.loadLanguages;
+
+  // src/i18n/locales/fr/common.json
+  var common_default = {
+    status: {
+      confirmed: "confirmé",
+      observed_only: "observé seul",
+      documented_only: "documenté seul"
+    },
+    links_one: "{{count}} câble",
+    links_many: "{{count}} câbles",
+    links_other: "{{count}} câbles",
+    devices_one: "{{count}} équipement",
+    devices_many: "{{count}} équipements",
+    devices_other: "{{count}} équipements",
+    source: {
+      lldp: "LLDP",
+      cdp: "CDP",
+      description: "Description"
+    },
+    kind: {
+      device: "équipement collecté",
+      external: "équipement d'une autre infra",
+      stub: "voisin inconnu"
+    },
+    collection: {
+      success: "réussie",
+      unreachable: "injoignable",
+      failed: "en échec",
+      partial: "partielle",
+      not_collected: "non collecté"
+    },
+    haMode: {
+      active_passive: "actif-passif",
+      active_active: "actif-actif",
+      standalone: "autonome",
+      other: "autre"
+    },
+    severity: {
+      error: "erreur",
+      warning: "avertissement",
+      info: "info"
+    },
+    typeShort: {
+      switch: "switch",
+      router: "routeur",
+      firewall: "firewall",
+      load_balancer: "répartiteur",
+      wireless_controller: "WLC",
+      server: "serveur",
+      other: "autre"
+    },
+    resolution: {
+      hostname: "nom exact",
+      hostname_casefold: "nom, à la casse près",
+      reported_hostname: "nom annoncé par l'équipement",
+      address: "adresse (IP ou MAC)",
+      stub: "non résolu : voisin inconnu"
+    },
+    diff: {
+      added: "ajouté",
+      removed: "retiré",
+      changed: "changé"
+    },
+    event: {
+      rebooted: "redémarré",
+      flapped: "flap"
+    },
+    format: {
+      elements_one: "{{count}} élément",
+      elements_other: "{{count}} éléments",
+      elements_many: "{{count}} éléments",
+      sameStart: "même début de collecte",
+      earlier: "{{amount}} plus tôt",
+      later: "{{amount}} plus tard",
+      day: "j",
+      hour: "h",
+      minute: "min",
+      second: "s"
+    },
+    why: {
+      observed: "Observé en {{protocols}} depuis {{witnesses}}.",
+      and: " et ",
+      notObserved: "Aucune observation LLDP ni CDP : ce câble n'existe que par les descriptions d'interface.",
+      documented: "Documenté par la description de {{witnesses}}.",
+      undocumented: "Aucune description ne le documente.",
+      disagrees: "Attention : une description ne concorde pas avec l'observé, voir le contrôle ci-dessous."
+    },
+    hue: {
+      blue: "bleu",
+      sky: "ciel",
+      indigo: "indigo",
+      violet: "violet",
+      pink: "rose",
+      red: "rouge",
+      orange: "orange",
+      amber: "ambre",
+      lime: "citron",
+      green: "vert",
+      teal: "turquoise",
+      slate: "ardoise"
+    },
+    type: {
+      switch: "switch",
+      router: "routeur",
+      firewall: "firewall",
+      load_balancer: "répartiteur",
+      wireless_controller: "contrôleur Wi-Fi",
+      server: "serveur",
+      other: "autre"
+    },
+    groupStyle: {
+      rectangle: "rectangle",
+      ellipse: "ellipse",
+      solid: "plein",
+      dashed: "tirets",
+      dotted: "pointillés",
+      none: "sans bordure",
+      top_left: "haut gauche",
+      top: "haut",
+      top_right: "haut droite",
+      left: "gauche",
+      center: "centre",
+      right: "droite",
+      bottom_left: "bas gauche",
+      bottom: "bas",
+      bottom_right: "bas droite",
+      inside: "dedans",
+      outside: "dehors",
+      regular: "normal",
+      semibold: "demi-gras",
+      bold: "gras",
+      sans: "sans",
+      mono: "mono",
+      hue: "teinte",
+      ink: "encre"
+    },
+    annotationWord: {
+      rectangle: "rectangle",
+      ellipse: "ellipse",
+      free: "libre",
+      device: "équipement",
+      group: "groupe",
+      back: "dessous",
+      front: "dessus",
+      left: "gauche",
+      center: "centre",
+      right: "droite",
+      top: "haut",
+      middle: "milieu",
+      bottom: "bas"
+    },
+    annotationKind: {
+      note: "note",
+      shape: "forme",
+      table: "tableau",
+      image: "image"
+    },
+    connectorWord: {
+      straight: "droit",
+      elbow: "coudé",
+      curve: "courbe",
+      none: "aucune",
+      arrow: "flèche",
+      free: "libre",
+      device: "équipement",
+      group: "groupe",
+      annotation: "annotation",
+      line: "ligne"
+    },
+    side: {
+      auto: "automatique",
+      n: "haut",
+      e: "droite",
+      s: "bas",
+      w: "gauche"
+    },
+    host: {
+      saving: "enregistrement…",
+      notSaved: "non enregistré : {{reason}}",
+      pinLocalNoServer: "déplacement local de {{host}}, non enregistré (page sans serveur)",
+      pinLocalNoName: "déplacement local de {{host}} : donnez votre nom pour l'enregistrer",
+      pinSaving: "enregistrement de l'épingle de {{host}}…",
+      pinSaved: "épingle de {{host}} enregistrée ({{author}})",
+      pinNotSaved: "épingle de {{host}} non enregistrée : {{reason}}",
+      dragged_one: "{{count}} équipement déplacé",
+      dragged_other: "{{count}} équipements déplacés",
+      dragged_many: "{{count}} équipements déplacés",
+      aligned_one: "{{count}} équipement aligné",
+      aligned_other: "{{count}} équipements alignés",
+      aligned_many: "{{count}} équipements alignés",
+      movedNoServer_one: "{{what}} ici, non enregistré (page sans serveur)",
+      movedNoServer_other: "{{what}} ici, non enregistrés (page sans serveur)",
+      movedNoServer_many: "{{what}} ici, non enregistrés (page sans serveur)",
+      movedNoName: "{{what}} ici : donnez votre nom pour enregistrer les épingles",
+      movedSaved: "{{what}}, épingles enregistrées ({{author}})",
+      colorNoServer: "couleur non enregistrée (page sans serveur)",
+      colorNoName: "donnez votre nom pour enregistrer une couleur",
+      by: "{{done}} ({{author}})",
+      colorOf: "couleur de {{who}} : {{hue}}",
+      colorRemoved: "couleur de {{who}} retirée",
+      typeColorOf: "couleur des {{type}} : {{hue}}",
+      typeColorRemoved: "couleur des {{type}} retirée",
+      opsNoServer: "{{what}} non enregistré (page sans serveur)",
+      opsNoName: "donnez votre nom pour enregistrer {{what}}",
+      aGroup: "un groupe",
+      anAnnotation: "une annotation",
+      aConnector: "un connecteur",
+      undoNoName: "donnez votre nom pour annuler ou rétablir",
+      pinsRemoved_one: "{{count}} épingle retirée",
+      pinsRemoved_other: "{{count}} épingles retirées",
+      pinsRemoved_many: "{{count}} épingles retirées",
+      pinRemoved: "épingle de {{host}} retirée"
+    },
+    placement: {
+      placed_one: "{{count}} équipement placé",
+      placed_other: "{{count}} équipements placés",
+      placed_many: "{{count}} équipements placés",
+      recomputed: "placement recalculé",
+      memorizing: "{{what}}, mémorisation…",
+      replacedSaved: "placement recalculé et mémorisé pour tout le monde",
+      lost_one: "{{what}}, non mémorisé : l'API ne retient pas {{missing}}",
+      lost_other: "{{what}}, non mémorisés : l'API ne retient pas {{missing}}",
+      lost_many: "{{what}}, non mémorisés : l'API ne retient pas {{missing}}",
+      saved_one: "{{what}} et mémorisé",
+      saved_other: "{{what}} et mémorisés",
+      saved_many: "{{what}} et mémorisés",
+      replaceStale: "placement recalculé, non mémorisé : le placement mémorisé a changé entre-temps ; replacer à nouveau si besoin",
+      staleStopped_one: "{{what}}, non mémorisé : le placement mémorisé a changé {{times}} fois de suite",
+      staleStopped_other: "{{what}}, non mémorisés : le placement mémorisé a changé {{times}} fois de suite",
+      staleStopped_many: "{{what}}, non mémorisés : le placement mémorisé a changé {{times}} fois de suite",
+      staleAround: "{{what}} sur un placement qui a changé entre-temps : replacé autour du nouveau…",
+      failed_one: "{{what}}, non mémorisé : {{reason}} (renvoyé au prochain dessin)",
+      failed_other: "{{what}}, non mémorisés : {{reason}} (renvoyé au prochain dessin)",
+      failed_many: "{{what}}, non mémorisés : {{reason}} (renvoyé au prochain dessin)",
+      noServer_one: "{{what}} ici, non mémorisé (page sans serveur)",
+      noServer_other: "{{what}} ici, non mémorisés (page sans serveur)",
+      noServer_many: "{{what}} ici, non mémorisés (page sans serveur)"
+    },
+    http: {
+      tokenRefused: "jeton refusé par l'API",
+      unknownRun: "run inconnue pour cette infrastructure",
+      status: "l'API répond {{status}}",
+      statusDetail: "l'API répond {{status}} : {{detail}}",
+      problem: {
+        token_invalid: "jeton d'API absent ou invalide",
+        internal_error: "erreur interne, intervention nécessaire",
+        archive_corrupt: "entrée d'archive corrompue, intervention nécessaire",
+        archive_inconsistent: "les deux snapshots ne se comparent pas : archive incohérente, intervention nécessaire",
+        run_unknown: "run inconnue pour cette infrastructure",
+        snapshot_missing: "run archivée sans snapshot : lancer `ld correlate`",
+        diff_run_unknown: "run `{{side}}` : run inconnue pour cette infrastructure",
+        diff_snapshot_missing: "run `{{side}}` : run archivée sans snapshot : lancer `ld correlate`",
+        diff_snapshot_invalid: "run `{{side}}` : snapshot archivé hors contrat : lancer `ld correlate`",
+        no_archived_run: "aucune run archivée pour cette infrastructure : rien à {{action}}",
+        intent_corrupt: "document d'intention corrompu, intervention nécessaire",
+        intent_unreadable: "document d'intention illisible, intervention nécessaire",
+        placement_corrupt: "document de placement corrompu : `ld placement --forget` le retire, le placement se recalcule",
+        placement_unreadable: "document de placement illisible, intervention nécessaire",
+        journal_unreadable: "journal illisible, intervention nécessaire",
+        asset_unknown: "image inconnue pour cette infrastructure",
+        asset_unreadable: "fichier du magasin illisible, intervention nécessaire",
+        asset_in_use: "image citée par une annotation : supprimez l'annotation d'abord",
+        file_unknown: "fichier inconnu",
+        body_too_large: "corps trop volumineux (limite {{limit}} octets)",
+        body_incomplete: "connexion fermée avant la fin du corps",
+        json_expected: "corps attendu en application/json",
+        json_invalid: "JSON invalide : {{reason}} (ligne {{line}})",
+        image_expected: "`Content-Type` attendu : image/png, image/jpeg ou image/webp",
+        invalid_query: "paramètres de requête invalides",
+        invalid_body: "corps de requête invalide",
+        asset_rejected: "fichier refusé",
+        not_found: "introuvable",
+        method_not_allowed: "méthode non permise",
+        http_error: "requête refusée"
+      },
+      field: {
+        unknown_group: "groupe inconnu : supprimé entre-temps, rechargez le document",
+        group_without_member: "un groupe garde au moins un membre : supprimez-le plutôt",
+        unknown_annotation: "annotation inconnue : supprimée entre-temps, rechargez le document",
+        annotation_kind_change: "une annotation garde sa sorte : créez-en une autre",
+        unknown_asset: "image inconnue du magasin de cette infrastructure : envoyez-la d'abord",
+        unknown_connector: "connecteur inconnu : supprimé entre-temps, rechargez le document",
+        too_many_pins: "plus de {{limit}} épingles pour une infrastructure",
+        too_many_device_colors: "plus de {{limit}} couleurs d'équipement pour une infrastructure",
+        too_many_groups: "plus de {{limit}} groupes pour une infrastructure",
+        too_many_annotations: "plus de {{limit}} annotations pour une infrastructure",
+        too_many_connectors: "plus de {{limit}} connecteurs pour une infrastructure",
+        too_many_places: "plus de {{limit}} équipements placés pour une infrastructure",
+        asset_unrecognized: "ni PNG, ni JPEG, ni WebP d'après les octets de tête, ou en-tête illisible",
+        cursor: "curseur illisible : reprendre depuis la première page",
+        missing_infrastructure: "{{name}} demande une infrastructure (unique dans la sienne seulement)"
+      },
+      action: {
+        modify: "modifier",
+        illustrate: "illustrer",
+        place: "placer"
+      },
+      withField: "{{problem}} ({{path}})"
+    },
+    tip: {
+      external: "autre infra",
+      stub: "voisin inconnu",
+      absent: "absent de interfaces[]",
+      ghostInterface: "interface retirée, valeurs de la run d'avant",
+      addedText: "dans cette run",
+      removedText: "depuis la run d'avant",
+      speed: "vitesse",
+      duplex: "duplex",
+      media: "média",
+      state: "état",
+      noValues: "vitesse, duplex, média : aucune valeur",
+      down: "down",
+      priority: "priorité {{value}}",
+      cables: "câbles",
+      removed_one: "{{count}} retiré",
+      removed_other: "{{count}} retirés",
+      removed_many: "{{count}} retirés",
+      stack: "stack",
+      members_one: "{{count}} membre",
+      members_other: "{{count}} membres",
+      members_many: "{{count}} membres",
+      capabilities: "capacités",
+      haCluster: "cluster HA",
+      role: "rôle",
+      collection: "collecte",
+      protocol: "protocole",
+      degraded: "un agrégat dégradé",
+      groupMembers_one: "{{shown}} / {{count}} membre · {{author}}",
+      groupMembers_other: "{{shown}} / {{count}} membres · {{author}}",
+      groupMembers_many: "{{shown}} / {{count}} membres · {{author}}",
+      attachedTo: "attachée à {{ref}}",
+      annotationBy: "annotation · {{author}}, le {{date}}",
+      connectorBy: "connecteur de {{author}}, le {{date}}",
+      locked: "verrouillé",
+      draggable: "glissable",
+      moreChecks_one: "… et {{count}} autre contrôle",
+      moreChecks_other: "… et {{count}} autres contrôles",
+      moreChecks_many: "… et {{count}} autres contrôles"
+    },
+    align: {
+      horizontal: "aligner horizontalement",
+      vertical: "aligner verticalement",
+      "distribute-horizontal": "répartir horizontalement",
+      "distribute-vertical": "répartir verticalement"
+    },
+    punct: {
+      colon: " : ",
+      semicolon: " ; ",
+      percent: "{{value}} %"
+    },
+    ifaceType: {
+      physical: "port physique",
+      aggregate: "agrégat",
+      subinterface: "sous-interface",
+      svi: "SVI",
+      loopback: "loopback",
+      tunnel: "tunnel",
+      management: "management",
+      other: "autre"
+    }
+  };
+
+  // src/i18n/core.ts
+  var LANGUAGES = ["fr", "en"];
+  var SOURCE_LANGUAGE = "fr";
+  var NAMESPACES = ["common", "shell", "panel", "journal", "checks"];
+  var resources = { fr: { common: common_default } };
+  var i18n = instance.createInstance();
+  void i18n.init({
+    resources,
+    lng: SOURCE_LANGUAGE,
+    fallbackLng: SOURCE_LANGUAGE,
+    supportedLngs: [...LANGUAGES],
+    ns: [...NAMESPACES],
+    defaultNS: "shell",
+    initAsync: false,
+    interpolation: { escapeValue: false }
+  });
+  var t2 = i18n.t.bind(i18n);
+  function labelMap(prefix, keys) {
+    const out = {};
+    for (const key2 of keys) Object.defineProperty(out, key2, { enumerable: true, get: () => t2(prefix + "." + key2) });
+    return Object.freeze(out);
+  }
+
   // src/canvas/align.ts
   var ALIGN_MODES = ["horizontal", "vertical", "distribute-horizontal", "distribute-vertical"];
-  var ALIGN_LABEL = {
-    horizontal: "aligner horizontalement",
-    vertical: "aligner verticalement",
-    "distribute-horizontal": "répartir horizontalement",
-    "distribute-vertical": "répartir verticalement"
-  };
+  var ALIGN_LABEL = labelMap("common:align", ALIGN_MODES);
   var mean = (values) => values.reduce((sum, v) => sum + v, 0) / values.length;
   function align(positions, hosts, mode) {
     const moved = /* @__PURE__ */ new Map();
@@ -123,26 +2778,21 @@
     server: { ...box(5, 2, 22, 28, 4), mark: units(5, 2, 22, 28, 3, 1.6) },
     other: { ...box(3, 3, 26, 26, 6), mark: dot(9.5, 16, 2.3) + dot(16, 16, 2.3) + dot(22.5, 16, 2.3) }
   };
-  var LABEL = {
-    switch: "switch",
-    router: "routeur",
-    firewall: "firewall",
-    load_balancer: "répartiteur",
-    wireless_controller: "contrôleur Wi-Fi",
-    server: "serveur",
-    other: "autre"
-  };
+  var LABEL = labelMap("common:type", ["switch", "router", "firewall", "load_balancer", "wireless_controller", "server", "other"]);
   var TYPES = Object.keys(GLYPHS);
   var glyph = (type) => type !== null && type !== void 0 && GLYPHS[type] || GLYPHS.other;
   var known = (type) => Object.prototype.hasOwnProperty.call(GLYPHS, type);
   var icons = { glyph, known, LABEL, SIZE, TYPES };
 
   // src/canvas/card.ts
-  var STUB_R = 8;
+  var STUB_R = 10;
   var LABEL_MAX = 22;
+  var LABEL_PX = 18;
+  var FAR_LABEL_PX = 24;
+  var TINY_LABEL_PX = 30;
+  var TINY_LABEL_MAX = 14;
   var CARD_H = 80;
   var WIDTH_STEP = 40;
-  var LABEL_PX = 15;
   var ROLE_PX = 10;
   var STACK_PX = 11;
   var RX = 12;
@@ -155,6 +2805,11 @@
   var MAX_W = 360;
   var ICON_SCALE = 1.25;
   var ICON_PX = SIZE * ICON_SCALE;
+  var FAR_ICON_PX = 28;
+  var FAR_GAP = 8;
+  var FAR_PAD = 8;
+  var TINY_PAD = 4;
+  var capsBaseline = (px) => Math.round(px * 0.73);
   var MONO_EM = 0.62;
   var WIDE = /[MWmw@%]/;
   var UPPER = /[A-Z]/;
@@ -174,7 +2829,12 @@
     return Math.ceil(total2 * px + 2);
   }
   var monoWidth = (text2, px = LABEL_PX) => Math.ceil(Array.from(text2).length * MONO_EM * px + 2);
-  var shortName = (name) => name.length <= LABEL_MAX ? name : name.slice(0, 11) + "…" + name.slice(-10);
+  var shortName = (name, max = LABEL_MAX) => {
+    const chars2 = Array.from(name);
+    if (chars2.length <= max) return name;
+    const head2 = Math.ceil((max - 1) / 2);
+    return chars2.slice(0, head2).join("") + "…" + chars2.slice(chars2.length - (max - 1 - head2)).join("");
+  };
   var displayName = (hostname) => shortName(hostname).toUpperCase();
   var clamp = (value2) => Math.min(MAX_W, Math.max(MIN_W, Math.round(value2)));
   var stackText = (count) => "×" + count;
@@ -196,7 +2856,7 @@
       rx: RX,
       rail: railPath(w, CARD_H, RX, RAIL),
       icon: { x: iconX, y: -ICON_PX / 2, scale: ICON_SCALE },
-      label: { x: textX, y: sub ? -4 : 5.5, anchor: "start" },
+      label: { x: textX, y: sub ? -4 : capsBaseline(LABEL_PX) / 2, anchor: "start" },
       role: roleW ? { x: textX, y: subBaseline, anchor: "start" } : null,
       stack: stackW ? { x: textX + (roleW ? roleW + SUB_GAP : 0), y: subBaseline, anchor: "start" } : null
     };
@@ -204,6 +2864,22 @@
   function naturalWidth(labelW, roleW, stackW) {
     const subW = roleW + (roleW && stackW ? SUB_GAP : 0) + stackW;
     return clamp(RAIL + PAD + ICON_PX + GAP + Math.max(labelW, subW) + PAD_RIGHT);
+  }
+  var fitting = (room, px) => Math.max(1, Math.floor((room - 2) / (MONO_EM * px)));
+  function far(label2, w) {
+    const room = w - RAIL - 2 * FAR_PAD - FAR_ICON_PX - FAR_GAP;
+    const text2 = shortName(label2, fitting(room, FAR_LABEL_PX));
+    const span = FAR_ICON_PX + FAR_GAP + monoWidth(text2, FAR_LABEL_PX);
+    const start = RAIL / 2 - span / 2;
+    return {
+      icon: { x: start, y: -FAR_ICON_PX / 2, scale: FAR_ICON_PX / SIZE },
+      text: text2,
+      label: { x: start + FAR_ICON_PX + FAR_GAP, y: capsBaseline(FAR_LABEL_PX) / 2, anchor: "start" }
+    };
+  }
+  function tiny(label2, w) {
+    const text2 = shortName(label2, Math.min(TINY_LABEL_MAX, fitting(w - RAIL - 2 * TINY_PAD, TINY_LABEL_PX)));
+    return { icon: null, text: text2, label: { x: RAIL / 2, y: capsBaseline(TINY_LABEL_PX) / 2, anchor: "middle" } };
   }
   var measures = (label2, extras) => [
     monoWidth(label2),
@@ -217,14 +2893,15 @@
     return Math.ceil(Math.max(MIN_W, ...widths) / WIDTH_STEP) * WIDTH_STEP;
   }
   function plan(label2, extras, imposed = 0) {
-    return wide(...measures(label2, extras), imposed);
+    const base = wide(...measures(label2, extras), imposed);
+    return { ...base, far: far(label2, base.w), tiny: tiny(label2, base.w) };
   }
   function reach(box2, dx, dy) {
     const length = Math.hypot(dx, dy) || 1;
     const ux = Math.abs(dx) / length, uy = Math.abs(dy) / length;
     return Math.min(ux > 1e-6 ? box2.w / 2 / ux : Infinity, uy > 1e-6 ? box2.h / 2 / uy : Infinity);
   }
-  var card = { plan, width, uniformWidth, textWidth, monoWidth, shortName, displayName, reach, STUB_R, LABEL_MAX, CARD_H, WIDTH_STEP };
+  var card = { plan, width, uniformWidth, textWidth, monoWidth, shortName, displayName, reach, STUB_R, LABEL_MAX, CARD_H, WIDTH_STEP, LABEL_PX, FAR_LABEL_PX, TINY_LABEL_PX, TINY_LABEL_MAX, MAX_W };
 
   // src/canvas/groups.ts
   var SHAPES = ["rectangle", "ellipse"];
@@ -250,32 +2927,32 @@
     label_font: "sans",
     label_color: "hue"
   };
-  var STYLE_LABEL = {
-    rectangle: "rectangle",
-    ellipse: "ellipse",
-    solid: "plein",
-    dashed: "tirets",
-    dotted: "pointillés",
-    none: "sans bordure",
-    top_left: "haut gauche",
-    top: "haut",
-    top_right: "haut droite",
-    left: "gauche",
-    center: "centre",
-    right: "droite",
-    bottom_left: "bas gauche",
-    bottom: "bas",
-    bottom_right: "bas droite",
-    inside: "dedans",
-    outside: "dehors",
-    regular: "normal",
-    semibold: "demi-gras",
-    bold: "gras",
-    sans: "sans",
-    mono: "mono",
-    hue: "teinte",
-    ink: "encre"
-  };
+  var STYLE_LABEL = labelMap("common:groupStyle", [
+    "rectangle",
+    "ellipse",
+    "solid",
+    "dashed",
+    "dotted",
+    "none",
+    "top_left",
+    "top",
+    "top_right",
+    "left",
+    "center",
+    "right",
+    "bottom_left",
+    "bottom",
+    "bottom_right",
+    "inside",
+    "outside",
+    "regular",
+    "semibold",
+    "bold",
+    "sans",
+    "mono",
+    "hue",
+    "ink"
+  ]);
   var WEIGHT_VALUE = { regular: 450, semibold: 600, bold: 750 };
   var presentMembers = (model2, group) => group.members.filter((host) => {
     const node = model2.nodeByHost.get(host);
@@ -339,22 +3016,22 @@
   var ALIGNS = ["left", "center", "right"];
   var VALIGNS = ["top", "middle", "bottom"];
   var BOUNDS2 = { size: [20, 4e3], fill_opacity: [0, 100], stroke_width: [0, 8], radius: [0, 80], opacity: [10, 100], text_size: [8, 64] };
-  var KIND_LABEL = { note: "note", shape: "forme", table: "tableau", image: "image" };
-  var LABEL2 = {
-    rectangle: "rectangle",
-    ellipse: "ellipse",
-    free: "libre",
-    device: "équipement",
-    group: "groupe",
-    back: "dessous",
-    front: "dessus",
-    left: "gauche",
-    center: "centre",
-    right: "droite",
-    top: "haut",
-    middle: "milieu",
-    bottom: "bas"
-  };
+  var KIND_LABEL = labelMap("common:annotationKind", ["note", "shape", "table", "image"]);
+  var LABEL2 = labelMap("common:annotationWord", [
+    "rectangle",
+    "ellipse",
+    "free",
+    "device",
+    "group",
+    "back",
+    "front",
+    "left",
+    "center",
+    "right",
+    "top",
+    "middle",
+    "bottom"
+  ]);
   var DEFAULT_STYLE2 = {
     note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
     shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle" },
@@ -443,8 +3120,8 @@
   function borderPoint(rect, toward) {
     const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2, dx = toward.x - cx, dy = toward.y - cy;
     if (!dx && !dy) return { x: cx, y: cy };
-    const t = Math.min(dx ? rect.w / 2 / Math.abs(dx) : Infinity, dy ? rect.h / 2 / Math.abs(dy) : Infinity);
-    return { x: Math.round(cx + dx * t), y: Math.round(cy + dy * t) };
+    const t3 = Math.min(dx ? rect.w / 2 / Math.abs(dx) : Infinity, dy ? rect.h / 2 / Math.abs(dy) : Infinity);
+    return { x: Math.round(cx + dx * t3), y: Math.round(cy + dy * t3) };
   }
   function leaderOf(frame, anchor) {
     const from = borderPoint(frame, { x: anchor.x + anchor.w / 2, y: anchor.y + anchor.h / 2 });
@@ -464,7 +3141,7 @@
     if (c.kind === "note") return c.text.split("\n")[0].slice(0, 60);
     if (c.kind === "shape") return (LABEL2[c.shape] || c.shape) + (c.label ? " · " + c.label : "");
     if (c.kind === "table") return c.rows.length + " × " + (c.rows[0] ? c.rows[0].length : 0) + (c.header && c.rows[0] ? " · " + c.rows[0].join(" | ").slice(0, 40) : "");
-    return c.alt || "image";
+    return c.alt || t2("common:annotationKind.image");
   }
   var signature = (a) => JSON.stringify([a.anchor, a.x, a.y, a.w, a.h, a.z, a.locked, a.leader, a.content, a.style]);
   var annotations = { KINDS, SHAPES: SHAPES2, ANCHORS, PLANES, ALIGNS, VALIGNS, BOUNDS: BOUNDS2, KIND_LABEL, LABEL: LABEL2, DEFAULT_STYLE: DEFAULT_STYLE2, DEFAULT_SIZE, TABLE_CELL_W, TABLE_ROW_H, kindOf, anchorHost, anchorGroup, isOrphan, frameOf: frameOf2, offsetOf, anchorRect, borderPoint, wrapText, layoutText, lineHeight, fitCell, leaderOf, dashArray: dashArray2, shownWith, summary, signature };
@@ -474,13 +3151,13 @@
   var HEADS = ["none", "arrow"];
   var END_KINDS = ["free", "device", "group", "annotation"];
   var BOUNDS3 = { stroke_width: [1, 8], opacity: [10, 100], text_size: [8, 64], bend: [-2e3, 2e3] };
-  var LABEL3 = { straight: "droit", elbow: "coudé", curve: "courbe", none: "aucune", arrow: "flèche", free: "libre", device: "équipement", group: "groupe", annotation: "annotation" };
+  var LABEL3 = labelMap("common:connectorWord", ["straight", "elbow", "curve", "none", "arrow", "free", "device", "group", "annotation"]);
   var DEFAULT_STYLE3 = { hue: "slate", stroke_width: 2, stroke_style: "solid", opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue" };
   var DEFAULT_HEADS = { start: "none", end: "arrow" };
   var DEFAULT_LENGTH = 160;
   var SIDES = ["auto", "n", "e", "s", "w"];
   var FIXED_SIDES = ["n", "e", "s", "w"];
-  var SIDE_LABEL = { auto: "automatique", n: "haut", e: "droite", s: "bas", w: "gauche" };
+  var SIDE_LABEL = labelMap("common:side", ["auto", "n", "e", "s", "w"]);
   var STUB = 24;
   var RECT = { kind: "rect", rx: 0 };
   var attachedEnds = (c) => [c.start, c.end].flatMap((e) => e.kind === "free" ? [] : [{ kind: e.kind, ref: e.ref }]);
@@ -534,8 +3211,8 @@
     const cx = frame.x + frame.w / 2, cy = frame.y + frame.h / 2, dx = toward.x - cx, dy = toward.y - cy;
     if (!dx && !dy) return { x: cx, y: cy };
     if (shape.kind === "ellipse") {
-      const t2 = 1 / Math.sqrt((dx / (frame.w / 2)) ** 2 + (dy / (frame.h / 2)) ** 2);
-      return { x: Math.round(cx + dx * t2), y: Math.round(cy + dy * t2) };
+      const t4 = 1 / Math.sqrt((dx / (frame.w / 2)) ** 2 + (dy / (frame.h / 2)) ** 2);
+      return { x: Math.round(cx + dx * t4), y: Math.round(cy + dy * t4) };
     }
     const rx = Math.max(0, Math.min(shape.rx, frame.w / 2, frame.h / 2));
     const flat = borderPoint(frame, toward);
@@ -543,8 +3220,8 @@
     const k = { x: cx + Math.sign(dx) * (frame.w / 2 - rx), y: cy + Math.sign(dy) * (frame.h / 2 - rx) };
     const d = unit({ x: cx, y: cy }, toward), o = { x: cx - k.x, y: cy - k.y };
     const od = o.x * d.x + o.y * d.y, disc = od * od - (o.x * o.x + o.y * o.y - rx * rx);
-    const t = -od + Math.sqrt(Math.max(0, disc));
-    return { x: Math.round(cx + d.x * t), y: Math.round(cy + d.y * t) };
+    const t3 = -od + Math.sqrt(Math.max(0, disc));
+    return { x: Math.round(cx + d.x * t3), y: Math.round(cy + d.y * t3) };
   }
   var sideOf = (place) => place.kind === "box" && place.side && place.side !== "auto" ? place.side : null;
   var normalOf = (place) => {
@@ -602,8 +3279,8 @@
     const n2 = normal(a, b);
     return Math.round((at.x - (a.x + b.x) / 2) * n2.x + (at.y - (a.y + b.y) / 2) * n2.y);
   }
-  function arrowHead(tip2, dir, size) {
-    const back = { x: tip2.x - dir.x * size, y: tip2.y - dir.y * size }, n2 = { x: -dir.y, y: dir.x }, half = size * 0.45;
+  function arrowHead(tip2, dir2, size) {
+    const back = { x: tip2.x - dir2.x * size, y: tip2.y - dir2.y * size }, n2 = { x: -dir2.y, y: dir2.x }, half = size * 0.45;
     return `${r1(tip2.x)},${r1(tip2.y)} ${r1(back.x + n2.x * half)},${r1(back.y + n2.y * half)} ${r1(back.x - n2.x * half)},${r1(back.y - n2.y * half)}`;
   }
   var headSize = (style) => 7 + 2.5 * style.stroke_width;
@@ -613,7 +3290,7 @@
     return { x, y, w: Math.max(...xs) + pad - x, h: Math.max(...ys) + pad - y };
   }
   var endText = (e) => e.kind === "free" ? e.x + ", " + e.y : (LABEL3[e.kind] || e.kind) + " " + e.ref + (e.side && e.side !== "auto" ? " (" + SIDE_LABEL[e.side] + ")" : "");
-  var summary2 = (c) => (c.heads.start === "arrow" || c.heads.end === "arrow" ? "flèche" : "ligne") + " · " + endText(c.start) + " → " + endText(c.end) + (c.label ? " · " + c.label : "");
+  var summary2 = (c) => t2(c.heads.start === "arrow" || c.heads.end === "arrow" ? "common:connectorWord.arrow" : "common:connectorWord.line") + " · " + endText(c.start) + " → " + endText(c.end) + (c.label ? " · " + c.label : "");
   var freeEnd = (at) => ({ kind: "free", x: Math.round(at.x), y: Math.round(at.y) });
   var attachedEnd = (kind, ref, side = "auto") => ({ kind, ref, side });
   var reversed = (c) => ({ start: c.end, end: c.start, heads: { start: c.heads.end, end: c.heads.start } });
@@ -1225,9 +3902,10 @@
     const ha = (model2.haMembershipsByHost.get(node.hostname) || [])[0];
     return { role: ha ? ha.member.role : null, stack: node.stack ? node.stack.member_count : null };
   }
+  var NAME_ONLY = { role: null, stack: null };
   function commonCardWidth(model2) {
     const cards = model2.nodes.concat(model2.ghostNodes).filter((node) => node.kind !== "stub");
-    return uniformWidth(cards.map((node) => width(displayName(node.hostname), cardExtrasOf(model2, node))));
+    return uniformWidth(cards.map((node) => width(displayName(node.hostname), NAME_ONLY)));
   }
   var model = {
     build,
@@ -1258,22 +3936,18 @@
   };
 
   // src/canvas/format.ts
-  var SOURCE_LABEL = { lldp: "LLDP", cdp: "CDP", description: "Description" };
-  var STATUS_LABEL = { confirmed: "confirmé", observed_only: "observé seul", documented_only: "documenté seul" };
-  var KIND_LABEL2 = { device: "équipement collecté", external: "équipement d'une autre infra", stub: "voisin inconnu" };
-  var COLLECTION_LABEL = { success: "réussie", unreachable: "injoignable", failed: "en échec", partial: "partielle", not_collected: "non collecté" };
-  var HA_MODE_LABEL = { active_passive: "actif-passif", active_active: "actif-actif", standalone: "autonome", other: "autre" };
-  var SEVERITY_LABEL = { error: "erreur", warning: "avertissement", info: "info" };
-  var TYPE_SHORT_LABEL = { switch: "switch", router: "routeur", firewall: "firewall", load_balancer: "répartiteur", wireless_controller: "WLC", server: "serveur", other: "autre" };
-  var RESOLUTION_LABEL = {
-    hostname: "nom exact",
-    hostname_casefold: "nom, à la casse près",
-    reported_hostname: "nom annoncé par l'équipement",
-    address: "adresse (IP ou MAC)",
-    stub: "non résolu : voisin inconnu"
-  };
-  var DIFF_LABEL = { added: "ajouté", removed: "retiré", changed: "changé" };
-  var EVENT_LABEL = { rebooted: "redémarré", flapped: "flap" };
+  var SOURCE_LABEL = labelMap("common:source", ["lldp", "cdp", "description"]);
+  var STATUS_LABEL = labelMap("common:status", ["confirmed", "observed_only", "documented_only"]);
+  var KIND_LABEL2 = labelMap("common:kind", ["device", "external", "stub"]);
+  var COLLECTION_LABEL = labelMap("common:collection", ["success", "unreachable", "failed", "partial", "not_collected"]);
+  var HA_MODE_LABEL = labelMap("common:haMode", ["active_passive", "active_active", "standalone", "other"]);
+  var IFACE_TYPE_LABEL = labelMap("common:ifaceType", ["physical", "aggregate", "subinterface", "svi", "loopback", "tunnel", "management", "other"]);
+  var haModeText = (mode) => HA_MODE_LABEL[mode] || mode;
+  var SEVERITY_LABEL = labelMap("common:severity", ["error", "warning", "info"]);
+  var TYPE_SHORT_LABEL = labelMap("common:typeShort", ["switch", "router", "firewall", "load_balancer", "wireless_controller", "server", "other"]);
+  var RESOLUTION_LABEL = labelMap("common:resolution", ["hostname", "hostname_casefold", "reported_hostname", "address", "stub"]);
+  var DIFF_LABEL = labelMap("common:diff", ["added", "removed", "changed"]);
+  var EVENT_LABEL = labelMap("common:event", ["rebooted", "flapped"]);
   var PORT_SHORT = [
     ["HundredGigE", "Hu"],
     ["FortyGigabitEthernet", "Fo"],
@@ -1312,37 +3986,37 @@
     return facts.length ? label2 + " (" + facts.map(([k, v]) => k + " " + plain(v)).join(", ") + ")" : label2;
   }
   function brief(value2) {
-    if (Array.isArray(value2) && value2.some((item) => item && typeof item === "object")) return value2.length + " élément" + (value2.length > 1 ? "s" : "");
+    if (Array.isArray(value2) && value2.some((item) => item && typeof item === "object")) return t2("common:format.elements", { count: value2.length });
     return plain(value2);
   }
   function elapsedText(seconds) {
-    if (seconds === 0) return "même début de collecte";
+    if (seconds === 0) return t2("common:format.sameStart");
     const abs = Math.abs(seconds);
-    const amount = abs >= 86400 ? Math.round(abs / 8640) / 10 + " j" : abs >= 3600 ? Math.round(abs / 360) / 10 + " h" : Math.round(abs / 60) + " min";
-    return amount + (seconds < 0 ? " plus tôt" : " plus tard");
+    const amount = abs >= 86400 ? Math.round(abs / 8640) / 10 + " " + t2("common:format.day") : abs >= 3600 ? Math.round(abs / 360) / 10 + " " + t2("common:format.hour") : Math.round(abs / 60) + " " + t2("common:format.minute");
+    return t2(seconds < 0 ? "common:format.earlier" : "common:format.later", { amount });
   }
   function durationText(seconds) {
     if (seconds === null || seconds === void 0 || seconds < 0) return null;
     const d = Math.floor(seconds / 86400), h2 = Math.floor(seconds % 86400 / 3600), m = Math.floor(seconds % 3600 / 60);
-    if (d) return d + " j" + (h2 ? " " + h2 + " h" : "");
-    if (h2) return h2 + " h" + (m ? " " + m + " min" : "");
-    return m ? m + " min" : Math.floor(seconds) + " s";
+    const day = t2("common:format.day"), hour = t2("common:format.hour"), minute = t2("common:format.minute");
+    if (d) return d + " " + day + (h2 ? " " + h2 + " " + hour : "");
+    if (h2) return h2 + " " + hour + (m ? " " + m + " " + minute : "");
+    return m ? m + " " + minute : Math.floor(seconds) + " " + t2("common:format.second");
   }
   function speedText(mbps) {
     if (mbps === null || mbps === void 0) return null;
-    return mbps >= 1e3 ? String(mbps / 1e3).replace(".", ",") + " Gb/s" : mbps + " Mb/s";
+    return mbps >= 1e3 ? String(mbps / 1e3).replace(".", i18n.language === "fr" ? "," : ".") + " Gb/s" : mbps + " Mb/s";
   }
   var OBSERVED_SOURCE = { lldp: true, cdp: true };
   function whyText(link, ports = true) {
     const witnesses = (keep) => Array.from(new Set(link.raw.evidence.filter((e) => keep(e.source)).map((e) => ports ? endLabel(e.witness) : e.witness.hostname))).join(", ");
     const seen = witnesses((src) => OBSERVED_SOURCE[src]);
     const written = witnesses((src) => !OBSERVED_SOURCE[src]);
-    const protocols = link.sources.filter((src) => OBSERVED_SOURCE[src]).map((src) => src.toUpperCase()).join(" et ");
+    const protocols = link.sources.filter((src) => OBSERVED_SOURCE[src]).map((src) => src.toUpperCase()).join(t2("common:why.and"));
     const parts = [];
-    if (seen) parts.push("Observé en " + protocols + " depuis " + seen + ".");
-    else parts.push("Aucune observation LLDP ni CDP : ce câble n'existe que par les descriptions d'interface.");
-    parts.push(written ? "Documenté par la description de " + written + "." : "Aucune description ne le documente.");
-    if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push("Attention : une description ne concorde pas avec l'observé, voir le contrôle ci-dessous.");
+    parts.push(seen ? t2("common:why.observed", { protocols, witnesses: seen }) : t2("common:why.notObserved"));
+    parts.push(written ? t2("common:why.documented", { witnesses: written }) : t2("common:why.undocumented"));
+    if (link.checks.some((c) => c.code === "description_disagrees_with_observed")) parts.push(t2("common:why.disagrees"));
     return parts.join(" ");
   }
   var format = { plain, brief, shortPort, speedText, durationText, elapsedText, whyText, SOURCE_LABEL, STATUS_LABEL, KIND_LABEL: KIND_LABEL2, RESOLUTION_LABEL, DIFF_LABEL, EVENT_LABEL, COLLECTION_LABEL, HA_MODE_LABEL, SEVERITY_LABEL, TYPE_SHORT_LABEL };
@@ -1563,7 +4237,7 @@
     const length = Math.max(Math.hypot(dx, dy), 0.01);
     const nx = -dy / length, ny = dx / length;
     const c = { x: (p.x + q.x) / 2 + nx * offset * 2, y: (p.y + q.y) / 2 + ny * offset * 2 };
-    const at = (t) => ({ x: (1 - t) * (1 - t) * p.x + 2 * (1 - t) * t * c.x + t * t * q.x, y: (1 - t) * (1 - t) * p.y + 2 * (1 - t) * t * c.y + t * t * q.y });
+    const at = (t3) => ({ x: (1 - t3) * (1 - t3) * p.x + 2 * (1 - t3) * t3 * c.x + t3 * t3 * q.x, y: (1 - t3) * (1 - t3) * p.y + 2 * (1 - t3) * t3 * c.y + t3 * t3 * q.y });
     const inset = (edge) => Math.min(0.45, ((edge === void 0 ? PORT_CLEAR : edge) + PORT_GAP) / length);
     const side = nx * offset;
     const anchor = side > 0.5 ? "start" : side < -0.5 ? "end" : "middle";
@@ -1586,27 +4260,14 @@
     beam.mlags.forEach((domain) => parts.push("MLAG " + domain.raw.mlag_id));
     return parts.join(" · ");
   }
-  function clusterLabel(cluster) {
-    return "HA · " + (cluster.raw.cluster_name || cluster.hosts.join(" + ")) + " · " + cluster.raw.mode;
+  function clusterLabel(cluster, mode = (raw) => raw) {
+    return "HA · " + (cluster.raw.cluster_name || cluster.hosts.join(" + ")) + " · " + mode(cluster.raw.mode);
   }
   var geometry = { curve, chord, fanOffset, hull, beamBand, beamLabel, clusterLabel, CHAR_W };
 
   // src/canvas/hues.ts
   var HUES = ["blue", "sky", "indigo", "violet", "pink", "red", "orange", "amber", "lime", "green", "teal", "slate"];
-  var HUE_LABEL = {
-    blue: "bleu",
-    sky: "ciel",
-    indigo: "indigo",
-    violet: "violet",
-    pink: "rose",
-    red: "rouge",
-    orange: "orange",
-    amber: "ambre",
-    lime: "citron",
-    green: "vert",
-    teal: "turquoise",
-    slate: "ardoise"
-  };
+  var HUE_LABEL = labelMap("common:hue", HUES);
   var FALLBACK_HUE = "slate";
   var DEFAULT_HUE = {
     switch: "blue",
@@ -1792,9 +4453,9 @@
       return { text: text2, terms: [], error: error.message };
     }
   }
-  var matches = (rule2, node) => rule2.terms.length > 0 && rule2.terms.every((t) => t.regex.test(valueOf(node, t.field)));
-  var escape = (text2) => text2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  var exactRule = (hostnames) => "^(" + hostnames.slice().sort().map(escape).join("|") + ")$";
+  var matches = (rule2, node) => rule2.terms.length > 0 && rule2.terms.every((t3) => t3.regex.test(valueOf(node, t3.field)));
+  var escape2 = (text2) => text2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  var exactRule = (hostnames) => "^(" + hostnames.slice().sort().map(escape2).join("|") + ")$";
   function keepByRules(nodes, links, hide, only) {
     const kept = nodes.filter((node) => !hide.some((rule2) => matches(rule2, node)));
     if (!only) return kept;
@@ -1949,7 +4610,7 @@
         return H_RULE;
     }
   }
-  var restText = (rest) => "… et " + rest + " autre" + (rest > 1 ? "s" : "") + " contrôle" + (rest > 1 ? "s" : "");
+  var restText = (rest) => t2("common:tip.moreChecks", { count: rest });
   function measure(blocks) {
     const width2 = Math.max(tableWidth(columns(blocks)), ...blocks.map(blockWidth));
     return { width: 2 * PAD_X + Math.ceil(width2), height: 2 * PAD_Y + blocks.reduce((sum, b) => sum + blockHeight(b), 0) };
@@ -2136,7 +4797,7 @@
   var MAX_TEXT = 72;
   var STATUS_TONE = { confirmed: "ok", observed_only: "observed", documented_only: "documented" };
   var COLLECTION_DOT = { success: "ok", partial: "warning", failed: "danger", unreachable: "danger", not_collected: "muted" };
-  var KIND_PILL = { external: "autre infra", stub: "voisin inconnu" };
+  var KIND_PILL = { external: () => t2("common:tip.external"), stub: () => t2("common:tip.stub") };
   var ROW_OF_CHECK = { link_speed_mismatch: "speed", link_duplex_mismatch: "duplex", link_oper_mismatch: "state" };
   var SEVERITY_DOT = { error: "danger", warning: "warning", info: "muted" };
   var head = (title, icon2, pills = [], sub = null) => ({ kind: "head", title, icon: icon2, pills, sub });
@@ -2147,7 +4808,6 @@
   var space = { kind: "space" };
   var present = (candidate) => candidate !== null;
   var portName = (end) => end.interface === null || end.interface === void 0 ? "?" : end.interface;
-  var plural = (count, word) => count + " " + word + (count > 1 ? "s" : "");
   var clipName = (name) => name.length <= MAX_NAME ? name : name.slice(0, 18) + "…" + name.slice(-17);
   var clipText = (text2) => text2.length <= MAX_TEXT ? text2 : text2.slice(0, MAX_TEXT - 1) + "…";
   var capitalized = (text2) => text2.charAt(0).toUpperCase() + text2.slice(1);
@@ -2158,7 +4818,7 @@
     const itf = found.itf;
     return { present: true, ghost: found.ghost, speed: speedText(itf.speed_mbps), duplex: itf.duplex, media: itf.media, state: itf.oper_status, reason: itf.oper_reason };
   }
-  var endNote = (f) => !f.present ? "absent de interfaces[]" : f.ghost ? "interface retirée, valeurs de la run d'avant" : null;
+  var endNote = (f) => !f.present ? t2("common:tip.absent") : f.ghost ? t2("common:tip.ghostInterface") : null;
   function checkBlocks(checks) {
     if (!checks.length) return [];
     const counts = /* @__PURE__ */ new Map();
@@ -2172,13 +4832,12 @@
     const rest = keys.slice(MAX_CHECK_LINES).reduce((sum, key2) => sum + counts.get(key2), 0);
     return [{ kind: "checks", items, rest }];
   }
-  var DIFF_WORD = { added: "ajouté", removed: "retiré", changed: "changé" };
-  var DIFF_TEXT = { added: "dans cette run", removed: "depuis la run d'avant", changed: "" };
+  var DIFF_TEXT = { added: () => t2("common:tip.addedText"), removed: () => t2("common:tip.removedText"), changed: () => "" };
   function diffBlock(change) {
     if (!change) return null;
     const fields = change.fields || [];
-    const paths = change.kind === "changed" ? fields.slice(0, 4).map((f) => f.path).join(", ") + (fields.length > 4 ? "…" : "") : DIFF_TEXT[change.kind];
-    return { kind: "pills", pills: [{ text: DIFF_WORD[change.kind], tone: change.kind }], text: paths ? clipText(paths) : null, mono: change.kind === "changed" };
+    const paths = change.kind === "changed" ? fields.slice(0, 4).map((f) => f.path).join(", ") + (fields.length > 4 ? "…" : "") : DIFF_TEXT[change.kind]();
+    return { kind: "pills", pills: [{ text: DIFF_LABEL[change.kind], tone: change.kind }], text: paths ? clipText(paths) : null, mono: change.kind === "changed" };
   }
   function sourcesText(sources) {
     const ordered = SOURCE_ORDER.filter((src) => sources.includes(src)).concat(sources.filter((src) => !SOURCE_ORDER.includes(src)));
@@ -2197,17 +4856,17 @@
     const tone = (key2) => flagged.get(key2) || null;
     const rowDot = (key2) => flagged.has(key2) ? SEVERITY_DOT[flagged.get(key2)] : null;
     const trait = (label2, key2) => facts.some((f) => f[key2] !== null) ? { kind: "row", label: label2, dot: rowDot(key2), values: facts.map((f) => f[key2] === null ? val(DASH2, { muted: true }) : val(f[key2], { tone: tone(key2) })) } : null;
-    const traits = [trait("vitesse", "speed"), trait("duplex", "duplex"), trait("média", "media")].filter(present);
+    const traits = [trait(t2("common:tip.speed"), "speed"), trait(t2("common:tip.duplex"), "duplex"), trait(t2("common:tip.media"), "media")].filter(present);
     const state = facts.some((f) => f.state !== null) ? {
       kind: "row",
-      label: "état",
+      label: t2("common:tip.state"),
       dot: rowDot("state"),
       values: facts.map((f) => f.state === null ? val(DASH2, { muted: true }) : val(f.state, { dot: stateDot(f.state), sub: f.reason, tone: tone("state") }))
     } : null;
     const verdict = control ? {
       kind: "pills",
       text: sourcesText(link.sources),
-      pills: [{ text: STATUS_LABEL[link.status], tone: STATUS_TONE[link.status] || "neutral" }, ...link.raw.oper === "down" ? [{ text: "down", tone: "danger" }] : []]
+      pills: [{ text: STATUS_LABEL[link.status], tone: STATUS_TONE[link.status] || "neutral" }, ...link.raw.oper === "down" ? [{ text: t2("common:tip.down"), tone: "danger" }] : []]
     } : null;
     const footer = [verdict, diffBlock(link.ghost ? { kind: "removed" } : model2.changeOf("link", link.id)), ...control ? checkBlocks(link.checks) : []].filter(present);
     const hueOf = (hostname) => {
@@ -2222,14 +4881,13 @@
     const blocks = [
       heads,
       space,
-      ...traits.length ? traits : [note("vitesse, duplex, média : aucune valeur")],
+      ...traits.length ? traits : [note(t2("common:tip.noValues"))],
       state,
       ...footer.length ? [rule, ...footer] : []
     ];
     return blocks.filter(present);
   }
-  var priorityText = (member) => member.priority !== null && member.priority !== void 0 ? "priorité " + member.priority : null;
-  var modeLabel = (mode) => HA_MODE_LABEL[mode] || mode;
+  var priorityText = (member) => member.priority !== null && member.priority !== void 0 ? t2("common:tip.priority", { value: member.priority }) : null;
   function nodeLines(model2, node, opts = ALL) {
     const control = opts.control !== false;
     const memberships = model2.haMembershipsByHost.get(node.hostname) || [];
@@ -2239,22 +4897,22 @@
     const system = [node.os_name, node.os_version].filter(Boolean).join(" ");
     const pills = [
       ...node.type ? [{ text: TYPE_SHORT_LABEL[node.type] || node.type, tone: "neutral" }] : [],
-      ...KIND_PILL[node.kind] ? [{ text: KIND_PILL[node.kind], tone: "muted", dashed: true }] : []
+      ...KIND_PILL[node.kind] ? [{ text: KIND_PILL[node.kind](), tone: "muted", dashed: true }] : []
     ];
     const facts = [
-      row("câbles", val(links.length, { sub: ghosts ? plural(ghosts, "retiré") : null })),
-      node.stack ? row("stack", val(plural(node.stack.member_count, "membre"))) : null,
-      node.evidence && node.evidence.capabilities.length ? row("capacités", val(clipText(node.evidence.capabilities.join(", ")))) : null,
+      row(t2("common:tip.cables"), val(links.length, { sub: ghosts ? t2("common:tip.removed", { count: ghosts }) : null })),
+      node.stack ? row(t2("common:tip.stack"), val(t2("common:tip.members", { count: node.stack.member_count }))) : null,
+      node.evidence && node.evidence.capabilities.length ? row(t2("common:tip.capabilities"), val(clipText(node.evidence.capabilities.join(", ")))) : null,
       ...memberships.flatMap((ha) => [
         // tous ses clusters (revue, B4)
-        row("cluster HA", val(clipName(ha.cluster.raw.cluster_name || ha.cluster.hosts.join(" + ")), { sub: modeLabel(ha.cluster.raw.mode) })),
-        row("rôle", val(ha.member.role, { sub: priorityText(ha.member) })),
-        row("état", val(ha.member.state, { dot: stateDot(ha.member.state) }))
+        row(t2("common:tip.haCluster"), val(clipName(ha.cluster.raw.cluster_name || ha.cluster.hosts.join(" + ")), { sub: haModeText(ha.cluster.raw.mode) })),
+        row(t2("common:tip.role"), val(ha.member.role, { sub: priorityText(ha.member) })),
+        row(t2("common:tip.state"), val(ha.member.state, { dot: stateDot(ha.member.state) }))
       ])
     ].filter(present);
     const footer = [
       diffBlock(node.ghost ? { kind: "removed" } : model2.changeOf("node", node.hostname)),
-      control && node.collection ? row("collecte", val(COLLECTION_LABEL[node.collection] || node.collection, { dot: COLLECTION_DOT[node.collection] || "muted" })) : null,
+      control && node.collection ? row(t2("common:tip.collection"), val(COLLECTION_LABEL[node.collection] || node.collection, { dot: COLLECTION_DOT[node.collection] || "muted" })) : null,
       ...control ? checkBlocks(model2.checksByNode.get(node.hostname) || []) : []
     ].filter(present);
     return [
@@ -2271,31 +4929,31 @@
     return [
       { kind: "ends", icon: { kind: "beam" }, ends: [{ name: clipName(beam.a.hostname), port: beam.a.aggregate }, { name: clipName(beam.b.hostname), port: beam.b.aggregate }], pills: nature },
       space,
-      row("câbles", val(beam.links.length)),
-      ...protocols.length ? [row("protocole", val(protocols.join(" / ")))] : [],
-      ...beam.degraded ? [note("un agrégat dégradé", "warning")] : [],
+      row(t2("common:tip.cables"), val(beam.links.length)),
+      ...protocols.length ? [row(t2("common:tip.protocol"), val(protocols.join(" / ")))] : [],
+      ...beam.degraded ? [note(t2("common:tip.degraded"), "warning")] : [],
       ...checks.length ? [rule, ...checks] : []
     ];
   }
   function groupLines(group, shown) {
     const first = group.description.split("\n").find((text2) => text2.trim()) || "";
     return [
-      head(clipText(group.label), { kind: "group" }, [], shown + " / " + plural(group.members.length, "membre") + " · " + group.author),
+      head(clipText(group.label), { kind: "group" }, [], t2("common:tip.groupMembers", { shown, count: group.members.length, author: group.author })),
       ...first ? [note(first)] : []
     ];
   }
   function annotationLines(a) {
-    const where = a.anchor.kind === "free" ? "libre" : "attachée à " + a.anchor.ref;
+    const where = a.anchor.kind === "free" ? t2("common:annotationWord.free") : t2("common:tip.attachedTo", { ref: a.anchor.ref });
     return [
       head(KIND_LABEL[a.content.kind] || a.content.kind, { kind: "note" }, [{ text: where, tone: "muted" }]),
       note(summary(a)),
-      note("annotation de " + a.author + ", le " + a.at.slice(0, 10))
+      note(t2("common:tip.annotationBy", { author: a.author, date: a.at.slice(0, 10) }))
     ];
   }
   function clusterLines(cluster, opts = ALL) {
     const checks = opts.control !== false ? checkBlocks(cluster.checks) : [];
     return [
-      head(clipName(cluster.raw.cluster_name || cluster.hosts.join(" + ")), { kind: "cluster" }, [{ text: "HA", tone: "structure" }], modeLabel(cluster.raw.mode)),
+      head(clipName(cluster.raw.cluster_name || cluster.hosts.join(" + ")), { kind: "cluster" }, [{ text: "HA", tone: "structure" }], haModeText(cluster.raw.mode)),
       space,
       ...cluster.raw.members.map((m) => ({
         kind: "row",
@@ -2308,8 +4966,8 @@
   }
   function connectorLines(c) {
     return [
-      head(clipText(summary2(c)), { kind: "connector" }, [{ text: c.route === "elbow" ? "coudé" : c.route === "curve" ? "courbe" : "droit", tone: "muted" }, { text: c.locked ? "verrouillé" : "glissable", tone: "muted" }]),
-      note("connecteur de " + c.author + ", le " + c.at.slice(0, 10))
+      head(clipText(summary2(c)), { kind: "connector" }, [{ text: t2(`common:connectorWord.${c.route === "elbow" || c.route === "curve" ? c.route : "straight"}`), tone: "muted" }, { text: t2(c.locked ? "common:tip.locked" : "common:tip.draggable"), tone: "muted" }]),
+      note(t2("common:tip.connectorBy", { author: c.author, date: c.at.slice(0, 10) }))
     ];
   }
   var tip = { groupLines, annotationLines, connectorLines, create, text, clipName, linkLines, nodeLines, beamLines, clusterLines };
@@ -3158,10 +5816,10 @@
     }));
     return groups2;
   }
-  function pointOn(p, q, offset, t) {
+  function pointOn(p, q, offset, t3) {
     const dx = q.x - p.x, dy = q.y - p.y, length = Math.max(Math.hypot(dx, dy), 0.01);
     const c = { x: (p.x + q.x) / 2 - dy / length * offset * 2, y: (p.y + q.y) / 2 + dx / length * offset * 2 };
-    return { x: (1 - t) * (1 - t) * p.x + 2 * (1 - t) * t * c.x + t * t * q.x, y: (1 - t) * (1 - t) * p.y + 2 * (1 - t) * t * c.y + t * t * q.y };
+    return { x: (1 - t3) * (1 - t3) * p.x + 2 * (1 - t3) * t3 * c.x + t3 * t3 * q.x, y: (1 - t3) * (1 - t3) * p.y + 2 * (1 - t3) * t3 * c.y + t3 * t3 * q.y };
   }
   var speed = { speedGroups, pointOn, SLOTS };
 
@@ -3314,7 +5972,7 @@
   // src/canvas/tags.ts
   var MIDDLE = [0.5, 0.4, 0.6, 0.32, 0.68, 0.25, 0.75];
   var NEAR_Q = [0.7, 0.62, 0.78, 0.55, 0.5, 0.45, 0.4];
-  var NEAR_P = NEAR_Q.map((t) => Math.round((1 - t) * 100) / 100);
+  var NEAR_P = NEAR_Q.map((t3) => Math.round((1 - t3) * 100) / 100);
   var GAP2 = 3;
   var TAG_WEIGHT = 4;
   var CELL = 64;
@@ -3367,7 +6025,7 @@
     const up = n2.y <= 0 ? 1 : -1;
     const outer = req.offset > 0 ? 1 : req.offset < 0 ? -1 : up;
     const other = outer === 1 ? -1 : 1;
-    return [0, outer, other, 2 * outer, 2 * other].flatMap((side) => req.prefer.map((t) => ({ t, side })));
+    return [0, outer, other, 2 * outer, 2 * other].flatMap((side) => req.prefer.map((t3) => ({ t: t3, side })));
   }
   function placeTags(requests, obstacles) {
     const grid2 = new Grid();
@@ -3469,7 +6127,7 @@
   function targetCell(model2, check, onSelect) {
     const targets = targetsOf(model2, check);
     if (!targets.length) return plain(check.refs.map(refHost));
-    return targets.map((t) => h("button", { class: "linklike", type: "button", onclick: () => onSelect(t.selection) }, t.label));
+    return targets.map((t3) => h("button", { class: "linklike", type: "button", onclick: () => onSelect(t3.selection) }, t3.label));
   }
   function checkRows(model2, checks, onSelect) {
     return checks.map((check) => ({ cells: [
@@ -3539,7 +6197,7 @@
     const topics = model2.coverage.length ? Object.keys(model2.coverage[0].topics) : [];
     return table2(["équipement", "collecte", ...topics], model2.coverage.map((c) => {
       const statuses = c.topics;
-      return { cells: [c.hostname, pill3("collection", c.status, c.status), ...topics.map((t) => pill3("topic", statuses[t], statuses[t]))] };
+      return { cells: [c.hostname, pill3("collection", c.status, c.status), ...topics.map((t3) => pill3("topic", statuses[t3], statuses[t3]))] };
     }), { empty: "aucun équipement dans le périmètre" });
   }
   function findingsTable(model2) {
@@ -4266,16 +6924,12 @@
   // src/shell/intent.ts
   var OPS_PER_REQUEST = 500;
   var AUTHOR_MAX_LENGTH = 80;
-  var dateText = (iso) => iso.replace("T", " ").replace(/:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)$/, " $2").replace(" Z", " UTC");
-  function localMoves(model2, graph2) {
-    return Array.from(graph2.state.pinned.keys()).filter((host) => !model2.pinByHost.has(host)).sort();
-  }
   function chunks(items, size) {
     const out = [];
     for (let start = 0; start < items.length; start += size) out.push(items.slice(start, start + size));
     return out;
   }
-  function createIntentHost(model2, writer, hooks) {
+  function createIntentHost(model2, writer, hooks, tab) {
     const canWrite = () => !!(writer && writer.author);
     const accept = (intent2) => {
       if (model2.intent && intent2.revision < model2.intent.revision) return false;
@@ -4288,7 +6942,7 @@
     };
     async function send(ops, removed, done, colour = false, all = false) {
       if (!writer) return false;
-      hooks.note("enregistrement…");
+      hooks.note(t2("common:host.saving"));
       let failure = null;
       for (const part of chunks(ops, OPS_PER_REQUEST)) {
         const outcome = await writer.save(part);
@@ -4302,93 +6956,92 @@
       if (colour || all) graph2.recolor();
       if (removed.length) graph2.unpin(removed.filter((host) => model2.pinByHost.has(host) === false));
       if (all || !colour && !removed.length) graph2.syncPins();
-      hooks.note(failure ? "non enregistré : " + failure : done);
+      hooks.note(failure ? t2("common:host.notSaved", { reason: failure }) : done);
       refresh();
       return failure === null;
     }
     function onPin(hostname, point) {
       if (!writer) {
-        hooks.note("déplacement local de " + hostname + ", non enregistré (page sans serveur)");
+        hooks.note(t2("common:host.pinLocalNoServer", { host: hostname }));
         return;
       }
       if (!writer.author) {
-        hooks.note("déplacement local de " + hostname + " : donnez votre nom (onglet Intentions) pour l'enregistrer");
+        hooks.note(t2("common:host.pinLocalNoName", { host: hostname }));
         return;
       }
-      hooks.note("enregistrement de l'épingle de " + hostname + "…");
+      hooks.note(t2("common:host.pinSaving", { host: hostname }));
       writer.save([{ op: "pin", hostname, x: Math.round(point.x), y: Math.round(point.y) }]).then((outcome) => {
         if (outcome.ok) {
           accept(outcome.intent);
           hooks.graph().syncPins();
-          hooks.note("épingle de " + hostname + " enregistrée (" + writer.author + ")");
-        } else hooks.note("épingle de " + hostname + " non enregistrée : " + outcome.message);
+          hooks.note(t2("common:host.pinSaved", { host: hostname, author: writer.author }));
+        } else hooks.note(t2("common:host.pinNotSaved", { host: hostname, reason: outcome.message }));
         refresh();
       });
     }
     function onPins(moves, cause = "aligned") {
       const hosts = Array.from(moves.keys()).sort();
-      const plural3 = hosts.length > 1 ? "s" : "";
-      const what = hosts.length + " équipement" + plural3 + (cause === "dragged" ? " déplacé" : " aligné") + plural3;
+      const what = t2(cause === "dragged" ? "common:host.dragged" : "common:host.aligned", { count: hosts.length });
       if (!writer) {
-        hooks.note(what + " ici, non enregistré" + (hosts.length > 1 ? "s" : "") + " (page sans serveur)");
+        hooks.note(t2("common:host.movedNoServer", { what, count: hosts.length }));
         return;
       }
       if (!writer.author) {
-        hooks.note(what + " ici : donnez votre nom pour enregistrer les épingles");
+        hooks.note(t2("common:host.movedNoName", { what }));
         return;
       }
       const ops = hosts.map((hostname) => {
         const point = moves.get(hostname);
         return { op: "pin", hostname, x: Math.round(point.x), y: Math.round(point.y) };
       });
-      void send(ops, [], what + ", épingles enregistrées (" + writer.author + ")");
+      void send(ops, [], t2("common:host.movedSaved", { what, author: writer.author }));
     }
     function colourOps(ops, done) {
       if (!writer) {
-        hooks.note("couleur non enregistrée (page sans serveur)");
+        hooks.note(t2("common:host.colorNoServer"));
         return;
       }
       if (!writer.author) {
-        hooks.note("donnez votre nom pour enregistrer une couleur");
+        hooks.note(t2("common:host.colorNoName"));
         return;
       }
-      void send(ops, [], done + " (" + writer.author + ")", true);
+      void send(ops, [], t2("common:host.by", { done, author: writer.author }), true);
     }
     const onColor = (hostname, hue) => colourOps(
       hue ? [{ op: "color", hostname, hue }] : [{ op: "uncolor", hostname }],
-      hue ? "couleur de " + hostname + " : " + hueLabel(hue) : "couleur de " + hostname + " retirée"
+      hue ? t2("common:host.colorOf", { who: hostname, hue: hueLabel(hue) }) : t2("common:host.colorRemoved", { who: hostname })
     );
     const onColors = (hostnames, hue) => {
       const hosts = hostnames.slice().sort();
       if (!hosts.length) return;
-      const what = hosts.length === 1 ? hosts[0] : hosts.length + " équipements";
+      const what = hosts.length === 1 ? hosts[0] : t2("common:devices", { count: hosts.length });
       colourOps(
         hosts.map((hostname) => hue ? { op: "color", hostname, hue } : { op: "uncolor", hostname }),
-        hue ? "couleur de " + what + " : " + hueLabel(hue) : "couleur de " + what + " retirée"
+        hue ? t2("common:host.colorOf", { who: what, hue: hueLabel(hue) }) : t2("common:host.colorRemoved", { who: what })
       );
     };
     const onTypeColor = (type, hue) => colourOps(
       hue ? [{ op: "color_type", type, hue }] : [{ op: "uncolor_type", type }],
-      hue ? "couleur des " + (LABEL[type] || type) + " : " + hueLabel(hue) : "couleur des " + (LABEL[type] || type) + " retirée"
+      hue ? t2("common:host.typeColorOf", { type: LABEL[type] || type, hue: hueLabel(hue) }) : t2("common:host.typeColorRemoved", { type: LABEL[type] || type })
     );
     async function onOps(ops, done, what) {
       if (!writer) {
-        hooks.note(what + " non enregistré (page sans serveur)");
+        hooks.note(t2("common:host.opsNoServer", { what }));
         return null;
       }
       if (!writer.author) {
-        hooks.note("donnez votre nom pour enregistrer " + what);
+        hooks.note(t2("common:host.opsNoName", { what }));
         return null;
       }
-      await send(ops, [], done + " (" + writer.author + ")", true);
+      await send(ops, [], t2("common:host.by", { done, author: writer.author }), true);
       return model2.intent;
     }
-    const onGroup = (ops, done) => onOps(ops, done, "un groupe");
-    const onAnnotation = (ops, done) => onOps(ops, done, "une annotation");
-    const onConnector = (ops, done) => onOps(ops, done, "un connecteur");
+    const onGroup = (ops, done) => onOps(ops, done, t2("common:host.aGroup"));
+    const onAnnotation = (ops, done) => onOps(ops, done, t2("common:host.anAnnotation"));
+    const onConnector = (ops, done) => onOps(ops, done, t2("common:host.aConnector"));
     async function apply(ops, done) {
       if (!writer || !writer.author) {
-        hooks.note("donnez votre nom pour annuler ou rétablir");
+        hooks.note(t2("common:host.undoNoName"));
         return null;
       }
       const removed = ops.flatMap((op) => op.op === "unpin" ? [op.hostname] : []);
@@ -4396,12 +7049,27 @@
     }
     const unpinOps = (hosts) => hosts.map((hostname) => ({ op: "unpin", hostname }));
     const unpin = (hosts) => {
-      if (hosts.length) void send(unpinOps(hosts), hosts, hosts.length + " épingle" + (hosts.length > 1 ? "s retirées" : " retirée"));
+      if (hosts.length) void send(unpinOps(hosts), hosts, t2("common:host.pinsRemoved", { count: hosts.length }));
     };
     const removeOne = (hostname, button) => {
       button.setAttribute("disabled", "");
-      void send(unpinOps([hostname]), [hostname], "épingle de " + hostname + " retirée");
+      void send(unpinOps([hostname]), [hostname], t2("common:host.pinRemoved", { host: hostname }));
     };
+    const page = tab ? tab({ model: model2, writer, hooks, canWrite, send, removeOne, unpinOps, refresh }) : null;
+    const view = () => {
+      if (page) page.view();
+    };
+    const pinBlock = (hostname) => page ? page.pinBlock(hostname) : null;
+    return { onPin, onPins, unpin, onColor, onTypeColor, onColors, onGroup, onAnnotation, onConnector, apply, canWrite, view, pinBlock };
+  }
+  var intent = { createIntentHost, OPS_PER_REQUEST, AUTHOR_MAX_LENGTH };
+
+  // src/shell/intent-tab.ts
+  var dateText = (iso) => iso.replace("T", " ").replace(/:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)$/, " $2").replace(" Z", " UTC");
+  function localMoves(model2, graph2) {
+    return Array.from(graph2.state.pinned.keys()).filter((host) => !model2.pinByHost.has(host)).sort();
+  }
+  function createIntentTab({ model: model2, writer, hooks, canWrite, send, removeOne, unpinOps, refresh }) {
     function writerNote() {
       if (!writer) {
         const why = model2.intent ? "cette page a été générée sans serveur (ld render)" : "cette page vient d'un fichier, sans archive ni serveur";
@@ -4572,14 +7240,12 @@
         pin && canWrite() ? h("button", { type: "button", onclick: (e) => removeOne(hostname, e.target) }, "retirer l'épingle") : null
       ];
     }
-    return { onPin, onPins, unpin, onColor, onTypeColor, onColors, onGroup, onAnnotation, onConnector, apply, canWrite, view, pinBlock };
+    return { view, pinBlock };
   }
-  var intent = { createIntentHost, OPS_PER_REQUEST, AUTHOR_MAX_LENGTH };
 
   // src/shell/placement.ts
   var MAX_RETRIES = 3;
-  var plural2 = (count, word) => count + " " + word + (count > 1 ? "s" : "");
-  var placed = (count) => plural2(count, "équipement") + " placé" + (count > 1 ? "s" : "");
+  var placed = (count) => t2("common:placement.placed", { count });
   var byHostname = (a, b) => a.hostname < b.hostname ? -1 : 1;
   function createPlacementHost(model2, placer, hooks) {
     const pending = /* @__PURE__ */ new Map();
@@ -4595,7 +7261,7 @@
       if (!placer) return;
       const places = Array.from(pending.values()).sort(byHostname);
       if (!replace && !places.length) return;
-      hooks.note(what + ", mémorisation…");
+      hooks.note(t2("common:placement.memorizing", { what }));
       const outcome = await placer.save({ base_revision: model2.placement ? model2.placement.revision : 0, replace, places });
       if (replace) replacing = false;
       if (outcome.ok) {
@@ -4606,16 +7272,16 @@
         const stopped = retries > MAX_RETRIES;
         if (stopped) retries = 0;
         accept(outcome.placement, replace || !replacing && !stopped);
-        hooks.note(replace ? "placement recalculé et mémorisé pour tout le monde" : stopped ? what + ", non mémorisé" + (places.length > 1 ? "s" : "") + " : l'API ne retient pas " + plural2(missing, "équipement") : what + " et mémorisé" + (places.length > 1 ? "s" : ""));
+        hooks.note(replace ? t2("common:placement.replacedSaved") : stopped ? t2("common:placement.lost", { what, count: places.length, missing: t2("common:devices", { count: missing }) }) : t2("common:placement.saved", { what, count: places.length }));
       } else if (outcome.stale) {
         pending.clear();
         retries = replace ? 0 : retries + 1;
         const stopped = retries > MAX_RETRIES;
         if (stopped) retries = 0;
-        hooks.note(replace ? "placement recalculé, non mémorisé : le placement mémorisé a changé entre-temps ; replacer à nouveau si besoin" : stopped ? what + ", non mémorisé" + (places.length > 1 ? "s" : "") + " : le placement mémorisé a changé " + MAX_RETRIES + " fois de suite" : what + " sur un placement qui a changé entre-temps : replacé autour du nouveau…");
+        hooks.note(replace ? t2("common:placement.replaceStale") : stopped ? t2("common:placement.staleStopped", { what, count: places.length, times: MAX_RETRIES }) : t2("common:placement.staleAround", { what }));
         accept(outcome.placement, replace || !stopped && !replacing);
       } else {
-        hooks.note(what + ", non mémorisé" + (places.length > 1 && !replace ? "s" : "") + " : " + outcome.message + " (renvoyé au prochain dessin)");
+        hooks.note(t2("common:placement.failed", { what, count: replace ? 1 : places.length, reason: outcome.message }));
       }
     }
     function onPlaced(fresh2, replace) {
@@ -4624,15 +7290,14 @@
         replacing = true;
       }
       fresh2.forEach((point, hostname) => pending.set(hostname, { hostname, x: point.x, y: point.y }));
-      const what = replace ? "placement recalculé" : placed(fresh2.size);
+      const what = replace ? t2("common:placement.recomputed") : placed(fresh2.size);
       if (!placer) {
-        if (model2.placement) hooks.note(what + " ici, non mémorisé" + (fresh2.size > 1 && !replace ? "s" : "") + " (page sans serveur)");
+        if (model2.placement) hooks.note(t2("common:placement.noServer", { what, count: replace ? 1 : fresh2.size }));
         return;
       }
       queue = queue.then(() => send(replace, what)).catch(() => void 0);
     }
-    const replaceTitle = () => "recalcule tout le placement autour des épingles enregistrées ; les déplacements non enregistrés sont oubliés" + (placer ? ", et le nouveau placement remplace celui mémorisé, pour tout le monde" : "");
-    return { onPlaced, replaceTitle, needsConfirmation: () => !!placer };
+    return { onPlaced, needsConfirmation: () => !!placer };
   }
   var placement = { createPlacementHost, MAX_RETRIES };
 
@@ -4712,6 +7377,7 @@
       intentChip()
     ));
   }
+  var replaceTitle = (placements) => "recalcule tout le placement autour des épingles enregistrées ; les déplacements non enregistrés sont oubliés" + (placements.needsConfirmation() ? ", et le nouveau placement remplace celui mémorisé, pour tout le monde" : "");
   function toolbar(model2, graph2, status, placements) {
     const stubs = model2.kindCounts.get("stub") || 0;
     const redraw = { showStubs: () => graph2.render(false), showPorts: () => (graph2.repaint(), null), showDiff: () => graph2.render(true) };
@@ -4747,7 +7413,7 @@
         e.target.setAttribute("aria-pressed", legend2.hidden ? "false" : "true");
       } }, "légende"),
       // « Replacer » renouvelle le placement mémorisé : dans une page servie, c'est pour tout le monde, donc confirmé.
-      placements.needsConfirmation() ? confirmable("replacer", () => status(graph2.replaceAll()), { title: placements.replaceTitle() }) : h("button", { type: "button", title: placements.replaceTitle(), onclick: () => status(graph2.replaceAll()) }, "replacer"),
+      placements.needsConfirmation() ? confirmable("replacer", () => status(graph2.replaceAll()), { title: replaceTitle(placements) }) : h("button", { type: "button", title: replaceTitle(placements), onclick: () => status(graph2.replaceAll()) }, "replacer"),
       h("span", { class: "muted", id: "graph-status" })
     ));
   }
@@ -4902,7 +7568,7 @@
       },
       mounted: () => built.has("intent"),
       container: () => byId("view-intent")
-    });
+    }, createIntentTab);
     const drawn = () => {
       const nodes = Array.from(g().state.nodeEls.keys(), (host) => model2.nodeByHost.get(host)).filter((n2) => !!n2);
       const links = Array.from(g().state.linkEls.keys(), (id) => model2.linkById.get(id)).filter((l) => !!l);
@@ -5043,9 +7709,9 @@
   }
   var withParams = (route, params) => route + "?" + new URLSearchParams(params).toString();
   async function call(route, params, token, payload) {
-    const init = { headers: { Authorization: "Bearer " + token }, credentials: "omit" };
-    if (payload !== void 0) Object.assign(init, { method: "POST", headers: { ...init.headers, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    const response = await fetch(withParams(route, params), init);
+    const init2 = { headers: { Authorization: "Bearer " + token }, credentials: "omit" };
+    if (payload !== void 0) Object.assign(init2, { method: "POST", headers: { ...init2.headers, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const response = await fetch(withParams(route, params), init2);
     let body = null;
     try {
       body = await response.json();
@@ -5055,11 +7721,26 @@
     return { status: response.status, body };
   }
   var isRecord = (value2) => !!value2 && typeof value2 === "object";
+  function ownText(family, code, params) {
+    const key2 = "common:http." + family + "." + String(code);
+    if (typeof code !== "string" || !i18n.exists(key2)) return "";
+    const action = typeof params.action === "string" && i18n.exists("common:http.action." + params.action) ? t2("common:http.action." + params.action) : params.action;
+    return t2(key2, { ...params, action });
+  }
+  function problemText(body) {
+    const problem = isRecord(body) ? body : {};
+    const params = isRecord(problem.params) ? problem.params : {};
+    const field = Array.isArray(problem.errors) && isRecord(problem.errors[0]) ? problem.errors[0] : {};
+    const own = ownText("field", field.code, params);
+    if (own) return own;
+    const general = ownText("problem", problem.code, params) || (typeof problem.detail === "string" ? problem.detail : "");
+    return general && typeof field.path === "string" && field.path ? t2("common:http.withField", { problem: general, path: field.path }) : general;
+  }
   function explain(status, body) {
-    if (status === 401) return "jeton refusé par l'API";
-    const detail = isRecord(body) && typeof body.detail === "string" ? body.detail : "";
-    if (status === 404) return detail || "run inconnue pour cette infrastructure";
-    return "l'API répond " + status + (detail ? " : " + detail : "");
+    if (status === 401) return t2("common:http.tokenRefused");
+    const detail = problemText(body);
+    if (status === 404) return detail || t2("common:http.unknownRun");
+    return detail ? t2("common:http.statusDetail", { status, detail }) : t2("common:http.status", { status });
   }
 
   // src/shell/timeline.ts

@@ -1500,6 +1500,165 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   appel ; rien sur disque. **Chemins inchangés** (renommage écarté : exportateur et front cassés pour un gain de
   forme ; au gel du contrat si Orhan y tient). Rapport : `docs/revues/2026-10-09-audit-api-swagger.md`. Backend 573
   tests, 98 %.
+- **Interface bilingue français / anglais : plan proposé, non codé** (2026-10-10, demande d'Orhan : l'application vise
+  aussi un public anglophone). Recommandé : **i18next + react-i18next** (standard, fonctionne en TS pur pour la toile et
+  en React, catalogues JSON par langue embarqués dans `app.js`, clés typées, `Intl` pour dates et nombres, le code de
+  contrôle comme clé, tests de parité fr / en et captures françaises identiques à l'octet). **Tranché par Orhan** : les
+  messages d'erreur de l'API passent en anglais (standard) ; documentation, CLI et `CONTRAT.md` restent en français pour
+  l'instant, à passer en anglais plus tard. Langue = préférence du navigateur (`ld-prefs`), jamais dans l'adresse.
+  Ouvert : `/view` gelée reste en français ; préférences côté serveur seulement avec une vraie identité.
+- **Interface bilingue, lot 1 (socle) écrit** (2026-10-10, « Go » d'Orhan). `engine/src/i18n/` : i18next **26.4.2** et
+  react-i18next **17.0.14** épinglés (versions de plus de deux semaines), instance propre, catalogues JSON `fr` / `en`
+  par espace de noms (`common`, `shell`) embarqués dans `app.js`, clés typées depuis le français (`tsc` refuse une clé
+  inconnue), repli français. Langue = choix rangé dans `ld-prefs` (`language`, `null` = navigateur), sinon la première
+  langue du navigateur parlée, sinon l'anglais ; posée avant le premier rendu avec `<html lang>` ; sélecteur
+  `LanguageSwitch` (chaque langue écrite dans sa langue) dans le menu et sur l'accueil. Traduits : barre (vues, comptes,
+  règles, changements, nom), menu, réglages de la toile, accueil. **Piège trouvé** : le français a la catégorie de
+  pluriel `many` (1 000 000) ; sans clé `_many`, i18next affiche la clé brute : le test lit les catégories dans
+  `Intl.PluralRules`. Tests : `backend/tests/js/i18n.test.js` (mêmes clés, mêmes variables, pluriels de chaque langue,
+  détection, bascule sans DOM ; mutations vérifiées), parcours Chromium en `en-US` (accueil anglais, choix du français
+  rangé et tenu au rechargement, retour à l'anglais par le menu, rien dans l'adresse) ; le Chromium des tests parle
+  `fr-FR` par défaut (`tests/browser.py`). Backend 586 tests. Captures `.impeccable/planche-langue/`. Glossaire anglais
+  proposé : vues **Diagram / Checks / Log**, device, cable, check, pin. Guide : `engine/README.md` § La langue.
+- **Interface bilingue, lot 2 écrit** (2026-10-10, « Go » d'Orhan, glossaire accepté sans remarque). Traduits :
+  recherche (sections, actions, détails des résultats : la langue entre dans la clé du cache), barre d'outils, panneau
+  Affichage (libellé d'une couche = clé `display.<couche>`), bande des runs, barre de parcours. **Libellés d'annuler /
+  rétablir rangés sans langue** (`history.Label` = clé + valeurs, `labelText` à l'affichage, état `history` typé `Label`) :
+  ils suivent un changement de langue, comme les messages d'annulation (`undo.ts`). Modules partagés avec `/view`
+  (`ALIGN_LABEL`) inchangés, l'application lit ses catalogues. Garde-fous ajoutés au test de parité : `_zero` facultatif
+  mais présent partout s'il l'est en français ; **une clé sans pluriel ne porte pas `{{count}}`** (i18next y cherche un
+  pluriel ; trouvé sur `bar.changesTitle` du lot 1, corrigé). Backend 586 tests, captures `.impeccable/planche-langue/`.
+- **Interface bilingue, lot 3 écrit : les fiches, les menus, les messages** (2026-10-10, « Go » d'Orhan). Traduits :
+  les huit fiches et leurs briques (espace `panel`), le menu contextuel, la palette des types, les messages d'état du
+  store, des écrivains, du client, et ceux des hôtes partagés avec `/view` (`shell/intent.ts`, `placement.ts`,
+  `http.ts`). **Décision technique** : un module partagé avec `/view` lit le catalogue lui-même plutôt que d'être
+  dupliqué (`format.ts`, la bulle au lot suivant) ; le noyau `i18n/core.ts` est sans React et n'embarque que `common` en
+  français, l'application ajoute `shell`, `panel` et l'anglais (`index.ts`, `I18nextProvider`) ; `/view` et `ld render`
+  restent en français parce que personne n'y change de langue (vérifié par leurs tests). Les dictionnaires partagés
+  deviennent des `labelMap` (lus à chaque accès, appelants inchangés). Coût : `viewer.js` 278 → 375 Ko (i18next non
+  minifié), `app.js` 743 → 855 Ko. Le test d'innocuité du fichier construit admet les minuteurs d'i18next (fonction en
+  argument), interdit toujours la forme qui évalue une chaîne ; nos sources restent sans minuteur. Un avertissement de
+  la barre se coupe sur « : » avec ou sans espace avant (l'anglais n'en met pas). Français inchangé à l'écran, sauf
+  « 1 retiré » au lieu de « 1 retiré(s) ». Reste en français en anglais : le sens des contrôles (catalogue du backend),
+  la toile (pastilles ACTIF / PASSIF, bulle, aides clavier), le Journal. Backend 586 tests.
+- **Interface bilingue, lot 4 écrit : la toile** (2026-10-10, « Go » d'Orhan). Traduits : la bulle au survol
+  (`canvas/tip.ts`, `bubble.ts`, clés `common:tip`, partagées avec `/view` qui reste en français), les pastilles de carte
+  (ACTIVE / PASSIVE / DOWN), la liste d'un stack, les noms accessibles des nœuds, cadres, annotations et connecteurs,
+  les champs d'édition sur la toile, les aides de React Flow pour lecteur d'écran (`shell:canvas`) ; la direction d'un
+  déplacement au clavier, donnée en anglais par React Flow, passe par le catalogue (le français disait « Déplacé vers
+  up »). `Flow.tsx` reconstruit nœuds et `ariaLabelConfig` au changement de langue. Gardé tel quel, à trancher avec le
+  catalogue des codes : l'étiquette d'un cluster HA écrit le mode brut (`active_passive`) dans les deux langues. Français
+  inchangé à l'écran (captures `*-toile-bulle-*.png`). Backend 586 tests.
+- **Interface bilingue, lot 5 écrit : le Journal** (2026-10-10, « Go » d'Orhan). Nouvel espace `journal` (phrases,
+  rafales, faits, facettes, outils, aide, export). Une phrase s'écrit sans auxiliaire et le reçoit par `withAux`
+  (« a {{phrase}} » / « {{phrase}} ») : la tête de ligne n'en dit l'auxiliaire qu'au lecteur d'écran, l'export le retire ;
+  une suppression ressort par un drapeau de la phrase (`destroy`), plus par son texte. Dates par `Intl` dans la locale
+  de la langue (`fr-FR`, `en-GB`, anglais britannique comme le glossaire), « 1er » en français (correction : les en-têtes
+  de jour écrivaient « jeudi 1 octobre »). CSV : en-têtes dans la langue, séparateur « , » en anglais. **Serveur** :
+  `journal_words.py` cherche les deux langues à la fois (le serveur ne connaît pas la langue de la page) ; le test de
+  dérive lit les catalogues `fr` et `en` au lieu du code de la page. **Décision** : le serveur nomme toujours en français
+  un objet sans nom (« groupe sans nom → point libre », deltas de purge compris) ; la page traduit cette liste fermée
+  (`subjectLabel`), un test garde serveur, catalogue et recherche alignés ; pas de changement d'API. Backend 588 tests.
+- **Interface bilingue, lot 6 écrit : le sens des contrôles** (2026-10-10, « Go » d'Orhan). Nouvel espace `checks`, le
+  code de contrôle pour clé (40 codes) ; le français est le texte du contrat (`ld_contracts.snapshot.codes`) à l'octet,
+  le contrat reste la source et garde ses textes français (`CONTRAT.md`, `/view`). `backend/tests/test_i18n_checks.py` :
+  chaque `CheckCode` a son texte dans les deux langues, le français égale le contrat, un identifiant en code (`details`,
+  `min_links`) est le même dans les deux. Un code que la page ne connaît pas (serveur plus récent) garde le texte que le
+  serveur embarque (`app/state/checks.ts`). **Le mode d'un cluster HA s'écrit en mots dans l'application** (cadre,
+  fiche, pastille, recherche : « actif-passif » / « active-passive » ; correction du français, qui écrivait
+  `active_passive`) ; les rôles restent tels qu'enregistrés (décision du 2026-10-02) ; `/view`, gelée, garde le mode brut.
+  Au passage : la bascule des vues était coupée à gauche dans la barre en français à 1440 px sans nom saisi
+  (`justify-content: safe center`, le débordement passe à droite). Backend 592 tests.
+- **Interface bilingue, lot 7 écrit : les refus de l'API en anglais** (2026-10-10, « Go » d'Orhan). `Problem` gagne
+  `code` (stable, requis) et `params` (les valeurs du serveur qui écrivent la phrase : côté d'un diff, limite, mot
+  d'action ; jamais une valeur reçue) ; `errors[]` gagne `code` (celui de l'API, du contrat ou de Pydantic). Ajout
+  seulement, chemins inchangés. Codes et phrases anglaises en un seul endroit, `backend/src/ld_backend/problems.py`
+  (`ApiError`, gestionnaire de tout `HTTPException`, refus du cadre compris : `not_found`, `method_not_allowed`) ; les
+  bornes de l'intention deviennent des codes distincts (`too_many_pins`…, avant un seul `too_long`). La page écrit son
+  propre texte d'après le code (premier champ fautif, sinon le refus ; `common:http.problem` / `field` / `action`,
+  partagé avec `/view`, qui reste en français), la phrase anglaise en repli pour un code qu'elle ne connaît pas.
+  `tests/test_problems.py` : chaque code a son texte dans les deux langues avec les mêmes valeurs, l'anglais de la page
+  est celui de l'API, aucun `HTTPException(` écrit à la main dans `api.py` / `bodies.py`. **Frontière** : les messages
+  du validateur du contrat (rapport d'ingestion, règles des modèles dans `errors[].message`) restent en français avec
+  `CONTRAT.md` et la CLI ; leur code est stable. Français à l'écran inchangé, sauf deux corrections : un refus
+  d'opération d'intention dit sa raison (« groupe inconnu : supprimé entre-temps… ») au lieu de « corps de requête
+  invalide », une image refusée dit une phrase générique (« ni PNG, ni JPEG, ni WebP d'après les octets de tête, ou
+  en-tête illisible »). Backend 602 tests.
+- **Interface bilingue, lot 8 écrit : aucune chaîne française en dur ; la fonction est complète** (2026-10-10, « vas-y »
+  d'Orhan, audit prévu à la livraison). `engine/strings.mjs` (dans `npm run check` et le test de dérive de la suite
+  Python) construit l'application telle qu'elle est livrée (arbre secoué, catalogues remplacés par `{}`), la lit avec le
+  compilateur TypeScript et refuse toute chaîne ou tout gabarit de `src/` qui porte une lettre accentuée du français ou un
+  mot outil français ; exceptions déclarées avec leur raison (`ALLOWED` : « Français », `sans` du contrat) ; garde-fou
+  contre un scan vide ; vérifié par mutation. Trouvé et corrigé : la zone lue par un lecteur d'écran disait la sélection
+  en français (`app/state/describe.ts`, `shell:live`), « introuvable dans cette run », « défaut » d'un champ de teinte ;
+  les libellés d'alignement passent dans `common:align`. **Découpage** : l'onglet Intentions de `/view` sort de l'hôte
+  partagé (`shell/intent-tab.ts`, passé par `/view` seulement) et l'infobulle de « replacer » va dans `shell/main.ts` :
+  l'application n'embarque plus ce code qu'elle n'affichait jamais. `/view` inchangée (ses tests passent). Backend
+  602 tests.
+- **Interface bilingue : audit à la livraison, tout traité** (2026-10-10, demande d'Orhan). Deux revues indépendantes
+  consignées (`docs/revues/2026-10-10-interface-bilingue-code.md` : 0 critique, 0 haut, 2 moyens, 10 bas ;
+  `…-usage.md`, parcours Chromium complet : 0 haut, 5 moyens, 9 bas ; socle jugé bon, ni clé brute ni français visible
+  en anglais). **Décisions d'Orhan** : le serveur marque les objets sans nom (`subjects[].unnamed`, `parts`, ajout
+  seulement : la page ne traduit plus jamais un nom saisi) ; plage du Journal en champs ISO AAAA-MM-JJ ; « sheet » →
+  « panel », « answers » → « returned » ; « bundle » gardé. **Corrigé** : la langue s'applique avant l'état et les
+  messages se rangent sans langue (`state/said.ts`) ; `strings.mjs` apprend le lexique des catalogues et la typographie ;
+  ponctuation par le catalogue ; rôles et noms accessibles de React Flow traduits ; diff de fiche et faits du Journal en
+  mots ; **un clic droit sur une poignée de connecteur écrivait une courbure** (et les poignées d'annotation, d'ancre, de
+  tableau démarraient un glissé) : bouton gauche seulement, seuil de 3 px, test vérifié par mutation ; barre compacte dès
+  1366 px ; clés du Journal typées ; gardes ajoutées (collision de codes, mots de recherche ↔ catalogues, balayage
+  anti-français et bascule dans le test Chromium anglais). Backend 606 tests.
+- **Audit de l'interface d'édition : `docs/11` écrit, décisions et lots à valider** (2026-10-13, demande d'Orhan :
+  « pas de copier / coller des formes ; nœuds découverts trop petits ; points de connexion affichés par défaut qui gênent ;
+  mise en forme par le panneau pas moderne, il manque un accès rapide au-dessus de l'élément comme dans Visio » ; « rendre
+  l'outil robuste et non pas juste une jolie démonstration » ; plan détaillé pour des agents Opus après validation).
+  Session d'audit, **aucun code**. Méthode : deux inventaires lus dans le code (consignés `docs/revues/2026-10-13-inventaire-ui-*.md`),
+  quatre captures de l'état réel (`.impeccable/planche-audit/`), benchmark de sept éditeurs et d'un outil réseau avec sources
+  (`docs/revues/2026-10-13-benchmark-editeurs.md`). Constats de fond : **la sélection n'est jamais mixte** (plusieurs
+  équipements, ou un seul élément d'une autre sorte : tout le reste en dépend) ; ancre et poignée de milieu de côté au
+  même pixel, poignées en unités du plan ; annotation attachée « dessous » rendue au-dessus de sa carte (règle
+  parent / enfant de React Flow) ; nœuds « trop petits » = rapport carte / espacement du placement force-dirigé et nom
+  de 15 px, pas la carte ; aucun arrangement (couches, grille) ; aucun export ; pages concurrentes aveugles ; toile
+  reconstruite à chaque sélection, aucune mesure au-delà de 60 équipements. **Douze décisions D1-D12** (glissé nu =
+  rectangle, molette = défilement, ancres jamais au repos + outil connecteur, nom 18 px + niveau de détail, Suppr,
+  presse-papiers, `order` additif, export PNG puis SVG, relecture 15 s + `expected_revision`, barre contextuelle, Markdown
+  restreint, dernier style) et **quinze lots** (lot 0 = règles communes ; P0 : lisibilité, poignées / ancres, sélection
+  mixte + clavier, presse-papiers, barre contextuelle, arrangements ; P1 : zoom / raccourcis / présentation, guides,
+  ordre / verrou Intent 1.6.0, styles, export, multi-utilisateur, performance ; P2 : passe visuelle, texte riche), ordre
+  en §7. Rien ne part avant les décisions d'Orhan sur §5.
+- **« Ok avec tes recommandations, on attaque » : D1 à D5 prises à la recommandation, lots exécutés par des agents Opus,
+  lot 5 livré** (2026-10-13). Décisions : glissé nu = rectangle de sélection ; molette = défilement, Ctrl + molette =
+  zoom ; ancres jamais au repos + outil connecteur ; nom 18 px et niveau de détail, pas d'échelle partagée ; Suppr ne
+  touche pas un équipement et le dit. Méthode : un agent Opus par lot (modèle demandé par Orhan), un seul à la fois
+  dans l'arbre principal (lots 5, 1, 2 touchent `Flow.tsx` et `canvas.css`), chaque agent lit le lot 0 et son lot dans
+  `docs/11`, annonce son plan, code, passe la suite complète, livre captures et docs ; l'orchestrateur relit (diff,
+  tests, captures), écrit cette entrée, ne commite pas. **Lot 5 fait** (`.impeccable/planche-lot-5/`, détail dans
+  `docs/11` § Lot 5 « Fait ») : nom 15 → 18, deux niveaux de détail dans la même boîte (`card.ts` `plan().far` /
+  `plan().tiny`, montrés par classe `zoom-far` < 0,6 et `zoom-tiny` < 0,4 : icône 28 + nom 24, puis nom seul à 30 ;
+  trois couches rendues par carte, la feuille de style n'en montre qu'une : dette de performance à mesurer au lot 13),
+  `READ_ZOOM` 0,67 → 0,55, voisins inconnus disque 10 dans un nœud de 40 × 40 (centre sur la grille), largeur commune
+  mesurée sur les noms seuls, `/view` suit `card.ts`. Mesuré : `demo-dc` « cadrer tout » 6,7 → 11,7 px ; 60 équipements
+  4,6 → **9,7 px** (écart assumé à l'acceptation « ≥ 10 » : la carte ne tient pas plus ; levier = placement plus serré,
+  lot 6). **À juger par Orhan sur capture** : à l'ouverture (0,55 < 0,6) les pastilles ACTIF / PASSIF et de stack sont
+  cachées (règle `zoom-far` antérieure) ; option : un point de couleur sans texte de loin. Test fragile vu une fois sous
+  charge (élargissement du panneau par son bord, `test_the_application_end_to_end_in_a_browser`), passe seul 6 / 6 : à
+  surveiller. Backend 606 tests, 123 sous Node. Lot 1 lancé dans la foulée.
+- **Lot 1 livré : poignées, ancres, survol, outil connecteur ; arrêt de la session sur demande d'Orhan, reprise au
+  lot 2** (2026-10-13). Agent Opus, relu : `npm run check` propre, backend 606 tests, 19 sous Node pour l'application
+  (7 mutations vérifiées), parcours Chromium des annotations étendu, détecteur Impeccable sans constat ; captures
+  `.impeccable/planche-lot-1/` ; détail dans `docs/11` § Lot 1 « Fait ». **Ce qui change** : plus aucune ancre au repos
+  ni à la sélection ; pendant le glissé d'un bout, la cible montre son contour en accent (bout `auto`) et ses quatre
+  ancres (bout fixe) dans une **seule couche** `ViewportPortal` (`anchors.tsx` réduit à `TargetMarks`) ; **outil
+  connecteur** à bascule dans la barre (`C`, `aria-pressed`, croix, tirer depuis un élément ou deux clics sur le fond,
+  Échap ou une création le range, Maj = série ; il prend les appuis à la capture avant React Flow) ; poignées à taille
+  d'écran (coins 8 px, barres 14 × 5 sur les côtés, aucune barre sous 40 px), curseurs, Alt depuis le centre, pastilles
+  « L × H » et « X, Y » pendant le geste, redimensionnement en direct par tous les bords ; liseré de survol 1 px à 50 % ;
+  bulle jamais sur la sélection ni pendant un geste (`tips.tsx`, minuterie côté page) ; « dessous » retiré pour une
+  annotation attachée, dit dans la fiche ; suppression d'un groupe directe partout avec « Ctrl+Z » ; `zoom-near`
+  retiré de l'application. Modules purs nouveaux : `app/canvas/handles.ts`, `tool.ts`, `hover.ts`. **Parqués** :
+  confirmation de suppression d'une annotation / d'un connecteur dans leur fiche, Échap pendant un redimensionnement
+  (vide la sélection, rend la boîte), frontières de tableau pas encore à taille d'écran. **Reprise** : une session
+  Opus suffit (`docs/11-prompt-agent-lot.md` : prompt de reprise et prompt par lot) ; prochain lot = **2** (sélection
+  mixte et clavier, D1 / D2 / D5 tranchées), puis 3 → 4 → 6. Arbre non commité : i18n (lots 1 à 8), audit, lots 5 et 1.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 
@@ -1551,6 +1710,11 @@ Détail : `docs/00-analyse-fondation.md` §10.
   (tableaux éditables, menu contextuel, collage, connecteurs §6.6) et 1.5.0 (ancres des connecteurs, §6.6) ; §8 : ce qui
   reste (épingles d'étiquettes et styles
   de câbles, masque, câbles déclarés). Chaque incrément codé le jour de son écriture.
+- `docs/11-audit-ui-edition-et-plan.md` — **audit de l'interface d'édition et plan de rattrapage** (2026-10-13) : état
+  réel, benchmark, lacunes, douze décisions à trancher, quinze lots écrits pour un agent (lot 0 = règles communes).
+  **À valider par Orhan.** Annexes : `docs/revues/2026-10-13-*`, captures `.impeccable/planche-audit/`.
+- `docs/11-prompt-agent-lot.md` — **gabarit de reprise** (2026-10-13) : le prompt de la session qui orchestre et le prompt
+  de l'agent d'un lot ; une session Opus suffit pour la suite des lots.
 - `docs/06-evidence-table-mac.md` — **conception de l'évidence table MAC** (2026-10-03) : topic `mac_table` restreint au
   parc, règle R7 (port de bordure), clusters à MAC virtuelle, six questions. **À valider par Orhan.**
 - `docs/guides-collecte/` — guides **producteur** par plateforme (2026-09-24 : `fortios-interfaces.md`, commandes et chronologie
@@ -1560,7 +1724,7 @@ Détail : `docs/00-analyse-fondation.md` §10.
   2026-09-26 : `2026-09-26-b1-r4-structures.md`, `2026-09-26-pages-increment-b.md`, `2026-09-26-b1-r5-etat-et-golden.md` ;
   2026-10-02 : `2026-10-02-mlag-peer-link-nullable.md`, `2026-10-02-r2-forme-ha-descriptions.md`,
   `2026-10-02-pages-demo-bulles-role-ha.md` ; 2026-10-03 : `2026-10-03-generateur-synthetique.md` ; 2026-10-04 :
-  `2026-10-04-b3-diff.md`, `2026-10-04-toile-engine-ts.md`, `2026-10-04-b4-intention.md` ; 2026-10-09 : `2026-10-09-vue-journal.md`, `2026-10-09-audit-api-swagger.md` ; 2026-10-10 : `2026-10-10-purge-journal.md`, `2026-10-10-journal-actions-liens-historique.md`) et leurs sondes rejouables
+  `2026-10-04-b3-diff.md`, `2026-10-04-toile-engine-ts.md`, `2026-10-04-b4-intention.md` ; 2026-10-09 : `2026-10-09-vue-journal.md`, `2026-10-09-audit-api-swagger.md` ; 2026-10-10 : `2026-10-10-purge-journal.md`, `2026-10-10-journal-actions-liens-historique.md`, `2026-10-10-interface-bilingue-code.md`, `2026-10-10-interface-bilingue-usage.md`) et leurs sondes rejouables
 - `docs/living-diagram-v12.html` — source de l'artefact d'architecture (v5 du 2026-09-10 : lane
   exportateur séparée, route d'ingestion, tableau d'avancement, renvoi vers docs/05)
 - `prompts.md` — échanges bruts du propriétaire (historique)

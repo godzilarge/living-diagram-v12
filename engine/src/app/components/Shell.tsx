@@ -1,12 +1,14 @@
 // La coquille : la toile pleine, et tout le reste qui flotte, montré quand il sert. Le clavier de la page : `/` ou
-// Ctrl+K donnent le focus à la recherche, Échap ferme ce qui est ouvert, puis finit un parcours, puis vide la sélection ; Ctrl+Z annule, Ctrl+Y (ou
+// Ctrl+K donnent le focus à la recherche, C arme ou range l'outil connecteur (lot 1 de docs/11), Échap ferme ce qui est
+// ouvert, puis range l'outil, puis finit un parcours, puis vide la sélection ; Ctrl+Z annule, Ctrl+Y (ou
 // Ctrl+Maj+Z) rétablit ; les flèches déplacent la sélection d'un carreau de grille, de cinq avec Maj ; Ctrl+V colle
 // une image (annotation image) ou un texte (note) sur la toile.
 import { ArrowLeft } from "lucide-react";
 import { useEffect } from "react";
-import { describe } from "../../shell/inspect";
+import { applyLanguage, t } from "../../i18n";
+import { describe } from "../state/describe";
 import { GRID } from "../canvas/Flow";
-import { useModel, useStore } from "../state/store";
+import { useEditable, useModel, useStore } from "../state/store";
 import { Canvas } from "./Canvas";
 import { Connect } from "./Connect";
 import { ContextMenu } from "./ContextMenu";
@@ -39,8 +41,15 @@ export function Shell() {
   const model = useModel();
   const ready = state.run.kind === "ready";
   const loading = state.run.kind === "loading";
+  const editable = useEditable();
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
+      const plain = !event.ctrlKey && !event.metaKey && !event.altKey;
+      if (plain && event.key.toLowerCase() === "c" && !event.repeat && !elsewhere(event.target) && ready && editable && state.view.mode === "diagram") {
+        event.preventDefault();
+        commands.toggleTool("connector");
+        return;
+      }
       if ((event.key === "k" && (event.ctrlKey || event.metaKey)) || (event.key === "/" && !typing(event.target))) {
         event.preventDefault();
         if (ready && state.view.mode !== "journal") dispatch({ type: "palette", open: true }); // le Journal a sa recherche
@@ -52,12 +61,13 @@ export function Shell() {
       else if (state.colorsOpen) dispatch({ type: "colors", open: false });
       else if (state.menuOpen) dispatch({ type: "menu", open: false });
       else if (state.connectOpen && ready) dispatch({ type: "connect", open: false });
+      else if (state.tool) commands.setTool(null);
       else if (state.walk && !typing(event.target)) commands.endWalk();
       else if (!typing(event.target)) commands.clearSelection();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state.palette.open, state.colorsOpen, state.menuOpen, state.connectOpen, state.walk, state.context, state.view.mode, ready, dispatch, commands]);
+  }, [state.palette.open, state.colorsOpen, state.menuOpen, state.connectOpen, state.walk, state.context, state.tool, state.view.mode, ready, editable, dispatch, commands]);
   // Coller (Orhan, 2026-10-09 : « coller une image depuis le presse-papiers ») : hors d'un champ, une image du
   // presse-papiers devient une annotation image, un texte une note ; dans un champ, le collage reste au champ.
   const control = state.view.mode === "control"; // la vue Contrôle se lit : rien ne s'édite au clavier (2026-10-09)
@@ -92,6 +102,10 @@ export function Shell() {
   useEffect(() => {
     document.documentElement.dataset.theme = state.prefs.theme;
   }, [state.prefs.theme]);
+  // La langue : choisie ici, sinon celle du navigateur ; `lang` sur la racine pour le lecteur d'écran et la césure.
+  useEffect(() => {
+    applyLanguage(state.prefs.language); // déjà posée par `setPrefs` ; ici pour la langue du navigateur au démarrage
+  }, [state.prefs.language]);
   const showConnect = state.connectOpen || (!ready && !loading);
   // L'ordre du DOM est celui du clavier : la barre, la recherche, les outils, la fiche, la bande, les réglages, puis la
   // toile (revue Impeccable du 2026-10-07 : Tab parcourait 154 câbles avant la barre). L'empilement, lui, tient aux
@@ -106,7 +120,7 @@ export function Shell() {
       {(ready || loading) && state.runs && !journal ? <Timeline /> : null}
       {ready && !journal ? <Controls /> : null}
       {(ready || loading) && journal ? <Journal /> : null}
-      {ready && !journal && state.journalUi.back ? <button type="button" className="journal-back glass" onClick={commands.backToJournal}><ArrowLeft aria-hidden="true" />retour au journal</button> : null}
+      {ready && !journal && state.journalUi.back ? <button type="button" className="journal-back glass" onClick={commands.backToJournal}><ArrowLeft aria-hidden="true" />{t("journal:ui.back")}</button> : null}
       {/* sous le Journal, la toile reste montée (sa vue, ses mesures) mais n'est jamais peinte : au rechargement, elle
           se dessinait le temps que le Journal arrive (Orhan, 2026-10-10) */}
       <div className={"stage" + (journal ? " under" : "")} inert={journal}><Canvas /></div>

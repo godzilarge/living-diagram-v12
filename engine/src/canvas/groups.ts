@@ -2,6 +2,7 @@
 // depuis les cartes de ses membres présents (jamais stocké, jamais une forme libre), son étiquette s'ancre sur le cadre
 // selon le style. Les énumérations et leurs libellés sont ceux du contrat Intent 1.2.0 ; les défauts sont ceux que le
 // serveur applique à la création (`DEFAULT_GROUP_STYLE` côté contrat).
+import { labelMap } from "../i18n/core";
 import type { Box } from "./card";
 import type { Point } from "./layout";
 import type { Group, GroupStyle, Model } from "./types";
@@ -18,12 +19,11 @@ export const DEFAULT_STYLE: GroupStyle = {
   shape: "rectangle", radius: 16, hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "dashed", padding: 24,
   label_position: "top_left", label_placement: "inside", label_size: 12, label_weight: "semibold", label_font: "sans", label_color: "hue",
 };
-export const STYLE_LABEL: Record<string, string> = {
-  rectangle: "rectangle", ellipse: "ellipse", solid: "plein", dashed: "tirets", dotted: "pointillés", none: "sans bordure",
-  top_left: "haut gauche", top: "haut", top_right: "haut droite", left: "gauche", center: "centre", right: "droite",
-  bottom_left: "bas gauche", bottom: "bas", bottom_right: "bas droite", inside: "dedans", outside: "dehors",
-  regular: "normal", semibold: "demi-gras", bold: "gras", sans: "sans", mono: "mono", hue: "teinte", ink: "encre",
-};
+/** Les mots du style d'un groupe, dans la langue de la page (catalogue `common:groupStyle`). */
+export const STYLE_LABEL: Record<string, string> = labelMap("common:groupStyle", [
+  "rectangle", "ellipse", "solid", "dashed", "dotted", "none", "top_left", "top", "top_right", "left", "center", "right",
+  "bottom_left", "bottom", "bottom_right", "inside", "outside", "regular", "semibold", "bold", "sans", "mono", "hue", "ink",
+]);
 export const WEIGHT_VALUE: Record<string, number> = { regular: 450, semibold: 600, bold: 750 };
 
 export interface Frame { x: number; y: number; w: number; h: number }

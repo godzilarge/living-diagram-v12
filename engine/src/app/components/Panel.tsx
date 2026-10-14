@@ -7,6 +7,7 @@
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { aggregateOf, beamOf, clusterOf, groupOf, linkOf, nodeOf } from "../../canvas/model";
 import { PANEL_WIDTH, clampPanelWidth } from "../state/prefs";
 import { useModel, useStore } from "../state/store";
@@ -33,6 +34,7 @@ function Resizer() {
   const { state, commands } = useStore();
   const width = state.prefs.panelWidth;
   const drag = useRef<{ x: number; width: number; now: number } | null>(null);
+  const { t } = useTranslation("panel");
   useEffect(() => { setWidthVar(fitWindow(width)); }, [width]);
   const save = (next: number): void => { const fitted = fitWindow(next); setWidthVar(fitted); if (fitted !== width) commands.setPrefs({ panelWidth: fitted }); };
   const down = (event: PointerEvent<HTMLDivElement>): void => {
@@ -56,7 +58,7 @@ function Resizer() {
     save(next);
   };
   return (
-    <div className="panel-resize" role="separator" aria-orientation="vertical" aria-label="largeur du panneau" title="glisser pour élargir · double-clic : largeur de départ"
+    <div className="panel-resize" role="separator" aria-orientation="vertical" aria-label={t("panel.width")} title={t("panel.widthTitle")}
       aria-valuemin={PANEL_WIDTH.min} aria-valuemax={PANEL_WIDTH.max} aria-valuenow={fitWindow(width)} tabIndex={0}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up} onDoubleClick={() => save(PANEL_WIDTH.base)} onKeyDown={keys} />
   );
@@ -65,6 +67,7 @@ function Resizer() {
 export function Panel() {
   const { state, commands } = useStore();
   const model = useModel();
+  const { t } = useTranslation("panel");
   if (!model) return null;
   const { selection, hosts } = state;
   const control = state.view.mode === "control";
@@ -87,9 +90,9 @@ export function Panel() {
   if (!card) return null;
   const key = (hosts.length >= 2 ? "multi" : selection ? selection.kind + ":" + selection.id : "") + (control ? "#control" : "");
   return (
-    <aside className="panel glass" key={key} aria-label="fiche de l'élément sélectionné">
+    <aside className="panel glass" key={key} aria-label={t("panel.label")}>
       <Resizer />
-      <Button variant="ghost" icon className="panel-close" aria-label="fermer la fiche" onClick={commands.clearSelection}><X /></Button>
+      <Button variant="ghost" icon className="panel-close" aria-label={t("panel.close")} onClick={commands.clearSelection}><X /></Button>
       <div className="panel-scroll">{card}</div>
     </aside>
   );

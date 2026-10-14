@@ -2,13 +2,13 @@
 // sombre et sa valeur claire dans les jetons (`--hue-*`), jamais une valeur libre. Les défauts par type vivent ici,
 // pas dans le document : il ne porte que ce qui a été décidé. Pur : la toile, la fiche, la légende et les tests
 // résolvent la même teinte (règle C0 : celle de l'équipement, sinon celle de son type, sinon le défaut du moteur).
+import { labelMap } from "../i18n/core";
 import type { Model, ModelNode } from "./types";
 
 export const HUES = ["blue", "sky", "indigo", "violet", "pink", "red", "orange", "amber", "lime", "green", "teal", "slate"] as const;
 export type HueName = (typeof HUES)[number];
-export const HUE_LABEL: Record<HueName, string> = {
-  blue: "bleu", sky: "ciel", indigo: "indigo", violet: "violet", pink: "rose", red: "rouge", orange: "orange", amber: "ambre", lime: "citron", green: "vert", teal: "turquoise", slate: "ardoise",
-};
+/** Le nom d'une teinte, dans la langue de la page (catalogue `common:hue`). */
+export const HUE_LABEL: Record<HueName, string> = labelMap("common:hue", HUES);
 export const FALLBACK_HUE: HueName = "slate";
 /** La teinte par défaut de chaque type du contrat ; un type absent ou inconnu est ardoise. */
 export const DEFAULT_HUE: Record<string, HueName> = {

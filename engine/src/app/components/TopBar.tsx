@@ -5,51 +5,56 @@
 import { GitCompareArrows, History, KeyRound, LogOut, Palette, ShieldCheck, TriangleAlert, User, Waypoints, X } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { STATUS_LABEL } from "../../canvas/format";
+import { useTranslation } from "react-i18next";
+import type { EvidenceStatus } from "../../contracts/snapshot";
 import { label as runLabel } from "../../shell/timeline";
 import { STATUSES } from "../state/address";
 import { useModel, useStore } from "../state/store";
-import { Button, Dialog, Toggle, plural } from "../ui";
+import { Button, Dialog, Toggle } from "../ui";
 import { Display } from "./Display";
+import { LanguageSwitch } from "./Language";
+import { sayText } from "../state/said";
+import { punct } from "../../i18n";
 
 function RuleChips() {
   const { state, commands } = useStore();
-  const chips = state.view.hide.map((rule) => ({ kind: "masqué", rule, remove: () => commands.removeHide(rule) }));
-  if (state.view.only) chips.push({ kind: "isolé", rule: state.view.only, remove: () => commands.setOnly("") });
+  const { t } = useTranslation();
+  const chips = state.view.hide.map((rule) => ({ kind: t("rules.hidden"), rule, remove: () => commands.removeHide(rule) }));
+  if (state.view.only) chips.push({ kind: t("rules.isolated"), rule: state.view.only, remove: () => commands.setOnly("") });
   if (!chips.length) return null;
   return <>{chips.map((chip) => (
-    <span key={chip.kind + chip.rule} className="rule-chip" title={chip.kind + " : " + chip.rule}>
+    <span key={chip.kind + chip.rule} className="rule-chip" title={t("rules.title", { kind: chip.kind, rule: chip.rule })}>
       <span className="rule-kind">{chip.kind}</span><code>{chip.rule}</code>
-      <button type="button" aria-label={"retirer la règle " + chip.rule} onClick={chip.remove}><X /></button>
+      <button type="button" aria-label={t("rules.remove", { rule: chip.rule })} onClick={chip.remove}><X /></button>
     </span>
   ))}</>;
 }
-
-const SEVERITY_WORD: Record<string, string> = { error: "en erreur", warning: "en avertissement" };
 
 /** Diagramme, Contrôle ou Journal : un choix exclusif ; le Journal (qui a modifié quoi) remplace la toile ; en Diagramme, « Contrôle » dit combien d'erreurs sont ouvertes (sinon
  *  les avertissements), pour ne pas mentir par omission : la vue neutre cache les verdicts, pas leur existence. */
 function ModeSwitch() {
   const { state, commands } = useStore();
   const model = useModel();
+  const { t } = useTranslation();
   if (!model) return null;
   const mode = state.view.mode, control = mode === "control";
   const errors = model.severityCounts.get("error") || 0, warnings = model.severityCounts.get("warning") || 0;
-  const open = mode !== "diagram" ? null : errors ? { n: errors, tone: "danger", word: plural(errors, "erreur") } : warnings ? { n: warnings, tone: "warning", word: plural(warnings, "avertissement") } : null;
+  const open = mode !== "diagram" ? null : errors ? { n: errors, tone: "danger", word: t("modes.openErrors", { count: errors }) }
+    : warnings ? { n: warnings, tone: "warning", word: t("modes.openWarnings", { count: warnings }) } : null;
   return (
-    <div className="mode-switch" role="group" aria-label="vue">
+    <div className="mode-switch" role="group" aria-label={t("modes.label")}>
       <button type="button" className="mode-item" aria-pressed={mode === "diagram" ? "true" : "false"} onClick={() => commands.setMode("diagram")}
-        title="Diagramme : le réseau tel que les équipements le disent ; câbles neutres, fiches de faits, édition">
-        <Waypoints aria-hidden="true" /><span className="word">Diagramme</span>
+        title={t("modes.diagramTitle")}>
+        <Waypoints aria-hidden="true" /><span className="word">{t("modes.diagram")}</span>
       </button>
       <button type="button" className="mode-item" aria-pressed={control ? "true" : "false"} onClick={() => commands.setMode("control")}
-        title={"Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule" + (open ? " · " + open.word + " ouvert(s)" : "")}>
-        <ShieldCheck aria-hidden="true" /><span className="word">Contrôle</span>
+        title={t("modes.controlTitle") + (open ? " · " + open.word : "")}>
+        <ShieldCheck aria-hidden="true" /><span className="word">{t("modes.control")}</span>
         {open ? <span className={"pill tone-" + open.tone} aria-label={open.word}>{open.n}</span> : null}
       </button>
       <button type="button" className="mode-item" aria-pressed={mode === "journal" ? "true" : "false"} onClick={() => commands.setMode("journal")}
-        title="Journal : qui a modifié quoi (épingles, couleurs, groupes, annotations, connecteurs), quand, sur quelle infrastructure">
-        <History aria-hidden="true" /><span className="word">Journal</span>
+        title={t("modes.journalTitle")}>
+        <History aria-hidden="true" /><span className="word">{t("modes.journal")}</span>
       </button>
     </div>
   );
@@ -58,15 +63,18 @@ function ModeSwitch() {
 // Ce qui n'a pas pu être lu avec la run : une pastille dans la barre, le détail au survol et pour le lecteur d'écran.
 function Warnings() {
   const { state } = useStore();
+  const { t } = useTranslation();
   const warnings = state.run.kind === "ready" ? state.run.warnings : [];
   if (!warnings.length) return null;
-  const text = warnings.length === 1 ? warnings[0].split(" : ")[0] : warnings.length + " lectures manquées";
-  return <span className="bar-warn" role="status" title={warnings.join("\n")}><TriangleAlert aria-hidden="true" />{text}<span className="sr-only"> : {warnings.join(" ; ")}</span></span>;
+  const texts = warnings.map(sayText);
+  const text = texts.length === 1 ? texts[0].split(/\s?:\s/)[0] : t("warnings.missed", { count: texts.length });
+  return <span className="bar-warn" role="status" title={texts.join("\n")}><TriangleAlert aria-hidden="true" />{text}<span className="sr-only">{punct.colon() + texts.join(punct.semicolon())}</span></span>;
 }
 
 function Counts() {
   const { state, commands } = useStore();
   const model = useModel();
+  const { t } = useTranslation(["shell", "common"]);
   if (!model) return null;
   const count = (map: Map<string, number>, key: string): number => map.get(key) || 0;
   const diff = model.diff ? model.diff.summary.links : null;
@@ -74,25 +82,29 @@ function Counts() {
   const walking = state.walk ? state.walk.kind : null;
   const control = state.view.mode === "control";
   return (
-    <div className="counts" aria-label="comptes de la run">
-      <span className="count" title={plural(devices, "équipement") + " (collectés ou d'une autre infrastructure) · " + plural(model.links.length, "câble")}><b>{devices}</b> <span className="word">équipements</span></span>
+    <div className="counts" aria-label={t("counts.label")}>
+      <span className="count" title={t("counts.devicesTitle", { devices: t("common:devices", { count: devices }), links: t("common:links", { count: model.links.length }) })}><b>{devices}</b> <span className="word">{t("counts.devicesWord", { count: devices })}</span></span>
       {control ? <span className="count-sep" aria-hidden="true" /> : null}
-      {control ? STATUSES.map((st) => (
-        <button key={st} type="button" className={"count status-" + st} aria-pressed={state.view.hiddenStatuses.includes(st) ? "false" : "true"}
-          title={count(model.statusCounts, st) + " câbles " + STATUS_LABEL[st] + " : afficher ou masquer"} aria-label={plural(count(model.statusCounts, st), "câble") + " " + STATUS_LABEL[st]} onClick={() => commands.toggleStatus(st)}>
-          <span className={"dot " + st} /><b>{count(model.statusCounts, st)}</b>
-        </button>
-      )) : null}
+      {control ? STATUSES.map((st) => {
+        const words = { links: t("common:links", { count: count(model.statusCounts, st) }), status: t(`common:status.${st as EvidenceStatus}`) };
+        return (
+          <button key={st} type="button" className={"count status-" + st} aria-pressed={state.view.hiddenStatuses.includes(st) ? "false" : "true"}
+            title={t("counts.statusTitle", words)} aria-label={t("counts.statusLabel", words)} onClick={() => commands.toggleStatus(st)}>
+            <span className={"dot " + st} /><b>{count(model.statusCounts, st)}</b>
+          </button>
+        );
+      }) : null}
       {control && count(model.severityCounts, "error") + count(model.severityCounts, "warning") ? <span className="count-sep" aria-hidden="true" /> : null}
       {control ? (["error", "warning"] as const).map((sev) => (count(model.severityCounts, sev)
         ? <button key={sev} type="button" className={"count sev-" + sev} aria-pressed={walking === sev ? "true" : "false"} onClick={() => commands.startWalk(sev)}
-          title={plural(count(model.severityCounts, sev), "contrôle") + " " + SEVERITY_WORD[sev] + " : parcourir les équipements concernés (↑↓, Échap)"}>
-          <span className="dot" aria-hidden="true" /><b>{count(model.severityCounts, sev)}</b><span className="sr-only"> {plural(count(model.severityCounts, sev), "contrôle")} {SEVERITY_WORD[sev]} : parcourir</span>
+          title={sev === "error" ? t("counts.walkError", { count: count(model.severityCounts, sev) }) : t("counts.walkWarning", { count: count(model.severityCounts, sev) })}>
+          <span className="dot" aria-hidden="true" /><b>{count(model.severityCounts, sev)}</b>
+          <span className="sr-only"> {sev === "error" ? t("counts.walkErrorShort", { count: count(model.severityCounts, sev) }) : t("counts.walkWarningShort", { count: count(model.severityCounts, sev) })}</span>
         </button> : null)) : null}
       {diff ? <><span className="count-sep" aria-hidden="true" />
         <button type="button" className="count diff" aria-pressed={walking === "diff" ? "true" : "false"} onClick={() => commands.startWalk("diff")}
-          title={"câbles ajoutés, retirés, changés depuis la run comparée (" + model.diffCount + " changements en tout) : parcourir les équipements touchés (↑↓, Échap)"}>
-          <b>+{diff.added} −{diff.removed} ~{diff.changed}</b><span className="sr-only"> : parcourir les changements</span>
+          title={t("counts.diffTitle", { count: model.diffCount })}>
+          <b>+{diff.added} −{diff.removed} ~{diff.changed}</b><span className="sr-only">{punct.colon() + t("counts.diffShort")}</span>
         </button></> : null}
       <RuleChips />
     </div>
@@ -102,22 +114,24 @@ function Counts() {
 function Menu() {
   const { state, dispatch, commands } = useStore();
   const model = useModel();
+  const { t } = useTranslation();
   const [name, setName] = useState(state.author);
   const submit = (event: FormEvent): void => { event.preventDefault(); commands.setAuthor(name); dispatch({ type: "menu", open: false }); };
   return (
-    <Dialog label="nom et jeton" className="menu glass" modal={false} initial="input" onClose={() => dispatch({ type: "menu", open: false })}>
+    <Dialog label={t("menu.label")} className="menu glass" modal={false} initial="input" onClose={() => dispatch({ type: "menu", open: false })}>
       <form onSubmit={submit} className="field">
-        votre nom, écrit sur chaque épingle que vous posez
+        {t("menu.nameIntro")}
         <div className="form-row">
-          <input value={name} maxLength={80} placeholder="prénom, trigramme…" spellCheck={false} onChange={(event) => setName(event.target.value)} aria-label="votre nom" />
-          <Button variant="primary" type="submit">garder</Button>
+          <input value={name} maxLength={80} placeholder={t("menu.namePlaceholder")} spellCheck={false} onChange={(event) => setName(event.target.value)} aria-label={t("menu.nameLabel")} />
+          <Button variant="primary" type="submit">{t("menu.keep")}</Button>
         </div>
-        <span className="hint">{state.author ? "vos glissés et alignements s'enregistrent pour tout le monde (dernier écrivain gagne, journalisé)" : "sans nom, vos déplacements restent dans cette page"}</span>
+        <span className="hint">{state.author ? t("menu.hintNamed") : t("menu.hintAnonymous")}</span>
       </form>
+      <LanguageSwitch />
       <div className="form-row wrap">
-        {model && state.view.mode === "diagram" ? <Button variant="ghost" onClick={() => dispatch({ type: "colors", open: true })} title="la teinte de chaque type, pour toute l'infrastructure (intention)"><Palette /> palette des types</Button> : null}
-        <Button variant="ghost" onClick={() => { dispatch({ type: "menu", open: false }); dispatch({ type: "connect", open: true }); }}><KeyRound /> changer d'infrastructure</Button>
-        <Button variant="ghost" onClick={commands.forgetToken}><LogOut /> oublier le jeton</Button>
+        {model && state.view.mode === "diagram" ? <Button variant="ghost" onClick={() => dispatch({ type: "colors", open: true })} title={t("menu.typePaletteTitle")}><Palette /> {t("menu.typePalette")}</Button> : null}
+        <Button variant="ghost" onClick={() => { dispatch({ type: "menu", open: false }); dispatch({ type: "connect", open: true }); }}><KeyRound /> {t("menu.switchInfrastructure")}</Button>
+        <Button variant="ghost" onClick={commands.forgetToken}><LogOut /> {t("menu.forgetToken")}</Button>
       </div>
     </Dialog>
   );
@@ -126,6 +140,7 @@ function Menu() {
 export function TopBar() {
   const { state, dispatch, commands } = useStore();
   const model = useModel();
+  const { t } = useTranslation();
   const run = state.runs ? state.runs.find((entry) => entry.run_id === state.address.runId) : null;
   return (
     <>
@@ -133,16 +148,16 @@ export function TopBar() {
         <div className="bar-left">
           <span className="mark"><span className="mark-dot" aria-hidden="true" />Living Diagram</span>
           {state.address.infrastructure ? <><span className="crumb">/</span><span className="infra">{state.address.infrastructure}</span></> : null}
-          {state.view.mode === "journal" ? null : run ? <span className={"pill tone-neutral run-pill run-" + run.run_status} title={"run " + run.run_id + " · " + run.run_status}><span className="pill-dot" />{runLabel(run)}</span>
+          {state.view.mode === "journal" ? null : run ? <span className={"pill tone-neutral run-pill run-" + run.run_status} title={t("bar.runTitle", { id: run.run_id, status: run.run_status })}><span className="pill-dot" />{runLabel(run)}</span>
             : model ? <span className="pill tone-neutral run-pill"><span className="pill-dot" />{model.source.collector_run_id}</span> : null}
           <Warnings />
         </div>
         <div className="bar-center"><ModeSwitch />{state.view.mode === "journal" ? null : <Counts />}</div>
         <div className="bar-right">
-          {model && model.diff && state.view.mode !== "journal" ? <Toggle pressed={state.view.showDiff} onClick={() => commands.setView({ showDiff: !state.view.showDiff })} title={"changements depuis la run comparée (" + model.diffCount + ")"}><GitCompareArrows /><span className="word">changements</span></Toggle> : null}
+          {model && model.diff && state.view.mode !== "journal" ? <Toggle pressed={state.view.showDiff} onClick={() => commands.setView({ showDiff: !state.view.showDiff })} title={t("bar.changesTitle", { total: model.diffCount })}><GitCompareArrows /><span className="word">{t("bar.changes")}</span></Toggle> : null}
           {state.view.mode === "journal" ? null : <Display />}
-          <Toggle pressed={state.menuOpen} onClick={() => dispatch({ type: "menu", open: !state.menuOpen })} title={state.author ? "vous écrivez sous ce nom" : "donnez votre nom pour enregistrer vos épingles"} aria-haspopup="dialog">
-            <User /><span className="writer-name">{state.author || "votre nom ?"}</span>
+          <Toggle pressed={state.menuOpen} onClick={() => dispatch({ type: "menu", open: !state.menuOpen })} title={state.author ? t("bar.writerNamed") : t("bar.writerAnonymous")} aria-haspopup="dialog">
+            <User /><span className="writer-name">{state.author || t("bar.writerPlaceholder")}</span>
           </Toggle>
         </div>
       </header>

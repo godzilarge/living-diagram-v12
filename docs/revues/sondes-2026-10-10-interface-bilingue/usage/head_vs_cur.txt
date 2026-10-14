@@ -1,0 +1,866 @@
+===== fr-dark-1440-bar-tools.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-control.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-aggregate.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-ann-image.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-ann-note.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-ann-shape.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: annotation shape sélectionné
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: live=annotation shape sélectionné
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : annotation forme sélectionné
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : live=annotation forme sélectionné
+===== fr-dark-1440-ctl-card-ann-table.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: annotation table sélectionné
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: live=annotation table sélectionné
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : annotation tableau sélectionné
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : live=annotation tableau sélectionné
+===== fr-dark-1440-ctl-card-beam.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-cluster.json
+  HEAD: ACTIVE_PASSIVE
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: cluster HA HA · DC02-EDGE · active_passive sélectionné
+  HEAD: live=cluster HA HA · DC02-EDGE · active_passive sélectionné
+  CUR : ACTIF-PASSIF
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : cluster HA HA · DC02-EDGE · actif-passif sélectionné
+  CUR : live=cluster HA HA · DC02-EDGE · actif-passif sélectionné
+===== fr-dark-1440-ctl-card-connector.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-group.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-link.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: info
+  CUR : 1 info
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-multi.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-node-fw.json
+  HEAD: 2 · 1 retiré(s)
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: erreur
+  HEAD: infos
+  CUR : 1 erreur
+  CUR : 2 infos
+  CUR : 2 · 1 retiré
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-card-node.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: avertissements
+  HEAD: erreurs
+  HEAD: infos
+  CUR : 2 erreurs
+  CUR : 2 infos
+  CUR : 3 avertissements
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-layers.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-tip-beam.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-tip-cluster.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-tip-dc01-core-01.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-tip-dc01-fw-01.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-tip-edge0.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctl-tip-edge1.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-ctx-ann-image.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-ctx-ann-note.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-ctx-ann-shape.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: annotation shape sélectionné
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: live=annotation shape sélectionné
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : annotation forme sélectionné
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : live=annotation forme sélectionné
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-ctx-background.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-ctx-connector.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-ctx-device.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-ctx-group.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-ctx-table-cell.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: annotation table sélectionné
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: live=annotation table sélectionné
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : annotation tableau sélectionné
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : live=annotation tableau sélectionné
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-aggregate.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-ann-image.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-ann-note.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-ann-shape.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: annotation shape sélectionné
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: live=annotation shape sélectionné
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : annotation forme sélectionné
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : live=annotation forme sélectionné
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-ann-table.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: annotation table sélectionné
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: live=annotation table sélectionné
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : annotation tableau sélectionné
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : live=annotation tableau sélectionné
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-beam.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-cluster.json
+  HEAD: ACTIVE_PASSIVE
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: cluster HA HA · DC02-EDGE · active_passive sélectionné
+  HEAD: live=cluster HA HA · DC02-EDGE · active_passive sélectionné
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : ACTIF-PASSIF
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : cluster HA HA · DC02-EDGE · actif-passif sélectionné
+  CUR : live=cluster HA HA · DC02-EDGE · actif-passif sélectionné
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-connector.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-group.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-link.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-multi.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-node-fw.json
+  HEAD: 2 · 1 retiré(s)
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : 2 · 1 retiré
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-card-node.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-layers.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-tip-beam.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-tip-cluster.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-tip-dc01-core-01.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-tip-dc01-fw-01.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-tip-edge0.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-dia-tip-edge1.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-diagram.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-display.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-journal-detail.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-journal-q-colour.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-journal-q-couleur.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-journal-q-deleted.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-journal-q-placed.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-journal-q-supprimé.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-journal.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-menu.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-search-0.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-search-1.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-search-2.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-search-3.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-search-4.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=6 erreurs
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvert(s)
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=6 erreurs ouvertes
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+  CUR : title=Contrôle : comment Living Diagram a dessiné ; statuts, sources, contrôles, en lecture seule · 6 erreurs ouvertes
+===== fr-dark-1440-walk-diff.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: avertissement
+  HEAD: infos
+  CUR : 1 avertissement
+  CUR : 2 infos
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-walk-error-next.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: avertissements
+  HEAD: erreurs
+  HEAD: infos
+  CUR : 2 avertissements
+  CUR : 2 erreurs
+  CUR : 2 infos
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-walk-error.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: avertissements
+  HEAD: erreurs
+  HEAD: infos
+  CUR : 2 erreurs
+  CUR : 2 infos
+  CUR : 3 avertissements
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-walk-warning-next.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: avertissements
+  HEAD: erreurs
+  HEAD: infos
+  CUR : 2 erreurs
+  CUR : 2 infos
+  CUR : 3 avertissements
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-walk-warning.json
+  HEAD: HA · DC02-EDGE · active_passive
+  HEAD: aria-label=HA primary · active_passive
+  HEAD: aria-label=HA secondary · active_passive
+  HEAD: aria-label=cluster HA · DC02-EDGE · active_passive
+  HEAD: avertissements
+  HEAD: infos
+  CUR : 6 avertissements
+  CUR : 6 infos
+  CUR : HA · DC02-EDGE · actif-passif
+  CUR : aria-label=HA primary · actif-passif
+  CUR : aria-label=HA secondary · actif-passif
+  CUR : aria-label=cluster HA · DC02-EDGE · actif-passif
+===== fr-dark-1440-welcome-badtoken.json
+  CUR : English
+  CUR : Français
+  CUR : aria-label=langue
+  CUR : langue
+===== fr-dark-1440-welcome.json
+  CUR : English
+  CUR : Français
+  CUR : aria-label=langue
+  CUR : langue

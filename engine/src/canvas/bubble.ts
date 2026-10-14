@@ -10,6 +10,7 @@
 // rangée visée par un contrôle porte son point de gravité et ses valeurs teintées, la gravité d'un contrôle s'écrit.
 import { monoWidth, textWidth } from "./card";
 import { clear, s } from "./dom";
+import { t } from "../i18n/core";
 import { SEVERITY_LABEL } from "./format";
 import { glyph, SIZE as GLYPH_SIZE } from "./icons";
 import { PILL_H, PILL_PAD, pillWidth } from "./pill";
@@ -107,7 +108,7 @@ function blockHeight(b: Block): number {
   }
 }
 
-const restText = (rest: number): string => "… et " + rest + " autre" + (rest > 1 ? "s" : "") + " contrôle" + (rest > 1 ? "s" : "");
+const restText = (rest: number): string => t("common:tip.moreChecks", { count: rest });
 
 /** La taille de la bulle pour ces blocs. */
 export function measure(blocks: Block[]): { width: number; height: number } {

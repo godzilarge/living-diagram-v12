@@ -5,12 +5,16 @@
 import { KeyRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { label, previousOf } from "../../shell/timeline";
 import { useStore } from "../state/store";
 import { Button, Dialog, Field } from "../ui";
+import { LanguageSwitch } from "./Language";
+import { sayText } from "../state/said";
 
 export function Connect() {
   const { state, dispatch, commands } = useStore();
+  const { t } = useTranslation();
   const [token, setToken] = useState(state.token);
   const [infrastructure, setInfrastructure] = useState(state.address.infrastructure);
   const [author, setAuthor] = useState(state.author);
@@ -33,22 +37,22 @@ export function Connect() {
   const close = ready ? () => dispatch({ type: "connect", open: false }) : undefined;
   return (
     <div className="sheet">
-      <Dialog label="Living Diagram : ouvrir une infrastructure" className="sheet-card glass" initial={first} onClose={close}>
+      <Dialog label={t("connect.label")} className="sheet-card glass" initial={first} onClose={close}>
         <form onSubmit={submit}>
           <h1><span className="mark-dot" aria-hidden="true" />Living Diagram</h1>
-          {close ? <Button variant="ghost" icon className="panel-close" type="button" aria-label="fermer" onClick={close}><X /></Button> : null}
-          <p className="lead">Le diagramme physique d'une infrastructure, run après run, tel que la collecte le voit. Le jeton reste dans cet onglet ; l'adresse, elle, se partage.</p>
-          <Field label="jeton d'API" type="password" value={token} autoComplete="off" spellCheck={false} aria-invalid={refused ? "true" : undefined} onChange={(event) => setToken(event.target.value)} />
-          <Field label="infrastructure" name="infrastructure" type="text" value={infrastructure} placeholder="son libellé, tel que la collecte l'écrit" spellCheck={false} onChange={(event) => setInfrastructure(event.target.value)} />
-          <Field label="votre nom (facultatif)" type="text" value={author} maxLength={80} placeholder="prénom, trigramme…" spellCheck={false} hint="écrit sur les épingles que vous posez ; vide = déplacements locaux seulement" onChange={(event) => setAuthor(event.target.value)} />
-          {failed ? <p className="error-text" role="alert">{failed}</p> : null}
-          {state.runsMessage ? <p className="error-text" role="alert">{state.runsMessage}</p> : null}
+          {close ? <Button variant="ghost" icon className="panel-close" type="button" aria-label={t("connect.close")} onClick={close}><X /></Button> : null}
+          <p className="lead">{t("connect.lead")}</p>
+          <Field label={t("connect.token")} type="password" value={token} autoComplete="off" spellCheck={false} aria-invalid={refused ? "true" : undefined} onChange={(event) => setToken(event.target.value)} />
+          <Field label={t("connect.infrastructure")} name="infrastructure" type="text" value={infrastructure} placeholder={t("connect.infrastructurePlaceholder")} spellCheck={false} onChange={(event) => setInfrastructure(event.target.value)} />
+          <Field label={t("connect.author")} type="text" value={author} maxLength={80} placeholder={t("menu.namePlaceholder")} spellCheck={false} hint={t("connect.authorHint")} onChange={(event) => setAuthor(event.target.value)} />
+          {failed ? <p className="error-text" role="alert">{sayText(failed)}</p> : null}
+          {state.runsMessage ? <p className="error-text" role="alert">{sayText(state.runsMessage)}</p> : null}
           <div className="form-row">
-            <Button variant="primary" type="submit" disabled={state.listing || state.run.kind === "loading"}><KeyRound /> {state.listing || state.run.kind === "loading" ? "ouverture…" : "ouvrir la dernière run"}</Button>
-            {state.token ? <Button variant="ghost" type="button" onClick={commands.forgetToken}>oublier le jeton</Button> : null}
+            <Button variant="primary" type="submit" disabled={state.listing || state.run.kind === "loading"}><KeyRound /> {state.listing || state.run.kind === "loading" ? t("connect.opening") : t("connect.open")}</Button>
+            {state.token ? <Button variant="ghost" type="button" onClick={commands.forgetToken}>{t("menu.forgetToken")}</Button> : null}
           </div>
           {runs.length ? (
-            <div className="runs-list" aria-label="runs archivées">
+            <div className="runs-list" aria-label={t("connect.runs")}>
               {runs.slice().reverse().map((run) => (
                 <button key={run.run_id} type="button" onClick={() => { const before = previousOf(runs, run.run_id); commands.openRun(run.run_id, before ? before.run_id : ""); }}>
                   <span>{label(run)}</span><span className="st">{run.run_status}</span>
@@ -56,6 +60,7 @@ export function Connect() {
               ))}
             </div>
           ) : null}
+          <LanguageSwitch />
         </form>
       </Dialog>
     </div>

@@ -1,13 +1,16 @@
 // Le nœud React Flow d'une annotation (docs/10 §6) : une note, une forme, un tableau ou une image, dessinée en SVG aux
 // dimensions de sa boîte, aux attributs de présentation pour les valeurs libres (jamais un style en ligne). Attachée,
 // elle est un nœud enfant de sa carte ou de son cadre : React Flow la déplace avec eux. Sélectionnée et éditable, huit
-// poignées la redimensionnent (Maj garde le rapport) ; un double-clic sur une note ouvre son texte en place, un
-// tableau s'édite cellule par cellule (table.tsx) ; le clic droit ouvre le menu contextuel.
-import { useReactFlow } from "@xyflow/react";
+// poignées à taille d'écran constante la redimensionnent (handles.ts : quatre coins, quatre barres de côté ; Maj garde
+// le rapport, Alt part du centre), une pastille dit la taille pendant le geste, « X, Y » pendant un glissé ; un
+// double-clic sur une note ouvre son texte en place, un tableau s'édite cellule par cellule (table.tsx) ; le clic droit
+// ouvre le menu contextuel. Survolée quand on peut écrire, un liseré d'accent (lot 1 de docs/11).
+import { t } from "../../i18n";
+import { useReactFlow, useStore } from "@xyflow/react";
 import type { Node, NodeProps } from "@xyflow/react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
-import { dashArray, layoutText } from "../../canvas/annotations";
+import { dashArray, KIND_LABEL, layoutText } from "../../canvas/annotations";
 import type { Frame, Segment } from "../../canvas/annotations";
 import { WEIGHT_VALUE } from "../../canvas/groups";
 import type { Point } from "../../canvas/layout";
@@ -16,8 +19,9 @@ import type { Annotation } from "../../canvas/types";
 import type { TableContent } from "../../contracts/intent";
 import type { ConnectorPatch } from "../../shell/apps";
 import type { ContextTarget } from "../state/context";
-import type { End } from "../../canvas/connectors";
-import { Anchors } from "./anchors";
+import { PillSvg } from "./pill";
+import { positionPill, resized, sizePill, handleShapes } from "./handles";
+import type { HandleId, PillPlace } from "./handles";
 import { useAsset } from "./assets";
 import type { EndKind, Pick } from "./snap";
 import { TableBody } from "./table";
@@ -40,61 +44,64 @@ export interface AnnotationActions {
   /** Ce qu'un bout de connecteur glissé en un point du plan devient (snap.ts) : une ancre à portée, l'élément dessous,
    *  ou libre ; `exclude` écarte l'autre bout du même connecteur. */
   pick: (at: Point, exclude?: (kind: EndKind, ref: string) => boolean) => Pick;
-  /** Tirer un connecteur depuis une ancre : le départ, puis le bout d'arrivée qui suit le pointeur, puis la relâche (créé). */
-  drawStart: (start: End, at: Point) => void;
-  drawMove: (at: Point) => void;
-  drawEnd: (at: Point) => void;
+  /** Ce que vise le bout d'un connecteur qu'on glisse (ses marques se dessinent par-dessus la toile), `null` à la relâche. */
+  aim: (pick: Pick | null) => void;
+  /** Un geste en cours (redimensionnement, bout glissé, édition en place) : la bulle se tait tant qu'il dure. */
+  hold: (reason: string, on: boolean) => void;
 }
 const freePick = (at: Point): Pick => ({ end: { kind: "free", x: at.x, y: at.y }, place: { kind: "point", at }, target: null, anchors: [], snapped: null });
-export const AnnotationContext = createContext<AnnotationActions>({ resize: () => undefined, edit: () => undefined, content: () => undefined, menu: () => undefined, connector: () => undefined, pick: freePick, drawStart: () => undefined, drawMove: () => undefined, drawEnd: () => undefined });
+export const AnnotationContext = createContext<AnnotationActions>({ resize: () => undefined, edit: () => undefined, content: () => undefined, menu: () => undefined, connector: () => undefined, pick: freePick, aim: () => undefined, hold: () => undefined });
 /** Les gestes d'édition en place qu'une commande (menu) peut demander au nœud : éditer telle cellule, tel texte. */
 export const EditRequest = createContext<{ id: string; cell: Cell | null; at: number } | null>(null);
 
-const HANDLE = 8, MIN = 20, MAX = 4000;
-type Corner = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
-const HANDLES: Corner[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
-const handleAt = (c: Corner, f: Frame): { x: number; y: number } => ({
-  x: c.includes("w") ? 0 : c.includes("e") ? f.w : f.w / 2,
-  y: c.includes("n") ? 0 : c.includes("s") ? f.h : f.h / 2,
-});
-/** La boîte après un glissé de poignée de (dx, dy) en unités du plan ; Maj garde le rapport ; jamais sous 20. */
-export function resized(start: Frame, corner: Corner, dx: number, dy: number, keepRatio: boolean): Frame {
-  let { x, y, w, h } = start;
-  if (corner.includes("e")) w = start.w + dx;
-  if (corner.includes("s")) h = start.h + dy;
-  if (corner.includes("w")) { w = start.w - dx; x = start.x + dx; }
-  if (corner.includes("n")) { h = start.h - dy; y = start.y + dy; }
-  if (keepRatio && corner.length === 2) { const k = Math.max(w / start.w, h / start.h); w = start.w * k; h = start.h * k; if (corner.includes("w")) x = start.x + start.w - w; if (corner.includes("n")) y = start.y + start.h - h; }
-  w = Math.min(MAX, Math.max(MIN, Math.round(w))); h = Math.min(MAX, Math.max(MIN, Math.round(h)));
-  if (corner.includes("w")) x = start.x + start.w - w;
-  if (corner.includes("n")) y = start.y + start.h - h;
-  return { x: Math.round(x), y: Math.round(y), w, h };
+/** Le zoom courant (les poignées et les pastilles gardent leur taille d'écran). */
+const useZoom = (): number => useStore((st) => st.transform[2]);
+
+/** Une pastille à taille d'écran, posée dans les coordonnées de la boîte (handles.ts). */
+function GesturePill({ place }: { place: PillPlace }) {
+  return <g className="gesture-pill" transform={`translate(${place.x} ${place.y}) scale(${place.scale})`}><PillSvg x={0} y={0} text={place.text} tone="muted" /></g>;
 }
 
-function Handles({ frame, onResize }: { frame: Frame; onResize: (next: Frame, done: boolean) => void }) {
+/** Les huit poignées (handles.ts) : un glissé redimensionne la boîte en direct, la relâche écrit ; la poignée saisie
+ *  porte la pastille « L × H ». */
+function Handles({ frame, onResize }: { frame: Frame; onResize: (next: Frame, done: boolean, handle: HandleId) => void }) {
   const rf = useReactFlow();
-  const drag = useRef<{ corner: Corner; start: Frame; sx: number; sy: number } | null>(null);
-  const down = useCallback((corner: Corner) => (event: ReactPointerEvent<SVGRectElement>): void => {
+  const zoom = useZoom();
+  const drag = useRef<{ id: HandleId; start: Frame; sx: number; sy: number } | null>(null);
+  const [grabbed, setGrabbed] = useState<HandleId | null>(null);
+  const next = (event: ReactPointerEvent): Frame | null => {
+    const d = drag.current;
+    if (!d) return null;
+    const k = rf.getZoom() || 1;
+    return resized(d.start, d.id, (event.clientX - d.sx) / k, (event.clientY - d.sy) / k, { ratio: event.shiftKey, center: event.altKey });
+  };
+  const down = useCallback((id: HandleId) => (event: ReactPointerEvent<SVGRectElement>): void => {
+    if (event.button !== 0) return; // un clic droit ouvre le menu, il ne glisse ni n'écrit rien (audit, M4)
     event.stopPropagation(); event.preventDefault();
     (event.target as Element).setPointerCapture(event.pointerId);
-    drag.current = { corner, start: frame, sx: event.clientX, sy: event.clientY };
+    drag.current = { id, start: frame, sx: event.clientX, sy: event.clientY };
+    setGrabbed(id);
   }, [frame]);
   const move = useCallback((event: ReactPointerEvent<SVGRectElement>): void => {
-    const d = drag.current;
-    if (!d) return;
-    const k = rf.getZoom() || 1;
-    onResize(resized(d.start, d.corner, (event.clientX - d.sx) / k, (event.clientY - d.sy) / k, event.shiftKey), false);
-  }, [rf, onResize]);
+    const box = next(event);
+    if (box && drag.current) onResize(box, false, drag.current.id);
+  }, [rf, onResize]); // eslint-disable-line react-hooks/exhaustive-deps
   const up = useCallback((event: ReactPointerEvent<SVGRectElement>): void => {
-    const d = drag.current;
-    if (!d) return;
+    const box = next(event), d = drag.current;
     drag.current = null;
-    const k = rf.getZoom() || 1;
-    onResize(resized(d.start, d.corner, (event.clientX - d.sx) / k, (event.clientY - d.sy) / k, event.shiftKey), true);
-  }, [rf, onResize]);
+    setGrabbed(null);
+    if (box && d) onResize(box, true, d.id);
+  }, [rf, onResize]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shapes = handleShapes(frame, zoom);
   return (
-    <g className="annotation-handles">
-      {HANDLES.map((corner) => { const p = handleAt(corner, frame); return <rect key={corner} className={"annotation-handle nodrag nopan handle-" + corner} x={p.x - HANDLE / 2} y={p.y - HANDLE / 2} width={HANDLE} height={HANDLE} onPointerDown={down(corner)} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />; })}
+    <g className={"annotation-handles" + (grabbed ? " resizing" : "")}>
+      {shapes.map((h) => (
+        <g key={h.id} className={"annotation-handle-slot handle-" + h.id}>
+          <rect className="annotation-handle-hit nodrag nopan" x={h.hit.x} y={h.hit.y} width={h.hit.w} height={h.hit.h} onPointerDown={down(h.id)} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
+          <rect className={"annotation-handle handle-" + h.kind} x={h.box.x} y={h.box.y} width={h.box.w} height={h.box.h} rx={h.kind === "bar" ? Math.min(h.box.w, h.box.h) / 2 : 1.5 / zoom} />
+        </g>
+      ))}
+      {grabbed ? <GesturePill place={sizePill(frame, grabbed, zoom)} /> : null}
     </g>
   );
 }
@@ -128,7 +135,7 @@ function Picture({ a, frame }: { a: Annotation; frame: Frame }) {
   const c = a.content;
   const url = useAsset(c.kind === "image" ? c.asset : null);
   if (c.kind !== "image") return null;
-  if (!url) return <text className="annotation-text text-ink annotation-alt" x={frame.w / 2} y={frame.h / 2} textAnchor="middle" fontSize={12}>{url === null ? "image…" : c.alt || "image"}</text>;
+  if (!url) return <text className="annotation-text text-ink annotation-alt" x={frame.w / 2} y={frame.h / 2} textAnchor="middle" fontSize={12}>{url === null ? t("shell:canvas.imageLoading") : c.alt || KIND_LABEL.image}</text>;
   return <image href={url} x={0} y={0} width={frame.w} height={frame.h} preserveAspectRatio="xMidYMid meet" />;
 }
 
@@ -141,12 +148,13 @@ function NoteEditor({ initial, onDone }: { initial: string; onDone: (text: strin
     else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); onDone((event.target as HTMLTextAreaElement).value); }
     event.stopPropagation();
   };
-  return <textarea ref={ref} className="note-editor nodrag nopan nowheel" defaultValue={initial} maxLength={2000} aria-label="texte de la note" spellCheck={false}
+  return <textarea ref={ref} className="note-editor nodrag nopan nowheel" defaultValue={initial} maxLength={2000} aria-label={t("shell:canvas.noteText")} spellCheck={false}
     onKeyDown={keys} onBlur={(event) => onDone(event.target.value)} onPointerDown={(event) => event.stopPropagation()} />;
 }
 
-export function AnnotationNode({ data, selected }: NodeProps<AnnotationNodeType>) {
+export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, positionAbsoluteY }: NodeProps<AnnotationNodeType>) {
   const { a, editable } = data;
+  const rf = useReactFlow(); // le zoom se lit au rendu d'un glissé (chaque pas redessine le nœud) : aucun abonnement par nœud
   const actions = useContext(AnnotationContext);
   const request = useContext(EditRequest);
   const [live, setLive] = useState<Frame | null>(null); // la boîte pendant un redimensionnement
@@ -154,7 +162,8 @@ export function AnnotationNode({ data, selected }: NodeProps<AnnotationNodeType>
   const [pick, setPick] = useState<Range | null>(null);
   const [cell, setCell] = useState<Cell | null>(null);
   useEffect(() => { setLive(null); }, [data.frame]);
-  useEffect(() => { if (!selected) { setPick(null); setCell(null); } }, [selected]);
+  // désélectionnée (Échap, clic ailleurs) en plein redimensionnement : les poignées partent, la boîte d'avant revient, rien ne s'écrit
+  useEffect(() => { if (!selected) { setPick(null); setCell(null); setLive(null); } }, [selected]);
   // une commande du menu demande l'édition en place : telle cellule du tableau, ou le texte de la note
   useEffect(() => {
     if (!request || request.id !== a.id) return;
@@ -162,7 +171,22 @@ export function AnnotationNode({ data, selected }: NodeProps<AnnotationNodeType>
     else if (a.content.kind === "note") setEditing(true);
   }, [request, a]);
   const frame = live || data.frame;
-  const onResize = useCallback((next: Frame, done: boolean): void => { if (done) { setLive(null); actions.resize(a.id, next); } else setLive(next); }, [a.id, actions]);
+  // Pendant un geste ou une édition en place, la bulle se tait (lot 1 de docs/11).
+  const editingNow = editing || !!cell;
+  useEffect(() => { actions.hold("edit:" + a.id, editingNow); return () => actions.hold("edit:" + a.id, false); }, [actions, a.id, editingNow]);
+  useEffect(() => { actions.hold("resize:" + a.id, !!live); return () => actions.hold("resize:" + a.id, false); }, [actions, a.id, live]);
+  // Un redimensionnement par le haut ou la gauche (ou depuis le centre) déplace la boîte : le dessin suit, décalé
+  // depuis la place du nœud, jusqu'à ce que l'écriture la pose.
+  const shift = live ? { x: live.x - data.frame.x, y: live.y - data.frame.y } : null;
+  // Glissée : la place qui sera écrite (celle de la fiche : relative à l'ancre d'une annotation attachée).
+  const moved = dragging ? positionPill(a.x + Math.round(positionAbsoluteX - data.frame.x), a.y + Math.round(positionAbsoluteY - data.frame.y), rf.getZoom()) : null;
+  // Relâché : la page écrit, sauf si rien n'a bougé (un clic sur une poignée n'écrit rien).
+  const onResize = useCallback((next: Frame, done: boolean): void => {
+    if (!done) { setLive(next); return; }
+    setLive(null);
+    const was = data.frame;
+    if (next.x !== was.x || next.y !== was.y || next.w !== was.w || next.h !== was.h) actions.resize(a.id, next);
+  }, [a.id, data.frame, actions]);
   const canEdit = editable && !a.locked;
   const dbl = useCallback((): void => { if (canEdit && a.content.kind === "note") setEditing(true); }, [canEdit, a.content.kind]);
   const done = useCallback((text: string | null): void => { setEditing(false); if (text !== null && a.content.kind === "note" && text.trim() && text !== a.content.text) actions.edit(a.id, text); }, [a, actions]);
@@ -171,13 +195,20 @@ export function AnnotationNode({ data, selected }: NodeProps<AnnotationNodeType>
   const classes = `annotation kind-${a.content.kind} hue-${a.style.hue} plane-${a.z}${a.locked ? " locked" : ""}${a.anchor.kind !== "free" ? " anchored" : ""} ${data.classes}`;
   return (
     <>
-      <svg className={classes} width={frame.w} height={frame.h} viewBox={`0 0 ${frame.w} ${frame.h}`} overflow="visible" opacity={a.style.opacity / 100} data-annotation={a.id} onDoubleClick={dbl} onContextMenu={menu}>
-        {data.leader && !live ? <Leader seg={data.leader} frame={frame} /> : null}
-        {a.content.kind === "table"
-          ? <TableBody a={a} content={a.content} frame={frame} active={!!selected} editable={canEdit} onContent={(content) => actions.content(a.id, content)} onMenu={cellMenu} pick={pick} onPick={setPick} editing={cell} onEdit={setCell} />
-          : <Body a={a} frame={frame} />}
-        {selected && canEdit && !editing && !cell ? <Handles frame={frame} onResize={onResize} /> : null}
-        {editable && !editing && !cell && !live ? <Anchors frame={{ x: 0, y: 0, w: frame.w, h: frame.h }} kind="annotation" id={a.id} /> : null}
+      <svg className={classes} width={frame.w} height={frame.h} viewBox={`0 0 ${frame.w} ${frame.h}`} overflow="visible" data-annotation={a.id} onDoubleClick={dbl} onContextMenu={menu}>
+        <g transform={shift && (shift.x || shift.y) ? `translate(${shift.x} ${shift.y})` : undefined}>
+          <g opacity={a.style.opacity / 100}>
+            {data.leader && !live ? <Leader seg={data.leader} frame={frame} /> : null}
+            {a.content.kind === "table"
+              ? <TableBody a={a} content={a.content} frame={frame} active={!!selected} editable={canEdit} onContent={(content) => actions.content(a.id, content)} onMenu={cellMenu} pick={pick} onPick={setPick} editing={cell} onEdit={setCell} />
+              : <Body a={a} frame={frame} />}
+          </g>
+          {a.content.kind === "shape" && a.content.shape === "ellipse"
+            ? <ellipse className="hover-ring" cx={frame.w / 2} cy={frame.h / 2} rx={frame.w / 2} ry={frame.h / 2} />
+            : <rect className="hover-ring" x={0} y={0} width={frame.w} height={frame.h} rx={a.style.radius} />}
+          {selected && canEdit && !editingNow ? <Handles frame={frame} onResize={onResize} /> : null}
+          {moved ? <GesturePill place={moved} /> : null}
+        </g>
       </svg>
       {editing && a.content.kind === "note" ? <NoteEditor initial={a.content.text} onDone={done} /> : null}
     </>

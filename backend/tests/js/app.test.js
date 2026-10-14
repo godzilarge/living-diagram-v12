@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "context", "debug", "history", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "searching", "snap", "walking"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "checkMeaning", "context", "debug", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "searching", "snap", "tool", "walking"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -99,7 +99,7 @@ test("le journal : requête, phrases, rafales, jours", () => {
   const items = (list) => journal.fold(list);
   const days = clone(journal.byDay(items([entry([], { at: "2026-10-09T10:00:00Z" }), entry([], { at: "2026-10-09T08:00:00Z", revision: 6 }), entry([], { at: "2026-10-08T10:00:00Z", revision: 5 }), entry([], { at: "2026-10-01T10:00:00Z", revision: 4 })]), now));
   assert.deepEqual(days.map((d) => [d.day, d.items.length]).slice(0, 2), [["aujourd'hui", 2], ["hier", 1]]);
-  assert.match(days[2].day, /1 octobre 2026/);
+  assert.match(days[2].day, /1er octobre 2026/, "le premier du mois s'écrit « 1er »");
 });
 
 test("le journal : suites repliées, détail par verbe, faits en mots, surlignage, fuseau", () => {
@@ -254,13 +254,13 @@ test("les règles et l'alignement de la toile sont ceux du moteur", () => {
 
 test("les préférences du navigateur se lisent avec tolérance et passent par le réducteur", () => {
   const { prefs, reducer, initialState } = loadApp();
-  assert.deepEqual(clone(prefs.defaultPrefs()), { theme: "dark", grid: false, snap: false, minimap: true, panelWidth: 348 }, "sombre, sans grille ni aimant, minimap, panneau de 348");
+  assert.deepEqual(clone(prefs.defaultPrefs()), { theme: "dark", language: null, grid: false, snap: false, minimap: true, panelWidth: 348 }, "sombre, langue du navigateur, sans grille ni aimant, minimap, panneau de 348");
   assert.equal(prefs.parsePrefs('{"panelWidth":5000}').panelWidth, 760, "une largeur hors bornes est ramenée au plafond");
   assert.equal(prefs.parsePrefs('{"panelWidth":"large"}').panelWidth, 348, "une largeur illisible vaut le défaut");
   assert.deepEqual(clone(prefs.parsePrefs(null)), clone(prefs.defaultPrefs()), "rien de rangé : les défauts");
   assert.deepEqual(clone(prefs.parsePrefs("{pas du json")), clone(prefs.defaultPrefs()), "texte illisible : les défauts");
   assert.deepEqual(clone(prefs.parsePrefs('{"theme":"light","grid":true,"snap":"oui","minimap":false,"autre":1}')),
-    { theme: "light", grid: true, snap: false, minimap: false, panelWidth: 348 }, "un champ mal formé vaut son défaut, un champ inconnu est ignoré");
+    { theme: "light", language: null, grid: true, snap: false, minimap: false, panelWidth: 348 }, "un champ mal formé vaut son défaut, un champ inconnu est ignoré");
   assert.equal(prefs.parsePrefs('{"theme":"sepia"}').theme, "dark", "un thème inconnu vaut le défaut");
   const start = initialState();
   const lit = reducer(start, { type: "prefs", patch: { theme: "light" } });
@@ -278,7 +278,7 @@ test("annuler / rétablir : ce qu'une écriture change clé par clé, et les op�
   const d1 = doc(2, { pins: [pin("a", 20, 0), pin("b", 40, 0)] });
   const ops = [{ op: "pin", hostname: "a", x: 20, y: 0 }, { op: "pin", hostname: "b", x: 40, y: 0 }];
   const entry = h.record(ops, d0, d1);
-  assert.equal(entry.label, "déplacement de 2 équipements");
+  assert.equal(h.labelText(entry.label), "déplacement de 2 équipements");
   assert.deepEqual(clone(entry.changes.map((c) => [c.before, c.after])), [[{ x: 0, y: 0 }, { x: 20, y: 0 }], [null, { x: 40, y: 0 }]]);
   const undo = h.plan(d1, entry.changes, "undo");
   assert.deepEqual(clone(undo.ops), [{ op: "pin", hostname: "a", x: 0, y: 0 }, { op: "unpin", hostname: "b" }], "annuler : l'ancienne place, ou plus d'épingle");
@@ -292,7 +292,7 @@ test("annuler / rétablir : ce qu'une écriture change clé par clé, et les op�
   const g = { id: "g4-1", label: "Cœur", description: "", members: ["a", "b"], style, author: "o", at: "t" };
   const withGroup = doc(4, { groups: [g], device_colors: [{ hostname: "a", hue: "red", author: "o", at: "t" }] });
   const created = h.record([{ op: "group_create", label: "Cœur", members: ["a", "b"] }], doc(3), withGroup);
-  assert.equal(created.label, "création du groupe Cœur");
+  assert.equal(h.labelText(created.label), "création du groupe Cœur");
   const del = h.plan(withGroup, created.changes, "undo");
   assert.deepEqual(clone(del.ops), [{ op: "group_delete", id: "g4-1" }]);
   const back = h.plan(doc(5), created.changes, "redo");
@@ -301,9 +301,11 @@ test("annuler / rétablir : ce qu'une écriture change clé par clé, et les op�
   const ids = h.createdIds(back.created, doc(6));
   assert.equal(ids.get("g4-1"), "g6-1", "l'identité que le serveur donne : g<révision>-<n>");
   let stack = h.push(h.push(h.emptyStack(), entry), created);
-  assert.deepEqual(clone(h.labels(stack)), { undo: "création du groupe Cœur", redo: null });
+  const said = (labels) => ({ undo: labels.undo && h.labelText(labels.undo), redo: labels.redo && h.labelText(labels.redo) });
+  assert.deepEqual(said(h.labels(stack)), { undo: "création du groupe Cœur", redo: null });
+  assert.deepEqual(clone(h.labels(stack).undo), { key: "groupCreated", name: "Cœur" }, "rangé sans langue : une clé et ses valeurs");
   stack = h.moved(stack, "undo", new Map(), del.applied);
-  assert.deepEqual(clone(h.labels(stack)), { undo: "déplacement de 2 équipements", redo: "création du groupe Cœur" });
+  assert.deepEqual(said(h.labels(stack)), { undo: "déplacement de 2 équipements", redo: "création du groupe Cœur" });
   stack = h.moved(stack, "redo", ids);
   assert.equal(stack.undo[1].changes[0].key, h.keyOf("group", "g6-1"), "le groupe recréé est suivi sous sa nouvelle identité");
   const colour = h.record([{ op: "color", hostname: "a", hue: "red" }], doc(3), withGroup);
@@ -320,7 +322,7 @@ test("annuler / rétablir : ce qu'une écriture change clé par clé, et les op�
   const note = { id: "a7-1", anchor: { kind: "free", ref: null }, x: 10, y: 20, w: 220, h: 80, z: "front", locked: false, leader: false, content: { kind: "note", text: "Baie 12" }, style: { hue: "amber" }, author: "o", at: "t" };
   const withNote = doc(7, { annotations: [note] });
   const made = h.record([{ op: "annotation_create", content: note.content, x: 10, y: 20 }], doc(6), withNote);
-  assert.equal(made.label, "création d'une annotation");
+  assert.equal(h.labelText(made.label), "création d'une annotation");
   assert.deepEqual(clone(h.plan(withNote, made.changes, "undo").ops), [{ op: "annotation_delete", id: "a7-1" }]);
   const again = h.plan(doc(8), made.changes, "redo");
   assert.equal(again.ops[0].op, "annotation_create");
@@ -330,7 +332,7 @@ test("annuler / rétablir : ce qu'une écriture change clé par clé, et les op�
   assert.equal(h.createdIds(["g4-1", "a7-1"], doc(9)).get("g4-1"), "g9-1");
   const movedNote = doc(8, { annotations: [{ ...note, x: 50, w: 300 }] });
   const dragged = h.record([{ op: "annotation_update", id: "a7-1", x: 50, w: 300 }], withNote, movedNote);
-  assert.equal(dragged.label, "modification d'une annotation");
+  assert.equal(h.labelText(dragged.label), "modification d'une annotation");
   const back2 = h.plan(movedNote, dragged.changes, "undo").ops[0];
   assert.equal(back2.op, "annotation_update");
   assert.deepEqual([back2.x, back2.w], [10, 220], "annuler rend la boîte d'avant");
@@ -339,11 +341,11 @@ test("annuler / rétablir : ce qu'une écriture change clé par clé, et les op�
   const line = { id: "c8-1", start: { kind: "free", x: 0, y: 0 }, end: { kind: "device", ref: "sw-core-01" }, heads: { start: "none", end: "arrow" }, route: "straight", bend: 0, label: "", z: "front", locked: false, style: { hue: "slate" }, author: "o", at: "t" };
   const withLine = doc(8, { connectors: [line] });
   const drawn = h.record([{ op: "connector_create", start: line.start, end: line.end }], doc(7), withLine);
-  assert.equal(drawn.label, "création d'un connecteur");
+  assert.equal(h.labelText(drawn.label), "création d'un connecteur");
   assert.deepEqual(clone(h.plan(withLine, drawn.changes, "undo").ops), [{ op: "connector_delete", id: "c8-1" }]);
   const bent = doc(9, { connectors: [{ ...line, route: "curve", bend: 40 }] });
   const curved = h.record([{ op: "connector_update", id: "c8-1", route: "curve", bend: 40 }], withLine, bent);
-  assert.equal(curved.label, "modification d'un connecteur");
+  assert.equal(h.labelText(curved.label), "modification d'un connecteur");
   const back3 = h.plan(bent, curved.changes, "undo").ops[0];
   assert.equal(back3.op, "connector_update");
   assert.deepEqual([back3.route, back3.bend], ["straight", 0], "annuler rend le tracé d'avant");
@@ -367,11 +369,16 @@ test("le menu contextuel (context.ts) : ce qu'un clic droit propose selon la cib
   assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, selectedHosts: ["sw-core-01", "sw-core-02"] })), ["center", "hide", "isolate", "align:horizontal", "align:vertical", "group"], "dans une sélection multiple : aligner, grouper");
   assert.deepEqual(ids(c.menuItems({ kind: "group", id: "g1-1" }, model, ro)), ["center", "members", "hide", "isolate"]);
   const cell = ids(c.menuItems({ kind: "annotation", id: "a1-1", cell: [0, 0], range: { r0: 0, c0: 0, r1: 0, c1: 1 } }, model, rw));
-  assert.deepEqual(cell, ["cell:edit", "cell:split", "row:above", "row:below", "row:delete", "col:left", "col:right", "col:delete", "header", "center", "duplicate", "lock", "plane", "detach", "connect", "delete"], "une cellule fusionnée se sépare ; une plage d'une seule cellule visible ne se fusionne pas");
+  assert.deepEqual(cell, ["cell:edit", "cell:split", "row:above", "row:below", "row:delete", "col:left", "col:right", "col:delete", "header", "center", "duplicate", "lock", "detach", "connect", "delete"], "une cellule fusionnée se sépare ; une plage d'une seule cellule visible ne se fusionne pas ; attachée, pas de « mettre dessous » (lot 1)");
   const range = ids(c.menuItems({ kind: "annotation", id: "a1-1", cell: [1, 0], range: { r0: 1, c0: 0, r1: 1, c1: 1 } }, model, rw));
   assert.equal(range.includes("cell:merge") && !range.includes("cell:split"), true, "une plage se fusionne");
   assert.deepEqual(ids(c.menuItems({ kind: "annotation", id: "a1-2" }, model, rw)), ["text", "center", "duplicate", "lock", "plane", "connect", "delete"], "une note libre : son texte, pas de détacher");
   assert.deepEqual(ids(c.menuItems({ kind: "annotation", id: "a1-2" }, model, ro)), ["center"]);
+  // attachée, elle se dessine au-dessus de son ancre : « mettre dessous » n'est jamais proposé ; un document qui dit
+  // encore « dessous » garde « mettre dessus » (lot 1 de docs/11)
+  const attachedBack = { ...model, annotationById: new Map([["a1-3", { id: "a1-3", anchor: { kind: "group", ref: "g1-1" }, z: "back", locked: false, content: { kind: "note", text: "x" } }]]) };
+  const backItems = c.menuItems({ kind: "annotation", id: "a1-3" }, attachedBack, rw);
+  assert.equal(backItems.find((i) => i.id === "plane").label, "mettre dessus");
   const line = c.menuItems({ kind: "connector", id: "c1-1" }, model, rw);
   assert.deepEqual(ids(line), ["center", "reverse", "heads:none/arrow", "heads:arrow/none", "heads:arrow/arrow", "heads:none/none", "route:straight", "route:elbow", "route:curve", "straighten", "detach", "lock", "plane", "delete"]);
   assert.equal(line.find((i) => i.id === "route:curve").checked && line.find((i) => i.id === "heads:none/arrow").checked, true, "ce qui est coché est l'état courant");
@@ -401,6 +408,117 @@ test("l'accrochage d'un bout (snap.ts) : une ancre à portée, sinon l'élément
   assert.deepEqual(clone([far.end, far.target, far.anchors]), [{ kind: "free", x: 900, y: 900 }, null, []], "ailleurs : libre, au point");
   const hover = snap.pickEnd([card, note], { x: 105, y: 45 }, 10);
   assert.deepEqual(clone([hover.end.kind, hover.target && hover.target.ref]), ["free", "sw"], "à portée sans ancre ni contour : libre, mais les ancres de la carte se montrent");
+});
+
+test("les poignées (handles.ts) : taille d'écran constante, coins carrés, barres de côté, Maj garde le rapport, Alt part du centre, bornes", () => {
+  const { handles: h } = loadApp();
+  const box = { x: 100, y: 50, w: 200, h: 100 };
+  // à l'écran, un coin fait 8 px et une barre 14 × 5 quel que soit le zoom : dans le plan, × 1 / zoom
+  for (const zoom of [0.4, 1, 2]) {
+    const shapes = clone(h.handleShapes(box, zoom));
+    const corner = shapes.find((s) => s.id === "se"), bar = shapes.find((s) => s.id === "n"), side = shapes.find((s) => s.id === "e");
+    assert.deepEqual([corner.kind, +(corner.box.w * zoom).toFixed(6), +(corner.box.h * zoom).toFixed(6)], ["corner", 8, 8], `coin à ${zoom}`);
+    assert.deepEqual([bar.kind, +(bar.box.w * zoom).toFixed(6), +(bar.box.h * zoom).toFixed(6)], ["bar", 14, 5], `barre haute à ${zoom}`);
+    assert.deepEqual([+(side.box.w * zoom).toFixed(6), +(side.box.h * zoom).toFixed(6)], [5, 14], `barre de côté, debout, à ${zoom}`);
+    assert.equal(corner.box.x + corner.box.w / 2, 200, "centré sur le coin (coordonnées de la boîte)");
+    assert.equal(bar.box.y + bar.box.h / 2, 0, "posée sur le bord");
+  }
+  const cursors = Object.fromEntries(clone(h.handleShapes(box, 1)).map((s) => [s.id, s.cursor]));
+  assert.deepEqual(cursors, { n: "ns-resize", e: "ew-resize", s: "ns-resize", w: "ew-resize", nw: "nwse-resize", ne: "nesw-resize", se: "nwse-resize", sw: "nesw-resize" });
+  assert.deepEqual(clone(h.handleShapes(box, 1)).map((s) => s.kind), ["bar", "bar", "bar", "bar", "corner", "corner", "corner", "corner"], "les coins dessinés en dernier : ils gagnent");
+  assert.deepEqual(clone(h.handleShapes({ w: 60, h: 30 }, 0.5)).map((s) => s.id), ["nw", "ne", "se", "sw"], "côtés de 30 et 15 px à l'écran : pas de barre");
+  // le redimensionnement : le côté opposé reste, Alt garde le centre, Maj garde le rapport (coins), bornes 20 / 4 000
+  assert.deepEqual(clone(h.resized(box, "e", 40, 999)), { x: 100, y: 50, w: 240, h: 100 }, "une barre ne bouge qu'un axe");
+  assert.deepEqual(clone(h.resized(box, "nw", 20, 10)), { x: 120, y: 60, w: 180, h: 90 });
+  assert.deepEqual(clone(h.resized(box, "e", 40, 0, { center: true })), { x: 60, y: 50, w: 280, h: 100 }, "Alt : le côté opposé bouge d'autant, le centre reste");
+  assert.deepEqual(clone(h.resized(box, "se", 20, 20, { center: true })), { x: 80, y: 30, w: 240, h: 140 });
+  assert.deepEqual(clone(h.resized(box, "se", 100, 0, { ratio: true })), { x: 100, y: 50, w: 300, h: 150 }, "Maj : le rapport 2:1 gardé");
+  assert.deepEqual(clone(h.resized(box, "n", 0, -20, { ratio: true })), { x: 100, y: 30, w: 200, h: 120 }, "Maj sur une barre : rien de plus");
+  assert.deepEqual(clone(h.resized(box, "se", 50, 50, { ratio: true, center: true })), { x: 0, y: 0, w: 400, h: 200 }, "Maj et Alt ensemble");
+  assert.deepEqual(clone(h.resized(box, "w", 500, 0)), { x: 280, y: 50, w: 20, h: 100 }, "jamais sous 20, le côté droit reste");
+  assert.deepEqual(clone(h.resized(box, "s", 0, 9000)), { x: 100, y: 50, w: 200, h: 4000 }, "jamais au-delà de 4 000");
+  assert.deepEqual(clone(h.resized(box, "e", 7, 0, { center: true })), { x: 93, y: 50, w: 214, h: 100 }, "entiers");
+  // les pastilles : « L × H » collée à la poignée saisie, dehors ; « X, Y » au-dessus du coin ; à taille d'écran
+  const se = clone(h.sizePill({ w: 240, h: 100 }, "se", 2));
+  assert.deepEqual(se, { text: "240 × 100", x: 244, y: 104, scale: 0.5 }, "en bas à droite du coin, 8 px d'écart");
+  const nw = clone(h.sizePill({ w: 240, h: 100 }, "nw", 1));
+  assert.equal(nw.x + 76 + 8, 0, "à gauche du coin haut gauche (pastille de 76 px)");
+  assert.equal(nw.y, -28, "au-dessus");
+  const top = clone(h.sizePill({ w: 240, h: 100 }, "n", 1));
+  assert.equal(top.x + 38, 120, "centrée sur la barre du haut");
+  assert.deepEqual(clone(h.positionPill(40, -120, 0.5)), { text: "40, -120", x: 0, y: -56, scale: 2 });
+});
+
+test("l'outil connecteur (tool.ts) : appui, glissé, relâche ; un clic pose le départ, le second finit ; deux bouts libres confondus ne font rien", () => {
+  const { tool: t } = loadApp();
+  const card = { kind: "device", ref: "sw", frame: { x: 0, y: 0, w: 100, h: 50 }, shape: { kind: "rect", rx: 12 } };
+  const onCard = (side) => ({ end: { kind: "device", ref: "sw", side }, place: { kind: "box", frame: card.frame, shape: card.shape, side }, target: card, anchors: [], snapped: null });
+  const free = (x, y) => ({ end: { kind: "free", x, y }, place: { kind: "point", at: { x, y } }, target: null, anchors: [], snapped: null });
+  // tirer depuis l'intérieur d'une carte : bout `auto` au départ, la relâche sur le fond crée
+  let step = t.down(t.IDLE, onCard("auto"), { x: 50, y: 25 }, { x: 500, y: 300 });
+  assert.equal(step.phase.kind, "press");
+  assert.equal(t.draftOf(step.phase), null, "pas de brouillon tant qu'on n'a pas bougé");
+  assert.equal(t.move(step.phase, { x: 503, y: 300 }).kind, "press", "3 px : toujours un appui");
+  const dragged = t.move(step.phase, { x: 510, y: 300 });
+  assert.equal(dragged.kind, "drag");
+  assert.deepEqual(clone(t.draftOf(dragged).start), { kind: "device", ref: "sw", side: "auto" });
+  step = t.up(dragged, free(300, 40), { x: 300, y: 40 });
+  assert.deepEqual(clone(step), { phase: { kind: "idle" }, create: { start: { kind: "device", ref: "sw", side: "auto" }, end: { kind: "free", x: 300, y: 40 } } });
+  // l'élément du départ ne peut pas être l'arrivée
+  assert.equal(t.excludeStart(dragged)("device", "sw"), true);
+  assert.equal(t.excludeStart(t.IDLE)("device", "sw"), false);
+  // deux clics : le premier pose un bout libre, le second finit sur l'ancre « n » de la carte
+  const pressed = t.down(t.IDLE, free(-200, -200), { x: -200, y: -200 }, { x: 10, y: 10 }).phase;
+  const pending = t.up(pressed, free(-200, -200), { x: -200, y: -200 }).phase;
+  assert.equal(pending.kind, "pending");
+  assert.equal(t.draftOf(pending).from.x, -200, "le brouillon part du premier clic");
+  assert.deepEqual(clone(t.excludeStart(pending)("device", "sw")), false, "un départ libre n'exclut rien");
+  const done = t.down(pending, onCard("n"), { x: 50, y: 0 }, { x: 300, y: 100 });
+  assert.deepEqual(clone(done.create), { start: { kind: "free", x: -200, y: -200 }, end: { kind: "device", ref: "sw", side: "n" } });
+  assert.equal(done.phase.kind, "idle");
+  // un second clic au même endroit (deux bouts libres à moins de 6) : on attend encore
+  const same = t.down(pending, free(-197, -200), { x: -197, y: -200 }, { x: 13, y: 10 });
+  assert.deepEqual([same.create, same.phase.kind], [null, "pending"]);
+  const tiny = t.up(t.move(t.down(t.IDLE, free(0, 0), { x: 0, y: 0 }, { x: 0, y: 0 }).phase, { x: 9, y: 0 }), free(1, 0), { x: 1, y: 0 });
+  assert.deepEqual([tiny.create, tiny.phase.kind], [null, "idle"], "un glissé trop court entre deux points libres ne crée rien");
+  // rien ne bouge hors de propos
+  assert.equal(t.up(t.IDLE, free(0, 0), { x: 0, y: 0 }).phase.kind, "idle");
+  assert.equal(t.move(t.IDLE, { x: 99, y: 99 }).kind, "idle");
+});
+
+test("le survol (hover.ts) : marques de la cible (contour flottant, ancres, celle à portée) ; la bulle jamais sur la sélection ni pendant un geste", () => {
+  const { hover: v, snap } = loadApp();
+  const card = { kind: "device", ref: "sw", frame: { x: 0, y: 0, w: 100, h: 50 }, shape: { kind: "rect", rx: 12 } };
+  assert.equal(v.marksOf(null), null);
+  assert.equal(v.marksOf(snap.pickEnd([card], { x: 900, y: 900 }, 10)), null, "rien visé : aucune marque");
+  const inside = clone(v.marksOf(snap.pickEnd([card], { x: 50, y: 20 }, 10)));
+  assert.deepEqual([inside.floating, inside.near, inside.anchors.length, inside.target.ref], [true, null, 4, "sw"], "dedans : le contour (bout `auto`), quatre ancres");
+  const onAnchor = clone(v.marksOf(snap.pickEnd([card], { x: 97, y: 27 }, 10)));
+  assert.deepEqual([onAnchor.floating, onAnchor.near], [false, "e"], "à portée d'une ancre : bout fixe, l'ancre grossit");
+  const near = clone(v.marksOf(snap.pickEnd([card], { x: 105, y: 45 }, 10)));
+  assert.deepEqual([near.floating, near.near, near.anchors.length], [false, null, 4], "à portée sans ancre : les ancres se montrent, le contour n'est pas pris");
+  assert.notEqual(v.marksKey(v.marksOf(snap.pickEnd([card], { x: 50, y: 20 }, 10))), v.marksKey(v.marksOf(snap.pickEnd([card], { x: 97, y: 27 }, 10))));
+  assert.equal(v.marksKey(v.marksOf(snap.pickEnd([card], { x: 50, y: 20 }, 10))), v.marksKey(v.marksOf(snap.pickEnd([card], { x: 52, y: 22 }, 10))), "même cible, mêmes marques : rien à redessiner");
+  assert.equal(v.marksKey(null), "");
+  const selected = v.selectedTipKeys([{ kind: "annotation", id: "a1-1" }, { kind: "node", id: "sw" }]);
+  assert.equal(v.tipAllowed("annotation:a1-1", selected, false), false, "jamais sur l'élément sélectionné");
+  assert.equal(v.tipAllowed("node:sw", selected, false), false);
+  assert.equal(v.tipAllowed("node:fw", selected, false), true);
+  assert.equal(v.tipAllowed("node:fw", selected, true), false, "jamais pendant un geste");
+  assert.equal(v.tipAllowed("node:sw", v.selectedTipKeys([]), false), true, "la sélection vidée, elle revient");
+});
+
+test("l'outil armé dans l'état : seulement en Diagramme, rangé par un changement de vue ou de run", () => {
+  const { reducer, initialState } = loadApp();
+  const start = initialState();
+  assert.equal(start.tool, null);
+  const armed = reducer(start, { type: "tool", tool: "connector" });
+  assert.equal(armed.tool, "connector");
+  assert.equal(reducer(armed, { type: "tool", tool: null }).tool, null);
+  assert.equal(reducer(armed, { type: "view", patch: { mode: "control" } }).tool, null, "la vue Contrôle se lit : l'outil se range");
+  assert.equal(reducer(armed, { type: "view", patch: { showPorts: true } }).tool, "connector", "une couche ne range rien");
+  assert.equal(reducer(reducer(start, { type: "view", patch: { mode: "control" } }), { type: "tool", tool: "connector" }).tool, null, "en Contrôle, rien ne s'arme");
+  assert.equal(reducer(armed, { type: "loading", infrastructure: "i", runId: "r" }).tool, null, "une autre run : rangé");
 });
 
 test("la recherche : équipements, ports (nom, description), groupes et clusters ; champs proposés en écrivant", () => {

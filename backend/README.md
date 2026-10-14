@@ -52,13 +52,18 @@ archivée était listée mais illisible (404, test de bout en bout du 2026-09-19
 | `GET /api/ingest/bundles?infrastructure=…` | `RunList` : les runs archivées, **triées par début de collecte** (`run_start`, puis `run_id`), avec `run_end`, `run_status`, `produced_at`, `stored_at`, `sha256`. C'est l'ordre de la timeline et du diff N-1 ; un ré-export tardif ne déplace pas une run |
 | `GET /api/ingest/bundle?infrastructure=…&run_id=…` | le bundle archivé, forme canonique, octets vérifiés par empreinte |
 | `GET /api/ingest/report?infrastructure=…&run_id=…` | `IngestReport` de la première ingestion (`correlation` y est toujours `null` : il décrit l'ingestion) |
-| `GET /api/snapshot?infrastructure=…&run_id=…` | le `Snapshot` v1 de la run (`contracts/CONTRAT.md` partie B), octets archivés. 404 « run inconnue » ou 404 « run archivée sans snapshot : lancer `ld correlate` » |
-| `GET /api/diff?infrastructure=…&from=…&to=…` | le `Diff` v1 entre les snapshots des deux runs (`contracts/CONTRAT.md` partie C, `docs/07`), **calculé à la demande, jamais archivé**, gardé en mémoire tant que les deux snapshots ne changent pas (`DiffCache`, 64 Mo ; `docs/07` Q6), mêmes octets à chaque appel. 404 qui nomme le côté (« run `from` : run inconnue… », « run `to` : run archivée sans snapshot… »), 500 neutre si un snapshot archivé est hors contrat (`ld correlate`) |
+| `GET /api/snapshot?infrastructure=…&run_id=…` | le `Snapshot` v1 de la run (`contracts/CONTRAT.md` partie B), octets archivés. 404 `run_unknown` ou 404 `snapshot_missing` |
+| `GET /api/diff?infrastructure=…&from=…&to=…` | le `Diff` v1 entre les snapshots des deux runs (`contracts/CONTRAT.md` partie C, `docs/07`), **calculé à la demande, jamais archivé**, gardé en mémoire tant que les deux snapshots ne changent pas (`DiffCache`, 64 Mo ; `docs/07` Q6), mêmes octets à chaque appel. 404 qui nomme le côté (`diff_run_unknown`, `diff_snapshot_missing`, `params.side` = `from` / `to`), 500 neutre si un snapshot archivé est hors contrat (`diff_snapshot_invalid`, `ld correlate`) |
 
-Paramètre manquant ou vide : 422 `{"detail": "paramètres de requête invalides", "errors": [{path, message}]}`,
-sans écho de la valeur reçue. Run inconnue : 404. Entrée d'archive corrompue : 500 neutre. **Toute erreur a la forme
-`Problem`** (`detail`, et `errors` sur un 422), erreur imprévue comprise (500 « erreur interne », cause au journal du
-serveur seulement) ; seuls quatre refus portent un document : le rapport d'ingestion (409, 422, 500 du `POST`) et le
+Paramètre manquant ou vide : 422 `{"code": "invalid_query", "detail": "invalid query parameters", "errors": [{path,
+code, message}]}`, sans écho de la valeur reçue. Run inconnue : 404. Entrée d'archive corrompue : 500 neutre. **Toute
+erreur a la forme `Problem`** : `code` stable, `detail` **en anglais** (le standard, décision d'Orhan du 2026-10-10),
+`params` (les valeurs du serveur qui écrivent la phrase : côté d'un diff, limite ; jamais une valeur reçue), `errors`
+sur un 422 (chemin, code, règle), erreur imprévue comprise (500 `internal_error`, cause au journal du serveur
+seulement). Codes et phrases vivent dans `src/ld_backend/problems.py` ; la page écrit son propre texte dans sa langue
+d'après le code (`common:http.problem` / `common:http.field`, `tests/test_problems.py` tient les deux alignés). Les
+messages du validateur du contrat (rapport d'ingestion, règles des modèles dans `errors[].message`) restent dans la
+langue du contrat, en français pour l'instant ; seuls quatre refus portent un document : le rapport d'ingestion (409, 422, 500 du `POST`) et le
 placement courant (409 de `POST /api/placement`).
 
 ## Démarrer
@@ -191,6 +196,7 @@ backend/
 │   │                         boucle d'événements
 │   ├── openapi.py            le document OpenAPI : groupes, réponses déclarées (Problem), schémas des contrats, corps lus à la main
 │   ├── bodies.py             corps lus en flux et bornés (JSON, image), refus à la forme Problem sans valeur reçue
+│   ├── problems.py           les refus de l'API : code stable, phrase anglaise, valeurs (`ApiError`)
 │   ├── cli.py                ld ingest | runs | correlate | diff | intent | placement | render | serve
 │   ├── render/               pages HTML de lecture d'un snapshot (2026-09-20), un fichier autonome par run
 │   │   ├── page.py           assemblage : gabarit + style + la toile + données ; JSON échappé, CSP par empreinte
@@ -457,10 +463,17 @@ titre », jamais `a848-1`). Les groupes et annotations qu'une opération désign
 aussi dans `subjects`, avec leur nom : la page écrit « ancrage : groupe Cœur » (revue Impeccable du 2026-10-10).
 
 **La recherche lit les mots de la page** (`journal_words.py`, 2026-10-10) : en plus des opérations reçues, le verbe et
-la sorte de chaque phrase (« supprimé », « placé », « tableau »), la teinte et le type en français (« rouge »,
-« routeur »), les champs modifiés (« position ») et le nom d'un sujet sans nom (« forme sans titre ») ; sans la casse ni
-les accents (« supprime » trouve « supprimé »). Un test fait échouer la suite si un verbe de `journal-text.ts` n'y est
-pas. **Regroupements** (`journal_groups.py`) : chaque entrée porte `group` (`{id, kind, size}` ou `null`), calculé sur le
+la sorte de chaque phrase (« supprimé », « placé », « tableau »), la teinte et le type (« rouge », « routeur »), les
+champs modifiés (« position ») et le nom d'un sujet sans nom (« forme sans titre »), **en français et en anglais** à la
+fois (« deleted », « red », « untitled shape » : la page parle les deux, le serveur ne sait pas laquelle) ; sans la casse
+ni les accents (« supprime » trouve « supprimé »). Un test fait échouer la suite si un verbe ou un nom des phrases du
+catalogue `journal` (`engine/src/i18n/locales/<langue>/journal.json`) n'y est pas, dans une langue ou l'autre. Le
+serveur **marque** un objet sans nom par sa sorte (revue de l'interface bilingue, B3, 2026-10-10) : `subjects[].unnamed`
+(`group`, `note`, `shape`…, vide si `label` est un nom) et, pour un connecteur sans étiquette, `subjects[].parts` (un bout
+= `{text}` ou `{unnamed}`, `free` = point libre) ; la page dit la sorte dans sa langue et ne traduit jamais un nom saisi
+(un groupe nommé « point libre » reste « point libre »). `label` garde la forme lisible en français, pour la recherche ;
+les deltas d'une purge écrivent les bouts marqués (une purge d'avant le marqueur, en mots, se relit). Un test garde
+serveur, catalogue et recherche bilingue alignés. **Regroupements** (`journal_groups.py`) : chaque entrée porte `group` (`{id, kind, size}` ou `null`), calculé sur le
 journal entier de son infrastructure, jamais sur un filtre : `session` (positions voisines d'un même auteur, trous
 ≤ 15 min, dès 3 entrées) ou `repeat` (même opération sur le même objet, même auteur, à moins de 10 min, dès 2) ; la page
 replie les entrées voisines d'un même regroupement.

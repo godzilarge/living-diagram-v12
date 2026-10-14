@@ -80,17 +80,22 @@ class IntentCorruptError(Exception):
 
 class IntentLimitError(ValueError):
     """La requête ferait dépasser au document une borne du contrat (10 000 épingles, 1 000 groupes) : refusée, rien
-    n'est écrit."""
+    n'est écrit. `code` nomme la borne (`too_many_pins`…), `limit` sa valeur ; la phrase s'écrit dans l'API."""
+
+    def __init__(self, code: str, limit: int) -> None:
+        super().__init__(code, limit)
+        self.code = code
+        self.limit = limit
 
 
 class IntentGroupError(ValueError):
     """Une opération de groupe ou d'annotation impossible : `id` inconnu (supprimé entre-temps), un groupe qui
     resterait sans membre, une annotation qui changerait de sorte, une image absente du magasin ; refusée, rien n'est
     écrit. `code` nomme la raison, sans valeur (`unknown_group`, `group_without_member`, `unknown_annotation`,
-    `annotation_kind_change`, `unknown_asset`, `unknown_connector`)."""
+    `annotation_kind_change`, `unknown_asset`, `unknown_connector`) ; la phrase s'écrit dans l'API (`problems.py`)."""
 
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
         self.code = code
 
 
@@ -228,17 +233,17 @@ def _applied(current: Intent, request: IntentOps, now: datetime, asset_exists: A
         else:
             groups[op.id] = _group_applied(_known(groups, op.id), op, request.author, now)
     if len(pins) > MAX_PINS:
-        raise IntentLimitError(f"plus de {MAX_PINS} épingles pour une infrastructure")
+        raise IntentLimitError("too_many_pins", MAX_PINS)
     if len(device_colors) > MAX_PINS:
-        raise IntentLimitError(f"plus de {MAX_PINS} couleurs d'équipement pour une infrastructure")
+        raise IntentLimitError("too_many_device_colors", MAX_PINS)
     if len(groups) > MAX_GROUPS:
-        raise IntentLimitError(f"plus de {MAX_GROUPS} groupes pour une infrastructure")
+        raise IntentLimitError("too_many_groups", MAX_GROUPS)
     kept = {aid: a for aid, a in annotations.items() if a is not None}
     if len(kept) > MAX_ANNOTATIONS:
-        raise IntentLimitError(f"plus de {MAX_ANNOTATIONS} annotations pour une infrastructure")
+        raise IntentLimitError("too_many_annotations", MAX_ANNOTATIONS)
     lines = {cid: c for cid, c in connectors.items() if c is not None}
     if len(lines) > MAX_CONNECTORS:
-        raise IntentLimitError(f"plus de {MAX_CONNECTORS} connecteurs pour une infrastructure")
+        raise IntentLimitError("too_many_connectors", MAX_CONNECTORS)
     return Intent(
         intent_version=INTENT_VERSION,
         infrastructure=current.infrastructure,
@@ -262,7 +267,7 @@ def _style_patch(patch: GroupStylePatch | None) -> dict[str, object]:
 def _known(groups: dict[str, Group | None], group_id: str) -> Group:
     group = groups.get(group_id)
     if group is None:
-        raise IntentGroupError("unknown_group", "groupe inconnu : supprimé entre-temps, rechargez le document")
+        raise IntentGroupError("unknown_group")
     return group
 
 
@@ -289,7 +294,7 @@ def _group_applied(
     else:
         remaining = tuple(sorted(set(group.members) - set(op.members)))
         if not remaining:
-            raise IntentGroupError("group_without_member", "un groupe garde au moins un membre : supprimez-le plutôt")
+            raise IntentGroupError("group_without_member")
         changes["members"] = remaining
     return group.model_copy(update={**changes, "author": author, "at": now})
 
@@ -303,17 +308,13 @@ def _check_asset(op: AnnotationCreateOp | AnnotationUpdateOp, infrastructure: st
     if content is None or content.kind != "image" or exists is None:
         return
     if not exists(infrastructure, content.asset):
-        raise IntentGroupError(
-            "unknown_asset", "image inconnue du magasin de cette infrastructure : envoyez-la d'abord"
-        )
+        raise IntentGroupError("unknown_asset")
 
 
 def _known_annotation(annotations: dict[str, Annotation | None], annotation_id: str) -> Annotation:
     annotation = annotations.get(annotation_id)
     if annotation is None:
-        raise IntentGroupError(
-            "unknown_annotation", "annotation inconnue : supprimée entre-temps, rechargez le document"
-        )
+        raise IntentGroupError("unknown_annotation")
     return annotation
 
 
@@ -344,7 +345,7 @@ def _annotation_applied(annotation: Annotation, op: AnnotationUpdateOp, author: 
     changes: dict[str, object] = {}
     if op.content is not None:
         if op.content.kind != annotation.content.kind:
-            raise IntentGroupError("annotation_kind_change", "une annotation garde sa sorte : créez-en une autre")
+            raise IntentGroupError("annotation_kind_change")
         changes["content"] = op.content
     for name in ("anchor", "x", "y", "w", "h", "z", "locked", "leader"):
         value = getattr(op, name)
@@ -366,7 +367,7 @@ def _connector_style(patch: ConnectorStylePatch | None) -> dict[str, object]:
 def _known_connector(connectors: dict[str, Connector | None], connector_id: str) -> Connector:
     connector = connectors.get(connector_id)
     if connector is None:
-        raise IntentGroupError("unknown_connector", "connecteur inconnu : supprimé entre-temps, rechargez le document")
+        raise IntentGroupError("unknown_connector")
     return connector
 
 

@@ -4,7 +4,10 @@
 // casse, non ancrés ; `champ:regex` vise un champ. Sans champ, un mot vise le nom d'un équipement, le nom ou la
 // description d'un port, le nom d'un groupe : « sw-core-01 eth1/1 » trouve ce port. Chercher n'est pas filtrer :
 // les résultats s'éclairent, rien ne disparaît (masquer et isoler restent des actions).
+import { haModeText, IFACE_TYPE_LABEL, KIND_LABEL } from "../../canvas/format";
+import { LABEL as TYPE_LABEL } from "../../canvas/icons";
 import { clusterLabel } from "../../canvas/geometry";
+import { i18n, t } from "../../i18n";
 import { ifaceKey } from "../../canvas/model";
 import { FIELDS, valueOf } from "../../canvas/query";
 import type { Field } from "../../canvas/query";
@@ -53,7 +56,7 @@ function parse(text: string): { terms: Term[]; error: string | null } {
 const isDeviceField = (field: SearchField): field is Field => field !== "port" && field !== "desc";
 const deviceHit = (node: ModelNode): Hit => ({
   kind: "device", key: "d:" + node.hostname, title: node.hostname, removed: !!node.ghost, hosts: [node.hostname], selection: { kind: "node", id: node.hostname },
-  detail: [node.type, node.site, node.model].filter(Boolean).join(" · ") || node.kind,
+  detail: [node.type ? TYPE_LABEL[node.type] || node.type : null, node.site, node.model].filter(Boolean).join(" · ") || KIND_LABEL[node.kind] || node.kind,
 });
 
 function devices(model: Model, terms: Term[]): Hit[] {
@@ -105,7 +108,7 @@ function ports(model: Model, terms: Term[]): Hit[] {
     });
     if (!ok || !aboutPort) return;
     const links = model.linksByIface.get(ifaceKey(itf.hostname, itf.name)) || [];
-    (byName ? named : described).push({ kind: "port", key: "p:" + itf.hostname + "\u0000" + itf.name, title: itf.hostname + " · " + itf.name, detail: desc || itf.type, removed: false,
+    (byName ? named : described).push({ kind: "port", key: "p:" + itf.hostname + "\u0000" + itf.name, title: itf.hostname + " · " + itf.name, detail: desc || IFACE_TYPE_LABEL[itf.type] || itf.type, removed: false,
       hosts: [itf.hostname], selection: links.length === 1 ? { kind: "link", id: links[0].id } : { kind: "node", id: itf.hostname } });
   });
   return named.concat(described);
@@ -115,9 +118,9 @@ function groups(model: Model, terms: Term[]): Hit[] {
   if (!terms.every((t) => !t.explicit)) return [];
   const test = (text: string): boolean => terms.every((t) => t.regex.test(text));
   const own: Hit[] = Array.from(model.groupById.values()).filter((g) => test(g.label + " " + g.description))
-    .map((g) => ({ kind: "group", key: "g:" + g.id, title: g.label, detail: "groupe · " + g.members.length + " membres", removed: false, hosts: g.members.slice(), selection: { kind: "group", id: g.id } }));
-  const ha: Hit[] = model.clusters.filter((c) => test(clusterLabel(c)))
-    .map((c) => ({ kind: "group", key: "c:" + c.id, title: c.raw.cluster_name || c.hosts.join(" + "), detail: "cluster HA · " + c.raw.mode, removed: false, hosts: c.hosts.slice(), selection: { kind: "cluster", id: c.id } }));
+    .map((g) => ({ kind: "group", key: "g:" + g.id, title: g.label, detail: t("search.groupDetail", { count: g.members.length }), removed: false, hosts: g.members.slice(), selection: { kind: "group", id: g.id } }));
+  const ha: Hit[] = model.clusters.filter((c) => test(clusterLabel(c)) || test(clusterLabel(c, haModeText)))
+    .map((c) => ({ kind: "group", key: "c:" + c.id, title: c.raw.cluster_name || c.hosts.join(" + "), detail: t("search.clusterDetail", { mode: haModeText(c.raw.mode) }), removed: false, hosts: c.hosts.slice(), selection: { kind: "cluster", id: c.id } }));
   return own.concat(ha);
 }
 
@@ -132,9 +135,11 @@ export function search(model: Model, text: string): Results {
 }
 
 // La recherche et la toile lisent le même texte à chaque frappe : un seul calcul (revue Impeccable du 2026-10-07).
-let last: { model: Model; text: string; results: Results } | null = null;
+// Les détails des résultats sont écrits dans la langue de la page : elle fait partie de la clé.
+let last: { model: Model; text: string; language: string; results: Results } | null = null;
 export function searchCached(model: Model, text: string): Results {
-  if (!last || last.model !== model || last.text !== text) last = { model, text, results: search(model, text) };
+  const language = i18n.language;
+  if (!last || last.model !== model || last.text !== text || last.language !== language) last = { model, text, language, results: search(model, text) };
   return last.results;
 }
 

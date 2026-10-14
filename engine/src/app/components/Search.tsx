@@ -7,16 +7,15 @@
 import { Search as SearchIcon, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FocusEvent, KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { exactRule } from "../../canvas/query";
 import { complete, searchCached as search, suggest } from "../state/search";
 import type { Hit, Results } from "../state/search";
 import { useModel, useStore } from "../state/store";
-import { Button, Kbd, plural } from "../ui";
+import { Button, Kbd } from "../ui";
 
 const SHOWN = 8; // par sorte ; le compte dit le reste
-const SECTIONS: { key: "devices" | "ports" | "groups"; title: string }[] = [
-  { key: "devices", title: "équipements" }, { key: "ports", title: "ports" }, { key: "groups", title: "groupes et clusters" },
-];
+const SECTIONS = [{ key: "devices" }, { key: "ports" }, { key: "groups" }] as const;
 
 function visible(results: Results): Hit[] {
   return SECTIONS.flatMap((s) => results[s.key].slice(0, SHOWN));
@@ -25,9 +24,11 @@ function visible(results: Results): Hit[] {
 export function Search() {
   const { state, dispatch, commands } = useStore();
   const model = useModel();
+  const { t, i18n } = useTranslation(["shell", "common"]);
   const input = useRef<HTMLInputElement>(null);
   const text = state.palette.text, open = state.palette.open;
-  const results = useMemo(() => (model ? search(model, text) : null), [model, text]);
+  // la langue est dans les dépendances : les détails des résultats sont écrits dans la langue de la page
+  const results = useMemo(() => (model ? search(model, text) : null), [model, text, i18n.language]);
   const hits = useMemo(() => (results ? visible(results) : []), [results]);
   const [active, setActive] = useState(0);
   useEffect(() => setActive(0), [text]);
@@ -57,35 +58,35 @@ export function Search() {
   const fields = open ? suggest(text) : [];
   const total = results.devices.length + results.ports.length + results.groups.length;
   const listed = open && !!text && !results.error;
-  const said = !text ? "" : results.error ? "expression illisible" : total ? plural(total, "résultat") : "aucun résultat";
+  const said = !text ? "" : results.error ? t("search.unreadable") : total ? t("search.results", { count: total }) : t("search.none");
   let index = -1;
   return (
     <div className={"search glass" + (open ? " open" : "") + (text ? " has-text" : "")} role="search" onBlur={blur}>
       <div className="search-row">
         <SearchIcon aria-hidden="true" />
-        <input ref={input} className="search-input" value={text} placeholder="chercher : nom, port, groupe…" spellCheck={false} autoComplete="off"
-          role="combobox" aria-autocomplete="list" aria-label="chercher dans la run" aria-expanded={listed ? "true" : "false"} aria-controls={listed ? "search-results" : undefined}
+        <input ref={input} className="search-input" value={text} placeholder={t("search.placeholder")} spellCheck={false} autoComplete="off"
+          role="combobox" aria-autocomplete="list" aria-label={t("search.label")} aria-expanded={listed ? "true" : "false"} aria-controls={listed ? "search-results" : undefined}
           aria-activedescendant={open && hits[active] ? "hit-" + active : undefined}
           onFocus={() => dispatch({ type: "palette", open: true })} onChange={(event) => setText(event.target.value)} onKeyDown={keys} />
-        {text ? <span className={"search-count" + (results.error ? " err" : "")} aria-hidden="true">{results.error ? "regex illisible" : total}</span> : <Kbd>/</Kbd>}
+        {text ? <span className={"search-count" + (results.error ? " err" : "")} aria-hidden="true">{results.error ? t("search.badRegex") : total}</span> : <Kbd>/</Kbd>}
         <span className="sr-only" aria-live="polite">{said}</span>
-        {text ? <button type="button" className="search-clear" aria-label="effacer la recherche" onClick={() => { setText(""); if (input.current) input.current.focus(); }}><X /></button> : null}
+        {text ? <button type="button" className="search-clear" aria-label={t("search.clear")} onClick={() => { setText(""); if (input.current) input.current.focus(); }}><X /></button> : null}
       </div>
       {fields.length ? (
-        <div className="search-fields" aria-label="champs">
+        <div className="search-fields" aria-label={t("search.fields")}>
           {fields.map((field) => <button key={field} type="button" className="field-chip" onMouseDown={(e) => e.preventDefault()} onClick={() => { setText(complete(text, field)); if (input.current) input.current.focus(); }}>{field}</button>)}
         </div>
       ) : null}
       {listed ? (
         <div className="search-results">
-          {total === 0 ? <p className="search-empty">rien dans cette run</p> : null}
-          <div id="search-results" role="listbox" aria-label="résultats" className="search-list">
+          {total === 0 ? <p className="search-empty">{t("search.empty")}</p> : null}
+          <div id="search-results" role="listbox" aria-label={t("search.list")} className="search-list">
           {SECTIONS.map((section) => {
             const list = results[section.key];
             if (!list.length) return null;
             return (
               <div key={section.key} className="search-section" role="group" aria-labelledby={"search-head-" + section.key}>
-                <div className="search-head" id={"search-head-" + section.key}><span>{section.title}</span><span className="n">{list.length}</span></div>
+                <div className="search-head" id={"search-head-" + section.key}><span>{t(`search.${section.key}`)}</span><span className="n">{list.length}</span></div>
                 {list.slice(0, SHOWN).map((hit) => {
                   index += 1;
                   const at = index;
@@ -94,21 +95,21 @@ export function Search() {
                       className={"search-hit kind-" + hit.kind + (at === active ? " active" : "") + (hit.removed ? " removed" : "")}
                       onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setActive(at)} onClick={() => openHit(hit)}>
                       <span className="hit-title">{hit.title}</span>
-                      <span className="hit-detail">{hit.removed ? "retiré · " : ""}{hit.detail}</span>
+                      <span className="hit-detail">{hit.removed ? t("search.removed") + " · " : ""}{hit.detail}</span>
                     </button>
                   );
                 })}
-                {list.length > SHOWN ? <p className="search-more" aria-hidden="true">… et {list.length - SHOWN} autres</p> : null}
+                {list.length > SHOWN ? <p className="search-more" aria-hidden="true">{t("search.more", { count: list.length - SHOWN })}</p> : null}
               </div>
             );
           })}
           </div>
           <div className="search-actions">
             <Button variant="primary" disabled={!results.deviceHosts.length} onMouseDown={(e) => e.preventDefault()} onClick={selectAll}
-              title="sélectionner les équipements trouvés">sélectionner {results.deviceHosts.length ? plural(results.deviceHosts.length, "équipement") : ""} <Kbd>⇧↵</Kbd></Button>
-            <Button disabled={!results.deviceHosts.length} onMouseDown={(e) => e.preventDefault()} onClick={() => { commands.addHide(rule()); setText(""); close(); }}>masquer</Button>
-            <Button disabled={!results.deviceHosts.length} onMouseDown={(e) => e.preventDefault()} onClick={() => { commands.setOnly(rule()); setText(""); close(); }}>isoler avec leurs voisins</Button>
-            {state.view.hide.length || state.view.only ? <Button variant="ghost" onMouseDown={(e) => e.preventDefault()} onClick={() => { commands.clearRules(); close(); }}>tout afficher</Button> : null}
+              title={t("search.selectTitle")}>{t("search.select")} {results.deviceHosts.length ? t("common:devices", { count: results.deviceHosts.length }) : ""} <Kbd>⇧↵</Kbd></Button>
+            <Button disabled={!results.deviceHosts.length} onMouseDown={(e) => e.preventDefault()} onClick={() => { commands.addHide(rule()); setText(""); close(); }}>{t("search.hide")}</Button>
+            <Button disabled={!results.deviceHosts.length} onMouseDown={(e) => e.preventDefault()} onClick={() => { commands.setOnly(rule()); setText(""); close(); }}>{t("search.isolate")}</Button>
+            {state.view.hide.length || state.view.only ? <Button variant="ghost" onMouseDown={(e) => e.preventDefault()} onClick={() => { commands.clearRules(); close(); }}>{t("search.showAll")}</Button> : null}
           </div>
         </div>
       ) : null}

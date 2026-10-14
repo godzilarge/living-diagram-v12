@@ -6,14 +6,15 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { label, previousOf } from "../../shell/timeline";
 import { useStore } from "../state/store";
-import { plural } from "../ui";
 
 const off = (disabled: boolean): "true" | undefined => (disabled ? "true" : undefined);
 
 export function Timeline() {
   const { state, commands } = useStore();
+  const { t } = useTranslation();
   const nav = useRef<HTMLElement>(null);
   const runs = state.runs || [];
   const current = state.address.runId, from = state.address.from;
@@ -34,28 +35,28 @@ export function Timeline() {
     if (document.activeElement && document.activeElement.classList.contains("band-run") && box.contains(document.activeElement)) button.focus();
   }, [current]);
   return (
-    <nav ref={nav} className="band glass" aria-label="runs archivées de l'infrastructure" aria-busy={busy ? "true" : undefined} onKeyDown={keys}>
-      <button type="button" className="band-step" title="run précédente" aria-label="run précédente" aria-disabled={off(busy || at <= 0)} onClick={() => { if (at > 0) step(-1); }}><ChevronLeft /></button>
+    <nav ref={nav} className="band glass" aria-label={t("band.label")} aria-busy={busy ? "true" : undefined} onKeyDown={keys}>
+      <button type="button" className="band-step" title={t("band.previous")} aria-label={t("band.previous")} aria-disabled={off(busy || at <= 0)} onClick={() => { if (at > 0) step(-1); }}><ChevronLeft /></button>
       <ol className="band-runs">
         {runs.map((run) => (
           <li key={run.run_id}>
             <button type="button" className={"band-run run-" + run.run_status + (run.run_id === from ? " compared" : "")} data-run={run.run_id}
               aria-current={run.run_id === current ? "true" : undefined} aria-disabled={off(busy)}
-              title={"run " + run.run_id + " · " + run.run_status + (run.run_id === from ? " · run comparée" : "")}
+              title={t("bar.runTitle", { id: run.run_id, status: run.run_status }) + (run.run_id === from ? " · " + t("band.compared") : "")}
               onClick={() => { if (!busy && run.run_id !== current) { const before = previousOf(runs, run.run_id); commands.openRun(run.run_id, before ? before.run_id : ""); } }}>
               <span className="dot" />{label(run)}
             </button>
           </li>
         ))}
       </ol>
-      <button type="button" className="band-step" title="run suivante" aria-label="run suivante" aria-disabled={off(busy || at < 0 || at + 1 >= runs.length)} onClick={() => { if (at >= 0 && at + 1 < runs.length) step(1); }}><ChevronRight /></button>
-      <label className="band-compare">comparer à
-        <select value={from} disabled={busy || at <= 0} aria-label="comparer à une run antérieure" onChange={(event) => commands.compareTo(event.target.value)}>
-          <option value="">aucune</option>
-          {runs.slice(0, Math.max(at, 0)).map((run) => <option key={run.run_id} value={run.run_id}>{label(run)}{run.run_id === (previousOf(runs, current) || { run_id: "" }).run_id ? " (précédente)" : ""}</option>)}
+      <button type="button" className="band-step" title={t("band.next")} aria-label={t("band.next")} aria-disabled={off(busy || at < 0 || at + 1 >= runs.length)} onClick={() => { if (at >= 0 && at + 1 < runs.length) step(1); }}><ChevronRight /></button>
+      <label className="band-compare">{t("band.compareTo")}
+        <select value={from} disabled={busy || at <= 0} aria-label={t("band.compareLabel")} onChange={(event) => commands.compareTo(event.target.value)}>
+          <option value="">{t("band.none")}</option>
+          {runs.slice(0, Math.max(at, 0)).map((run) => <option key={run.run_id} value={run.run_id}>{label(run)}{run.run_id === (previousOf(runs, current) || { run_id: "" }).run_id ? " " + t("band.previousMark") : ""}</option>)}
         </select>
       </label>
-      <span className="band-count">{busy ? "chargement…" : (at >= 0 ? at + 1 + " sur " : "") + plural(runs.length, "run")}</span>
+      <span className="band-count">{busy ? t("band.loading") : at >= 0 ? t("band.position", { at: at + 1, runs: t("band.runs", { count: runs.length }) }) : t("band.runs", { count: runs.length })}</span>
     </nav>
   );
 }

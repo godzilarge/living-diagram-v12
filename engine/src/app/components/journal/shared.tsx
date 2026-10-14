@@ -4,7 +4,9 @@
 import { CircleQuestionMark, Group, Palette, Pin, Spline, StickyNote } from "lucide-react";
 import { Fragment, useLayoutEffect, useRef } from "react";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
-import { marks } from "../../state/journal-text";
+import { useTranslation } from "react-i18next";
+import { t as translate } from "../../../i18n";
+import { auxiliary, marks } from "../../state/journal-text";
 import type { JournalCategory, JournalEntry, Piece, RefKind, Sentence } from "../../state/journal";
 
 export const ICON: Record<JournalCategory, ReactNode> = {
@@ -24,14 +26,23 @@ export function Marked({ text, words }: { text: string; words: string[] }) {
 }
 
 /** Ce qu'on dit d'un objet cité qui n'est plus là. */
-export const goneWord = (ref: RefKind): string => (ref === "node" ? "absent de la run" : "n'existe plus");
+export const goneWord = (ref: RefKind): string => translate(ref === "node" ? "journal:ui.goneNode" : "journal:ui.goneOther");
+
+const SLOT = "\u0001";
+/** Un texte du catalogue dont une variable est un élément (« Historique de <b>Cœur</b> ») : la variable reçoit une
+ *  marque, le texte est découpé autour, l'élément posé à sa place. */
+export function slotted(text: (marker: string) => string, node: ReactNode): ReactNode {
+  const [before, after = ""] = text(SLOT).split(SLOT);
+  return <>{before}{node}{after}</>;
+}
 
 /** Un objet cité : un bouton (dans le détail), un texte cliquable à la souris (dans la tête de ligne, déjà un bouton :
  *  au clavier, « o » l'ouvre), ou un texte qui dit qu'il n'est plus là (dans la tête de ligne, la ligne le dit en fin
  *  de cellule, jamais au milieu de la phrase : « modifié la forme X supprimé : position » se lisait de travers). */
 export function Ref({ piece, entry, words, presence, show, inline, tag = true }: { piece: Exclude<Piece, string>; entry: JournalEntry; words: string[]; presence: Presence; show: Show; inline: boolean; tag?: boolean }) {
+  const { t } = useTranslation("journal");
   const className = "j-ref ref-" + piece.ref;
-  const title = "montrer dans le diagramme" + (piece.text !== piece.id ? " (" + piece.id + ")" : "");
+  const title = t("ui.show") + (piece.text !== piece.id ? " (" + piece.id + ")" : "");
   if (!presence(entry.infrastructure, piece.ref, piece.id)) {
     const word = goneWord(piece.ref);
     return <><span className={className + " gone"} title={piece.text !== piece.id ? piece.id : undefined}><Marked text={piece.text} words={words} /></span>
@@ -39,20 +50,22 @@ export function Ref({ piece, entry, words, presence, show, inline, tag = true }:
   }
   const open = (event: MouseEvent): void => { event.stopPropagation(); show(entry.infrastructure, piece.ref, piece.id); };
   if (inline) return <span className={className} title={title} onClick={open}><Marked text={piece.text} words={words} /></span>;
-  return <button type="button" className={className} title={title} onClick={open}><Marked text={piece.text} words={words} /><span className="sr-only"> : montrer dans le diagramme</span></button>;
+  return <button type="button" className={className} title={title} onClick={open}><Marked text={piece.text} words={words} /><span className="sr-only">{t("fieldsSep") + t("ui.show")}</span></button>;
 }
 
 /** La phrase d'une entrée. Dans la tête d'une ligne (`inline`), l'auteur a sa colonne : le « a » du verbe n'est dit
  *  qu'au lecteur d'écran (« Orhan a placé… »), le verbe a sa marque (`j-verb` : rouge quand il retire), les champs
  *  modifiés (« : position, style ») passent en gris, et ce qu'un objet est devenu se dit en fin de ligne (Row). */
 export function Phrase({ sentence, entry, words, presence, show, inline = false }: { sentence: Sentence; entry: JournalEntry; words: string[]; presence: Presence; show: Show; inline?: boolean }) {
+  const { t } = useTranslation("journal");
+  const aux = auxiliary(), sep = t("fieldsSep");
   const text = (piece: string, i: number): ReactNode => {
     if (!inline) return <Marked key={i} text={piece} words={words} />;
-    if (i === 0 && piece.startsWith("a ")) {
-      const rest = piece.slice(2), cut = rest.search(/\s|$/);
-      return <Fragment key={i}><span className="sr-only"> a </span><span className="j-verb"><Marked text={rest.slice(0, cut)} words={words} /></span><Marked text={rest.slice(cut)} words={words} /></Fragment>;
+    if (i === 0 && sentence.verb && piece.startsWith(aux)) {
+      const rest = piece.slice(aux.length), cut = rest.search(/\s|$/);
+      return <Fragment key={i}>{aux ? <span className="sr-only"> {aux}</span> : null}<span className="j-verb"><Marked text={rest.slice(0, cut)} words={words} /></span><Marked text={rest.slice(cut)} words={words} /></Fragment>;
     }
-    if (piece.startsWith(" : ")) return <span key={i} className="j-fields"> : <Marked text={piece.slice(3)} words={words} /></span>;
+    if (i > 0 && piece.startsWith(sep)) return <span key={i} className="j-fields">{sep}<Marked text={piece.slice(sep.length)} words={words} /></span>;
     return <Marked key={i} text={piece} words={words} />;
   };
   return <>{sentence.pieces.map((piece, i) => (typeof piece === "string" ? text(piece, i)

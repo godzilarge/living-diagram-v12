@@ -38,7 +38,7 @@ from ld_backend.intent import INTENT_DIR, INTENT_FILE, JOURNAL_FILE
 from ld_backend.journal_groups import Item, JournalGroup, groups_of
 from ld_backend.journal_index import ACTIONS, Action, actions_of, refs_of
 from ld_backend.journal_replay import NameReplay
-from ld_backend.journal_words import KIND_WORDS, MANY_WORDS, fold, op_words
+from ld_backend.journal_words import KIND_WORDS, MANY_WORDS, UNNAMED_WORDS, fold, op_words
 from ld_backend.schemas import ApiModel
 
 log = logging.getLogger(__name__)
@@ -72,6 +72,13 @@ def categories_of(ops: Iterable[dict[str, Any]]) -> list[Category]:
     return [cat for cat in CATEGORIES if cat in found]
 
 
+class JournalNamePart(ApiModel):
+    """Un bout du nom d'un connecteur : un nom saisi (`text`), ou la sorte d'un objet sans nom (`unnamed`)."""
+
+    text: str | None = None
+    unnamed: str | None = None
+
+
 class JournalSubject(ApiModel):
     id: str = Field(description="Identité attribuée par le serveur (`g…`, `a…`, `c…`).")
     kind: Literal["group", "annotation", "connector"]
@@ -79,6 +86,16 @@ class JournalSubject(ApiModel):
         description="Le nom connu à cette révision (libellé, début d'une note, taille d'un tableau) ; vide si aucun."
     )
     form: str = Field(description="La sorte d'une annotation (`note`, `shape`, `table`, `image`) ; vide sinon.")
+    unnamed: str = Field(
+        default="",
+        description="Sans nom à cette révision : sa sorte (`group`, `connector`, `note`, `shape`, `table`, `image`, "
+        "`annotation`), que la page dit dans sa langue ; vide si `label` est un nom.",
+    )
+    parts: list[JournalNamePart] = Field(
+        default_factory=list,
+        description="Un connecteur sans étiquette, nommé par ses deux bouts : un nom, ou la sorte d'un bout sans nom "
+        "(`free` = point libre). Vide sinon. `label` en est la forme lisible, en français (recherche).",
+    )
 
 
 class JournalEntry(ApiModel):
@@ -258,7 +275,14 @@ def _entry(infrastructure: str, raw: dict[str, Any], replay: NameReplay, rank: i
             if ref not in cited:
                 cited.append(ref)
     subjects = [
-        JournalSubject(id=s, kind=_SUBJECT_KIND[s[0]], label=replay.label(s), form=replay.forms.get(s, ""))  # type: ignore[arg-type]
+        JournalSubject(
+            id=s,
+            kind=_SUBJECT_KIND[s[0]],  # type: ignore[arg-type]
+            label=replay.label(s),
+            form=replay.forms.get(s, ""),
+            unnamed="" if replay.label(s) else replay.unnamed_kind(s),
+            parts=[JournalNamePart(**part) for part in replay.parts(s)],
+        )
         for s in cited
     ]
     entry = JournalEntry(
@@ -275,9 +299,11 @@ def _entry(infrastructure: str, raw: dict[str, Any], replay: NameReplay, rank: i
     # l'infrastructure n'est pas dans le texte cherché : elle a sa facette, et « core » trouvait tout
     # `test-single-core` ; une trace de purge ne se trouve que par son auteur et son mot (pas par son archive)
     trace = is_trace(raw)
-    # les mots de la page aussi (« supprimé », « rouge », « forme sans titre ») : la recherche trouve ce qui s'affiche
-    named = [s.label or replay.unnamed(s.id) for s in subjects]
-    kinds = [KIND_WORDS[s.form] for s in subjects if s.form in KIND_WORDS]
+    # les mots de la page aussi, dans les deux langues (« supprimé », « rouge », « forme sans titre », « deleted ») :
+    # la recherche trouve ce qui s'affiche
+    nameless = [s.unnamed for s in subjects if s.unnamed] + [p.unnamed for s in subjects for p in s.parts if p.unnamed]
+    named = [s.label for s in subjects if s.label] + [word for kind in nameless for word in UNNAMED_WORDS[kind]]
+    kinds = [word for s in subjects if s.form in KIND_WORDS for word in KIND_WORDS[s.form]]
     shown = [word for op in ops for word in op_words(op)] + (list(MANY_WORDS) if len(ops) > 1 else [])
     words = [raw["author"], *shown] if trace else [raw["author"], *created, *named, *kinds, *shown, *texts_of(ops)]
     key = (moment_of(raw["at"]), infrastructure, raw["revision"], rank)

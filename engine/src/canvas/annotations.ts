@@ -4,6 +4,7 @@
 // boîte depuis l'ancre, le retour à la ligne d'un texte (chasse estimée comme la carte, jamais mesurée), la grille
 // d'un tableau (table.ts), la ligne de rappel, les orphelines. Les deux faces et les tests sous Node lisent la même
 // géométrie. Les lignes et les flèches sont des connecteurs (connectors.ts) depuis Intent 1.4.0.
+import { labelMap, t } from "../i18n/core";
 import { monoWidth, textWidth } from "./card";
 import type { Box } from "./card";
 import { dashArray as groupDash } from "./groups";
@@ -19,12 +20,10 @@ export const ALIGNS = ["left", "center", "right"] as const;
 export const VALIGNS = ["top", "middle", "bottom"] as const;
 export const BOUNDS = { size: [20, 4000], fill_opacity: [0, 100], stroke_width: [0, 8], radius: [0, 80], opacity: [10, 100], text_size: [8, 64] } as const;
 export const MAX_NOTE = 2000, MAX_CELL = 120, MAX_ROWS = 30, MAX_COLUMNS = 8, MAX_LABEL = 80;
-export const KIND_LABEL: Record<string, string> = { note: "note", shape: "forme", table: "tableau", image: "image" };
-export const LABEL: Record<string, string> = {
-  rectangle: "rectangle", ellipse: "ellipse",
-  free: "libre", device: "équipement", group: "groupe", back: "dessous", front: "dessus",
-  left: "gauche", center: "centre", right: "droite", top: "haut", middle: "milieu", bottom: "bas",
-};
+export const KIND_LABEL: Record<string, string> = labelMap("common:annotationKind", ["note", "shape", "table", "image"]);
+export const LABEL: Record<string, string> = labelMap("common:annotationWord", [
+  "rectangle", "ellipse", "free", "device", "group", "back", "front", "left", "center", "right", "top", "middle", "bottom",
+]);
 /** Les défauts du contrat, par sorte (`DEFAULT_ANNOTATION_STYLE`) : le document ne porte que ce qui a été décidé. */
 export const DEFAULT_STYLE: Record<AnnotationKind, AnnotationStyle> = {
   note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
@@ -156,7 +155,7 @@ export function summary(a: Annotation): string {
   if (c.kind === "note") return c.text.split("\n")[0].slice(0, 60);
   if (c.kind === "shape") return (LABEL[c.shape] || c.shape) + (c.label ? " · " + c.label : "");
   if (c.kind === "table") return c.rows.length + " × " + (c.rows[0] ? c.rows[0].length : 0) + (c.header && c.rows[0] ? " · " + c.rows[0].join(" | ").slice(0, 40) : "");
-  return c.alt || "image";
+  return c.alt || t("common:annotationKind.image");
 }
 /** La version du dessin d'une annotation pour une clé (contenu, boîte, style, ancre) : change quand elle change. */
 export const signature = (a: Annotation): string => JSON.stringify([a.anchor, a.x, a.y, a.w, a.h, a.z, a.locked, a.leader, a.content, a.style]);

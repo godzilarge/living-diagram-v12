@@ -68,7 +68,7 @@ def test_every_error_response_has_a_body_schema_and_fastapi_default_is_gone(clie
     doc = _doc(client)
     assert {"HTTPValidationError", "ValidationError"}.isdisjoint(doc["components"]["schemas"])
     problem = doc["components"]["schemas"]["Problem"]
-    assert problem["required"] == ["detail"] and "errors" in problem["properties"]
+    assert problem["required"] == ["code", "detail"] and "errors" in problem["properties"]
     for path, method, op in _operations(doc):
         for code, response in op["responses"].items():
             if int(code) < 400:

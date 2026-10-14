@@ -109,8 +109,9 @@ def test_query_errors_use_the_api_shape_and_echo_nothing(client: TestClient, aut
     res = client.get(URL, headers=auth)
     assert res.status_code == 422
     assert res.json() == {
-        "detail": "paramètres de requête invalides",
-        "errors": [{"path": "query.infrastructure", "message": "Field required"}],
+        "code": "invalid_query",
+        "detail": "invalid query parameters",
+        "errors": [{"path": "query.infrastructure", "code": "missing", "message": "Field required"}],
     }
     res = client.get(BUNDLE_URL, params={"infrastructure": "infra-lab", "run_id": ""}, headers=auth)
     assert res.status_code == 422 and "input" not in res.text

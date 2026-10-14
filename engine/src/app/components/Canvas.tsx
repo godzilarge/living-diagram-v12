@@ -5,6 +5,7 @@
 // donné, un alignement de même ; ce qui vient d'être placé se mémorise.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { selectionFromToken } from "../../canvas/model";
+import { t as text } from "../../i18n";
 import { exactRule, parseRule } from "../../canvas/query";
 import type { Model } from "../../canvas/types";
 import { searchCached } from "../state/search";
@@ -123,7 +124,7 @@ export function Canvas() {
       if (found) t.reveal(found);
       else { // un objet demandé (adresse, journal) qui n'est pas dans cette run : on le dit, la vue reste où elle est
         dispatch({ type: "want", wanted: null });
-        dispatch({ type: "note", text: "introuvable dans cette run : " + state.wanted.token, at: Date.now() });
+        dispatch({ type: "note", text: text("shell:messages.notFoundInRun", { token: state.wanted.token }), at: Date.now() });
       }
       return;
     }
@@ -143,6 +144,9 @@ export function Canvas() {
   const onConnector = useCallback((id: string, patch: ConnectorPatch): void => commands.connectorUpdate(id, patch), [commands]);
   const onConnectorCreate = useCallback((fields: { start: End; end: End }): void => commands.connectorCreate(fields), [commands]);
   const onContext = useCallback((request: ContextRequest): void => commands.openContext(request), [commands]);
+  // L'outil connecteur se range après une création, sauf Maj tenue (création en série, lot 1 de docs/11).
+  const onToolDone = useCallback((keep: boolean): void => { if (!keep) commands.setTool(null); }, [commands]);
   const editable = useEditable();
-  return toile ? <Flow key={runKey} toile={toile} prefs={state.prefs} editable={editable} onAnnotation={onAnnotation} onConnector={onConnector} onConnectorCreate={onConnectorCreate} onContext={onContext} editRequest={state.editRequest} /> : null;
+  return toile ? <Flow key={runKey} toile={toile} prefs={state.prefs} editable={editable} onAnnotation={onAnnotation} onConnector={onConnector} onConnectorCreate={onConnectorCreate} onContext={onContext} editRequest={state.editRequest}
+    toolArmed={state.tool === "connector"} onToolDone={onToolDone} /> : null;
 }

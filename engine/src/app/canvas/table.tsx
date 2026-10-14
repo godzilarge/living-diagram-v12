@@ -4,6 +4,7 @@
 // double-clic en place (un champ dans un `foreignObject`, aux coordonnées de la cellule : jamais un style en ligne),
 // les frontières des colonnes et des lignes se glissent, le clic droit ouvre le menu contextuel avec la cellule ou la
 // plage visée. Chaque geste rend un contenu neuf que la page envoie en entier (une écriture, Ctrl+Z la défait).
+import { t } from "../../i18n";
 import { useReactFlow } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
@@ -41,7 +42,7 @@ function CellEditor({ box, initial, onDone }: { box: { x: number; y: number; w: 
   };
   return (
     <foreignObject x={box.x} y={box.y} width={Math.max(20, box.w)} height={Math.max(16, box.h)} className="cell-editor-slot">
-      <input ref={ref} className="cell-editor nodrag nopan nowheel" defaultValue={initial} maxLength={MAX_CELL} aria-label="texte de la cellule" spellCheck={false}
+      <input ref={ref} className="cell-editor nodrag nopan nowheel" defaultValue={initial} maxLength={MAX_CELL} aria-label={t("shell:canvas.cellText")} spellCheck={false}
         onKeyDown={keys} onBlur={(event) => onDone(event.target.value, false)} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} />
     </foreignObject>
   );
@@ -57,6 +58,7 @@ export function TableBody({ a, content, frame, active, editable, onContent, onMe
   const boxes = cells(shown, g);
   const drag = useRef<{ axis: "x" | "y"; index: number; sx: number; sy: number; start: Grid } | null>(null);
   const barDown = useCallback((axis: "x" | "y", index: number) => (event: ReactPointerEvent<SVGRectElement>): void => {
+    if (event.button !== 0) return; // un clic droit ouvre le menu, il ne glisse ni n'écrit rien (audit, M4)
     event.stopPropagation(); event.preventDefault();
     (event.target as Element).setPointerCapture(event.pointerId);
     drag.current = { axis, index, sx: event.clientX, sy: event.clientY, start: grid(content, frame) };

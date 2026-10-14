@@ -1,6 +1,7 @@
 // Le point d'entrée de l'application (`/`) : monte React sur `#app` quand la page en a un ; expose les modules purs
 // (`LDApp`) pour les tests sous Node, qui chargent ce fichier construit sans aucun DOM, et un regard sur l'état
-// pour le pilote Chromium. Le catalogue des codes (sens, règle) est lu une fois dans le bloc JSON de la page.
+// pour le pilote Chromium. Le catalogue des codes (sens, règle) est lu une fois dans le bloc JSON de la page. La langue
+// (i18n) est fixée avant le premier rendu, comme le thème : rien ne s'affiche dans une langue puis dans l'autre.
 import { createRoot } from "react-dom/client";
 import { alignment } from "../canvas/align";
 import { query } from "../canvas/query";
@@ -11,18 +12,25 @@ import { context } from "./state/context";
 import { history } from "./state/history";
 import { journal } from "./state/journal";
 import { cell, csvName, csvOf } from "./state/journal-csv";
+import { checkMeaning } from "./state/checks";
+import { explain, problemText } from "../shell/http";
 import { searching } from "./state/search";
 import { walking } from "./state/walk";
 import { READ_ZOOM, openingView } from "./canvas/opening";
 import { snap } from "./canvas/snap";
+import { handles } from "./canvas/handles";
+import { hover } from "./canvas/hover";
+import { tool } from "./canvas/tool";
 import { initialState, reducer } from "./state/reducer";
 import { debug } from "./state/debug";
 import { defaultPrefs, parsePrefs, readPrefs } from "./state/prefs";
+import { LANGUAGES, applyLanguage, detectLanguage, effectiveLanguage, i18n, setLanguage, t } from "../i18n";
 import "@xyflow/react/dist/base.css";
 import "./styles/index.css";
 import "./styles/flow.css";
 
-export const LDApp = { address, history, journal, journalCsv: { cell, csvName, csvOf }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, reducer, initialState, query, alignment, debug, prefs: { parsePrefs, defaultPrefs } };
+export const LDApp = { address, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reducer, initialState, query, alignment, debug, prefs: { parsePrefs, defaultPrefs },
+  i18n: { LANGUAGES, detectLanguage, effectiveLanguage, setLanguage, language: () => i18n.language, t } };
 (globalThis as unknown as { LDApp: typeof LDApp }).LDApp = LDApp;
 
 function readCatalogue(): Record<string, CatalogueEntry> {
@@ -37,6 +45,7 @@ const root = typeof document === "undefined" ? null : document.getElementById("a
 if (root) {
   const prefs = readPrefs();
   document.documentElement.dataset.theme = prefs.theme;
+  applyLanguage(prefs.language);
   document.documentElement.style.setProperty("--panel-w", prefs.panelWidth + "px");
 }
 if (root) createRoot(root).render(<App catalogue={readCatalogue()} />);

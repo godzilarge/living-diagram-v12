@@ -75,8 +75,9 @@ export function beamLabel(beam: Pick<Beam, "a" | "b" | "peerLink" | "mlags">, fu
   return parts.join(" · ");
 }
 
-export function clusterLabel(cluster: Pick<Cluster, "raw" | "hosts">): string {
-  return "HA · " + (cluster.raw.cluster_name || cluster.hosts.join(" + ")) + " · " + cluster.raw.mode;
+/** L'étiquette d'un cluster HA ; `mode` écrit le mode (`/view`, gelée, le garde tel qu'enregistré, l'application en mots). */
+export function clusterLabel(cluster: Pick<Cluster, "raw" | "hosts">, mode: (raw: string) => string = (raw) => raw): string {
+  return "HA · " + (cluster.raw.cluster_name || cluster.hosts.join(" + ")) + " · " + mode(cluster.raw.mode);
 }
 
 export const geometry = { curve, chord, fanOffset, hull, beamBand, beamLabel, clusterLabel, CHAR_W };

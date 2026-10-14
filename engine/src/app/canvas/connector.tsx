@@ -3,9 +3,11 @@
 // manipulables »). Une ligne ou une flèche entre deux bouts, chacun libre ou attaché à un équipement, un groupe ou une
 // annotation, sur une ancre (le milieu d'un côté) ou sur le contour. Le nœud ne se glisse pas comme une carte : il
 // lit la place vivante de ses bouts dans React Flow (une carte glissée l'entraîne pendant le geste). Survolé ou
-// sélectionné, trois poignées à taille d'écran constante : les deux bouts (glisser un bout montre les ancres de
-// l'élément survolé et s'y accroche ; relâché ailleurs, il est libre) et la courbure au milieu (glisser un tracé droit
-// le courbe). Un double-clic édite l'étiquette en place.
+// sélectionné, trois poignées à taille d'écran constante : les deux bouts (glisser un bout montre le contour et les
+// ancres de l'élément survolé, dans la couche du dessus, drawing.tsx, et s'y accroche ; relâché ailleurs, il est libre)
+// et la courbure au milieu (glisser un tracé droit le courbe). Un double-clic édite l'étiquette en place. Survolé quand
+// on peut écrire, un liseré d'accent (lot 1 de docs/11).
+import { t } from "../../i18n";
 import { useReactFlow, useStore, useStoreApi } from "@xyflow/react";
 import type { Node, NodeProps } from "@xyflow/react";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -14,10 +16,11 @@ import { WEIGHT_VALUE, dashArray } from "../../canvas/groups";
 import { arrowHead, bendFrom, headSize, pathOf, summary } from "../../canvas/connectors";
 import type { EndPlace, Shape } from "../../canvas/connectors";
 import type { Point } from "../../canvas/layout";
-import { textWidth } from "../../canvas/card";
+import { STUB_R, textWidth } from "../../canvas/card";
 import type { Connector } from "../../canvas/types";
-import { AnchorDots, useUnzoom } from "./anchors";
+import { useUnzoom } from "./anchors";
 import { AnnotationContext } from "./annotation";
+import { STUB_SLOT } from "./nodes";
 import type { CardData } from "./nodes";
 import type { EndKind, Pick } from "./snap";
 
@@ -50,6 +53,8 @@ function livePlace(end: Connector["start"], fallback: EndPlace, lookup: ReturnTy
   const at = node.internals.positionAbsolute;
   const data = node.data as Record<string, unknown>;
   const plan = data.plan as CardData["plan"] | undefined, frame = data.frame as { w: number; h: number } | undefined;
+  // un voisin inconnu : son disque, au milieu du carré de son nœud (nodes.tsx)
+  if (node.type === "stub") return { kind: "box", frame: { x: at.x + STUB_SLOT.w / 2 - STUB_R, y: at.y + STUB_SLOT.h / 2 - STUB_R, w: STUB_R * 2, h: STUB_R * 2 }, shape: shapeOf(node), side: end.side };
   const w = plan ? plan.w : frame ? frame.w : typeof data.w === "number" ? data.w : node.measured?.width || 0;
   const h = plan ? plan.h : frame ? frame.h : typeof data.h === "number" ? data.h : node.measured?.height || 0;
   return { kind: "box", frame: { x: at.x, y: at.y, w, h }, shape: shapeOf(node), side: end.side };
@@ -66,7 +71,7 @@ function LabelEditor({ at, initial, onDone }: { at: Point; initial: string; onDo
   };
   return (
     <foreignObject x={at.x - 80} y={at.y - 12} width={160} height={24} className="cell-editor-slot">
-      <input ref={ref} className="cell-editor nodrag nopan nowheel" defaultValue={initial} maxLength={80} aria-label="étiquette du connecteur" spellCheck={false}
+      <input ref={ref} className="cell-editor nodrag nopan nowheel" defaultValue={initial} maxLength={80} aria-label={t("shell:canvas.connectorLabel")} spellCheck={false}
         onKeyDown={keys} onBlur={(event) => onDone(event.target.value)} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} />
     </foreignObject>
   );
@@ -104,6 +109,8 @@ export function ConnectorNode({ data, selected }: NodeProps<ConnectorNodeType>) 
   const [live, setLive] = useState<{ start?: EndPlace; end?: EndPlace; bend?: number; route?: string; pick?: Pick } | null>(null);
   const [editing, setEditing] = useState(false);
   useEffect(() => { setLive(null); }, [c]);
+  // Un bout ou la courbure qu'on glisse, l'étiquette qu'on édite : la bulle se tait (lot 1 de docs/11).
+  useEffect(() => { actions.hold("connector:" + c.id, !!live || editing); return () => actions.hold("connector:" + c.id, false); }, [actions, c.id, live, editing]);
   const lookup = store.getState().nodeLookup;
   const start = live && live.start ? live.start : livePlace(c.start, data.places.start, lookup);
   const end = live && live.end ? live.end : livePlace(c.end, data.places.end, lookup);
@@ -122,7 +129,7 @@ export function ConnectorNode({ data, selected }: NodeProps<ConnectorNodeType>) 
   const drag = useRef<{ what: EndName | "bend" | "body"; sx: number; sy: number; from: Point; startAt?: Point; endAt?: Point } | null>(null);
   const planAt = (event: ReactPointerEvent): Point => rf.screenToFlowPosition({ x: event.clientX, y: event.clientY });
   const down = useCallback((what: EndName | "bend" | "body") => (event: ReactPointerEvent<SVGElement>): void => {
-    if (!canEdit) return;
+    if (!canEdit || event.button !== 0) return; // un clic droit ouvre le menu, il ne glisse ni n'écrit rien (audit, M4)
     if (what === "body" && !selected) return; // le premier clic sélectionne (React Flow) ; ensuite, glisser déplace
     if (what === "body" && c.start.kind !== "free" && c.end.kind !== "free") return;
     event.stopPropagation(); event.preventDefault();
@@ -134,8 +141,8 @@ export function ConnectorNode({ data, selected }: NodeProps<ConnectorNodeType>) 
     const g = drag.current;
     if (!g) return;
     const at = planAt(event);
-    if (g.what === "start" || g.what === "end") { const pick = actions.pick(at, other(g.what)); setLive({ [g.what]: pick.place, pick }); }
-    else if (g.what === "bend") { const r = c.route === "straight" ? "curve" : c.route; setLive({ route: r, bend: bendFrom(path.chord.a, path.chord.b, r, at) }); }
+    if (g.what === "start" || g.what === "end") { const pick = actions.pick(at, other(g.what)); setLive({ [g.what]: pick.place, pick }); actions.aim(pick); }
+    else if (g.what === "bend") { if (Math.hypot(event.clientX - g.sx, event.clientY - g.sy) < 3) return; const r = c.route === "straight" ? "curve" : c.route; setLive({ route: r, bend: bendFrom(path.chord.a, path.chord.b, r, at) }); }
     else {
       const dx = at.x - g.from.x, dy = at.y - g.from.y;
       setLive({ start: g.startAt ? { kind: "point", at: { x: g.startAt.x + dx, y: g.startAt.y + dy } } : undefined, end: g.endAt ? { kind: "point", at: { x: g.endAt.x + dx, y: g.endAt.y + dy } } : undefined });
@@ -147,10 +154,12 @@ export function ConnectorNode({ data, selected }: NodeProps<ConnectorNodeType>) 
     drag.current = null;
     const at = planAt(event);
     setLive(null);
+    actions.aim(null);
     if (g.what === "start" || g.what === "end") {
       if (Math.hypot(event.clientX - g.sx, event.clientY - g.sy) < 3) return;
       actions.connector(c.id, { [g.what]: actions.pick(at, other(g.what)).end });
     } else if (g.what === "bend") {
+      if (Math.hypot(event.clientX - g.sx, event.clientY - g.sy) < 3) return; // un clic sur la poignée ne courbe rien
       const r = c.route === "straight" ? "curve" : c.route;
       actions.connector(c.id, { route: r as Connector["route"], bend: Math.max(-2000, Math.min(2000, bendFrom(path.chord.a, path.chord.b, r, at))) });
     } else {
@@ -164,14 +173,13 @@ export function ConnectorNode({ data, selected }: NodeProps<ConnectorNodeType>) 
   }, [actions, c, path.chord, other]); // eslint-disable-line react-hooks/exhaustive-deps
   const doneLabel = useCallback((text: string | null): void => { setEditing(false); if (text !== null && text.trim() !== c.label) actions.connector(c.id, { label: text.trim().slice(0, 80) }); }, [actions, c]);
   const classes = `connector hue-${s.hue} plane-${c.z}${c.locked ? " locked" : ""}${live ? " live" : ""} ${data.classes}`;
-  const pick = live ? live.pick : undefined;
   return (
     <svg className={classes} width={1} height={1} overflow="visible" opacity={s.opacity / 100} data-connector={c.id}
       onDoubleClick={(event) => { if (canEdit) { event.stopPropagation(); setEditing(true); } }}
       onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); actions.menu({ kind: "connector", id: c.id }, event); }}>
+      <path className="hover-ring" d={d} strokeWidth={s.stroke_width + 2 * k} />
       <path className="connector-hit nodrag nopan" d={d} strokeWidth={HIT * k} onPointerDown={down("body")} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
       <Stroke d={d} a={a} b={b} dirA={path.dirA} dirB={path.dirB} heads={c.heads} style={s} label={editing ? "" : c.label} mid={mid} />
-      {pick && pick.target ? <AnchorDots anchors={pick.anchors} snapped={pick.snapped} rel={rel} k={k} /> : null}
       {canEdit && !editing ? (
         <g className={"connector-handles" + (selected ? " shown" : "")}>
           {path.bendable ? <circle className="connector-handle bend nodrag nopan" cx={mid.x} cy={mid.y} r={(HANDLE_R - 1) * k} onPointerDown={down("bend")} onPointerMove={move} onPointerUp={up} onPointerCancel={up} /> : null}

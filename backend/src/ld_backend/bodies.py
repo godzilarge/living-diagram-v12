@@ -4,25 +4,28 @@ import json
 import re
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import ClientDisconnect
+
+from ld_backend.problems import PROBLEMS, ApiError, body, field_message, http_body
 
 JSON_MEDIA_TYPE = re.compile(r"application/(?:[\w.-]+\+)?json", re.IGNORECASE)
 IMAGE_MEDIA_TYPE = re.compile(r"image/(png|jpeg|webp)", re.IGNORECASE)
 
 
-def too_large(max_bytes: int) -> HTTPException:
+def too_large(max_bytes: int) -> ApiError:
     """Le même mot pour tous les corps (bundle, intention, placement, image) : la limite dit lequel."""
-    return HTTPException(status_code=413, detail=f"corps trop volumineux (limite {max_bytes} octets)")
+    return ApiError(413, "body_too_large", limit=max_bytes)
 
 
 def require_json(request: Request) -> None:
     media_type = request.headers.get("content-type", "").split(";", 1)[0].strip()
     if not JSON_MEDIA_TYPE.fullmatch(media_type):
-        raise HTTPException(status_code=415, detail="corps attendu en application/json")
+        raise ApiError(415, "json_expected")
 
 
 async def read_body(request: Request, max_bytes: int) -> bytes:
@@ -39,7 +42,7 @@ async def read_body(request: Request, max_bytes: int) -> bytes:
                 raise too_large(max_bytes)
             chunks.append(chunk)
     except ClientDisconnect as exc:
-        raise HTTPException(status_code=400, detail="connexion fermée avant la fin du corps") from exc
+        raise ApiError(400, "body_incomplete") from exc
     return b"".join(chunks)
 
 
@@ -50,7 +53,7 @@ async def read_json_body(request: Request, max_bytes: int) -> Any:
     try:
         return await run_in_threadpool(json.loads, raw)
     except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail=f"JSON invalide : {exc.msg} (ligne {exc.lineno})") from exc
+        raise ApiError(400, "json_invalid", reason=exc.msg, line=exc.lineno) from exc
 
 
 def safe_message(error: dict[str, Any]) -> str:
@@ -58,23 +61,32 @@ def safe_message(error: dict[str, Any]) -> str:
     discriminant d'une union, par exemple), la règle de l'API l'interdit (revue B4, M2)."""
     if error["type"] == "union_tag_invalid":
         expected = (error.get("ctx") or {}).get("expected_tags", "")
-        return f"valeur inconnue pour le discriminant ; attendu : {expected}"
+        return f"unknown value for the discriminator; expected: {expected}"
     received = error.get("input")
     if isinstance(received, str) and received and received in error["msg"]:
         return error["type"]
     return error["msg"]
 
 
-def problem(detail: str, errors: list[dict[str, Any]]) -> JSONResponse:
-    """Un 422 à la forme `Problem` : chemin et règle de chaque champ fautif, jamais la valeur."""
-    listed = [{"path": ".".join(str(p) for p in e["loc"]), "message": safe_message(e)} for e in errors]
-    return JSONResponse(status_code=422, content={"detail": detail, "errors": listed})
+def problem(code: str, errors: list[dict[str, Any]], params: dict[str, Any] | None = None) -> JSONResponse:
+    """Un 422 à la forme `Problem` (`invalid_body`, `invalid_query`, `asset_rejected`) : chemin, code et règle de chaque
+    champ fautif, jamais la valeur."""
+    listed = [
+        {"path": ".".join(str(p) for p in e["loc"]), "code": e["type"], "message": safe_message(e)} for e in errors
+    ]
+    return JSONResponse(status_code=422, content=body(code, PROBLEMS[code], params, errors=listed))
 
 
-def one_problem(detail: str, path: str, code: str, message: str) -> JSONResponse:
-    return problem(detail, [{"loc": (path,), "type": code, "msg": message}])
+def one_problem(code: str, path: str, field_code: str, **params: Any) -> JSONResponse:
+    """Un 422 d'un seul champ, dont l'API écrit elle-même la règle (`FIELD_CODES`) ; ses valeurs vont dans `params`."""
+    return problem(code, [{"loc": (path,), "type": field_code, "msg": field_message(field_code, **params)}], params)
 
 
 def query_problem(_: Request, exc: RequestValidationError) -> JSONResponse:
     """Même forme que le reste de l'API ; la valeur reçue (`input`) n'est jamais renvoyée."""
-    return problem("paramètres de requête invalides", list(exc.errors()))
+    return problem("invalid_query", list(exc.errors()))
+
+
+def http_problem(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Tout `HTTPException` (de l'API ou du cadre) à la forme `Problem`, en-têtes compris (`WWW-Authenticate`)."""
+    return JSONResponse(status_code=exc.status_code, content=http_body(exc), headers=exc.headers)

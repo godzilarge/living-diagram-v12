@@ -21,8 +21,10 @@ READ_TIMEOUT = 20.0
 class Chrome:
     """Un navigateur, ouvert à l'entrée du `with`, fermé à la sortie."""
 
-    def __init__(self, binary: Path, *, window: tuple[int, int] = (1440, 900)) -> None:
-        self.binary, self.window = binary, window
+    def __init__(self, binary: Path, *, window: tuple[int, int] = (1440, 900), lang: str = "fr-FR") -> None:
+        # La langue du navigateur est fixée (`navigator.languages`, `Accept-Language`) : l'application suit celle du
+        # navigateur quand on n'en a pas choisi (2026-10-10), et les tests ne dépendent pas de la machine qui les lance.
+        self.binary, self.window, self.lang = binary, window, lang
         self.console: list[dict[str, Any]] = []
         self._events: list[dict[str, Any]] = []
         self._buffer = b""
@@ -33,6 +35,7 @@ class Chrome:
         read_out, write_out = os.pipe()
         flags = ["--remote-debugging-pipe", "--no-sandbox", "--disable-gpu", "--hide-scrollbars"]
         flags += [f"--window-size={self.window[0]},{self.window[1]}", "--enable-logging=stderr", "--v=0"]
+        flags += [f"--lang={self.lang}", f"--accept-lang={self.lang}"]
         self._process = subprocess.Popen(  # noqa: S603 - binaire local, arguments fixes
             [str(self.binary), *flags, "about:blank"],
             pass_fds=(3, 4),

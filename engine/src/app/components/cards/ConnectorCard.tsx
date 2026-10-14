@@ -5,6 +5,8 @@
 // l'hôte d'intention ; sans nom, tout se lit.
 import { ArrowLeftRight, Crosshair, Link2Off, Lock, LockOpen, Spline, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { labelMap } from "../../../i18n";
 import { BOUNDS, HEADS, LABEL, ROUTES, SIDES, SIDE_LABEL, isOrphan } from "../../../canvas/connectors";
 import type { Side } from "../../../canvas/connectors";
 import { FONTS, LABEL_COLORS, WEIGHTS } from "../../../canvas/groups";
@@ -18,16 +20,19 @@ import { StrokeRow, TextRows, options } from "./style";
 
 const LINES = ["solid", "dashed", "dotted"] as const;
 const HEAD_OPTIONS = ["none/arrow", "arrow/none", "arrow/arrow", "none/none"] as const;
-const HEAD_LABEL: Record<string, string> = { "none/arrow": "à l'arrivée", "arrow/none": "au départ", "arrow/arrow": "aux deux bouts", "none/none": "aucune" };
+const HEAD_KEY: Record<string, string> = { "none/arrow": "atEnd", "arrow/none": "atStart", "arrow/arrow": "both", "none/none": "none" };
+const HEAD_WORDS = labelMap("panel:connector", Object.values(HEAD_KEY));
+const headLabel = (heads: string): string => HEAD_WORDS[HEAD_KEY[heads]] || heads;
 
 /** Un bout : ce qu'il vise, cliquable quand c'est un équipement, un groupe ou une annotation présents. */
 function EndText({ model, end }: { model: Model; end: Connector["start"] }) {
   const { commands } = useStore();
-  if (end.kind === "free") return <span title={end.x + ", " + end.y}>point libre</span>;
+  const { t } = useTranslation("panel");
+  if (end.kind === "free") return <span title={end.x + ", " + end.y}>{t("connector.freePoint")}</span>;
   if (end.kind === "device") return <HostLink hostname={end.ref} />;
-  if (end.kind === "group") { const g = model.groupById.get(end.ref); return <>groupe {g ? <button type="button" className="linklike" onClick={() => commands.reveal({ kind: "group", id: end.ref })}>{g.label}</button> : <span>{end.ref}</span>}</>; }
+  if (end.kind === "group") { const g = model.groupById.get(end.ref); return <>{t("connector.group")} {g ? <button type="button" className="linklike" onClick={() => commands.reveal({ kind: "group", id: end.ref })}>{g.label}</button> : <span>{end.ref}</span>}</>; }
   const a = model.annotationById.get(end.ref);
-  return <>annotation {a ? <button type="button" className="linklike mono" onClick={() => commands.reveal({ kind: "annotation", id: end.ref })}>{end.ref}</button> : <span className="mono">{end.ref}</span>}</>;
+  return <>{t("connector.annotation")} {a ? <button type="button" className="linklike mono" onClick={() => commands.reveal({ kind: "annotation", id: end.ref })}>{end.ref}</button> : <span className="mono">{end.ref}</span>}</>;
 }
 /** L'ancre d'un bout attaché : le contour vers l'autre bout, ou le milieu d'un côté (le tracé coudé en part perpendiculairement). */
 function SideSelect({ label, value, onChange }: { label: string; value: Side; onChange: (side: Side) => void }) {
@@ -36,6 +41,7 @@ function SideSelect({ label, value, onChange }: { label: string; value: Side; on
 
 export function ConnectorCard({ model, c }: { model: Model; c: Connector }) {
   const { commands } = useStore();
+  const { t } = useTranslation("panel");
   const canWrite = useEditable();
   const [confirm, setConfirm] = useState(false);
   useEffect(() => { setConfirm(false); }, [c.id]);
@@ -47,50 +53,50 @@ export function ConnectorCard({ model, c }: { model: Model; c: Connector }) {
   const arrow = c.heads.start === "arrow" || c.heads.end === "arrow";
   return (
     <Inspector kind="connector">
-      <InspectorHead icon={<Spline />} kind={arrow ? "Flèche" : "Connecteur"}
+      <InspectorHead icon={<Spline />} kind={arrow ? t("connector.arrow") : t("connector.connector")}
         actions={<>
-          {!orphan ? <IconButton label="centrer la toile sur le connecteur" onClick={() => commands.reveal({ kind: "connector", id: c.id })}><Crosshair /></IconButton> : null}
+          {!orphan ? <IconButton label={t("connector.center")} onClick={() => commands.reveal({ kind: "connector", id: c.id })}><Crosshair /></IconButton> : null}
           <HistoryButton object={c.id} />
-          {canWrite ? <IconButton label="inverser le sens" onClick={() => update({ start: c.end, end: c.start, heads: { start: c.heads.end, end: c.heads.start } })}><ArrowLeftRight /></IconButton> : null}
-          {canWrite ? <IconButton label={c.locked ? "déverrouiller" : "verrouiller"} pressed={c.locked} onClick={() => update({ locked: !c.locked })}>{c.locked ? <Lock /> : <LockOpen />}</IconButton> : null}
-          {canWrite ? <Menu label="plus d'actions" items={[
-            ...(c.start.kind !== "free" || c.end.kind !== "free" ? [{ label: "détacher les deux bouts", icon: <Link2Off />, onSelect: () => commands.connectorDetach(c.id) }] : []),
-            { label: "supprimer", icon: <Trash2 />, danger: true, separated: true, onSelect: () => setConfirm(true) },
+          {canWrite ? <IconButton label={t("connector.reverse")} onClick={() => update({ start: c.end, end: c.start, heads: { start: c.heads.end, end: c.heads.start } })}><ArrowLeftRight /></IconButton> : null}
+          {canWrite ? <IconButton label={c.locked ? t("annotation.unlock") : t("annotation.lock")} pressed={c.locked} onClick={() => update({ locked: !c.locked })}>{c.locked ? <Lock /> : <LockOpen />}</IconButton> : null}
+          {canWrite ? <Menu label={t("node.moreActions")} items={[
+            ...(c.start.kind !== "free" || c.end.kind !== "free" ? [{ label: t("connector.detach"), icon: <Link2Off />, onSelect: () => commands.connectorDetach(c.id) }] : []),
+            { label: t("annotation.delete"), icon: <Trash2 />, danger: true, separated: true, onSelect: () => setConfirm(true) },
           ]} /> : null}
         </>}
         title={<Title>{c.label || LABEL[c.route].charAt(0).toUpperCase() + LABEL[c.route].slice(1)}</Title>}
         meta={signed(c.author, c.at)}
         badges={c.locked || orphan ? <>
-          {c.locked ? <Badge kind="state" value="locked" label="verrouillé" icon={<Lock aria-hidden="true" />} /> : null}
-          {orphan ? <Badge kind="pin" value="orphan" label="orphelin" title="un bout vise un élément absent de cette run : non dessiné, jamais effacé en silence" /> : null}
+          {c.locked ? <Badge kind="state" value="locked" label={t("connector.locked")} icon={<Lock aria-hidden="true" />} /> : null}
+          {orphan ? <Badge kind="pin" value="orphan" label={t("connector.orphan")} title={t("connector.orphanTitle")} /> : null}
         </> : undefined}>
-        {canWrite ? null : <WriteHint action="le modifier" />}
-        {confirm ? <Confirm text="Supprimer ce connecteur ?" action="supprimer" onCancel={() => setConfirm(false)} onConfirm={() => commands.connectorDelete(c.id)} /> : null}
+        {canWrite ? null : <WriteHint action={t("group.toEdit")} />}
+        {confirm ? <Confirm text={t("connector.confirmDelete")} action={t("annotation.delete")} onCancel={() => setConfirm(false)} onConfirm={() => commands.connectorDelete(c.id)} /> : null}
       </InspectorHead>
       {/* un bout par rangée : ce qu'il vise, et son ancre à droite quand il est attaché (un seul mot « ancre » de moins) */}
-      <Section title="Bouts">
-        <Row label="départ"><span className="insp-end"><span className="insp-end-what"><EndText model={model} end={c.start} /></span>
-          {canWrite && c.start.kind !== "free" ? <SideSelect label="ancre du départ" value={c.start.side} onChange={(side) => update({ start: { ...c.start, side } as Connector["start"] })} /> : null}</span></Row>
-        <Row label="arrivée"><span className="insp-end"><span className="insp-end-what"><EndText model={model} end={c.end} /></span>
-          {canWrite && c.end.kind !== "free" ? <SideSelect label="ancre de l'arrivée" value={c.end.side} onChange={(side) => update({ end: { ...c.end, side } as Connector["end"] })} /> : null}</span></Row>
+      <Section title={t("connector.ends")}>
+        <Row label={t("connector.start")}><span className="insp-end"><span className="insp-end-what"><EndText model={model} end={c.start} /></span>
+          {canWrite && c.start.kind !== "free" ? <SideSelect label={t("connector.startAnchor")} value={c.start.side} onChange={(side) => update({ start: { ...c.start, side } as Connector["start"] })} /> : null}</span></Row>
+        <Row label={t("connector.end")}><span className="insp-end"><span className="insp-end-what"><EndText model={model} end={c.end} /></span>
+          {canWrite && c.end.kind !== "free" ? <SideSelect label={t("connector.endAnchor")} value={c.end.side} onChange={(side) => update({ end: { ...c.end, side } as Connector["end"] })} /> : null}</span></Row>
       </Section>
       {canWrite ? (
         <>
-          <Section title="Tracé" collapsible>
-            <Row label="étiquette"><TextInput value={c.label} max={80} label="étiquette du connecteur" placeholder="sans étiquette" onCommit={(label) => update({ label })} /></Row>
-            <Row label="pointes"><Select label="pointes" value={heads} options={HEAD_OPTIONS.map((value) => ({ value, label: HEAD_LABEL[value] }))}
+          <Section title={t("connector.path")} collapsible>
+            <Row label={t("connector.label")}><TextInput value={c.label} max={80} label={t("connector.labelLabel")} placeholder={t("annotation.noLabel")} onCommit={(label) => update({ label })} /></Row>
+            <Row label={t("connector.heads")}><Select label={t("connector.heads")} value={heads} options={HEAD_OPTIONS.map((value) => ({ value, label: headLabel(value) }))}
               onChange={(pick) => { const [start, end] = pick.split("/") as [typeof HEADS[number], typeof HEADS[number]]; update({ heads: { start, end } }); }} /></Row>
-            <Row label="forme"><Segmented label="forme du tracé" value={c.route} options={options(ROUTES)} onPick={(route) => update({ route })} /></Row>
-            {c.route !== "straight" ? <Row label="courbure"><NumberField label="courbure" value={c.bend} min={-400} max={400} onCommit={(bend) => update({ bend })} /></Row> : null}
-            <Row label="plan"><Segmented label="plan" value={c.z} options={options(["back", "front"] as const)} onPick={(z) => update({ z })} /></Row>
-            <Row label="opacité"><NumberField label="opacité" value={s.opacity} min={BOUNDS.opacity[0]} max={BOUNDS.opacity[1]} unit="%" onCommit={(opacity) => style({ opacity })} /></Row>
+            <Row label={t("connector.shape")}><Segmented label={t("connector.shapeLabel")} value={c.route} options={options(ROUTES)} onPick={(route) => update({ route })} /></Row>
+            {c.route !== "straight" ? <Row label={t("connector.bend")}><NumberField label={t("connector.bend")} value={c.bend} min={-400} max={400} onCommit={(bend) => update({ bend })} /></Row> : null}
+            <Row label={t("annotation.plane")}><Segmented label={t("annotation.plane")} value={c.z} options={options(["back", "front"] as const)} onPick={(z) => update({ z })} /></Row>
+            <Row label={t("annotation.opacity")}><NumberField label={t("annotation.opacity")} value={s.opacity} min={BOUNDS.opacity[0]} max={BOUNDS.opacity[1]} unit="%" onCommit={(opacity) => style({ opacity })} /></Row>
           </Section>
-          <Section title="Trait" collapsible defaultOpen={false}>
-            <Row label="teinte"><HueSetting value={s.hue} inherited={null} allowDefault={false} onPick={(hue) => style({ hue: hue || "slate" })} /></Row>
-            <Row label="trait"><StrokeRow label="style du trait" value={s.stroke_style} options={options(LINES)} width={s.stroke_width} bounds={BOUNDS.stroke_width}
+          <Section title={t("connector.stroke")} collapsible defaultOpen={false}>
+            <Row label={t("hue")}><HueSetting value={s.hue} inherited={null} allowDefault={false} onPick={(hue) => style({ hue: hue || "slate" })} /></Row>
+            <Row label={t("connector.strokeRow")}><StrokeRow label={t("connector.strokeStyle")} value={s.stroke_style} options={options(LINES)} width={s.stroke_width} bounds={BOUNDS.stroke_width}
               onStyle={(stroke_style) => style({ stroke_style: stroke_style as ConnectorStyle["stroke_style"] })} onWidth={(stroke_width) => style({ stroke_width })} /></Row>
           </Section>
-          <Section title="Texte" collapsible defaultOpen={false}>
+          <Section title={t("annotation.textSection")} collapsible defaultOpen={false}>
             <TextRows value={{ size: s.text_size, weight: s.text_weight, font: s.text_font, color: s.text_color }}
               bounds={{ size: BOUNDS.text_size, weights: WEIGHTS, fonts: FONTS, colors: LABEL_COLORS }}
               onChange={(p) => style({
@@ -100,7 +106,7 @@ export function ConnectorCard({ model, c }: { model: Model; c: Connector }) {
           </Section>
         </>
       ) : (
-        <Section title="Apparence"><Facts rows={[["teinte", hueLabel(s.hue)], ["tracé", LABEL[c.route]], ["pointes", HEAD_LABEL[heads]]]} /></Section>
+        <Section title={t("annotation.appearance")}><Facts rows={[[t("annotation.hue"), hueLabel(s.hue)], [t("connector.route"), LABEL[c.route]], [t("connector.heads"), headLabel(heads)]]} /></Section>
       )}
     </Inspector>
   );
