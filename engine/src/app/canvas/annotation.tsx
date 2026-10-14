@@ -26,7 +26,7 @@ import type { HandleId, PillPlace } from "./handles";
 import { useAsset } from "./assets";
 import type { EndKind, Pick } from "./snap";
 import { TableBody } from "./table";
-import { InlineInput } from "./inline";
+import { InlineInput, useFinish } from "./inline";
 import type { Cell } from "./table";
 
 export interface AnnotationData extends Record<string, unknown> {
@@ -59,7 +59,13 @@ const freePick = (at: Point): Pick => ({ end: { kind: "free", x: at.x, y: at.y }
 export const AnnotationContext = createContext<AnnotationActions>({ resize: () => undefined, edit: () => undefined, content: () => undefined, menu: () => undefined, connector: () => undefined, pick: freePick, aim: () => undefined, hold: () => undefined, groupLabel: () => undefined });
 /** Les gestes d'édition en place qu'une commande (menu, F2, Entrée) peut demander au nœud : éditer telle cellule, tel
  *  texte ; `kind` = « group » : le nom d'un groupe sur son cadre. */
-export const EditRequest = createContext<{ id: string; cell: Cell | null; at: number; kind?: "annotation" | "group" } | null>(null);
+export type EditAsk = { id: string; cell: Cell | null; at: number; kind?: "annotation" | "group" };
+export const EditRequest = createContext<EditAsk | null>(null);
+// Une demande ne s'ouvre qu'une fois, même si son nœud est démonté puis remonté : la toile ne monte que ce qui se voit
+// (lot 13 de docs/11) et un nœud remonté rejouait la dernière demande (vu sur un cadre de groupe au panoramique).
+const claimed = new WeakSet<EditAsk>();
+/** Vrai la première fois qu'un nœud prend cette demande ; ensuite, plus personne ne la rejoue. */
+export function claim(request: EditAsk): boolean { if (claimed.has(request)) return false; claimed.add(request); return true; }
 
 /** Le zoom courant (les poignées et les pastilles gardent leur taille d'écran). */
 const useZoom = (): number => useStore((st) => st.transform[2]);
@@ -151,14 +157,15 @@ function Picture({ a, frame }: { a: Annotation; frame: Frame }) {
 /** L'éditeur de texte en place d'une note : un champ HTML par-dessus le nœud ; Ctrl+Entrée ou quitter enregistre, Échap abandonne. */
 function NoteEditor({ initial, onDone }: { initial: string; onDone: (text: string | null) => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const { finish, track } = useFinish(onDone, initial);
   useEffect(() => { const el = ref.current; if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, []);
   const keys = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onDone(null); }
-    else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); onDone((event.target as HTMLTextAreaElement).value); }
+    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); finish(null); }
+    else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); finish((event.target as HTMLTextAreaElement).value); }
     event.stopPropagation();
   };
   return <textarea ref={ref} className="note-editor nodrag nopan nowheel" defaultValue={initial} maxLength={2000} aria-label={t("shell:canvas.noteText")} spellCheck={false}
-    onKeyDown={keys} onBlur={(event) => onDone(event.target.value)} onPointerDown={(event) => event.stopPropagation()} />;
+    onKeyDown={keys} onChange={track} onBlur={(event) => finish(event.target.value)} onPointerDown={(event) => event.stopPropagation()} />;
 }
 
 export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, positionAbsoluteY }: NodeProps<AnnotationNodeType>) {
@@ -175,10 +182,8 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
   useEffect(() => { if (!selected) { setPick(null); setCell(null); setLive(null); } }, [selected]);
   // une commande (menu, F2, Entrée) demande l'édition en place : telle cellule du tableau, le texte de la note,
   // l'étiquette de la forme ; une seule fois par demande (l'annotation modifiée ne la rejoue pas)
-  const handled = useRef(0);
   useEffect(() => {
-    if (!request || request.id !== a.id || request.kind === "group" || request.at === handled.current) return;
-    handled.current = request.at;
+    if (!request || request.id !== a.id || request.kind === "group" || !claim(request)) return;
     if (request.cell && a.content.kind === "table") { setPick({ r0: request.cell[0], c0: request.cell[1], r1: request.cell[0], c1: request.cell[1] }); setCell(request.cell); }
     else if (a.content.kind === "note" || a.content.kind === "shape") setEditing(true);
   }, [request, a]);

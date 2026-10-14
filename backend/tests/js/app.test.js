@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "context", "debug", "floating", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "context", "debug", "floating", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -1159,3 +1159,78 @@ test("la barre contextuelle, où : au-dessus, sinon dessous, jamais hors de la z
   assert.equal(f.anchorOf(sel.multiOf([{ kind: "node", id: "z" }]), geo), null, "rien de dessiné : pas d'ancre");
   assert.deepEqual(clone(f.toScreen({ x: 10, y: 20, w: 30, h: 40 }, { x: 5, y: 6, zoom: 2 })), { x: 25, y: 46, w: 60, h: 80 });
 });
+
+test("à la jauge (lot 13) : deux valeurs égales en profondeur bornée, par identité au-delà ; Map et Set par identité", () => {
+  const { reusing: r } = loadApp();
+  assert.equal(r.same(1, 1), true);
+  assert.equal(r.same(NaN, NaN), true, "NaN égale NaN : une valeur non lue ne fabrique pas un changement");
+  assert.equal(r.same(0, -0), true);
+  assert.equal(r.same(1, "1"), false);
+  assert.equal(r.same(null, {}), false);
+  assert.equal(r.same(undefined, null), false);
+  assert.equal(r.same({ a: 1, b: [1, 2] }, { b: [1, 2], a: 1 }), true, "l'ordre des clés ne compte pas");
+  assert.equal(r.same({ a: 1 }, { a: 1, b: 2 }), false, "une clé de plus");
+  assert.equal(r.same({ a: undefined }, {}), false, "une clé absente n'est pas une clé à `undefined`");
+  assert.equal(r.same({ a: 1 }, { b: 1 }), false, "pas les mêmes clés");
+  assert.equal(r.same([1, 2], [1, 2, 3]), false);
+  assert.equal(r.same([1, [2, 3]], [1, [2, 4]]), false);
+  assert.equal(r.same([1], { 0: 1 }), false, "un tableau n'est pas un objet");
+  const map = new Map([["a", 1]]);
+  assert.equal(r.same(map, map), true);
+  assert.equal(r.same(map, new Map([["a", 1]])), false, "une Map : l'identité seulement");
+  const deep = (n) => (n === 0 ? { leaf: 1 } : { next: deep(n - 1) });
+  assert.equal(r.same(deep(r.DEPTH - 1), deep(r.DEPTH - 1)), true, "jusqu'à la profondeur bornée");
+  assert.equal(r.same(deep(r.DEPTH), deep(r.DEPTH)), false, "au-delà, l'identité seulement");
+  const shared = deep(r.DEPTH);
+  assert.equal(r.same({ x: shared }, { x: shared }), true, "une même référence, à toute profondeur");
+  assert.equal(r.sameItems([1, map, "a"], [1, map, "a"]), true);
+  assert.equal(r.sameItems([1, { a: 1 }], [1, { a: 1 }]), false, "un abonnement compare par identité");
+  assert.equal(r.sameItems([1], [1, 2]), false);
+  assert.equal(r.sameItems([NaN], [NaN]), true);
+});
+
+test("à la jauge (lot 13) : un élément montré ressert s'il ne diffère pas ; jamais pendant un glissé", () => {
+  const { reusing: r } = loadApp();
+  const next = { id: "a", position: { x: 1, y: 2 }, data: { classes: "x", plan: { w: 200, h: 80 } }, selected: false };
+  const shown = { id: "a", position: { x: 1, y: 2 }, data: { classes: "x", plan: { w: 200, h: 80 } }, selected: false, measured: { width: 200, height: 80 } };
+  assert.equal(r.unchanged(next, shown), true, "les mesures de React Flow ne comptent pas");
+  assert.equal(r.unchanged(next, { ...shown, dragging: false }), true, "un glissé fini");
+  assert.equal(r.unchanged(next, { ...shown, dragging: true }), false, "pendant un glissé, React Flow tient la place");
+  assert.equal(r.unchanged(next, { ...shown, resizing: true }), false);
+  assert.equal(r.unchanged(next, { ...shown, extra: 1 }), false, "une clé inconnue de la toile");
+  assert.equal(r.unchanged(next, { ...shown, data: { ...shown.data, classes: "x selected" } }), false, "une classe change");
+  assert.equal(r.unchanged(next, { ...shown, position: { x: 1, y: 3 } }), false, "une place change");
+  assert.equal(r.unchanged({ ...next, width: 10 }, shown), false, "une taille déclarée qui manque");
+});
+
+test("à la jauge (lot 13) : une sélection ne redonne à React Flow que les éléments qui changent, avec leurs mesures", () => {
+  const { reusing: r } = loadApp();
+  const card = (id, classes) => ({ id, type: "card", position: { x: 0, y: 0 }, data: { classes, plan: { w: 200, h: 80, label: { x: 0, y: 0 } } } });
+  const shown = Array.from({ length: 500 }, (_, i) => ({ ...card("n" + i, "node"), measured: { width: 200, height: 80 } }));
+  // le même dessin reconstruit : la liste montrée elle-même, React Flow ne voit rien
+  const same = r.reuse(shown.map((n) => card(n.id, "node")), shown);
+  assert.equal(same, shown, "rien n'a changé : la même liste");
+  // une sélection : deux classes changent (l'équipement choisi, son voisin éclairé)
+  const next = shown.map((n) => card(n.id, n.id === "n7" ? "node selected" : n.id === "n8" ? "node related" : "node"));
+  const out = r.reuse(next, shown);
+  assert.notEqual(out, shown);
+  assert.equal(out.filter((n, i) => n !== shown[i]).length, 2, "deux objets neufs, les 498 autres repris");
+  assert.equal(out[7].data.classes, "node selected");
+  assert.deepEqual(clone(out[7].measured), { width: 200, height: 80 }, "un élément reconstruit garde ses mesures (sinon caché et sans câbles)");
+  assert.equal(out[6], shown[6]);
+  // un élément neuf n'a pas de mesures ; une mesure incomplète ne se reprend pas
+  const fresh = r.reuse([card("z", "node")], [{ ...card("z", "old"), measured: { width: 200 } }]);
+  assert.equal(fresh[0].measured, undefined, "une mesure sans hauteur ne se reprend pas");
+  const added = r.reuse(shown.concat([card("new", "node")]), shown);
+  assert.equal(added.length, 501);
+  assert.equal(added[500].measured, undefined);
+  assert.equal(added[0], shown[0]);
+  // un ordre qui change : une liste neuve, des objets repris
+  const swapped = r.reuse([shown[1], shown[0]].map((n) => card(n.id, "node")), shown.slice(0, 2));
+  assert.notEqual(swapped, shown);
+  assert.deepEqual([swapped[0], swapped[1]], [shown[1], shown[0]], "l'ordre du neuf, les objets de l'ancien");
+  const removed = r.reuse(shown.slice(1).map((n) => card(n.id, "node")), shown);
+  assert.notEqual(removed, shown, "un élément de moins : une liste neuve");
+  assert.equal(removed[0], shown[1]);
+});
+

@@ -2,12 +2,14 @@
 // qui se calcule depuis la toile et ce qui réagit aux gestes). Une fonction de la toile et des droits d'écriture : nœuds
 // (cartes, disques, clusters, cadres, annotations, connecteurs), arêtes (câbles, faisceaux, étiquettes, vitesses), et
 // les boîtes, cadres et bouts que la toile garde pour ses calculs. Rien ne s'y déduit : la donnée et scene.ts.
-import { t } from "../../i18n";
+import { i18n, t } from "../../i18n";
 import { STUB_R, plan as cardPlan, displayName, shortName, textWidth } from "../../canvas/card";
+import type { CardPlan } from "../../canvas/card";
 import { PILL_H } from "../../canvas/pill";
 import type { Box } from "../../canvas/card";
 import { COLLECTION_LABEL, DIFF_LABEL, haModeText, KIND_LABEL } from "../../canvas/format";
 import { beamBand, beamLabel, clusterLabel, hull } from "../../canvas/geometry";
+import type { BeamBand } from "../../canvas/geometry";
 import { dashArray, frameOf, labelSlot } from "../../canvas/groups";
 import { hueOfNode } from "../../canvas/hues";
 import { LABEL as ICON_LABEL } from "../../canvas/icons";
@@ -16,7 +18,10 @@ import { aggregateOf, endLabel, haBadge, haRoleGroup, worst } from "../../canvas
 import { matches, parseRule } from "../../canvas/query";
 import { nothingRevealed, reveal } from "../../canvas/reveal";
 import { changeOf, relatedTo, relatedToHosts } from "../../canvas/scene";
+import type { Visible } from "../../canvas/scene";
 import { speedGroups } from "../../canvas/speed";
+import type { SpeedGroup } from "../../canvas/speed";
+import type { Beam } from "../../canvas/types";
 import type { TagSlot } from "../../canvas/tags";
 import { anchorRect, frameOf as annotationFrame, isOrphan, leaderOf, summary as annotationSummary } from "../../canvas/annotations";
 import type { AnchorPoint, Frame as AFrame } from "../../canvas/annotations";
@@ -37,7 +42,12 @@ const Z_BACK = -40, Z_FRONT = 20;
 /** Le disque d'un voisin inconnu : la boîte que les câbles, les cadres et l'accrochage lisent. */
 export const STUB_BOX: Box = { w: STUB_R * 2, h: STUB_R * 2 };
 
-export interface Built { nodes: FlowNode[]; edges: FlowEdge[]; key: string; hasSelection: boolean; frames: Map<string, AFrame>; ends: Map<string, { a: Point; b: Point; mid?: Point }>; boxes: Map<string, Box>; groups: Map<string, AFrame> }
+export interface Built {
+  nodes: FlowNode[]; edges: FlowEdge[]; key: string; hasSelection: boolean; frames: Map<string, AFrame>; ends: Map<string, { a: Point; b: Point; mid?: Point }>; boxes: Map<string, Box>; groups: Map<string, AFrame>;
+  /** Les pastilles de câble gardent la place calculée pour des positions d'avant (un déplacement vient d'avoir lieu) :
+   *  la page redemande un dessin quand les positions ne bougent plus (`build(…, true)`). */
+  staleTags: boolean;
+}
 /** Ce que la page règle pour les annotations : peut-on écrire (sinon rien ne se glisse), et une boîte posée localement
  *  en attendant la réponse de l'API (un glissé ou un redimensionnement relâché ne saute pas en arrière). */
 /** `control` : la vue Contrôle (2026-10-09), où cadres, annotations et connecteurs restent dessinés mais inertes. Les
@@ -46,10 +56,39 @@ export interface AnnotationLocal { editable: boolean; control: boolean }
 const flags = (selected: boolean, related: boolean, match = false): string => (selected ? " selected" : "") + (related ? " related" : "") + (match ? " match" : "");
 export const selectionKey = (nodes: { id: string }[], edges: { id: string }[]): string => nodes.map((n) => n.id).sort().join("|") + "#" + edges.map((e) => e.id).sort().join("|");
 
+// Ce qui ne change pas d'une version à l'autre de la toile, gardé entre deux dessins (lot 13 de docs/11) : le plan d'une
+// carte (nom, largeur commune), les textes traduits (noms accessibles, rôles), les groupes de vitesse (une scène), la
+// bande d'un faisceau, et la place des pastilles de câble, recalculée seulement quand une position change (une sélection
+// ne la recalcule pas). Une langue nouvelle vide les textes ; une scène nouvelle, les vitesses et les pastilles.
+interface BuildCache {
+  language: string;
+  plans: Map<string, CardPlan>;
+  texts: Map<string, string>;
+  bands: WeakMap<Beam, BeamBand>;
+  speeds: { scene: Visible; groups: SpeedGroup[] } | null;
+  tags: { scene: Visible; key: string; slots: Map<string, TagSlot> } | null;
+  /** Les pastilles (étiquettes de faisceau, vitesses) déjà montrées une fois : elles restent dans le dessin. */
+  mounted: Set<string>;
+}
+const caches = new WeakMap<Toile, BuildCache>();
+function cacheOf(toile: Toile): BuildCache {
+  const language = i18n.language || "";
+  let cache = caches.get(toile);
+  if (!cache || cache.language !== language) {
+    cache = { language, plans: new Map(), texts: new Map(), bands: cache ? cache.bands : new WeakMap(), speeds: cache ? cache.speeds : null, tags: null, mounted: cache ? cache.mounted : new Set() };
+    caches.set(toile, cache);
+  }
+  return cache;
+}
+/** Un texte traduit, calculé une fois par clé et par langue. */
+const text = (cache: BuildCache, key: string, make: () => string): string => { let got = cache.texts.get(key); if (got === undefined) { got = make(); cache.texts.set(key, got); } return got; };
+/** Les positions, en une chaîne : la clé des pastilles de câble (une sélection ne la change pas, un déplacement si). */
+const positionsKey = (positions: ReadonlyMap<string, Point>): string => { let key = ""; positions.forEach((p, host) => { key += host + "\u0000" + p.x + "," + p.y + "\u0001"; }); return key; };
+
 // Ce que React Flow doit dessiner, lu dans la toile : une carte ou un disque par équipement visible (position = coin
 // haut gauche, la toile tient des centres), un cadre par cluster, sous les arêtes ; une bande par faisceau, un tracé
 // par câble, puis les étiquettes des faisceaux au-dessus des câbles. Les classes sont celles de `/view`.
-export function build(toile: Toile, local: AnnotationLocal): Built {
+export function build(toile: Toile, local: AnnotationLocal, freshTags = true): Built {
   const { model, state } = toile;
   const sc = toile.scene();
   const sel = state.selection;
@@ -60,6 +99,7 @@ export function build(toile: Toile, local: AnnotationLocal): Built {
   const shown = multi ? nothingRevealed() : reveal(model, sel); // les faisceaux qu'un clic révèle (reveal.ts)
   const revealed = (id: string): string => (shown.primary.has(id) ? " reveal-primary" : shown.sibling.has(id) ? " reveal-sibling" : shown.peer.has(id) ? " reveal-peer" : "");
   const query = parseRule(state.query);
+  const cache = cacheOf(toile);
   const boxes = new Map<string, Box>();
   const nodes: FlowNode[] = sc.nodes.map((node) => {
     const memberships = model.haMembershipsByHost.get(node.hostname) || [];
@@ -67,8 +107,10 @@ export function build(toile: Toile, local: AnnotationLocal): Built {
     const haState = memberships.some((m) => m.member.state === "down") ? "down" : ha ? ha.member.state : null;
     const haClasses = ha ? ` ha-member ha-${haRoleGroup(ha.cluster.raw.mode, ha.member.role)} ha-state-${haState}` : "";
     const change = changeOf(model, state.filters.showDiff, "node", node, node.hostname);
-    const typeLabel = node.type ? ICON_LABEL[node.type] || node.type : null;
-    const label = [node.hostname, KIND_LABEL[node.kind], typeLabel, node.collection ? t("shell:canvas.collection", { status: COLLECTION_LABEL[node.collection] || node.collection }) : null, ha ? "HA " + ha.member.role : null, change ? DIFF_LABEL[change] : null].filter(Boolean).join(" · ");
+    const label = text(cache, "node\u0000" + node.hostname + "\u0000" + (change || ""), () => {
+      const typeLabel = node.type ? ICON_LABEL[node.type] || node.type : null;
+      return [node.hostname, KIND_LABEL[node.kind], typeLabel, node.collection ? t("shell:canvas.collection", { status: COLLECTION_LABEL[node.collection] || node.collection }) : null, ha ? "HA " + ha.member.role : null, change ? DIFF_LABEL[change] : null].filter(Boolean).join(" · ");
+    });
     const selected = is("node", node.hostname) || state.selected.has(node.hostname) || (!!selectedAggregate && selectedAggregate.hostname === node.hostname);
     const hue = hueOfNode(model, node);
     const classes = `kind-${node.kind} type-${node.type || "unknown"} hue-${hue} collection-${node.collection || "none"}${haClasses}${change ? " diff-" + change : ""}${state.pinned.has(node.hostname) ? " pinned" : ""}${flags(selected, related.hosts.has(node.hostname), matches(query, node))}`;
@@ -79,9 +121,11 @@ export function build(toile: Toile, local: AnnotationLocal): Built {
     }
     const name = displayName(node.hostname);
     // Le rôle HA et le stack ne s'écrivent plus sous le nom : badge et chip sur le bord haut (chips.tsx).
-    const plan = cardPlan(name, { role: null, stack: null }, model.cardWidth);
+    const planKey = name + "\u0000" + model.cardWidth;
+    let plan = cache.plans.get(planKey);
+    if (!plan) { plan = cardPlan(name, { role: null, stack: null }, model.cardWidth); cache.plans.set(planKey, plan); }
     const letter = ha ? haBadge(ha.cluster.raw.mode, ha.member.role) : null;
-    const haChip = ha && letter ? { letter, down: haState === "down", title: t(haState === "down" ? "shell:canvas.haTitleDown" : "shell:canvas.haTitle", { role: ha.member.role, mode: haModeText(ha.cluster.raw.mode) }) } : null;
+    const haChip = ha && letter ? { letter, down: haState === "down", title: text(cache, "ha\u0000" + node.hostname + "\u0000" + haState, () => t(haState === "down" ? "shell:canvas.haTitleDown" : "shell:canvas.haTitle", { role: ha.member.role, mode: haModeText(ha.cluster.raw.mode) })) } : null;
     boxes.set(node.hostname, plan);
     return { id: node.hostname, type: "card", position: { x: center.x - plan.w / 2, y: center.y - plan.h / 2 }, selected, ariaLabel: label,
       data: { hostname: node.hostname, name, type: node.type, hue, plan, ha: haChip, members: node.stack ? node.stack.members : null, severity: worst(model.checksByNode.get(node.hostname) || []), change, classes, label, editable: local.editable } } satisfies CardNodeType;
@@ -95,31 +139,49 @@ export function build(toile: Toile, local: AnnotationLocal): Built {
     const hulled = hull(points, Math.max(...members.map((b) => b.w)), Math.max(...members.map((b) => b.h)));
     const box = { ...hulled, y: hulled.y - PILL_H, height: hulled.height + PILL_H };
     const selected = is("cluster", cluster.id);
-    return { id: "cluster:" + cluster.id, type: "cluster", position: { x: box.x, y: box.y }, selected, draggable: false, zIndex: -1, ariaLabel: t("shell:canvas.cluster", { label: clusterLabel(cluster, haModeText) }),
+    return { id: "cluster:" + cluster.id, type: "cluster", position: { x: box.x, y: box.y }, width: box.width, height: box.height, selected, draggable: false, zIndex: -1, ariaLabel: t("shell:canvas.cluster", { label: clusterLabel(cluster, haModeText) }),
       data: { id: cluster.id, w: box.width, h: box.height, label: clusterLabel(cluster, haModeText), classes: flags(selected, related.clusters.has(cluster.id)).trim() } } satisfies ClusterNodeType;
   });
   // Les pastilles de câble se posent sur leur courbe, sans chevaucher une carte ni une autre pastille (tags.ts).
-  const groups = speedGroups(model, sc.links);
-  // Le titre d'un cluster HA (nodes.tsx : 14 px, à 14 du bord, ligne de base à 20) est un obstacle aussi.
-  const titles = clusters.map((c) => { const d = (c as ClusterNodeType).data; return { x: c.position.x + 14, y: c.position.y + 4, w: Math.ceil(textWidth(d.label, 14) * 1.05), h: 20 }; });
-  const slots = placeCableTags(groups, sc.beams, (host) => state.positions.get(host), boxes, titles);
+  if (!cache.speeds || cache.speeds.scene !== sc) cache.speeds = { scene: sc, groups: speedGroups(model, sc.links) };
+  const groups = cache.speeds.groups;
+  // Après un déplacement (flèches, glissé relâché, alignement), les pastilles gardent un moment leur place relative sur
+  // leur câble, comme pendant un glissé, et la page redemande leur placement quand les positions ne bougent plus
+  // (`freshTags`) : le geste se peint sans attendre le placement de toutes les pastilles (~60 ms à 500 équipements,
+  // lot 13 de docs/11). Le résultat final ne dépend que des positions (même place qu'un calcul immédiat).
+  const tagKey = positionsKey(state.positions);
+  const staleTags = !freshTags && !!cache.tags && cache.tags.scene === sc && cache.tags.key !== tagKey;
+  if (!staleTags && (!cache.tags || cache.tags.scene !== sc || cache.tags.key !== tagKey)) {
+    // Le titre d'un cluster HA (nodes.tsx : 14 px, à 14 du bord, ligne de base à 20) est un obstacle aussi.
+    const titles = clusters.map((c) => { const d = (c as ClusterNodeType).data; return { x: c.position.x + 14, y: c.position.y + 4, w: Math.ceil(textWidth(d.label, 14) * 1.05), h: 20 }; });
+    cache.tags = { scene: sc, key: tagKey, slots: placeCableTags(groups, sc.beams, (host) => state.positions.get(host), boxes, titles) };
+  }
+  const slots = (cache.tags as NonNullable<BuildCache["tags"]>).slots;
+  // Une pastille cachée au repos (étiquette de faisceau sans la couche ni un clic qui la révèle, vitesse éteinte) n'entre
+  // dans le dessin qu'à sa première apparition, puis y reste pour s'effacer en fondu (lot 13 de docs/11) : à 500
+  // équipements, elles faisaient la moitié des arêtes, chacune un `svg` de React Flow. Leur place est calculée pour
+  // toutes (tags.ts) : rien ne bouge quand une pastille paraît. Son arrivée garde son fondu (`@starting-style`, canvas.css).
+  const mountTag = (id: string, shown: boolean): boolean => { if (shown) cache.mounted.add(id); return shown || cache.mounted.has(id); };
+  const bandOf = (beam: Beam): BeamBand => { let band = cache.bands.get(beam); if (!band) { band = beamBand(beam); cache.bands.set(beam, band); } return band; };
   const MID: TagSlot = { t: 0.5, side: 0 };
   const beams: BeamEdgeType[] = sc.beams.map((beam) => {
     const selected = is("beam", beam.id);
     const classes = `${beam.peerLink ? "peer-link " : ""}${beam.degraded ? "degraded " : ""}${beam.mlags.length ? "mlag " : ""}${flags(selected, related.beams.has(beam.id)).trim()}${revealed(beam.id)}`;
-    return { id: "beam:" + beam.id, type: "beam", source: beam.a.hostname, target: beam.b.hostname, selected, data: { beam, band: beamBand(beam), slot: slots.get(beamTagId(beam)) || MID, classes } };
+    return { id: "beam:" + beam.id, type: "beam", source: beam.a.hostname, target: beam.b.hostname, selected, data: { beam, band: bandOf(beam), slot: slots.get(beamTagId(beam)) || MID, classes } };
   });
   // La vitesse (speed.ts) : une pastille par groupe, montrée par la couche « vitesses » ou quand le groupe est
   // sélectionné ou éclairé ; ses câbles cèdent alors leur point de gravité à la pastille.
   const covered = new Set<string>();
-  const speeds: SpeedEdgeType[] = groups.map((group) => {
+  const speeds: SpeedEdgeType[] = [];
+  groups.forEach((group) => {
     const picked = group.links.some((l) => is("link", l.id)) || (!!group.beam && is("beam", group.beam.id));
     const lit = group.links.some((l) => related.links.has(l.id)) || (!!group.beam && related.beams.has(group.beam.id));
     const on = state.layers.speeds || picked || lit;
     if (on) group.links.forEach((l) => covered.add(l.id));
     const first = group.links[0];
-    return { id: "speed:" + group.key, type: "speed", source: first.a.hostname, target: first.b.hostname, selectable: false, focusable: false,
-      data: { group, slot: slots.get(speedTagId(group)) || MID, classes: (on ? "on" : "") + flags(picked, lit) } };
+    if (!mountTag("speed:" + group.key, on)) return;
+    speeds.push({ id: "speed:" + group.key, type: "speed", source: first.a.hostname, target: first.b.hostname, selectable: false, focusable: false,
+      data: { group, slot: slots.get(speedTagId(group)) || MID, classes: (on ? "on" : "") + flags(picked, lit) } });
   });
   const cables: CableEdgeType[] = sc.links.map((link) => {
     const change = changeOf(model, state.filters.showDiff, "link", link, link.id);
@@ -127,15 +189,19 @@ export function build(toile: Toile, local: AnnotationLocal): Built {
     const classes = `link status-${link.status}${link.raw.oper === "down" ? " oper-down" : ""}${link.pairCount > 2 ? " crowded" : ""}${link.heartbeat ? " heartbeat" : ""}${change ? " diff-" + change : ""}${covered.has(link.id) ? " speed-covered" : ""}${flags(selected, related.links.has(link.id))}`;
     return { id: "link:" + link.id, type: "cable", source: link.a.hostname, target: link.b.hostname, selected, data: { link, boxA: boxOf(link.a.hostname), boxB: boxOf(link.b.hostname), change, classes } };
   });
-  const labels: BeamEdgeType[] = beams.map((beam) => ({ ...beam, id: "beamlabel:" + (beam.data as BeamData).beam.id, type: "beamLabel" }));
+  const labels: BeamEdgeType[] = beams
+    .filter((beam) => { const id = (beam.data as BeamData).beam.id; return mountTag("beamlabel:" + id, state.layers.beams || !!revealed(id)); })
+    .map((beam) => ({ ...beam, id: "beamlabel:" + (beam.data as BeamData).beam.id, type: "beamLabel" }));
   // Les cadres de groupe (docs/10 §5) : la boîte des membres présents, le plus grand dessous (G1), sous les clusters.
+  // Cadres et clusters déclarent leur taille (`width`, `height`) : React Flow ne monte que ce qui se voit et jugerait
+  // sinon un cadre hors champ sur une mesure périmée quand ses membres bougent (lot 13 de docs/11).
   const frames: FrameNodeType[] = [];
   sc.groups.forEach((group) => {
     const present = group.members.filter((host) => sc.shown.has(host) && state.positions.has(host));
     const frame = frameOf(present.map((host) => state.positions.get(host) as Point), present.map(boxOf), group.style);
     if (!frame) return;
     const selected = is("group", group.id) || state.multi.groups.includes(group.id);
-    frames.push({ id: "group:" + group.id, type: "frame", position: { x: frame.x, y: frame.y }, selected, draggable: !local.control, selectable: !local.control, focusable: !local.control, ariaLabel: t("shell:canvas.group", { label: group.label }),
+    frames.push({ id: "group:" + group.id, type: "frame", position: { x: frame.x, y: frame.y }, width: frame.w, height: frame.h, selected, draggable: !local.control, selectable: !local.control, focusable: !local.control, ariaLabel: t("shell:canvas.group", { label: group.label }),
       data: { id: group.id, label: group.label, w: frame.w, h: frame.h, style: group.style, slot: labelSlot(frame, group.style), dash: dashArray(group.style), present: present.length,
         classes: flags(selected, related.groups.has(group.id)).trim(), editable: local.editable } });
   });
@@ -192,20 +258,22 @@ export function build(toile: Toile, local: AnnotationLocal): Built {
     ends.set(c.id, { a: path.a, b: path.b, mid: path.mid });
     const origin = bbox([path.a, path.b, path.mid]);
     const selected = is("connector", c.id) || state.multi.connectors.includes(c.id);
-    // glissable avec une sélection (ses bouts libres suivent le bloc, connector.tsx) ; seul, il se glisse par son tracé
-    lines.push({ id: "connector:" + c.id, type: "connector", position: { x: origin.x, y: origin.y }, selected, draggable: local.editable && !c.locked && !local.control, selectable: !local.control, focusable: !local.control, zIndex: c.z === "back" ? Z_BACK - 1 : Z_FRONT + 1,
+    // glissable avec une sélection (ses bouts libres suivent le bloc, connector.tsx) ; seul, il se glisse par son tracé.
+    // Sa boîte est celle de son tracé (son `svg` fait 1 × 1, le tracé déborde) : React Flow ne monte que ce qui se voit
+    // et le jugerait sinon par son coin (lot 13 de docs/11) ; la boîte ne prend aucun appui (canvas.css).
+    lines.push({ id: "connector:" + c.id, type: "connector", position: { x: origin.x, y: origin.y }, width: Math.max(1, origin.w), height: Math.max(1, origin.h), selected, draggable: local.editable && !c.locked && !local.control, selectable: !local.control, focusable: !local.control, zIndex: c.z === "back" ? Z_BACK - 1 : Z_FRONT + 1,
       ariaLabel: t("shell:canvas.connector", { label: c.label || c.id }), data: { c, places: { start, end }, origin: { x: origin.x, y: origin.y }, editable: local.editable, label: c.label, classes: flags(selected, related.connectors.has(c.id)).trim() } });
   });
   // Ce que lit un lecteur d'écran, dans la langue de la page : React Flow pose sinon « node », « edge » et « Edge from X
   // to Y » en anglais (revue de l'interface bilingue, B4) ; les étiquettes et les vitesses, décoratives, se taisent.
-  const role = (type: string): string => t(("shell:canvas.role." + type) as never) as unknown as string;
+  const role = (type: string): string => text(cache, "role\u0000" + type, () => t(("shell:canvas.role." + type) as never) as unknown as string);
   const all = (frames as FlowNode[]).concat(clusters, nodes, notes, lines).map((n) => ({ ...n, domAttributes: { "aria-roledescription": role(n.type || "card") } }));
   const spoken = (e: FlowEdge): FlowEdge => {
-    if (e.type === "cable") { const link = (e.data as CableData).link; return { ...e, ariaLabel: t("shell:canvas.cable", { a: endLabel(link.a), b: endLabel(link.b) }), domAttributes: { "aria-roledescription": role("cable") } }; }
-    if (e.type === "beam") return { ...e, ariaLabel: t("shell:canvas.beam", { label: beamLabel((e.data as BeamData).beam, true) }), domAttributes: { "aria-roledescription": role("beam") } };
+    if (e.type === "cable") { const link = (e.data as CableData).link; return { ...e, ariaLabel: text(cache, "cable\u0000" + link.id, () => t("shell:canvas.cable", { a: endLabel(link.a), b: endLabel(link.b) })), domAttributes: { "aria-roledescription": role("cable") } }; }
+    if (e.type === "beam") { const beam = (e.data as BeamData).beam; return { ...e, ariaLabel: text(cache, "beam\u0000" + beam.id, () => t("shell:canvas.beam", { label: beamLabel(beam, true) })), domAttributes: { "aria-roledescription": role("beam") } }; }
     return { ...e, domAttributes: { "aria-hidden": "true" } };
   };
   const edges: FlowEdge[] = (beams as FlowEdge[]).concat(cables, labels, speeds).map(spoken);
-  return { nodes: all, edges, key: selectionKey(all.filter((n) => n.selected), edges.filter((e) => e.selected)), hasSelection: !!sel || multi, frames: noteFrames, ends, boxes, groups: groupFrames };
+  return { nodes: all, edges, key: selectionKey(all.filter((n) => n.selected), edges.filter((e) => e.selected)), hasSelection: !!sel || multi, frames: noteFrames, ends, boxes, groups: groupFrames, staleTags };
 }
 

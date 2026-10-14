@@ -821,6 +821,17 @@ sur `demo-dc`).
 
 ### Lot 6 — Arrangements : en couches, en grille, radial (P0, M)
 
+> **Parqué le 2026-10-14 par Orhan, sauf « en grille », déplacé au lot 8.** Sa raison : « le placement est vraiment très
+> personnel en fonction des préférences des utilisateurs, c'est aussi assez unique à chaque infrastructure. On n'est pas
+> dans un livre scolaire où tout est rangé en couche core / distribution / access. Si Living Diagram est assez riche et
+> simple dans la partie édition, le travail n'est à faire qu'une seule fois au moment de la première collecte et ensuite
+> les positions sont stockées. » C'est le modèle du placement mémorisé (`docs/09`) : on place une fois, une nouvelle run
+> ne place que les nouveaux. Un rangement « en couches » supposerait une topologie de manuel et serait presque toujours à
+> refaire à la main. Ce qui compte donc : que le placement manuel, fait une fois, soit rapide et agréable même sur une
+> grosse infrastructure, d'où l'ordre révisé de §7 (lot 13 performance, puis lot 8 guides avec « mettre en grille », puis
+> lot 7). En couches, radial, organique relancé et « tout ranger » : parqués, la spécification ci-dessous reste comme
+> trace et ne se code pas sans nouvelle demande.
+
 **En une phrase** : « ranger » place la sélection, ou tout, comme un ingénieur réseau dessinerait : le cœur en haut,
 l'accès en bas, les paires côte à côte.
 
@@ -909,6 +920,15 @@ langues) ; Chromium : Ctrl+0 / 1 / 2, indicateur, `?`, mode présentation masque
 - **Pendant un redimensionnement** : le bord tiré s'aligne de même (lot 1 fournit les poignées).
 - **Flèches du clavier** : pas de guides (déplacement d'un carreau).
 - **Préférence** : « guides » dans `Controls`, actif par défaut (`ld-prefs.guides`).
+- **Mettre la sélection en grille** (repris du lot 6, parqué, le 2026-10-14) : un geste d'édition à côté d'aligner et
+  répartir (volet « aligner et répartir » de la barre contextuelle, menu contextuel d'une sélection) pour poser d'un coup
+  vingt switchs d'accès en rangées régulières. Sélection d'au moins trois éléments ; la grille part du coin haut gauche
+  de la boîte englobante de la sélection ; colonnes = `ceil(sqrt(n × 1,6))` ; ordre de lecture actuel (rangées par y puis
+  x, pour que la grille respecte l'ordre que l'utilisateur voit), à défaut par nom ; pas horizontal = largeur commune
+  + 60, vertical = hauteur de carte + 60 (boîtes réelles pour les annotations) ; positions entières, aimantées à la grille
+  si l'aimant est actif ; les éléments hors sélection ne bougent pas ; **une entrée d'historique**, paquet d'épingles
+  (nom) ou déplacements locaux (sans) ; message « 20 éléments mis en grille (orhan) ». Module pur
+  `engine/src/canvas/align.ts` (à côté d'`alignBoxes`), testé sous Node. Jamais de rangement imposé à l'ouverture.
 
 **Code** : `engine/src/canvas/guides.ts` (pur, testé), `app/canvas/Flow.tsx` (`onNodeDrag`), `app/canvas/annotation.tsx`
 (redimensionnement), `app/canvas/GuideLayer.tsx` (nouveau, SVG écran), `components/Controls.tsx`, `state/prefs.ts`,
@@ -919,6 +939,23 @@ candidate hors zone, 400 candidates en < 2 ms) ; Chromium : un glissé qui passe
 la ligne se voit, Alt l'empêche, préférence rangée.
 
 **Acceptation** : capture `1-guide-centre`, `2-espacement-egal` prises **pendant** le glissé (le pilote tient le bouton).
+
+**Prototype validé le 2026-10-14** (`.impeccable/prototype-lot-8/`, skills frontend-design et impeccable, revue de design
+indépendante appliquée ; Orhan : « vraiment pas mal du tout comme rendu et comme qualité ») ; il fait foi pour le rendu
+(trait plein de 1 px interrompu sur les cartes, croix aux coins d'un repère de bord, cote d'écart en capsule, équerres de
+coin pour la boîte d'une sélection multiple, aperçu de la grille avec le nom de chaque place, pastille du geste à la
+première place libre). Réponses d'Orhan, qui remplacent la spécification ci-dessus là où elles diffèrent :
+1. **Ctrl** tenu pendant le geste suspend l'aimantation (et non Alt : Alt + glissé = cloner depuis le lot 3).
+2. **Repères en vert chartreuse par défaut** (`--guide`, `#c6f03a` sombre, `#4f7a00` clair), **et la couleur se choisit** :
+   préférence du navigateur (`ld-prefs`, comme la grille et le thème ; propre à chacun, jamais une intention), réglée dans
+   le panneau Affichage par une rangée de pastilles (chartreuse + les teintes nommées de `hues.ts` qui gardent un
+   contraste ≥ 3:1 sur la toile dans les deux thèmes, vérifié par un test), « défaut » pour revenir au chartreuse.
+3. **Grille : ordre par nom par défaut**, « à l'écran » en option dans le volet ; le dernier choix est une préférence du
+   navigateur.
+4. **Colonnes par défaut : le moins de cases vides** (4 × 3 pour 12, 5 × 4 pour 20), réglables par − / + dans le volet.
+
+Le geste existe aussi au clic droit d'une sélection et par **Alt+G** (à juger à l'usage dans le navigateur d'Orhan, avec le
+seuil de 8 px sur une grosse infrastructure).
 
 ### Lot 9 — Ordre de superposition et verrou (P1, M) — contrat `Intent` 1.6.0
 
@@ -1069,6 +1106,88 @@ dite). **Revue indépendante** (API).
 **Code** : `app/canvas/Flow.tsx`, `nodes.tsx`, `edges.tsx`, `connector.tsx`, `toile.ts` (versions par élément),
 `backend/tests/test_app.py` (`test_the_application_at_the_gauge`).
 
+**Fait le 2026-10-14** : rien ne change à l'écran (captures avant / après identiques à 0-6 pixels de tramée près) ; à
+500 équipements, la sélection, les flèches, le collage et le glissé ne reconstruisent et ne peignent plus toute la
+toile. Mesuré d'abord, puis après chaque correction (Chromium sans écran ni GPU, 1440 × 900, `generate --seed 7
+--devices 500`, médianes de trois ; script `.impeccable/planche-lot-13/scripts/mesure_lot13.py`, résultats
+`mesures-*.json`) ; le profil a montré que l'essentiel n'était pas le JavaScript mais le rendu natif de ~45 000
+éléments DOM (3 856 arêtes, chacune un `svg` de React Flow) et ~4 400 abonnements au magasin de React Flow. Les
+corrections, dans l'ordre : (A) `React.memo` sur nœuds et arêtes (cartes, disques, clusters, cadres sur leurs seules
+données) : seul, sans effet, les données étant neuves à chaque version ; (B) **reprise des objets inchangés**
+(`app/canvas/reuse.ts`, pur : égalité en profondeur bornée, l'objet déjà montré resservi tel quel, les mesures
+`measured` gardées quand il change ; une version sans changement ne donne rien à React Flow) ; (C) **caches de
+`flow-build.ts`** par toile et par langue : plan de carte, textes traduits (noms accessibles, rôles : 4 400 appels de
+`t` par version avant), groupes de vitesse par scène, bande de faisceau, place des pastilles recalculée au changement
+de positions seulement ; (D) un connecteur abonné à **ses deux bouts** (nœud, données, place, taille) au lieu de
+`s.nodes` ; (F) le glissé d'un cadre de groupe déplace ses membres dans le même `applyNodeChanges` que le cadre (plus
+de second passage ni de second `setNodes`) ; (G) **une pastille cachée au repos** (étiquette de faisceau, vitesse
+éteinte) n'entre dans le dessin qu'à sa première apparition puis y reste (fondu de sortie gardé), son arrivée garde
+son fondu par `@starting-style` (`canvas.css`) : 1 918 arêtes de moins à l'ouverture ; (H) **`onlyRenderVisibleElements`**
+évalué puis adopté, avec ses protections : cadres, clusters et connecteurs déclarent leur taille (`width`, `height` ; un
+connecteur, la boîte de son tracé, sans appui, cachée dans la minimap), sinon React Flow jugeait un connecteur par son
+coin et un cadre sur une mesure périmée ; deux défauts que la culture révélait, corrigés : un nœud remonté rejouait la
+dernière demande d'édition (F2) et ouvrait son champ (registre `claim` dans `annotation.tsx`, au lieu d'une référence
+par instance), un champ d'édition en place démonté avec son nœud perdait sa saisie (il enregistre, comme quitté :
+`useFinish`, `inline.tsx`) ; Tab vers un élément hors champ centre la vue et le focus suit à son arrivée (`Shell.tsx`) ;
+(I) après un déplacement, **la place des pastilles attend que les positions ne bougent plus** (120 ms, minuterie de la
+page) : elles gardent entre-temps leur place relative sur leur câble, comme pendant un glissé ; le résultat final est
+celui d'un calcul immédiat (vérifié). Mesures à 500 équipements (temps en ms ; images/s, image la plus longue entre
+parenthèses ; « sélection » : du clic au DOM à jour / à la fiche et la carte peintes ; « 1er dessin » : placement
+mémorisé, de la navigation aux cartes peintes) :
+
+| Étape | 1er dessin | sélection | barre peinte | flèche ×1 | flèche ×20 | collage 30 | glissé carte | bloc de 20 | cadre de groupe | pano. de près | pano. de loin | cadrer tout | tas Mo / DOM |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| avant | 2 791 | 443 / 719 | 777 | 288 | 360 | 1 444 | 15-17 (433) | 18 (517) | 14 (517) | 19-22 (167) | 22 (117) | 413 | 75 / 44 961 |
+| A memo | 3 082 | — / 712 | 811 | 346 | 367 | 1 427 | 15-17 (467) | 19 (500) | 15 (533) | — | — | 396 | 75 / 44 961 |
+| B reprise | 2 470 | — / 522 | 622 | 117 | 173 | 786 | 15-19 (433) | 20 (350) | 15 (417) | — | — | 396 | 72 / 44 961 |
+| C caches | 2 348 | — / 420 | 490 | 109 | 172 | 587 | 17-21 (317) | 18 (333) | 15 (283) | — | — | 416 | 71 / 44 961 |
+| D + F connecteurs, cadre | 2 253 | — / 430 | 538 | 127 | 177 | 564 | 16-20 (333) | 18 (283) | 16 (300) | — | — | 387 | 71 / 44 961 |
+| G pastilles à la demande | 1 614 | 232 / 286 | 375 | 80 | 113 | 456 | 24-29 (200) | 21 (183) | 17 (183) | 29-30 (50) | 39 (50) | 235 | 53 / 28 717 |
+| H culture | 1 175 | 71 / 149 | 207 | 52 | 56 | 315 | 49-50 (117) | 35 (167) | 29 (150) | 41-47 (50) | 29 (50) | 555 | 34 / 8 954 |
+| I pastilles différées | 1 129 | 72 / 147 | 208 | 30 | 46 | 319 | 50-51 (83) | 35 (100) | 30 (100) | 37-42 (33) | 25 (67) | 548 | 34 / 8 954 |
+| **final** | **1 253** | **73 / 146** | **211** | **45** | **50** | **298** | **51-53 (67)** | **35 (67)** | **29 (100)** | **37-45 (33)** | **36 (50)** | **534** | **34 / 8 954** |
+
+Sur `demo-dc` (33 équipements), avant → final : 1er dessin 257 → 211, sélection 56 / 130 → 42 / 112, barre 198 →
+180, flèche ×1 63 → 37, collage 183 → 131, glissé 51-53 i/s inchangé, « cadrer tout » 61 → 81. Les étapes A à D ont été
+mesurées avec la première version du script (sans le temps « DOM à jour » ni les panoramiques). Les écarts d'une
+passe à l'autre sur une même étape vont jusqu'à ±15 %. Le « 1er dessin » avec placement calculé (première ouverture
+d'une infrastructure) passe de 3,2 s à 1,5 s. **Verdict sur les cibles** : premier dessin < 2 s, **tenu** (1,25 s) ;
+glissé ≥ 50 images / s, **tenu pour une carte** (51-53 i/s, aucune image > 100 ms), **pas pour un bloc de 20 (35 i/s)
+ni un cadre de groupe de 10 membres (29 i/s)** (dans un bloc, chaque image déplace 20 cartes et leurs câbles) ; sélection
+< 50 ms, **non tenue** (DOM à jour en 73 ms, peint en 146 ms ; sur `demo-dc`, 42 / 112 ms : le plancher est hors de la
+toile, la fiche qui s'ouvre et la tramée logicielle de Chromium sans GPU, plein écran avec panneaux floutés, 546 ms de
+tramée hors du fil principal au profil) ; déterminisme **intact** (captures, pastilles replacées égales à un calcul
+immédiat, garde). **La garde** : `backend/tests/test_app_gauge.py`, `test_the_application_at_the_gauge` (marqué
+`slow`, marqueur enregistré dans `pyproject.toml`, lancé par la suite complète ; ~40 s) : 500 équipements, sélection
+peinte < 200 ms (médiane de trois), glissé sans image > 100 ms (pendant le geste, la relâche à part), et la justesse de
+ce que la performance a changé (culture active ; nœud monté à son arrivée et jamais caché ; tout présent après
+« cadrer tout » et une bascule de couche ; connecteur dont le coin est hors champ ; champ d'édition qui enregistre en
+sortant de la vue ; demande d'édition non rejouée ; Tab vers un élément hors champ ; fondu d'arrivée d'une pastille ;
+pastilles replacées comme un calcul immédiat) ; 8 mutations attrapées sur 8 (`scripts/mutations_garde_lot13.py`) ; le
+module pur, 11 sur 11 sous Node (`scripts/mutations_lot13.py`). **Écarts, décisions prises seul** : (1) la garde vit
+dans son propre fichier (`test_app.py` fait 1 718 lignes ; les lots 2 à 4 ont fait de même) ; (2) les versions par
+élément de la spécification sont remplacées par une comparaison des objets construits (même effet, aucune
+comptabilité de versions à tenir dans `toile.ts`, qui ne change pas) ; (3) culture adoptée (sans elle, la sélection
+reste à ~290 ms et le glissé à ~25 i/s, la garde ne tient pas) ; en échange, « cadrer tout » monte tout (413 → 534 ms),
+le panoramique de loin reste au niveau d'avant (22 → 36 i/s, mais 39 sans la culture) et un élément qui ne déborde de
+sa boîte (courbe d'un câble, étiquette de groupe posée hors de son cadre, ligne de rappel d'une annotation hors champ)
+peut paraître au bord de l'écran un instant plus tard : ajouté à `docs/a-juger-a-l-usage.md`, la retirer est une
+propriété ; (4) le parcours de la barre contextuelle (`test_app_floating.py`) attendait une note posée hors champ dans
+le DOM : il attend désormais qu'elle soit dessinée par la toile, la ligne suivante la montre (aucune assertion retirée) ;
+(5) un champ d'édition qui disparaît sans avoir fini enregistre, aussi hors de la culture (sélection changée ailleurs,
+annotation supprimée entre-temps : avant, la saisie était perdue en silence) ; (6) le placement des pastilles
+(`canvas/tags.ts`) n'est pas accéléré : il est partagé avec `/view`, gelée. **Parqués** : « cadrer tout » à 500 (tout se
+monte ; les dessins de loin d'une carte, lot 5, font un quart de ses éléments : n'en monter qu'un selon le zoom
+l'allégerait d'autant) ;
+glissé d'un bloc ou d'un cadre sous 50 i/s ; la liste des nœuds et arêtes reconstruite puis comparée à chaque version
+(~15 ms à 500) ; le panoramique de loin. **§8, avis** : React Flow tient la jauge pour ce qu'Orhan fait à 500
+équipements (sélectionner, glisser, pousser aux flèches, coller, au zoom de travail), à condition de ne monter que ce
+qui se voit ; ce qui reste lent (tramée sans GPU, « cadrer tout ») tient au nombre d'éléments à peindre plus qu'à la
+bibliothèque. Pas de raison de rouvrir le pari ; à revoir si Orhan juge à l'usage le bord de l'écran ou « cadrer tout ».
+Captures : `.impeccable/planche-lot-13/` (`avant-*`, `apres-*`, `diff-*` ; quatre vues sur `demo-dc` et sur 500
+équipements : ouverture, « cadrer tout », sélection, couches vitesses et port-channels ; `scripts/capture_lot13.py`,
+`compare_lot13.py`).
+
 ### Lot 14 — La passe visuelle « moderne » (P2, M) — après les lots 1 à 5
 
 **En une phrase** : ce que la main fait, l'œil le voit venir et le voit se faire.
@@ -1116,6 +1235,12 @@ connecteur à segments libres, présence en temps réel, tactile.
 | 13 | 12 Multi-utilisateur | P1 | M | — | Opus + revue |
 | 14 | 14 Passe visuelle | P2 | M | 1 à 8 | Opus |
 | 15 | 15 Texte riche | P2 | S | 4 | Sonnet ou Opus |
+
+**Ordre révisé le 2026-10-14** (Orhan, après le lot 4) : lots 5, 1, 2, 3, 4 livrés ; **lot 6 parqué** (voir sa section ;
+« en grille » passe au lot 8) ; la suite est **13 → 8 → 7**, parce que le placement se fait une fois à la main et doit
+être rapide sur une grosse infrastructure : la performance d'abord (0,7 s par sélection, 1,2 s par flèche, 1,5 s par
+collage à 500 équipements), puis les guides d'alignement (avec un prototype du rendu des repères avant le code), puis la
+navigation. Les lots 9 à 12, 14 et 15 suivent dans l'ordre du tableau.
 
 Les lots 11 et 12 n'ont pas de dépendance : ils peuvent partir en parallèle des lots 2 à 4 sur une branche à part,
 à condition de ne pas toucher `Flow.tsx` (lot 11 a) ou de le toucher en dernier (lot 12, fusion). Les lots 1 à 4 sont

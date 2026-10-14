@@ -5,9 +5,9 @@
 // stylise), jamais de style en ligne. Une poignée invisible au centre : les câbles vont de centre à centre, sous les
 // cartes.
 import { Handle, Position } from "@xyflow/react";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useState } from "react";
 import { t } from "../../i18n";
-import { AnnotationContext, EditRequest } from "./annotation";
+import { AnnotationContext, EditRequest, claim } from "./annotation";
 import { InlineInput } from "./inline";
 import type { Node, NodeProps } from "@xyflow/react";
 import { STUB_R } from "../../canvas/card";
@@ -121,10 +121,9 @@ export function FrameNode({ data }: NodeProps<FrameNodeType>) {
   const s = data.style;
   const actions = useContext(AnnotationContext), request = useContext(EditRequest);
   const [editing, setEditing] = useState(false);
-  const handled = useRef(0); // une demande d'édition ne s'ouvre qu'une fois (le cadre redessiné ne la rejoue pas)
+  // une demande d'édition ne s'ouvre qu'une fois (le cadre redessiné ou remonté ne la rejoue pas)
   useEffect(() => {
-    if (!request || request.kind !== "group" || request.id !== data.id || !data.editable || request.at === handled.current) return;
-    handled.current = request.at;
+    if (!request || request.kind !== "group" || request.id !== data.id || !data.editable || !claim(request)) return;
     setEditing(true);
   }, [request, data.id, data.editable]);
   useEffect(() => { actions.hold("edit:group:" + data.id, editing); return () => actions.hold("edit:group:" + data.id, false); }, [actions, data.id, editing]);
@@ -150,4 +149,8 @@ export function FrameNode({ data }: NodeProps<FrameNodeType>) {
   );
 }
 
-export const nodeTypes = { card: CardNode, stub: StubNode, cluster: ClusterNode, frame: FrameNode };
+// Un nœud ne se redessine que si ses données changent (lot 13 de docs/11) : React Flow repasse aussi sa place, son état
+// de glissé, sa profondeur, que la carte, le disque, le cluster et le cadre ne lisent pas (leurs classes viennent des
+// données) ; les contextes (actions, demande d'édition) redessinent le cadre quand ils changent, comme avant.
+const sameData = (a: { data: unknown }, b: { data: unknown }): boolean => a.data === b.data;
+export const nodeTypes = { card: memo(CardNode, sameData), stub: memo(StubNode, sameData), cluster: memo(ClusterNode, sameData), frame: memo(FrameNode, sameData) };

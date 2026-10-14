@@ -329,11 +329,41 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   2026-10-07, qui révise celle du 2026-10-06 pour l'application seulement, `/view` gardant graph.ts) : `canvas/toile.ts`
   tient l'état (filtres, épingles locales, mémoire des places, positions, sélection) et les commandes (placer, cadrer,
   montrer, sélectionner, déplacer, aligner, se réaligner), sans DOM ; `Flow.tsx` reconstruit nœuds et arêtes à chaque
-  version de la toile et laisse React Flow tenir la vue, les appuis (Maj + clic, rectangle, glissé de la sélection) et
-  le clavier ; les nœuds sont dessinés en SVG aux dimensions du plan de `card.ts` (la taille mesurée est celle
+  version de la toile (en reprenant l'objet déjà montré de tout ce qui n'a pas changé, voir « La toile à la jauge ») et
+  laisse React Flow tenir la vue, les appuis (Maj + clic, rectangle, glissé de la sélection) et le clavier ; les nœuds sont dessinés en SVG aux dimensions du plan de `card.ts` (la taille mesurée est celle
   calculée : positions déterministes, mêmes classes et styles que `/view`) ; les arêtes reprennent la géométrie de
   `/view` (éventail, bandes, halos, noms de port hors des cartes). Changer la forme d'un nœud = `card.ts` (le plan),
   `nodes.tsx` et `canvas.css`, une capture.
+- **La toile à la jauge** (lot 13 de `docs/11`, 2026-10-14 ; 500 équipements du générateur, 1 038 câbles). Rien ne
+  change à l'écran ; ce qui coûtait est ailleurs. **Ce qui ne change pas garde son objet** : la toile reconstruit tout à
+  chaque version (`flow-build.ts`), puis `app/canvas/reuse.ts` (pur, testé sous Node) reprend l'objet déjà montré de
+  chaque nœud et arête qui ne diffère en rien (égalité en profondeur bornée), avec ses mesures (`measured`) quand il a
+  changé ; React Flow ne redessine que ce qui change, une version sans changement ne lui donne rien. Nœuds et arêtes
+  sont `React.memo` (les cartes, disques, clusters et cadres sur leurs seules données). **Ce qui se calcule une fois** :
+  par toile et par langue, le plan d'une carte, les textes traduits (noms accessibles, rôles), les groupes de vitesse
+  (par scène), la bande d'un faisceau ; la place des pastilles de câble (`placeCableTags`) ne se recalcule qu'au
+  changement de positions, et **après un déplacement elle attend que les positions ne bougent plus** (120 ms,
+  minuterie de la page dans `Flow.tsx`) : pendant ce temps les pastilles gardent leur place relative sur leur câble,
+  comme pendant un glissé, et le résultat final est celui d'un calcul immédiat. **Une pastille cachée au repos**
+  (étiquette de faisceau sans la couche ni un clic qui la révèle, vitesse éteinte) n'entre dans le dessin qu'à sa
+  première apparition puis y reste, pour s'effacer en fondu ; son arrivée garde son fondu (`@starting-style`,
+  `canvas.css`) ; elles faisaient la moitié des arêtes, chacune un `svg` de React Flow. **React Flow ne monte que ce qui
+  se voit** (`onlyRenderVisibleElements`) : un élément entre dans le DOM quand sa boîte entre dans la vue ; cadres,
+  clusters et connecteurs déclarent leur taille (`width`, `height` ; un connecteur, la boîte de son tracé, qui ne prend
+  aucun appui) pour être jugés sur leur vraie boîte, jamais sur une mesure périmée ; un nœud démonté puis remonté ne
+  rejoue pas une demande d'édition (`claim`, `annotation.tsx`) ; un champ d'édition en place qui disparaît avec son
+  nœud enregistre, comme quitté (`useFinish`, `inline.tsx`) ; Tab vers un élément hors champ centre la vue sur lui et
+  le focus suit à son arrivée (`Shell.tsx`). Un connecteur ne s'abonne qu'à ses deux bouts ; le glissé d'un cadre de
+  groupe déplace ses membres dans le même passage que le cadre. **Chiffres** (Chromium sans écran ni GPU, 1440 × 900,
+  médianes de trois ; avant → après) : premier dessin, placement mémorisé, 2,79 s → 1,25 s ; du clic à la fiche peinte
+  719 → 146 ms (DOM à jour 443 → 73 ms) ; à la barre contextuelle 777 → 211 ms ; flèche, un équipement 288 → 45 ms,
+  vingt 360 → 50 ms ; collage de 30 éléments 1 444 → 298 ms ; glissé d'une carte 15-17 → 51-53 images/s (image la plus
+  longue 433 → 67 ms) ; panoramique de près 19-22 → 37-45 i/s, de loin 22 → 36 i/s ; « cadrer tout » 413 → 535 ms (tout
+  se monte) ; tas JS 75 → 34 Mo, 45 000 → 9 000 éléments DOM à l'ouverture. Sur `demo-dc` (33 équipements), du clic à
+  la fiche peinte 131 → 112 ms. Ce qui reste reconstruit à chaque version : la liste des nœuds et arêtes (comparés un à
+  un, ~15 ms à 500) ; ce qui reste lent : la tramée logicielle de Chromium sans GPU (plein écran, panneaux floutés),
+  « cadrer tout » qui monte tout. Mesures, profils et captures : `.impeccable/planche-lot-13/` (scripts rejouables) ;
+  garde Chromium `backend/tests/test_app_gauge.py` (marquée `slow`, lancée dans la suite complète).
 - **La carte** (`canvas/card.ts`, partagée avec `/view` ; forme large du 2026-10-07, sur les retours d'Orhan) : un rail
   de la couleur du type sur le bord gauche, l'icône de type dans un carreau teinté de la même couleur, le nom en
   capitales et en chasse fixe (largeur calculée, jamais mesurée), le rôle HA et le compte de stack sur une petite

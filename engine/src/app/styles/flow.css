@@ -52,3 +52,4 @@
 .react-flow__minimap-node.mm-stub { fill: var(--ink-4); fill-opacity: 0.5; }
 .react-flow__minimap-node.mm-cluster { fill: var(--structure); fill-opacity: 0.12; }
 .react-flow__minimap-node.mm-frame { fill: var(--ink-4); fill-opacity: 0.12; }
+.react-flow__minimap-node.mm-connector { display: none; } /* un trait : la boîte de son tracé (lot 13) n'a rien à montrer */

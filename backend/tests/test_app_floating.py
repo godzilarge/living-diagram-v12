@@ -94,7 +94,9 @@ def test_the_application_floating_bar_in_a_browser(settings, bundle_dict):
             tab.navigate(url)
             _wait(tab, READY)
             note = f"annotation:{nid}"
-            _wait(tab, f"!!document.querySelector('.react-flow__node[data-id=\"{note}\"]')")
+            # posée hors champ : la toile la dessine (sa boîte est connue) ; React Flow ne la monte qu'une fois en vue
+            # (lot 13 de docs/11, `onlyRenderVisibleElements`), ce que fait la ligne suivante
+            _wait(tab, f"LDApp.debug.handle().toile.frames.has({json.dumps(nid)})")
 
             # une note sélectionnée : la barre au-dessus, centrée, sans la recouvrir ; un toolbar nommé
             tab.js(f"LDApp.debug.handle().toile.reveal({{ kind: 'annotation', id: {json.dumps(nid)} }})")

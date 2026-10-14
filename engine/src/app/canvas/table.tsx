@@ -15,6 +15,7 @@ import { MAX_CELL, cellAt, cells, grid, isSingle, mergeAt, rangeOf, resizeColumn
 import type { Grid, Range } from "../../canvas/table";
 import type { Annotation } from "../../canvas/types";
 import type { TableContent } from "../../contracts/intent";
+import { useFinish } from "./inline";
 
 export type Cell = [number, number];
 /** Ce qu'un clic droit sur une cellule dit au menu : la cellule, et la plage choisie si elle la contient. */
@@ -33,17 +34,18 @@ const PAD = 6;
 /** Le champ d'une cellule éditée en place : Entrée ou quitter enregistre, Tab passe à la cellule suivante, Échap abandonne. */
 function CellEditor({ box, initial, onDone }: { box: { x: number; y: number; w: number; h: number }; initial: string; onDone: (text: string | null, next: boolean) => void }) {
   const ref = useRef<HTMLInputElement>(null);
+  const { finish, track } = useFinish((text, next) => onDone(text, !!next), initial);
   useEffect(() => { const el = ref.current; if (el) { el.focus(); el.select(); } }, []);
   const keys = (event: KeyboardEvent<HTMLInputElement>): void => {
     event.stopPropagation();
-    if (event.key === "Escape") { event.preventDefault(); onDone(null, false); }
-    else if (event.key === "Enter") { event.preventDefault(); onDone((event.target as HTMLInputElement).value, false); }
-    else if (event.key === "Tab") { event.preventDefault(); onDone((event.target as HTMLInputElement).value, true); }
+    if (event.key === "Escape") { event.preventDefault(); finish(null, false); }
+    else if (event.key === "Enter") { event.preventDefault(); finish((event.target as HTMLInputElement).value, false); }
+    else if (event.key === "Tab") { event.preventDefault(); finish((event.target as HTMLInputElement).value, true); }
   };
   return (
     <foreignObject x={box.x} y={box.y} width={Math.max(20, box.w)} height={Math.max(16, box.h)} className="cell-editor-slot">
       <input ref={ref} className="cell-editor nodrag nopan nowheel" defaultValue={initial} maxLength={MAX_CELL} aria-label={t("shell:canvas.cellText")} spellCheck={false}
-        onKeyDown={keys} onBlur={(event) => onDone(event.target.value, false)} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} />
+        onKeyDown={keys} onChange={track} onBlur={(event) => finish(event.target.value, false)} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} />
     </foreignObject>
   );
 }

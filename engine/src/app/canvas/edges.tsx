@@ -4,6 +4,7 @@
 // lisibles (pastilles, pill.tsx). La géométrie
 // est celle de `/view` (geometry.ts) ; les bouts sont les centres des cartes, que React Flow donne.
 import type { Edge, EdgeProps } from "@xyflow/react";
+import { memo } from "react";
 import { reach } from "../../canvas/card";
 import type { Box } from "../../canvas/card";
 import { chord, curve } from "../../canvas/geometry";
@@ -87,4 +88,5 @@ export function SpeedEdge({ sourceX, sourceY, targetX, targetY, data }: EdgeProp
   );
 }
 
-export const edgeTypes = { cable: CableEdge, beam: BeamEdge, beamLabel: BeamLabelEdge, speed: SpeedEdge };
+// Une arête ne se redessine que si ses bouts ou ses données changent (lot 13 de docs/11 : comparaison superficielle).
+export const edgeTypes = { cable: memo(CableEdge), beam: memo(BeamEdge), beamLabel: memo(BeamLabelEdge), speed: memo(SpeedEdge) };

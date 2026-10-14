@@ -1732,6 +1732,34 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   `.impeccable/planche-lot-4/`. Ajoutés à `docs/a-juger-a-l-usage.md` : Alt+D (barre d'adresse du navigateur) et Alt+T
   (menu Outils de Firefox). Parqués (`docs/11`) : flèches dans un volet sans cocher, infobulle de la seconde rangée,
   « tirer un connecteur » depuis la barre crée un bout libre.
+- **Lot 6 (arrangements) parqué ; ordre révisé 13 → 8 → 7** (2026-10-14, remarque de fond d'Orhan : le placement est
+  personnel et propre à chaque infrastructure, « pas un livre scolaire rangé en core / distribution / access » ; si
+  l'édition est riche et simple, le placement se fait une fois à la première collecte puis il est mémorisé). Avis rendu
+  et validé : c'est le modèle du placement mémorisé (`docs/09`), un rangement en couches serait à refaire à la main.
+  Ce qui compte est un placement manuel rapide même à 500 équipements : **lot 13** (performance) d'abord, puis **lot 8**
+  (guides d'alignement, prototype des repères avant le code) qui reprend du lot 6 le seul geste d'édition
+  « **mettre la sélection en grille** », puis **lot 7**. Couches, radial, organique relancé, « tout ranger » : parqués.
+  Détail : `docs/11` § Lot 6, § Lot 8, §7.
+- **Lot 13 livré : la toile tient la jauge** (2026-10-14, agent Opus, relu ; détail et tableau des mesures dans `docs/11`
+  § Lot 13 « Fait »). Rien ne change à l'écran (captures avant / après à 0-6 pixels de tramée près). La toile ne
+  reconstruit plus tout à chaque version : objets inchangés resservis (`app/canvas/reuse.ts`, pur, égalité bornée,
+  `measured` reporté), `React.memo` sur nœuds et arêtes, caches par toile et par langue dans `flow-build.ts`, connecteurs
+  abonnés à leurs deux bouts, pastilles de câble montées à leur première apparition et replacées 120 ms après le calme,
+  glissé d'un cadre sans `map` sur tous les nœuds, et **culture** (`onlyRenderVisibleElements` : ne monte que ce qui se
+  voit). À 500 équipements : premier dessin 2,8 → 1,25 s, sélection peinte 0,72 → 0,15 s, barre 0,78 → 0,21 s, flèche
+  0,29 → 0,05 s, collage de 30 1,44 → 0,30 s, glissé d'une carte 15 → 51 images/s ; première ouverture (placement
+  calculé) 3,2 → 1,5 s. **Cibles non tenues** : sélection < 50 ms (le plancher est la fiche et la tramée sans GPU,
+  `demo-dc` fait 112 ms), glissé d'un bloc de 20 (35 i/s) et d'un cadre (29 i/s) ; « cadrer tout » 0,41 → 0,53 s (la
+  culture monte tout). Avis de l'agent sur §8 : React Flow tient la jauge, pas de raison de rouvrir le pari. Au passage :
+  un champ d'édition en place qui disparaît enregistre (la saisie se perdait), Tab vers un élément hors champ centre la
+  vue. Garde `tests/test_app_gauge.py` (marqueur `slow`, dans la suite), 19 mutations. Backend 616 tests (suite relancée
+  par l'orchestrateur, verte). Ajouté à `docs/a-juger-a-l-usage.md` : des câbles ou pastilles qui « apparaissent » au
+  bord de l'écran au panoramique (sinon on garde la culture). Captures `.impeccable/planche-lot-13/`.
+- **Prototype du lot 8 (repères d'alignement, mettre en grille) validé par Orhan** (2026-10-14, « vraiment pas mal du
+  tout comme rendu et comme qualité » ; `.impeccable/prototype-lot-8/`). Ctrl (pas Alt, pris par le clonage) suspend
+  l'aimantation ; repères en chartreuse par défaut et **couleur au choix** (préférence du navigateur dans Affichage, pas
+  une intention) ; grille par nom et au moins de cases vides. Détail : `docs/11` § Lot 8 « Prototype validé ».
+  Implémentation lancée.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 

@@ -35,6 +35,7 @@ packages = ["src/ld_backend"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["slow: un parcours long (la garde de la toile à 500 équipements) ; lancé dans la suite complète, `-m 'not slow'` l'écarte"]
 
 [tool.coverage.run]
 source = ["ld_backend"]

@@ -35,6 +35,8 @@ const typing = (target: EventTarget | null): boolean => {
 };
 /** Le pas des flèches : un carreau de grille, cinq avec Maj. */
 export const NUDGE_STEP = GRID, NUDGE_FAST = GRID * 5;
+/** Les images attendues au plus pour qu'un élément choisi par Tab hors champ arrive dans le DOM (la vue va à lui). */
+const FOCUS_TRIES = 30;
 const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 // Les flèches appartiennent à la bande des runs quand elle a le focus, à la barre contextuelle et à ses volets (lot 4),
 // et à aucun dialogue ouvert.
@@ -131,9 +133,15 @@ export function Shell() {
         event.preventDefault();
         event.stopPropagation();
         const id = NODE_ID[next.kind] + next.id;
-        // le nœud est dessiné au rendu suivant (sa classe `selected`) : le focus y va tout de suite, il existe déjà
-        const el = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`);
-        if (el) el.focus({ preventScroll: true });
+        // le nœud est dessiné au rendu suivant (sa classe `selected`) : le focus y va tout de suite s'il existe déjà ; hors
+        // champ, la toile ne le monte pas (lot 13 de docs/11) : la vue se centre dessus et le focus suit à son arrivée
+        const focus = (tries: number): void => {
+          const el = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`);
+          if (el) { el.focus({ preventScroll: true }); return; }
+          if (tries === 0) commands.center();
+          if (tries < FOCUS_TRIES) window.requestAnimationFrame(() => focus(tries + 1));
+        };
+        focus(0);
         return;
       }
       const arrow = ARROWS[event.key];

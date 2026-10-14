@@ -111,6 +111,12 @@
 .has-selection .speed-pill.on:not(.selected):not(.related) { opacity: 0.22; }
 .link.speed-covered .link-mark { display: none; }
 .zoom-far .link.speed-covered .link-mark { display: inline; }
+/* Une pastille cachée au repos n'entre dans le dessin qu'à sa première apparition (lot 13 de docs/11) : elle arrive
+   avec la classe qui la montre, son fondu part de l'état caché comme si elle avait toujours été là. */
+@starting-style {
+  .speed-pill.on { opacity: 0; }
+  .show-beams .beam-tag .pill-svg, .beam-tag.reveal-primary .pill-svg, .beam-tag.reveal-sibling .pill-svg, .beam-tag.reveal-peer .pill-svg { opacity: 0; transform: scale(0.9); }
+}
 @media (prefers-reduced-motion: reduce) { .beam-tag .pill-svg, .speed-pill { transition: none !important; transform: none !important; } }
 .cluster-hull { fill: var(--structure); fill-opacity: 0.06; stroke: var(--structure); stroke-opacity: 0.55; stroke-width: 1.1; stroke-dasharray: 6 4; cursor: pointer; }
 .cluster.selected .cluster-hull { fill-opacity: 0.12; stroke: var(--accent); stroke-opacity: 1; stroke-width: 2; stroke-dasharray: none; }
@@ -263,7 +269,7 @@
 .flow.editable:not(.tool-connector) .react-flow__node-annotation:hover .annotation:not(.selected) .hover-ring,
 .flow.editable:not(.tool-connector) .react-flow__node-frame:hover .frame:not(.selected) .hover-ring { stroke: color-mix(in srgb, var(--accent) 50%, transparent); stroke-width: 1; }
 .flow.editable:not(.tool-connector) .connector:not(.selected):hover .hover-ring { stroke: color-mix(in srgb, var(--accent) 50%, transparent); vector-effect: none; }
-.react-flow__node-connector { pointer-events: none; }
+.react-flow__node-connector, .react-flow__node-connector.draggable { pointer-events: none; } /* sa boîte (celle du tracé, lot 13) ne prend aucun appui */
 .react-flow__node-connector > svg, .react-flow__node-connector > svg * { pointer-events: visiblePainted; }
 .react-flow__node-connector .connector-hit { pointer-events: stroke; }
 .react-flow__node-connector:focus-visible .connector-line { stroke: var(--accent); }

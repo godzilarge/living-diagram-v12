@@ -10,7 +10,7 @@
 // déplace le nœud lui-même : ses bouts libres suivent du même écart, ses bouts attachés suivent ce qu'ils tiennent.
 import { t } from "../../i18n";
 import { useReactFlow, useStore, useStoreApi } from "@xyflow/react";
-import type { Node, NodeProps } from "@xyflow/react";
+import type { Node, NodeProps, ReactFlowState } from "@xyflow/react";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { WEIGHT_VALUE, dashArray } from "../../canvas/groups";
@@ -22,6 +22,8 @@ import type { Connector } from "../../canvas/types";
 import { useUnzoom } from "./anchors";
 import { AnnotationContext } from "./annotation";
 import { STUB_SLOT } from "./nodes";
+import { sameItems } from "./reuse";
+import { useFinish } from "./inline";
 import type { CardData } from "./nodes";
 import type { EndKind, Pick } from "./snap";
 
@@ -61,19 +63,30 @@ function livePlace(end: Connector["start"], fallback: EndPlace, lookup: ReturnTy
   return { kind: "box", frame: { x: at.x, y: at.y, w, h }, shape: shapeOf(node), side: end.side };
 }
 
+/** Le nœud React Flow qui porte un bout attaché (`""` pour un bout libre). */
+const endNodeId = (end: Connector["start"]): string => (end.kind === "free" ? "" : end.kind === "device" ? end.ref : end.kind === "group" ? "group:" + end.ref : "annotation:" + end.ref);
+/** Ce que le connecteur lit de ses deux bouts attachés : leur nœud, ses données, sa place absolue et sa taille mesurée.
+ *  Un connecteur ne se redessine que quand l'un d'eux change (lot 13 de docs/11 ; avant : à chaque mouvement de
+ *  n'importe quel nœud). La place d'une annotation enfant se lit en nombres : React Flow la modifie sur place. */
+const endsOf = (ids: readonly string[]) => (s: ReactFlowState): unknown[] => ids.flatMap((id) => {
+  const node = id ? s.nodeLookup.get(id) : undefined;
+  return node ? [node, node.data, node.internals.positionAbsolute.x, node.internals.positionAbsolute.y, node.measured.width, node.measured.height] : [null];
+});
+
 /** Le champ de l'étiquette en place : Entrée ou quitter enregistre, Échap abandonne. */
 function LabelEditor({ at, initial, onDone }: { at: Point; initial: string; onDone: (text: string | null) => void }) {
   const ref = useRef<HTMLInputElement>(null);
+  const { finish, track } = useFinish(onDone, initial);
   useEffect(() => { const el = ref.current; if (el) { el.focus(); el.select(); } }, []);
   const keys = (event: KeyboardEvent<HTMLInputElement>): void => {
     event.stopPropagation();
-    if (event.key === "Escape") { event.preventDefault(); onDone(null); }
-    else if (event.key === "Enter") { event.preventDefault(); onDone((event.target as HTMLInputElement).value); }
+    if (event.key === "Escape") { event.preventDefault(); finish(null); }
+    else if (event.key === "Enter") { event.preventDefault(); finish((event.target as HTMLInputElement).value); }
   };
   return (
     <foreignObject x={at.x - 80} y={at.y - 12} width={160} height={24} className="cell-editor-slot">
       <input ref={ref} className="cell-editor nodrag nopan nowheel" defaultValue={initial} maxLength={80} aria-label={t("shell:canvas.connectorLabel")} spellCheck={false}
-        onKeyDown={keys} onBlur={(event) => onDone(event.target.value)} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} />
+        onKeyDown={keys} onChange={track} onBlur={(event) => finish(event.target.value)} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} />
     </foreignObject>
   );
 }
@@ -108,7 +121,9 @@ export function ConnectorNode({ data, selected, positionAbsoluteX, positionAbsol
   const carried = (place: EndPlace): EndPlace => (place.kind === "point" && (shift.x || shift.y) ? { kind: "point", at: { x: place.at.x + shift.x, y: place.at.y + shift.y } } : place);
   const rf = useReactFlow();
   const store = useStoreApi();
-  useStore((s) => s.nodes); // se redessine quand un nœud bouge : les bouts attachés suivent pendant un glissé
+  // se redessine quand un bout attaché bouge (pendant un glissé aussi) : abonné à ses deux bouts seulement
+  const startId = endNodeId(c.start), endId = endNodeId(c.end);
+  useStore(useCallback(endsOf([startId, endId]), [startId, endId]), sameItems);
   const k = useUnzoom();
   const actions = useContext(AnnotationContext);
   const [live, setLive] = useState<{ start?: EndPlace; end?: EndPlace; bend?: number; route?: string; pick?: Pick } | null>(null);

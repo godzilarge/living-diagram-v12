@@ -2,10 +2,11 @@
 // l'utilisateur fait (clic, Maj + clic, rectangle, glissé d'un équipement ou de la sélection, survol). Les nœuds et
 // arêtes sont reconstruits à chaque version de la toile depuis son état (positions, filtres, sélection, règle de
 // recherche) ; React Flow tient la vue (zoom, décalage), les appuis et le clavier. Rien n'est déduit ici : ce qui
-// est dessiné est dans le snapshot, ce qui est placé vient de scene.ts.
+// est dessiné est dans le snapshot, ce qui est placé vient de scene.ts. À la jauge (lot 13 de docs/11) : ce qui n'a pas
+// changé garde son objet (reuse.ts) et React Flow ne monte que ce qui se voit (`onlyRenderVisibleElements`).
 import { Background, BackgroundVariant, MiniMap, ReactFlow, ReactFlowProvider, SelectionMode, applyEdgeChanges, applyNodeChanges, useReactFlow } from "@xyflow/react";
 import type { EdgeChange, NodeChange, Viewport } from "@xyflow/react";
-import { createContext, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStoreApi } from "@xyflow/react";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -42,13 +43,17 @@ import type { CardData, ClusterNodeType, FrameNodeType } from "./nodes";
 import type { Toile } from "./toile";
 import { STUB_BOX, build, selectionKey } from "./flow-build";
 import { createGate } from "./gate";
+import { reuse } from "./reuse";
 import type { Gate } from "./gate";
 import type { AnnotationLocal, FlowEdge, FlowNode } from "./flow-build";
 
-const allNodeTypes = { ...nodeTypes, annotation: AnnotationNode, connector: ConnectorNode };
+// Annotations et connecteurs lisent leur place et leur sélection : une comparaison superficielle de leurs propriétés.
+const allNodeTypes = { ...nodeTypes, annotation: memo(AnnotationNode), connector: memo(ConnectorNode) };
 // Les niveaux de détail des cartes (lot 5 de docs/11) : `zoom-far` sous 0,6, `zoom-tiny` (avec `zoom-far`) sous 0,4.
 const ZOOM_FAR = 0.6, ZOOM_TINY = 0.4, DRAG_THRESHOLD = 4, MIN_ZOOM = 0.05, MAX_ZOOM = 6, MOVE_MS = 220;
 const SNAP_PX = 14; // à l'écran : un bout glissé s'accroche à une ancre à moins de cette distance
+/** Le calme après un déplacement avant de replacer les pastilles de câble (lot 13 de docs/11) : celui de la barre contextuelle. */
+const TAGS_SETTLE_MS = 120;
 /** Le pas de la grille (unités du dessin) : affichée derrière la toile, et celle sur laquelle un glissé s'aimante. */
 export const GRID = 20;
 const STUB_INSET = (STUB_SLOT.w - STUB_BOX.w) / 2;
@@ -154,16 +159,27 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   const ariaLabelConfig = useMemo(ariaLabels, [language]);
   // Une boîte d'annotation ou un bout libre de connecteur posés localement (glissé, flèches, alignement) valent jusqu'à
   // ce que le document les porte (ou qu'une autre version les contredise) ; ils vivent dans la toile.
+  // Le placement des pastilles de câble, différé après un déplacement (flow-build.ts) : redemandé quand les positions
+  // n'ont plus bougé depuis `TAGS_SETTLE_MS`, une rafale de flèches ne le recalcule qu'une fois.
+  const [tagsTick, setTagsTick] = useState(0);
+  const freshTags = useRef(false);
   const built = useMemo(() => {
+    const fresh = freshTags.current;
+    freshTags.current = false;
     toile.pending.forEach((patch, id) => { const a = toile.model.annotationById.get(id); if (!a || Object.entries(patch).every(([k, v]) => (a as unknown as Record<string, unknown>)[k] === v)) toile.pending.delete(id); });
     toile.pendingEnds.forEach((patch, id) => { const c = toile.model.connectorById.get(id); if (!c || Object.entries(patch).every(([k, v]) => sameValue((c as unknown as Record<string, Value>)[k], v as Value))) toile.pendingEnds.delete(id); });
-    const out = build(toile, { editable, control: toile.state.control });
+    const out = build(toile, { editable, control: toile.state.control }, fresh);
     toile.frames = out.frames;
     toile.ends = out.ends;
     toile.boxes = out.boxes;
     toile.groupFrames = out.groups;
     return out;
-  }, [toile, version, editable, language]);
+  }, [toile, version, editable, language, tagsTick]);
+  useEffect(() => {
+    if (!built.staleTags) return undefined;
+    const timer = window.setTimeout(() => { freshTags.current = true; setTagsTick((n) => n + 1); }, TAGS_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [built]);
   // La bulle (tips.tsx) : jamais sur ce qui est sélectionné, jamais pendant un geste (glissé, rectangle,
   // redimensionnement, bout de connecteur, outil armé) ni une édition en place ; elle revient quand la sélection change.
   const selectedKeys = useMemo(() => selectedTipKeys(built.nodes.filter((n) => n.selected).map(tipTarget).concat(built.edges.filter((e) => e.selected).map(tipEdge))), [built]);
@@ -229,14 +245,15 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   const [edges, setEdges] = useState<FlowEdge[]>(built.edges);
   const nodesRef = useRef(nodes), edgesRef = useRef(edges); // ce que React Flow montre, à jour avant que React rende
   const [zoom, setZoom] = useState(1);
-  // Les nœuds reconstruits gardent les mesures que React Flow a déjà prises (`measured`) : sans elles, il les tient
-  // pour neufs, les cache (`visibility: hidden`) et retire leurs câbles jusqu'à une nouvelle mesure, qui ne vient pas
-  // toujours quand la taille n'a pas changé (vu au basculement des couches, 2026-10-07). Une taille qui change
+  // Ce qui n'a pas changé depuis le dessin montré garde son objet (reuse.ts, lot 13 de docs/11) : React Flow ne redessine
+  // que ce qui change. Un nœud reconstruit garde les mesures que React Flow a déjà prises (`measured`) : sans elles, il
+  // le tient pour neuf, le cache (`visibility: hidden`) et retire ses câbles jusqu'à une nouvelle mesure, qui ne vient
+  // pas toujours quand la taille n'a pas changé (vu au basculement des couches, 2026-10-07). Une taille qui change
   // (cadre de cluster ou de groupe) est remesurée par React Flow, comme avant.
   useEffect(() => {
-    const seen = new Map(nodesRef.current.map((n) => [n.id, n.measured] as const));
-    const next = built.nodes.map((n) => { const m = seen.get(n.id); return m && m.width !== undefined && m.height !== undefined ? ({ ...n, measured: m } as FlowNode) : n; });
-    nodesRef.current = next; edgesRef.current = built.edges; setNodes(next); setEdges(built.edges);
+    const next = reuse(built.nodes, nodesRef.current), nextEdges = reuse(built.edges, edgesRef.current);
+    if (next !== nodesRef.current) { nodesRef.current = next; setNodes(next); }
+    if (nextEdges !== edgesRef.current) { edgesRef.current = nextEdges; setEdges(nextEdges); }
   }, [built]);
 
   // La vue : la toile lit la taille du canevas et la vue courante, et pose une vue (cadrer, centrer).
@@ -288,7 +305,18 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       gate.set("rectangle", false);
     }, 0);
   }, [toile, rf, gate]);
+  // Un cadre de groupe glissé (G2) : ses membres présents suivent dans le même passage que le cadre (followers, plus
+  // bas), un changement de position chacun, plutôt qu'un second passage sur tous les nœuds (lot 13 de docs/11).
+  const followers = useRef<{ id: string; start: Point; members: Map<string, Point>; boxes: Map<string, Box> } | null>(null);
   const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]): void => {
+    const drag = followers.current;
+    const lead = drag ? changes.find((c) => c.type === "position" && c.id === drag.id && c.position) : undefined;
+    if (drag && lead && lead.type === "position" && lead.position) {
+      const dx = lead.position.x - drag.start.x, dy = lead.position.y - drag.start.y;
+      const moves: NodeChange<FlowNode>[] = [];
+      drag.members.forEach((start, host) => { const box = drag.boxes.get(host) || STUB_SLOT; moves.push({ type: "position", id: host, position: { x: start.x + dx - box.w / 2, y: start.y + dy - box.h / 2 } }); });
+      changes = changes.concat(moves);
+    }
     nodesRef.current = applyNodeChanges(changes, nodesRef.current);
     setNodes(nodesRef.current);
     if (changes.some((c) => c.type === "select")) queueMicrotask(syncSelection);
@@ -301,8 +329,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
 
   // Un glissé déplace ce que React Flow tient pour sélectionné (ou le seul nœud saisi) ; un cadre de groupe glissé
   // entraîne ses membres présents de la même translation (G2), même quand il n'est qu'une part d'une sélection mixte :
-  // leurs cartes suivent pendant le geste, et à la relâche ils reprennent leur centre dans la toile.
-  const followers = useRef<{ id: string; start: Point; members: Map<string, Point> } | null>(null);
+  // leurs cartes suivent pendant le geste (onNodesChange), et à la relâche ils reprennent leur centre dans la toile.
   const onNodeDragStart = useCallback((_event: unknown, node: FlowNode, moving: FlowNode[]): void => {
     dragging.current = true; hideTip(); gate.set("drag", true);
     toile.flush(); // une rafale de flèches en attente se termine avant que le glissé commence
@@ -312,20 +339,10 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       const group = toile.model.groupById.get((frame as FrameNodeType).data.id);
       (group ? group.members : []).forEach((host) => { const at = toile.state.positions.get(host); if (at && !carried.has(host)) members.set(host, { ...at }); });
     });
-    followers.current = members.size ? { id: node.id, start: { ...node.position }, members } : null;
+    const boxes = new Map<string, Box>();
+    if (members.size) nodesRef.current.forEach((n) => { if (members.has(n.id)) boxes.set(n.id, slotOf(n)); });
+    followers.current = members.size ? { id: node.id, start: { ...node.position }, members, boxes } : null;
   }, [toile, hideTip, gate]);
-  const onNodeDrag = useCallback((_event: unknown, node: FlowNode): void => {
-    const drag = followers.current;
-    if (!drag || node.id !== drag.id) return;
-    const dx = node.position.x - drag.start.x, dy = node.position.y - drag.start.y;
-    nodesRef.current = nodesRef.current.map((n) => {
-      const start = isHost(n) ? drag.members.get(n.id) : undefined;
-      if (!start) return n;
-      const box = slotOf(n);
-      return { ...n, position: { x: start.x + dx - box.w / 2, y: start.y + dy - box.h / 2 } } as FlowNode;
-    });
-    setNodes(nodesRef.current);
-  }, []);
   // Un glissé relâché : chaque équipement déplacé reprend son centre dans la toile, chaque annotation son écart à son
   // ancre, chaque connecteur ses bouts libres ; tout part en une seule écriture (une entrée d'annulation). Une
   // annotation glissée seule garde son écriture d'avant (« annotation modifiée »).
@@ -424,10 +441,10 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       <ReactFlow<FlowNode, FlowEdge> className={rootClass} nodes={nodes} edges={edges} nodeTypes={allNodeTypes} edgeTypes={edgeTypes}
         onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
         onNodeContextMenu={onNodeContextMenu} onPaneContextMenu={onPaneContextMenu} onSelectionContextMenu={onSelectionContextMenu}
-        onNodeDragStart={onNodeDragStart} onNodeDrag={onNodeDrag} onNodeDragStop={onNodeDragStop} onNodeMouseMove={onNodeMouseMove} onNodeMouseLeave={hideTip}
+        onNodeDragStart={onNodeDragStart} onNodeDragStop={onNodeDragStop} onNodeMouseMove={onNodeMouseMove} onNodeMouseLeave={hideTip}
         onEdgeMouseMove={onEdgeMouseMove} onEdgeMouseLeave={hideTip} onMoveStart={hideTip} onMove={onMove} onInit={onInit}
         onSelectionStart={onSelectionStart} onSelectionEnd={onSelectionEnd}
-        panOnDrag={PAN_BUTTONS}
+        panOnDrag={PAN_BUTTONS} onlyRenderVisibleElements
         minZoom={MIN_ZOOM} maxZoom={MAX_ZOOM} nodeDragThreshold={DRAG_THRESHOLD} selectionKeyCode={armed || space ? null : "Shift"} multiSelectionKeyCode={armed ? null : MULTI_KEYS} elementsSelectable={!armed}
         selectionMode={SelectionMode.Partial} nodesConnectable={false} elevateEdgesOnSelect={false} elevateNodesOnSelect={false}
         zoomOnDoubleClick={false} deleteKeyCode={null} proOptions={{ hideAttribution: true }} fitView={false} nodesDraggable={!toile.state.control && !armed && !space}
