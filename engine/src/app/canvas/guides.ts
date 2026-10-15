@@ -1,6 +1,6 @@
 // Les repères d'alignement et l'aimant aux objets (lot 8 de docs/11), la partie pure : pendant un glissé ou un
 // redimensionnement, des lignes disent « aligné avec » et la boîte s'y colle. Le rendu fait foi d'après le prototype
-// validé le 2026-10-14 (`bac-a-sable/lot-8/`).
+// validé le 2026-10-14.
 //
 // En unités du plan. Entrées : la boîte qui bouge (une seule : englobante quand plusieurs éléments bougent), les boîtes
 // candidates (cartes, annotations, cadres visibles dans la vue élargie de moitié, 400 au plus, les plus proches

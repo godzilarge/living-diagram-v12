@@ -33,7 +33,12 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
   servi par `python3 -m http.server 8016 --bind 0.0.0.0` depuis `bac-a-sable/` : Orhan est en SSH, 2026-10-15 ;
   données factices, aucun fichier de `engine/` ni de `backend/` touché) qu'Orhan ouvre et juge lui-même ; le code du
   projet ne s'écrit qu'après son accord sur le prototype. Prolonge « voir avant de trancher » et la règle « direction
-  visuelle d'abord » du 2026-10-06, qui n'avait pas été tenue en session autonome.
+  visuelle d'abord » du 2026-10-06, qui n'avait pas été tenue en session autonome. **Durci le 2026-10-15** (« la qualité
+  baisse, aucune harmonie entre les éléments ») : **toute** modification d'UI, même une retouche, par un agent qui charge
+  les deux skills et juge l'harmonie d'ensemble ; pas certain ⇒ plusieurs directions au banc ; **icônes plutôt que mots**
+  dans les commandes (mot dans l'infobulle). **Suspendu le 2026-10-15 pour les fonctions** : on livre les fonctionnalités
+  avec les composants existants, sans prototype ni critique, puis une session de **refonte complète de l'UI** (le style
+  actuel ne plaît pas à Orhan) ; `bac-a-sable/harmonie/` en est une entrée.
 - **Être synthétique** (Orhan, 2026-10-03). Une réponse commence par ce que la chose fait, en une phrase qu'il peut
   répéter (« un générateur d'infrastructures pour faire des tests »), puis le strict nécessaire. Pas de roman : les
   détails vivent dans `docs/`, les README et ce journal, on les référence. Une brique qu'on ne peut pas nommer en une

@@ -79,6 +79,9 @@ lot et compléter les crochets. Les lots 5 et 1 ont été lancés avec ce gabari
 
 ## 2 bis. Lot de design d'interface : prototype d'abord (règle d'Orhan, 2026-10-14)
 
+> **Suspendu le 2026-10-15** : on livre les fonctions avec les composants existants, sans prototype ; le design sera
+> refait d'un bloc à la refonte de l'UI. Les prototypes cités plus bas ont été supprimés.
+
 Pour un lot qui dessine de l'interface (lot 4 barre contextuelle, lot 14 passe visuelle, tout nouveau panneau), deux
 agents en séquence, jamais un seul :
 

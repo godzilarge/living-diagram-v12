@@ -1,6 +1,6 @@
 // Les langages d'un bloc de code (lot 16 de docs/11), la partie pure : la liste du contrat (`CodeLanguage`, Intent
 // 1.6.0), la grammaire Prism de chacun, la normalisation d'un texte collé et la détection du langage (un score par
-// langage, le meilleur s'il se détache), reprises du prototype validé (`bac-a-sable/lot-16/`). Les noms
+// langage, le meilleur s'il se détache), reprises du prototype validé. Les noms
 // affichés viennent des catalogues (`common:codeLanguage`). Sans DOM, testé sous Node (`LDApp.code`).
 import { labelMap } from "../../i18n/core";
 import type { CodeContent } from "../../contracts/intent";

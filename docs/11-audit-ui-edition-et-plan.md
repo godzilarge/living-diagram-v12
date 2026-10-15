@@ -776,6 +776,28 @@ caractère au lot 15, douze teintes pour le texte, « modifier l'étiquette » r
 justifié, étiquette de connecteur en pourcentage avec trois repères) : recommandations retenues sauf avis contraire
 d'Orhan avant l'implémentation.
 
+**Spécification du lot 4 bis** (2026-10-15 ; prototypes supprimés, le design sera refait à la refonte de l'UI : coder la
+fonction avec les composants existants). Barre de toute sorte qui porte du texte (note, forme, tableau, connecteur,
+groupe, sélection mixte) : police, **taille libre 8-64** (`13 ⌄`, volet `− n +` puis la police ; Ctrl+Maj+> / <),
+gras (Ctrl+B, bascule gras ↔ normal), italique (Ctrl+I), souligné (Ctrl+U), barré (Ctrl+Maj+X), couleur du texte (encre,
+teinte de l'objet ou l'une des douze teintes), position (alignements ; neuf positions dedans / dehors pour un groupe ;
+place et côté pour une étiquette de connecteur). Valeur mixte d'une sélection : « — ». Parité barre ⊆ fiche. Contrat
+`Intent` 1.7.0, additif, `upgraded()` aux défauts :
+
+| Champ | Objets | Valeurs | Défaut |
+|---|---|---|---|
+| `LabelColor` élargi aux noms de `Hue` | tous | `ink`, `hue`, douze teintes | inchangé |
+| `text_italic` / `label_italic` | tous | booléen | faux |
+| `text_underline` / `label_underline` | tous | booléen | faux |
+| `text_strike` / `label_strike` | tous | booléen | faux |
+| `text_padding` | note, forme | entier 0-64 | 8 |
+| `text_line_height` | note, forme | entier 100-300 (%) | 135 |
+| `label_at` | connecteur | entier 0-100 (%) | 50 |
+| `label_side` | connecteur | `above`, `on`, `below` | `on` |
+
+Vrais italiques (Inter Italic, JetBrains Mono Italic, OFL, embarqués). Pas de justifié. « Modifier l'étiquette » quitte
+la barre d'une forme (double-clic, Entrée, F2).
+
 ### Lot 5 — Lisibilité des cartes : le nom, le niveau de détail (P0, S)
 
 **En une phrase** : un nom d'équipement se lit à tout zoom où on travaille.
@@ -1484,8 +1506,26 @@ champ additif du contrat `Intent` 1.7.0 ; (3) **taille libre** 8 à 64 dans la b
 tous les textes), et **Ctrl + molette pendant l'écriture** change la taille (hors écriture, Ctrl + molette reste le zoom
 de la toile) ; (4) l'affichage sur la toile **reste en SVG** (export du lot 11, jauge, culture) : CodeMirror ne sert que
 pendant l'écriture. **Méthode** : un seul lot avec le lot 4 bis (même barre, même contrat 1.7.0) ; d'abord un
-**prototype** `bac-a-sable/lot-16-bis/` (CodeMirror dans une toile zoomée, sous la CSP de l'application), essayé
-par Orhan avant le code.
+**prototype** (CodeMirror dans une toile zoomée, sous la CSP de l'application), essayé par Orhan avant le code.
+
+**Spécification du lot 16 bis** (2026-10-15, prototype essayé puis supprimé ; le design sera refait à la refonte : coder
+avec les composants existants). Fonction : CodeMirror 6 pendant l'écriture seulement (affichage toujours en SVG) ;
+champ `wrap` par bloc (`Intent` 1.7.0, défaut vrai, aussi pour un document relu) ; taille libre 8-64 (`13 ⌄`, volet
+`− n +` puis les quatre polices du lot 16), Ctrl+molette = taille pendant l'écriture ; Ctrl+Z / Y, Ctrl+F / H (recherche
+de CodeMirror, Aa, mot entier, regex, ↑ ↓, remplacer) ; Échap = ferme la recherche, puis enregistre et sort ; une seule
+barre qui passe de « bloc sélectionné » à « écriture » à « recherche » (pas de second panneau) : loupe, retour à la
+ligne, taille, ✕ abandonner (rouge au survol, deux clics s'il y a des modifications), ✓ enregistrer ; commandes en
+icônes, le mot en infobulle. Secrets : la détection du lot 16 marque les valeurs en direct (décoration) ; l'avertissement
+avant l'enregistrement est inchangé. Pas de fermeture automatique des parenthèses. CodeMirror chargé à la première
+écriture si le poids le justifie (~300 Ko minifiés, ~100 Ko gzip). **Acquis techniques du prototype**, à refaire :
+(1) **CSP** : `style-mod` écrit une balise `<style>` refusée par `style-src 'self'` ; le build réécrit sa ligne pour
+adopter une feuille construite (`new CSSStyleSheet()` + `document.adoptedStyleSheets`, hors CSP), et échoue si la ligne
+change ; (2) **coupure** : une règle écrite (`wrap.ts`) imposée à CodeMirror par `outerDecorations` (une décoration
+ordinaire est coupée par celles de Prism), même règle pour le SVG : 0 écart sur 2 080 lignes tirées au hasard ;
+(3) `text-rendering: geometricPrecision` dans les deux modes ; (4) ligne de base de la lecture corrigée (la formule de
+l'application est 0,68 px trop basse à 13 px) ; (5) ouverture alignée par mesure (`scrollIntoView` décale sous une
+échelle, jusqu'à 13 px à 2) ; (6) Prism en décorations : lignes touchées tout de suite, texte entier 200 ms après la
+dernière frappe (~24 ms pour 2 000 lignes) ; (7) `EditorView.scaleX/scaleY` suivent le zoom de la toile.
 
 ### Déjà planifiés, inchangés, après ces lots (docs/10 §8)
 

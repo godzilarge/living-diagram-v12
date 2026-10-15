@@ -49,7 +49,8 @@ docs/revues/sondes-*/tmp*/
 *.tgz
 
 # --- Outillage local ---------------------------------------------------------
-.impeccable/hook.cache.json
+.impeccable/*
+!.impeccable/config.json
 
 # --- Éditeurs et système -----------------------------------------------------
 .DS_Store
@@ -58,11 +59,9 @@ docs/revues/sondes-*/tmp*/
 .vscode/
 
 # Note : `uv.lock` est versionné volontairement (déterminisme des dépendances).
-.impeccable/planche-*/archive*/
 
 # --- Captures d'écran : régénérables par les scripts versionnés à côté -------
 # On versionne les scripts de capture et de sonde, jamais les PNG qu'ils produisent.
-.impeccable/planche-*/**/*.png
 docs/revues/sondes-*/**/*.png
 
 # --- Bac à sable : prototypes et essais, servis par un petit serveur web ------

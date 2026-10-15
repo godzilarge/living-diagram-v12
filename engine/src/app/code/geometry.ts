@@ -12,7 +12,7 @@ export const CODE_SIZE: readonly [number, number] = [8, 24];
 export const CODE_SIZES: readonly number[] = [10, 11, 12, 13, 14, 15, 16, 18];
 
 /** Les polices d'un bloc (chasse fixe seulement) : `em` = l'avance d'un caractère, mesurée dans Chromium sur un
- *  échantillon réseau (`bac-a-sable/lot-16/scripts/chasse.py`) ; elle règle la coupure et la gouttière. */
+ *  échantillon réseau ; elle règle la coupure et la gouttière. */
 export const CODE_FONTS = [
   { id: "jetbrains_mono", family: "JetBrains Mono", short: "JetBrains", em: 0.6 },
   { id: "ibm_plex_mono", family: "IBM Plex Mono", short: "Plex Mono", em: 0.6 },

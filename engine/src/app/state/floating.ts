@@ -1,8 +1,8 @@
 // La barre contextuelle flottante (lot 4 de docs/11), la partie pure : quels boutons pour quelle sélection et quel
 // droit, et où la poser. Les réglages fréquents de l'élément sélectionné, à un clic, au-dessus de lui ; tout ce qu'elle
 // fait, l'inspecteur le fait (mêmes commandes du store, mêmes écritures, même historique) : ce module ne dit que quoi,
-// `components/FloatingBar.tsx` exécute. Le rendu fait foi d'après le prototype validé le 2026-10-14
-// (`bac-a-sable/lot-4/`). Sans DOM ni React, testé sous Node (`LDApp.floating`).
+// `components/FloatingBar.tsx` exécute. Rendu validé le 2026-10-14.
+// Sans DOM ni React, testé sous Node (`LDApp.floating`).
 import { HUE_LABEL, defaultHue, hueOfNode } from "../../canvas/hues";
 import type { Point } from "../../canvas/layout";
 import type { Annotation, Connector, Group, Model, Selection } from "../../canvas/types";

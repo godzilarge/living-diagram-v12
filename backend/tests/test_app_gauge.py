@@ -5,8 +5,7 @@ glissé sans image de plus de 100 ms. Et ce que la performance a changé, vérif
 (`onlyRenderVisibleElements`) sans rien perdre (un nœud arrive en vue, tout est là après « cadrer tout » et une bascule
 de couche, un connecteur dont le coin est hors champ reste dessiné), un nœud remonté ne rejoue pas une demande
 d'édition, un champ d'édition qui sort de la vue enregistre, Tab va à un élément hors champ, une pastille montée à sa
-première apparition garde son fondu, et les pastilles replacées après un déplacement sont celles d'un calcul immédiat.
-Mesures complètes : `.impeccable/planche-lot-13/scripts/mesure_lot13.py`."""
+première apparition garde son fondu, et les pastilles replacées après un déplacement sont celles d'un calcul immédiat."""
 
 from __future__ import annotations
 
