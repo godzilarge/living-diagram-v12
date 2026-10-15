@@ -7,10 +7,15 @@
 // en attente d'un bloc existant : un champ démonté (le bloc sorti de l'écran) avec une valeur sensible nouvelle, jamais
 // vue, ne s'enregistre pas et ne se perd pas non plus ; le texte attend ici, sous l'identité du bloc dans son
 // infrastructure, et l'écriture se rouvre avec l'avertissement quand le bloc revient (M1).
+import type { CodeContent } from "../../contracts/intent";
 import type { LanguageId } from "./languages";
 
-/** Un bloc pas encore enregistré : son texte, son langage, sa boîte dans le plan, et ce qu'on lit déjà de lui. */
-export interface CodeDraft { key: number; infrastructure: string; text: string; language: LanguageId; sure: boolean; x: number; y: number; w: number; h: number; pasted: boolean }
+/** Un bloc pas encore enregistré : son texte, son langage, sa boîte dans le plan, ce qu'on lit déjà de lui, et ce que la
+ *  barre règle pendant qu'on l'écrit (taille, police, retour à la ligne : lot 16 bis), gardé jusqu'à sa création. */
+export interface CodeDraft {
+  key: number; infrastructure: string; text: string; language: LanguageId; sure: boolean; x: number; y: number; w: number; h: number; pasted: boolean;
+  size: number; font: CodeContent["font"]; wrap: boolean;
+}
 
 export interface CodeView {
   first: (id: string) => number;

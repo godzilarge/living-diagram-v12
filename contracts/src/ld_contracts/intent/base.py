@@ -71,5 +71,20 @@ class LabelFont(StrEnum):
 
 
 class LabelColor(StrEnum):
+    """La couleur d'un texte : la teinte de l'objet (`hue`), l'encre du thème (`ink`), ou l'une des douze teintes
+    nommées (1.7.0, lot 4 bis de docs/11 : un texte d'une autre couleur que son objet)."""
+
     HUE = "hue"
     INK = "ink"
+    BLUE = "blue"
+    SKY = "sky"
+    INDIGO = "indigo"
+    VIOLET = "violet"
+    PINK = "pink"
+    RED = "red"
+    ORANGE = "orange"
+    AMBER = "amber"
+    LIME = "lime"
+    GREEN = "green"
+    TEAL = "teal"
+    SLATE = "slate"

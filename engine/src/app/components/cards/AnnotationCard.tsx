@@ -17,7 +17,8 @@ import { useEditable, useStore } from "../../state/store";
 import { Badge } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, Menu, NumberField, Pair, Row, Section, Segmented, Select, Stepper, Switch, TextArea, TextInput, Title } from "../../ui/inspector";
 import { HistoryButton, HostLink, HueSetting, WriteHint, signed } from "./shared";
-import { StrokeRow, TextRows, options } from "./style";
+import { StrokeRow, TextSection, options } from "./style";
+import { carriesText } from "../../state/text-format";
 import { CodeContentRows, CodeDisplay, codeTitle } from "./CodeCard";
 
 type Content = Annotation["content"];
@@ -125,17 +126,7 @@ function StyleSections({ a, onStyle }: { a: Annotation; onStyle: (patch: Partial
           onStyle={(stroke_style) => onStyle({ stroke_style: stroke_style as AnnotationStyle["stroke_style"] })} onWidth={(stroke_width) => onStyle({ stroke_width })} /></Row>
         <Row label={t("style.corners")}><NumberField label={t("style.corners")} value={s.radius} min={BOUNDS.radius[0]} max={BOUNDS.radius[1]} unit="px" onCommit={(radius) => onStyle({ radius })} /></Row>
       </Section>
-      {c.kind !== "image" && c.kind !== "code" ? (
-        <Section title={t("annotation.textSection")} collapsible defaultOpen={false}>
-          <TextRows value={{ size: s.text_size, weight: s.text_weight, font: s.text_font, color: s.text_color, align: s.text_align, valign: c.kind !== "table" ? s.text_valign : undefined }}
-            bounds={{ size: BOUNDS.text_size, weights: WEIGHTS, fonts: FONTS, colors: LABEL_COLORS, aligns: ALIGNS, valigns: c.kind !== "table" ? VALIGNS : undefined }}
-            onChange={(p) => onStyle({
-              ...(p.size !== undefined ? { text_size: p.size } : {}), ...(p.weight ? { text_weight: p.weight as AnnotationStyle["text_weight"] } : {}),
-              ...(p.font ? { text_font: p.font as AnnotationStyle["text_font"] } : {}), ...(p.color ? { text_color: p.color as AnnotationStyle["text_color"] } : {}),
-              ...(p.align ? { text_align: p.align as AnnotationStyle["text_align"] } : {}), ...(p.valign ? { text_valign: p.valign as AnnotationStyle["text_valign"] } : {}),
-            })} />
-        </Section>
-      ) : null}
+      {carriesText(a) ? <TextSection items={[{ kind: "annotation", a }]} /> : null}
     </>
   );
 }

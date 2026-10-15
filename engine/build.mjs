@@ -32,12 +32,30 @@ export async function bundle(write) {
   return write ? null : result.outputFiles[0].text;
 }
 
+// CodeMirror (lot 16 bis de docs/11) pose ses styles par `style-mod`, qui écrit une balise <style> dans un document :
+// la CSP de l'application (`style-src 'self'`) la refuse. Le seul écart avec le paquet publié : la ligne qui réserve la
+// feuille construite (`new CSSStyleSheet`, `document.adoptedStyleSheets`) aux racines fantômes est réécrite pour
+// l'adopter aussi dans le document ; la CSP ne s'applique pas à une feuille construite (vérifié dans Chromium, parcours
+// de l'écriture : aucune violation). Le build échoue si la ligne a changé (une mise à jour de `style-mod` se revoit).
+export const STYLE_MOD_LINE = "if (!root.head && root.adoptedStyleSheets && win.CSSStyleSheet) {";
+const styleModAdopt = {
+  name: "style-mod-adopt",
+  setup(b) {
+    b.onLoad({ filter: /style-mod[\\/]src[\\/]style-mod\.js$/ }, (args) => {
+      const src = readFileSync(args.path, "utf8");
+      if (!src.includes(STYLE_MOD_LINE)) throw new Error("style-mod : la ligne à réécrire a changé, revoir le correctif CSP (engine/build.mjs)");
+      return { contents: src.replace(STYLE_MOD_LINE, "if (root.adoptedStyleSheets && win.CSSStyleSheet) {"), loader: "js" };
+    });
+  },
+};
+
 // L'application : un script, une feuille de style, les polices (latin et latin étendu, graisse variable) copiées
 // sous `fonts/` avec leur nom (pas d'empreinte : les noms sont stables, le contenu est comparé). React est construit
 // en production (`process.env.NODE_ENV`), sinon esbuild embarquerait sa version de développement.
 export async function bundleApp(write) {
   const result = await build({
     ...common,
+    plugins: [styleModAdopt],
     entryPoints: [resolve(here, "src/app/main.tsx")],
     format: "iife",
     jsx: "automatic",

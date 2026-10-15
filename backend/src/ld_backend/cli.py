@@ -106,9 +106,9 @@ def _cmd_intent(args: argparse.Namespace) -> int:
         kind = a.content.kind
         if a.content.kind == "code":  # un bloc de code (1.6.0) : son langage, ses lignes, son titre ; jamais son texte
             lines = a.content.text.count("\n") + 1
-            kind = (
-                f"code {a.content.language} {lines} ligne(s){' « ' + a.content.title + ' »' if a.content.title else ''}"
-            )
+            title = f" « {a.content.title} »" if a.content.title else ""
+            wrap = "" if a.content.wrap else ", sans retour à la ligne"  # 1.7.0 : le défaut ne se dit pas
+            kind = f"code {a.content.language} {lines} ligne(s){title}{wrap}"
         print(f"annotation {a.id}\t{kind}\t{anchor}\t{box}\t{a.author}\t{utc_z(a.at)}")
     if not intent.annotations:
         print("aucune annotation pour cette infrastructure")

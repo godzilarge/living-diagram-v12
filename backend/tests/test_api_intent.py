@@ -313,12 +313,13 @@ def test_a_code_block_is_created_with_its_defaults_and_its_text_is_refused_with_
     la valeur reçue ; un bloc ne change pas de sorte."""
     assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
     code = {"kind": "code", "text": "vlan 20\n name voix", "language": "cisco_ios", "title": "vlans"}
-    code = {**code, "highlight": True, "line_numbers": False, "font": "source_code_pro"}
+    code = {**code, "highlight": True, "line_numbers": False, "font": "source_code_pro", "wrap": False}
     create = {"op": "annotation_create", "content": code, "w": 520, "h": 300}
     res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": [create]}, headers=auth)
     assert res.status_code == 200, res.text
     a = Intent.model_validate_json(res.content).annotations[0]
     assert (a.id, a.content.kind, a.content.font, a.w, a.h) == ("a1-1", "code", "source_code_pro", 520, 300)
+    assert a.content.wrap is False and a.style.text_italic is False, "1.7.0 : `wrap` gardé, la mise en forme au défaut"
     assert (a.style.hue, a.style.text_size, a.style.text_font, a.style.radius) == ("slate", 13, "mono", 8)
     res = client.post(
         PATCHES_URL,
@@ -333,6 +334,8 @@ def test_a_code_block_is_created_with_its_defaults_and_its_text_is_refused_with_
         {"op": "annotation_create", "content": {**code, "language": "junos-secret"}},
         {"op": "annotation_create", "content": {**code, "font": "fira-secret"}},
         {"op": "annotation_create", "content": {**code, "text": "s" * 20_001}},
+        {"op": "annotation_create", "content": {**code, "wrap": "secret"}},
+        {"op": "annotation_create", "content": {k: v for k, v in code.items() if k != "wrap"} | {"title": "secret"}},
         {"op": "annotation_update", "id": "a1-1", "content": {"kind": "note", "text": "secret"}},
     ):
         res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": [bad]}, headers=auth)
@@ -455,3 +458,60 @@ def test_openapi_describes_the_intent_from_the_contract(client: TestClient):
     assert expected | {"ColorTypeOp", "UncolorTypeOp"} | groups | notes | lines <= set(schemas)
     for ref in _refs(doc):
         assert ref.removeprefix("#/components/schemas/") in schemas, ref
+
+
+def test_the_text_formatting_of_1_7_goes_through_the_style_patches_and_is_refused_out_of_bounds_without_echo(
+    client: TestClient, auth, bundle_dict
+):
+    """Lot 4 bis (Intent 1.7.0) : italique, souligné, barré, une teinte pour le texte, marge et interligne d'une note,
+    place et côté de l'étiquette d'un connecteur, mise en forme de l'étiquette d'un groupe ; une requête, une révision ;
+    hors bornes, 422 sans la valeur reçue (ce que le contrat de sortie refuse, l'entrée ne le laisse pas passer)."""
+    assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
+    create = [
+        {"op": "annotation_create", "content": {"kind": "note", "text": "Baie 12"}},
+        {
+            "op": "connector_create",
+            "start": {"kind": "free", "x": 0, "y": 0},
+            "end": {"kind": "free", "x": 200, "y": 0},
+        },
+        {"op": "group_create", "label": "Cœur", "members": ["sw-core-01"]},
+    ]
+    res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": create}, headers=auth)
+    assert res.status_code == 200, res.text
+    note = {"text_italic": True, "text_underline": True, "text_strike": True, "text_color": "violet"}
+    note |= {"text_padding": 0, "text_line_height": 200}
+    line = {"text_italic": True, "label_at": 10, "label_side": "above", "text_color": "teal"}
+    group = {"label_italic": True, "label_underline": True, "label_strike": False, "label_color": "red"}
+    update = [
+        {"op": "annotation_update", "id": "a1-1", "style": note},
+        {"op": "connector_update", "id": "c1-1", "style": line},
+        {"op": "group_update", "id": "g1-1", "style": group},
+    ]
+    res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": update}, headers=auth)
+    assert res.status_code == 200, res.text
+    doc = Intent.model_validate_json(res.content)
+    a, c, g = doc.annotations[0].style, doc.connectors[0].style, doc.groups[0].style
+    assert doc.revision == 2
+    assert (a.text_italic, a.text_underline, a.text_strike, a.text_color) == (True, True, True, "violet")
+    assert (a.text_padding, a.text_line_height, a.text_size) == (0, 200, 13), "les autres clés restent"
+    assert (c.text_italic, c.label_at, c.label_side, c.text_color, c.text_underline) == (
+        True,
+        10,
+        "above",
+        "teal",
+        False,
+    )
+    assert (g.label_italic, g.label_underline, g.label_strike, g.label_color) == (True, True, False, "red")
+    for bad in (
+        {"op": "annotation_update", "id": "a1-1", "style": {"text_padding": 65}},
+        {"op": "annotation_update", "id": "a1-1", "style": {"text_line_height": 99}},
+        {"op": "annotation_update", "id": "a1-1", "style": {"text_italic": "secret"}},
+        {"op": "annotation_update", "id": "a1-1", "style": {"text_color": "secret"}},
+        {"op": "connector_update", "id": "c1-1", "style": {"label_at": 101}},
+        {"op": "connector_update", "id": "c1-1", "style": {"label_side": "secret"}},
+        {"op": "group_update", "id": "g1-1", "style": {"label_strike": 1}},
+        {"op": "group_update", "id": "g1-1", "style": {"label_color": "secret"}},
+    ):
+        res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": [bad]}, headers=auth)
+        assert res.status_code == 422, bad
+        assert "secret" not in res.text, "aucune valeur reçue en écho"

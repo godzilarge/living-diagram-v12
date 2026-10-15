@@ -136,24 +136,37 @@ test("les valeurs sensibles : repérées quel que soit le langage, la nature dit
   assert.equal(yaml[1].map((s) => s.t).join(""), 'db_password: "S3cr3t!"', "rien de perdu au découpage");
 });
 
-test("la géométrie : la boîte a la hauteur qu'on lui donne, le code défile par ligne entière, seules les lignes visibles comptent", () => {
+test("la géométrie : la boîte a la hauteur qu'on lui donne, le code défile par rangée entière, seules les rangées visibles comptent", () => {
   const { code } = loadApp();
   assert.equal(code.lineHeight(13), 20);
-  assert.ok(Math.abs(code.charWidth(10, "cascadia_mono") - 5.9) < 1e-9, "la chasse mesurée de Cascadia Mono");
+  assert.equal(code.charWidth(2048, "cascadia_mono"), 1200, "l'avance de Cascadia Mono : 1 200 unités sur 2 048 (lue dans Chromium)");
   assert.equal(code.charWidth(10, "ibm_plex_mono"), 6);
-  const shape = { w: 640, h: 540, size: 13, font: "jetbrains_mono", numbers: true, total: 120 };
+  const text = Array.from({ length: 120 }, (_, i) => "ligne " + i).join("\n");
+  const shape = { w: 640, h: 540, size: 13, font: "jetbrains_mono", numbers: true, text, wrap: true };
   const l = code.layout(shape, 33);
-  assert.deepEqual(clone([l.scrolls, l.visible, l.first, l.maxFirst, l.foot]), [true, 23, 33, 97, 26], "540 de haut : 23 lignes, le pied");
+  assert.deepEqual(clone([l.scrolls, l.visible, l.first, l.maxFirst, l.foot, l.total, l.lines]), [true, 23, 33, 97, 26, 120, 120], "540 de haut : 23 rangées, le pied");
   assert.equal(l.gutter, Math.ceil(3 * 7.8 + 24), "trois chiffres et deux marges");
+  assert.equal(l.textX, code.CODE.RAIL + l.gutter);
+  assert.equal(l.cols, Math.floor((640 - l.textX - 16 - 12) / 7.8), "la piste de défilement toujours réservée");
+  assert.equal(code.layout({ ...shape, numbers: false }, 0).textX, code.CODE.RAIL + code.CODE.LEFT);
   assert.equal(code.layout(shape, 500).first, 97, "jamais au-delà de la dernière page");
   assert.equal(code.layout(shape, -4).first, 0);
-  const all = code.layout({ ...shape, total: 12 }, 5);
+  const all = code.layout({ ...shape, text: text.split("\n").slice(0, 12).join("\n") }, 5);
   assert.deepEqual(clone([all.scrolls, all.visible, all.first, all.foot]), [false, 12, 0, 0], "tout tient : ni défilement ni pied");
-  assert.deepEqual(clone(code.footer(l)), { from: 34, to: 56, total: 120, below: 64 });
+  assert.equal(code.layout({ ...shape, h: 4000 }, 0).cols, l.cols, "les colonnes ne dépendent pas du défilement");
+  assert.deepEqual(clone(code.footer(l)), { from: 34, to: 56, total: 120, below: 64 }, "en lignes du texte");
   assert.equal(code.footer(all), null);
   assert.equal(code.fitHeight(12, 13), 300, "34 + 20 + 12 × 20 = 294, arrondi à la grille");
-  assert.equal(code.fitHeight(120, 13), 1280, "60 lignes au plus, et le pied : 34 + 20 + 1 200 + 26");
-  assert.equal(code.fitHeight(120, 13, 24) <= 560, true, "un collage : 24 lignes au plus");
+  assert.equal(code.fitHeight(120, 13), 1280, "60 rangées au plus, et le pied : 34 + 20 + 1 200 + 26");
+  assert.equal(code.fitHeight(120, 13, 24) <= 560, true, "un collage : 24 rangées au plus");
+  // retour à la ligne : les rangées comptent, le pied parle en lignes
+  const long = ["court", "x ".repeat(120).trim(), "fin"].join("\n");
+  const wrapped = code.layout({ ...shape, w: 300, h: 140, text: long }, 0), clipped = code.layout({ ...shape, w: 300, h: 140, text: long, wrap: false }, 0);
+  assert.equal(wrapped.lines, 3);
+  assert.ok(wrapped.total > 3 && clipped.total === 3, "une ligne longue devient plusieurs rangées, sans retour à la ligne une seule");
+  assert.equal(code.fitHeightOf({ w: 300, size: 13, font: "jetbrains_mono", numbers: true, text: long, wrap: true }), code.fitHeight(wrapped.total, 13), "ajuster : les rangées à sa largeur");
+  const foot = code.footer(wrapped);
+  assert.deepEqual(clone([foot.from, foot.total]), [1, 3]);
   // la barre de défilement : la piste pagine, le pouce suit
   const bar = code.scrollbar(l);
   assert.ok(bar.thumbH >= 18 && bar.thumbY > bar.trackY);
@@ -162,42 +175,141 @@ test("la géométrie : la boîte a la hauteur qu'on lui donne, le code défile p
   assert.equal(code.thumbDrag(l, 33, 0, 1), 33);
   assert.equal(code.thumbDrag(l, 0, 10000, 1), 97, "glissé au bout : la fin");
   assert.deepEqual([code.keyScroll(l, "PageDown"), code.keyScroll(l, "PageUp"), code.keyScroll(l, "Home"), code.keyScroll(l, "End"), code.keyScroll(l, "ArrowDown")], [55, 11, 0, 97, null]);
-  // la molette : les pixels s'accumulent en lignes entières, le reste est gardé
+  // la molette : les pixels s'accumulent en rangées entières, le reste est gardé
   const half = code.wheelLines(0, 10, 0, 20, 1);
   assert.deepEqual(clone(half), { lines: 0, acc: 10 });
   assert.deepEqual(clone(code.wheelLines(half.acc, 10, 0, 20, 1)), { lines: 1, acc: 0 });
-  assert.equal(code.wheelLines(0, 100, 0, 20, 0.5).lines, 10, "au zoom 0,5, une ligne vaut 10 pixels d'écran");
+  assert.equal(code.wheelLines(0, 100, 0, 20, 0.5).lines, 10, "au zoom 0,5, une rangée vaut 10 pixels d'écran");
   assert.equal(code.wheelLines(0, -3, 1, 20, 1).lines, -3, "en lignes (Firefox)");
   assert.equal(code.offsetOfLine("ab\ncd\nef", 2), 6);
   assert.equal(code.offsetOfLine("ab", 5), 2);
-  assert.deepEqual(clone(code.boundedBox(100, 20, 13)), { w: 240, h: 120 }, "jamais sous trois lignes ni sous 240");
+  assert.deepEqual(clone(code.boundedBox(100, 20, 13)), { w: 240, h: 120 }, "jamais sous trois rangées ni sous 240");
   assert.equal(code.pasteWidth("x".repeat(200)), 640);
   assert.equal(code.pasteWidth("ab"), 380);
 });
 
-test("la barre contextuelle d'un bloc : teinte | langage, police, coloration, numéros, ajuster, taille | plan, verrou | dupliquer, supprimer ; copier n'y est pas", () => {
-  const { floating } = loadApp();
+test("16 bis, la règle de coupure (wrap.ts) : les espaces pendent, un mot court passe entier, un mot long se coupe au caractère, les rangées de suite en retrait", () => {
+  const W = loadApp().code.wrapping;
+  const rows = (text, cols) => clone(W.wrapLine(text, 0, cols, true).map((r) => text.slice(r.from, r.to)));
+  assert.deepEqual(rows("abc def ghi", 20), ["abc def ghi"], "tient : une rangée");
+  assert.deepEqual(rows("abc def ghi", 7), ["abc def ", "ghi"], "les espaces restent au bout de la rangée qu'ils quittent, même au-delà du bord");
+  assert.deepEqual(rows("abc def ghi", 6), ["abc ", "def ", "ghi"]);
+  assert.deepEqual(rows("  interface Gi1/0/1 description longue", 16), ["  interface ", "Gi1/0/1 ", "description ", "longue"], "un mot qui ne tient pas passe entier");
+  assert.equal(W.hangOf("  interface", 16), 4, "le retrait : l'indentation + 2");
+  assert.equal(W.hangOf("x", 6), 2);
+  assert.equal(W.hangOf(" ".repeat(50) + "x", 40), 20, "au plus la moitié de la largeur");
+  assert.equal(W.hangOf("      ", 40), 2, "une ligne d'espaces n'a pas d'indentation à prolonger");
+  const long = "a".repeat(25);
+  assert.deepEqual(rows("vlan " + long, 10), ["vlan aaaaa", "aaaaaaaa", "aaaaaaaa", "aaaa"], "un mot plus long qu'une rangée de suite remplit la place puis des rangées entières (8 colonnes de suite)");
+  assert.deepEqual(clone(W.wrapLine("abc", 0, 2, false)), [{ line: 0, from: 0, to: 3, cont: false, hang: 0 }], "sans retour à la ligne : une rangée, entière");
+  const many = W.wrapText("a\n" + "b ".repeat(30).trim(), 10, true);
+  assert.deepEqual(clone(many.map((r) => [r.line, r.cont])).slice(0, 3), [[0, false], [1, false], [1, true]]);
+  // les invariants, sur des lignes tirées au hasard : rien ne se perd, une rangée ne déborde jamais que de ses espaces,
+  // un mot court n'est jamais coupé
+  let seed = 7;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const words = ["interface", "GigabitEthernet1/0/24", "C1|dc01-core-01|Ethernet1/21|", "10,20,30", "a-b-c", "x", "kQ9vX3mZp0Lr7TnW2xYk4sJ6uE1oI9aC3dF5gH7jK0lM2nB8"];
+  for (let n = 0; n < 400; n += 1) {
+    const text = " ".repeat(Math.floor(rnd() * 6)) + Array.from({ length: 1 + Math.floor(rnd() * 12) }, () => words[Math.floor(rnd() * words.length)]).join(rnd() < 0.5 ? " " : "  ");
+    const cols = 8 + Math.floor(rnd() * 60);
+    const got = W.wrapLine(text, 0, cols, true);
+    assert.equal(got.map((r) => text.slice(r.from, r.to)).join(""), text, "rien ne se perd");
+    got.forEach((r, i) => {
+      const width = r.cont ? cols - r.hang : cols, body = text.slice(r.from, r.to).replace(/ +$/, "");
+      assert.ok(body.length <= width, JSON.stringify({ text, cols, i }));
+      if (i) assert.ok(r.cont && r.from === got[i - 1].to);
+    });
+    for (const [a, b] of W.wordsOf(text)) {
+      if (W.isLong(b - a, cols, W.hangOf(text, cols))) continue;
+      assert.ok(!got.some((r) => r.from > a && r.from < b), "un mot court jamais coupé : " + JSON.stringify({ text, cols }));
+    }
+  }
+});
+
+test("16 bis : les rangées se dessinent par morceaux (une couleur à cheval garde sa famille), les valeurs sensibles par rangée, l'ouverture et la reprise de la lecture", () => {
+  const { code } = loadApp();
+  const segs = [{ t: "interface ", c: "keyword" }, { t: "GigabitEthernet1/0/24", c: null }];
+  assert.deepEqual(clone(code.rowSegments(segs, 5, 15)), [{ t: "face ", c: "keyword" }, { t: "Gigab", c: null }]);
+  assert.deepEqual(clone(code.rowSegments(segs, 0, 10)), [{ t: "interface ", c: "keyword" }], "un segment entier reste le même objet");
+  const text = ["hostname x", "snmp-server community Dc01-RoCommunity-avec-un-tres-long-nom RO", "end"].join("\n");
+  const l = code.layout({ w: 300, h: 400, size: 13, font: "jetbrains_mono", numbers: true, text, wrap: true }, 0);
+  const secret = { line: 1, start: 22, end: 61 };
+  const boxes = code.secretBoxes([secret], l);
+  assert.ok(boxes.length >= 2, "une valeur coupée par le retour à la ligne : une zone par rangée");
+  assert.equal(boxes.reduce((k, b) => k + b.w, 0), (61 - 22) * l.cw, "toute la valeur, rien de plus");
+  assert.ok(boxes.every((b) => b.index === 0));
+  const second = l.rows.findIndex((r) => r.line === 1 && r.cont);
+  const open = code.openingOf(text, { rows: l.rows, first: second });
+  assert.deepEqual(clone([open.line, open.k]), [1, 1], "ouvrir sur une rangée de suite : sa ligne, son rang");
+  assert.equal(open.offset, text.indexOf("\n") + 1 + l.rows[second].from);
+  assert.equal(code.rowOf(l, { line: 1, k: 1 }), second, "l'inverse : la lecture reprend à la même rangée");
+  assert.equal(code.rowOf(l, { line: 1, k: 99 }), l.rows.filter((r) => r.line === 1).length + 0, "un rang trop grand : la dernière rangée de la ligne");
+  assert.equal(code.rowOf(l, { line: 9, k: 0 }), l.rows.length - 1, "une ligne disparue : la fin");
+  assert.equal(code.rowX(l, l.rows[second]), l.textX + l.rows[second].hang * l.cw, "une rangée de suite est en retrait");
+});
+
+test("16 bis : la ligne de base de la lecture, celle d'une ligne HTML (l'écriture) ; la taille libre et son échelle ; le collage qui dépasserait la borne", () => {
+  const { code } = loadApp();
+  // mesurées dans Chromium (sous Linux, une descendante arrondie par défaut prend un pixel à l'ascendante)
+  assert.equal(code.baselineOffset(13, 20, "jetbrains_mono"), 14, "13 px dans 20 : ascendante 13, descendante 4, demi-interligne 1");
+  assert.equal(code.baselineOffset(8, 12, "jetbrains_mono"), 8, "8 px : la descendante 2,4 arrondie à 2 prend un pixel à l'ascendante (7 + 3)");
+  assert.equal(code.baselineOffset(11, 17, "jetbrains_mono"), 11);
+  assert.equal(code.baselineOffset(32, 50, "cascadia_mono"), 36);
+  assert.equal(code.baselineOffset(47, 73, "cascadia_mono"), 52);
+  assert.equal(code.baselineOffset(8, 12, "jetbrains_mono", false), 9, "sans le pixel prêté (autres plates-formes : la page mesure)");
+  assert.equal(code.baseline(2, 20, 14), 34 + 10 + 40 + 14);
+  const S = code.sizes;
+  assert.deepEqual(clone([S.SIZE_MIN, S.SIZE_MAX]), [8, 64]);
+  assert.deepEqual(clone(code.CODE_SIZE), [8, 64], "le bloc de code aussi : libre de 8 à 64");
+  assert.deepEqual([S.stepSize(13, 1), S.stepSize(14, 1), S.stepSize(15, 1), S.stepSize(15, -1), S.stepSize(64, 1), S.stepSize(8, -1), S.stepSize(100, -1)], [14, 16, 16, 14, 64, 8, 48]);
+  assert.deepEqual([S.clampSize(3), S.clampSize(70), S.clampSize(12.6)], [8, 64, 13]);
+  assert.deepEqual(clone(S.wheelSteps(0, -100, 0)), { steps: 1, acc: 0 }, "vers le haut : plus grand");
+  assert.deepEqual(clone(S.wheelSteps(0, -50, 0)), { steps: 0, acc: 50 });
+  assert.deepEqual(clone(S.wheelSteps(50, -60, 0)), { steps: 1, acc: 10 });
+  assert.equal(S.wheelSteps(0, 3, 1).steps, -1, "en lignes (Firefox) : trois lignes, un cran vers le bas");
+  const E = code.editor;
+  assert.equal(E.pasteTooLong(100, 0, "x".repeat(50), 200), false);
+  assert.equal(E.pasteTooLong(100, 0, "x".repeat(150), 200), true);
+  assert.equal(E.pasteTooLong(190, 0, "\t\t\tx", 200), true, "une tabulation devient quatre espaces : 190 + 13 > 200");
+  assert.equal(E.pasteTooLong(150, 100, "x".repeat(140), 200), false, "la sélection remplacée ne compte pas");
+});
+
+test("la barre contextuelle d'un bloc : teinte | langage, coloration, numéros, retour à la ligne, ajuster, taille et police | plan, verrou | dupliquer, supprimer ; puis celle de l'écriture", () => {
+  const { floating, codeBar } = loadApp();
   const style = { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" };
-  const content = { kind: "code", text: CISCO, language: "cisco_ios", title: "", highlight: true, line_numbers: true, font: "ibm_plex_mono" };
+  const content = { kind: "code", text: CISCO, language: "cisco_ios", title: "", highlight: true, line_numbers: true, font: "ibm_plex_mono", wrap: true };
   const a = { id: "a1-1", anchor: { kind: "free", ref: null }, x: 0, y: 0, w: 480, h: 200, z: "front", locked: false, leader: false, content, style, author: "o", at: "" };
   const ids = (entries) => clone(entries.map((e) => e.id));
   const bar = floating.entriesOf({}, { kind: "annotation", a });
-  assert.deepEqual(ids(bar), ["hue", "sep", "code_language", "code_font", "code_highlight", "code_numbers", "code_fit", "text_size", "sep", "plane", "lock", "sep", "duplicate", "delete"]);
+  assert.deepEqual(ids(bar), ["hue", "sep", "code_language", "code_highlight", "code_numbers", "code_wrap", "code_fit", "text_size", "sep", "plane", "lock", "sep", "duplicate", "delete"]);
   const lang = bar.find((e) => e.id === "code_language");
   assert.deepEqual(clone([lang.face, lang.volet.kind]), [{ kind: "text", text: "Cisco IOS / NX-OS", hint: false }, "codeLanguage"]);
-  assert.equal(bar.find((e) => e.id === "code_font").face.text, "Plex Mono");
   assert.equal(bar.find((e) => e.id === "code_highlight").pressed, true);
-  // la taille se lit dans la barre (« AA 13 », critique du 2026-10-15, comme le prototype)
-  assert.deepEqual(clone(bar.find((e) => e.id === "text_size").face), { kind: "value", icon: "textSize", text: "13" });
+  assert.equal(bar.find((e) => e.id === "code_wrap").pressed, true, "le retour à la ligne, une bascule (lot 16 bis)");
+  // la taille se lit dans la barre (« AA 13 ») ; son volet porte « − n + » puis les quatre polices (lot 16 bis)
+  const size = bar.find((e) => e.id === "text_size");
+  assert.deepEqual(clone(size.face), { kind: "value", icon: "textSize", text: "13" });
+  assert.deepEqual(clone(size.volet), { kind: "textSize", value: 13, font: "ibm_plex_mono", fonts: "code" });
   const plain = floating.entriesOf({}, { kind: "annotation", a: { ...a, h: 400, content: { ...content, language: "plain", text: "a\nb\nc" } } });
   assert.ok(!ids(plain).includes("code_highlight"), "pas de coloration sur un texte brut");
   const fitted = floating.entriesOf({}, { kind: "annotation", a: { ...a, h: 300, content: { ...content, text: "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl" } } });
   assert.ok(!ids(fitted).includes("code_fit"), "« ajuster » absent quand la boîte y est déjà");
-  // la détection propose : un YAML déclaré texte brut, le bouton le dit
   const hinted = floating.entriesOf({}, { kind: "annotation", a: { ...a, content: { ...content, language: "plain", text: YAML } } }).find((e) => e.id === "code_language");
   assert.equal(hinted.face.hint, true);
   assert.match(hinted.label, /YAML/);
   assert.equal(floating.barLabel({ kind: "annotation", a }), "actions rapides : bloc de code");
+  // la barre de l'écriture : chercher, retour à la ligne, taille et police | abandonner (armé : « cliquer encore »), enregistrer
+  const writing = { key: "annotation:a1-1", draft: false, size: 16, font: "jetbrains_mono", wrap: false, dirty: true, search: {}, actions: {} };
+  const w = codeBar.writingEntries(writing, false);
+  assert.deepEqual(ids(w), ["code_search", "code_wrap", "text_size", "sep", "code_abandon", "code_save"]);
+  assert.deepEqual(clone(w.map((e) => e.face && e.face.icon).filter(Boolean)), ["search", "wrap", "textSize", "abandon", "save"], "des icônes, le mot en infobulle");
+  assert.equal(w.find((e) => e.id === "code_wrap").pressed, false);
+  assert.equal(w.find((e) => e.id === "text_size").face.text, "16");
+  assert.match(w.find((e) => e.id === "code_abandon").label, /modifications/);
+  const armed = codeBar.writingEntries(writing, true).find((e) => e.id === "code_abandon");
+  assert.deepEqual([armed.pressed, armed.danger], [true, true]);
+  assert.match(armed.label, /cliquer encore/);
+  assert.equal(codeBar.writingEntries({ ...writing, dirty: false }, false).find((e) => e.id === "code_abandon").label, "abandonner");
 });
 
 test("les couleurs des jetons tiennent 4,5:1 au moins sur le fond du bloc, de l'en-tête et de la gouttière, dans les deux thèmes", () => {
@@ -489,7 +601,7 @@ test("finition : l'avertissement se pose à droite, à gauche, dessous, dessus, 
   }
 });
 
-test("finition : la fiche d'un long bloc ne rend que sa fenêtre ; la gouttière du champ s'élargit du point rouge", () => {
+test("finition : la fiche d'un long bloc ne rend que sa fenêtre", () => {
   const { code } = loadApp();
   assert.deepEqual(clone(code.lineWindow(2000, 0, 300, 19)), { from: 0, to: 36, before: 0, after: (2000 - 36) * 19 });
   assert.deepEqual(clone(code.lineWindow(2000, 19 * 1000, 300, 19)), { from: 980, to: 1036, before: 980 * 19, after: 964 * 19 });
@@ -497,10 +609,9 @@ test("finition : la fiche d'un long bloc ne rend que sa fenêtre ; la gouttière
   assert.deepEqual(clone(code.lineWindow(10, 0, 300, 19)), { from: 0, to: 10, before: 0, after: 0 });
   const w = code.lineWindow(2000, 777, 300, 19, 0);
   assert.equal(w.before + (w.to - w.from) * 19 + w.after, 2000 * 19, "les cales et la fenêtre font la hauteur du tout");
-  const plain = code.editorGutter(12, 13, "jetbrains_mono", false), flagged = code.editorGutter(12, 13, "jetbrains_mono", true);
-  assert.equal(flagged - plain, code.FLAG_W, "dès qu'une ligne est marquée");
-  assert.equal(plain, Math.ceil(2 * 13 * 0.6 + 2 * code.CODE.GUTTER), "la même que celle du dessin sans marque");
-  assert.equal(code.editorGutter(1200, 13, "jetbrains_mono", false) > plain, true);
+  // la gouttière de l'écriture est celle de la lecture (lot 16 bis : aucun saut) ; le point rouge se pose dans sa marge
+  assert.equal(code.gutterOf(12, 13, "jetbrains_mono"), Math.ceil(2 * 13 * 0.6 + 2 * code.CODE.GUTTER));
+  assert.equal(code.gutterOf(1200, 13, "jetbrains_mono") > code.gutterOf(12, 13, "jetbrains_mono"), true);
 });
 
 test("finition : coller comme bloc de code (Ctrl+Maj+V) fait toujours un bloc, au langage détecté même non sûr, sinon texte brut", () => {

@@ -230,6 +230,35 @@
         "text_valign": {
           "$ref": "#/$defs/TextValign",
           "description": "Alignement vertical du texte dans la boîte."
+        },
+        "text_italic": {
+          "description": "Texte en italique (1.7.0).",
+          "title": "Text Italic",
+          "type": "boolean"
+        },
+        "text_underline": {
+          "description": "Texte souligné (1.7.0).",
+          "title": "Text Underline",
+          "type": "boolean"
+        },
+        "text_strike": {
+          "description": "Texte barré (1.7.0).",
+          "title": "Text Strike",
+          "type": "boolean"
+        },
+        "text_padding": {
+          "description": "Marge entre le bord de la boîte et le texte, en unités du dessin (1.7.0) ; lue par la note et la forme.",
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Text Padding",
+          "type": "integer"
+        },
+        "text_line_height": {
+          "description": "Interligne, en pourcent de la taille du texte (1.7.0) ; lu par la note et la forme.",
+          "maximum": 300,
+          "minimum": 100,
+          "title": "Text Line Height",
+          "type": "integer"
         }
       },
       "required": [
@@ -244,7 +273,12 @@
         "text_font",
         "text_color",
         "text_align",
-        "text_valign"
+        "text_valign",
+        "text_italic",
+        "text_underline",
+        "text_strike",
+        "text_padding",
+        "text_line_height"
       ],
       "title": "AnnotationStyle",
       "type": "object"
@@ -324,6 +358,11 @@
         "font": {
           "$ref": "#/$defs/CodeFont",
           "description": "La police, à chasse fixe (`style.text_font` n'est pas lu pour un bloc)."
+        },
+        "wrap": {
+          "description": "Retour à la ligne (1.7.0) : une ligne plus large que la boîte continue sur la rangée suivante, en retrait ; sinon elle est coupée à droite. La règle de coupure est celle de la page, en lecture comme en écriture.",
+          "title": "Wrap",
+          "type": "boolean"
         }
       },
       "required": [
@@ -333,7 +372,8 @@
         "title",
         "highlight",
         "line_numbers",
-        "font"
+        "font",
+        "wrap"
       ],
       "title": "CodeContent",
       "type": "object"
@@ -482,7 +522,7 @@
     },
     "ConnectorStyle": {
       "additionalProperties": false,
-      "description": "Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création.",
+      "description": "Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création. La place de\nl'étiquette (`label_at`, `label_side`) est du style, comme la position de l'étiquette d'un groupe.",
       "properties": {
         "hue": {
           "$ref": "#/$defs/Hue",
@@ -523,7 +563,33 @@
         },
         "text_color": {
           "$ref": "#/$defs/LabelColor",
-          "description": "Couleur de l'étiquette : la teinte, ou l'encre du thème."
+          "description": "Couleur de l'étiquette : la teinte du connecteur, l'encre du thème, ou une teinte nommée."
+        },
+        "text_italic": {
+          "description": "Étiquette en italique (1.7.0).",
+          "title": "Text Italic",
+          "type": "boolean"
+        },
+        "text_underline": {
+          "description": "Étiquette soulignée (1.7.0).",
+          "title": "Text Underline",
+          "type": "boolean"
+        },
+        "text_strike": {
+          "description": "Étiquette barrée (1.7.0).",
+          "title": "Text Strike",
+          "type": "boolean"
+        },
+        "label_at": {
+          "description": "Place de l'étiquette le long du tracé, en pourcent de sa longueur depuis le départ.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Label At",
+          "type": "integer"
+        },
+        "label_side": {
+          "$ref": "#/$defs/LabelSide",
+          "description": "L'étiquette au-dessus du tracé, dessus ou au-dessous (1.7.0)."
         }
       },
       "required": [
@@ -534,7 +600,12 @@
         "text_size",
         "text_weight",
         "text_font",
-        "text_color"
+        "text_color",
+        "text_italic",
+        "text_underline",
+        "text_strike",
+        "label_at",
+        "label_side"
       ],
       "title": "ConnectorStyle",
       "type": "object"
@@ -769,7 +840,22 @@
         },
         "label_color": {
           "$ref": "#/$defs/LabelColor",
-          "description": "Couleur de l'étiquette : la teinte du cadre, ou l'encre du thème."
+          "description": "Couleur de l'étiquette : la teinte du cadre, l'encre du thème, ou une teinte nommée."
+        },
+        "label_italic": {
+          "description": "Étiquette en italique (1.7.0).",
+          "title": "Label Italic",
+          "type": "boolean"
+        },
+        "label_underline": {
+          "description": "Étiquette soulignée (1.7.0).",
+          "title": "Label Underline",
+          "type": "boolean"
+        },
+        "label_strike": {
+          "description": "Étiquette barrée (1.7.0).",
+          "title": "Label Strike",
+          "type": "boolean"
         }
       },
       "required": [
@@ -785,7 +871,10 @@
         "label_size",
         "label_weight",
         "label_font",
-        "label_color"
+        "label_color",
+        "label_italic",
+        "label_underline",
+        "label_strike"
       ],
       "title": "GroupStyle",
       "type": "object"
@@ -867,9 +956,22 @@
       "type": "object"
     },
     "LabelColor": {
+      "description": "La couleur d'un texte : la teinte de l'objet (`hue`), l'encre du thème (`ink`), ou l'une des douze teintes\nnommées (1.7.0, lot 4 bis de docs/11 : un texte d'une autre couleur que son objet).",
       "enum": [
         "hue",
-        "ink"
+        "ink",
+        "blue",
+        "sky",
+        "indigo",
+        "violet",
+        "pink",
+        "red",
+        "orange",
+        "amber",
+        "lime",
+        "green",
+        "teal",
+        "slate"
       ],
       "title": "LabelColor",
       "type": "string"
@@ -903,6 +1005,16 @@
         "bottom_right"
       ],
       "title": "LabelPosition",
+      "type": "string"
+    },
+    "LabelSide": {
+      "description": "Où l'étiquette se pose par rapport au tracé (1.7.0) : au-dessus (du côté du haut de l'écran ; à gauche d'un\ntracé vertical), dessus (centrée sur le trait), au-dessous.",
+      "enum": [
+        "above",
+        "on",
+        "below"
+      ],
+      "title": "LabelSide",
       "type": "string"
     },
     "LabelWeight": {

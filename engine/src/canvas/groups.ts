@@ -18,6 +18,7 @@ export const BOUNDS = { radius: [0, 80], fill_opacity: [0, 100], stroke_width: [
 export const DEFAULT_STYLE: GroupStyle = {
   shape: "rectangle", radius: 16, hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "dashed", padding: 24,
   label_position: "top_left", label_placement: "inside", label_size: 12, label_weight: "semibold", label_font: "sans", label_color: "hue",
+  label_italic: false, label_underline: false, label_strike: false,
 };
 /** Les mots du style d'un groupe, dans la langue de la page (catalogue `common:groupStyle`). */
 export const STYLE_LABEL: Record<string, string> = labelMap("common:groupStyle", [

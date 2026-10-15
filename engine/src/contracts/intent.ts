@@ -16,7 +16,25 @@ export type LabelPosition =
 export type LabelPlacement = "inside" | "outside";
 export type LabelWeight = "regular" | "semibold" | "bold";
 export type LabelFont = "sans" | "mono";
-export type LabelColor = "hue" | "ink";
+/**
+ * La couleur d'un texte : la teinte de l'objet (`hue`), l'encre du thème (`ink`), ou l'une des douze teintes
+ * nommées (1.7.0, lot 4 bis de docs/11 : un texte d'une autre couleur que son objet).
+ */
+export type LabelColor =
+  | "hue"
+  | "ink"
+  | "blue"
+  | "sky"
+  | "indigo"
+  | "violet"
+  | "pink"
+  | "red"
+  | "orange"
+  | "amber"
+  | "lime"
+  | "green"
+  | "teal"
+  | "slate";
 export type AnchorKind = "free" | "device" | "group";
 export type ZOrder = "back" | "front";
 export type ShapeKind = "rectangle" | "ellipse";
@@ -37,6 +55,11 @@ export type Side = "auto" | "n" | "e" | "s" | "w";
 export type Head = "none" | "arrow";
 export type Route = "straight" | "elbow" | "curve";
 export type LineStyle = "solid" | "dashed" | "dotted";
+/**
+ * Où l'étiquette se pose par rapport au tracé (1.7.0) : au-dessus (du côté du haut de l'écran ; à gauche d'un
+ * tracé vertical), dessus (centrée sur le trait), au-dessous.
+ */
+export type LabelSide = "above" | "on" | "below";
 
 /**
  * La couche d'intention d'une infrastructure : ses patchs keyés par identité stable, avec leur auteur et leur date.
@@ -233,6 +256,18 @@ export interface GroupStyle {
   label_weight: LabelWeight;
   label_font: LabelFont;
   label_color: LabelColor;
+  /**
+   * Étiquette en italique (1.7.0).
+   */
+  label_italic: boolean;
+  /**
+   * Étiquette soulignée (1.7.0).
+   */
+  label_underline: boolean;
+  /**
+   * Étiquette barrée (1.7.0).
+   */
+  label_strike: boolean;
 }
 /**
  * Une annotation (docs/10 §6) : un contenu, une boîte, un ancrage, un style ; signée, datée.
@@ -404,6 +439,10 @@ export interface CodeContent {
    */
   line_numbers: boolean;
   font: CodeFont;
+  /**
+   * Retour à la ligne (1.7.0) : une ligne plus large que la boîte continue sur la rangée suivante, en retrait ; sinon elle est coupée à droite. La règle de coupure est celle de la page, en lecture comme en écriture.
+   */
+  wrap: boolean;
 }
 /**
  * Le style d'une annotation (docs/10 §6) : toutes clés écrites ; le serveur complète avec les défauts de la sorte
@@ -437,6 +476,26 @@ export interface AnnotationStyle {
   text_color: LabelColor;
   text_align: TextAlign;
   text_valign: TextValign;
+  /**
+   * Texte en italique (1.7.0).
+   */
+  text_italic: boolean;
+  /**
+   * Texte souligné (1.7.0).
+   */
+  text_underline: boolean;
+  /**
+   * Texte barré (1.7.0).
+   */
+  text_strike: boolean;
+  /**
+   * Marge entre le bord de la boîte et le texte, en unités du dessin (1.7.0) ; lue par la note et la forme.
+   */
+  text_padding: number;
+  /**
+   * Interligne, en pourcent de la taille du texte (1.7.0) ; lu par la note et la forme.
+   */
+  text_line_height: number;
 }
 /**
  * Un connecteur (docs/10 §6) : deux bouts, des pointes, un tracé, une étiquette, un style ; signé, daté.
@@ -512,7 +571,8 @@ export interface Heads {
   end: Head;
 }
 /**
- * Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création.
+ * Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création. La place de
+ * l'étiquette (`label_at`, `label_side`) est du style, comme la position de l'étiquette d'un groupe.
  */
 export interface ConnectorStyle {
   hue: Hue;
@@ -532,4 +592,21 @@ export interface ConnectorStyle {
   text_weight: LabelWeight;
   text_font: LabelFont;
   text_color: LabelColor;
+  /**
+   * Étiquette en italique (1.7.0).
+   */
+  text_italic: boolean;
+  /**
+   * Étiquette soulignée (1.7.0).
+   */
+  text_underline: boolean;
+  /**
+   * Étiquette barrée (1.7.0).
+   */
+  text_strike: boolean;
+  /**
+   * Place de l'étiquette le long du tracé, en pourcent de sa longueur depuis le départ.
+   */
+  label_at: number;
+  label_side: LabelSide;
 }

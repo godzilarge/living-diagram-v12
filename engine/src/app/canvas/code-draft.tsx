@@ -18,9 +18,9 @@ import type { CodeDraft } from "../code/view";
 import { CodeBody, codeLabel, useCode } from "./code";
 import { CodeEditor } from "./code-edit";
 
-const contentOf = (d: CodeDraft): CodeContent => ({ ...DEFAULT_CODE_CONTENT, text: d.text || " ", language: d.language });
+const contentOf = (d: CodeDraft): CodeContent => ({ ...DEFAULT_CODE_CONTENT, text: d.text || " ", language: d.language, font: d.font, wrap: d.wrap });
 const annotationOf = (d: CodeDraft, c: CodeContent): Annotation => ({ id: "draft-" + d.key, anchor: { kind: "free", ref: null }, x: d.x, y: d.y, w: d.w, h: d.h, z: "front", locked: false, leader: false,
-  content: c, style: DEFAULT_STYLE.code, author: "", at: "" });
+  content: c, style: { ...DEFAULT_STYLE.code, text_size: d.size }, author: "", at: "" });
 
 export function CodeDraftLayer() {
   const draft = useSyncExternalStore(codeView.subscribe, codeView.draft, codeView.draft);
@@ -38,7 +38,7 @@ function Draft({ draft }: { draft: CodeDraft }) {
   const { commands, infrastructure } = useCode();
   const box = useRef<HTMLDivElement>(null);
   // un brouillon de collage s'écrit dans au moins dix-huit lignes (on relit avant d'enregistrer)
-  const h = Math.max(draft.h, draft.pasted ? fitHeight(Math.min(lineCount(draft.text), 18), 13) : draft.h);
+  const h = Math.max(draft.h, draft.pasted ? fitHeight(Math.min(lineCount(draft.text), 18), draft.size) : draft.h);
   const c = contentOf(draft), a = annotationOf({ ...draft, h }, c);
   useLayoutEffect(() => {
     const el = box.current;
@@ -51,7 +51,9 @@ function Draft({ draft }: { draft: CodeDraft }) {
   return (
     <div ref={box} className="code-draft annotation kind-code hue-slate selected code-editing" data-draft={draft.key}>
       <svg width={draft.w} height={h} viewBox={`0 0 ${draft.w} ${h}`} overflow="visible" aria-hidden="true"><CodeBody a={a} c={c} w={draft.w} h={h} first={0} editing idSuffix="-draft" /></svg>
-      <CodeEditor w={draft.w} h={h} size={CODE_SIZE} font={c.font} numbers initial={draft.text} first={0} warnAtOnce={draft.pasted} saveOnLeave={false}
+      <CodeEditor writingKey={"draft:" + draft.key} draft w={draft.w} h={h} size={draft.size} font={draft.font} numbers wrap={draft.wrap} language={draft.language} highlight
+        onSize={(size) => codeView.setDraft({ ...draft, size })} onFont={(font) => codeView.setDraft({ ...draft, font: font as CodeDraft["font"] })} onWrap={(wrap) => codeView.setDraft({ ...draft, wrap })}
+        initial={draft.text} first={0} warnAtOnce={draft.pasted} saveOnLeave={false}
         label={t("shell:code.editorLabel", { name: codeLabel(c) })} infrastructure={infrastructure}
         onDone={(text, outcome, removed) => {
           if (!commands) return;
@@ -62,4 +64,3 @@ function Draft({ draft }: { draft: CodeDraft }) {
     </div>
   );
 }
-const CODE_SIZE = DEFAULT_STYLE.code.text_size;

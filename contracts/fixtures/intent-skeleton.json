@@ -25,7 +25,12 @@
         "text_align": "left",
         "text_color": "ink",
         "text_font": "sans",
+        "text_italic": false,
+        "text_line_height": 135,
+        "text_padding": 8,
         "text_size": 13,
+        "text_strike": false,
+        "text_underline": false,
         "text_valign": "top",
         "text_weight": "regular"
       },
@@ -60,12 +65,17 @@
       },
       "style": {
         "hue": "slate",
+        "label_at": 50,
+        "label_side": "on",
         "opacity": 100,
         "stroke_style": "dashed",
         "stroke_width": 2,
         "text_color": "hue",
         "text_font": "sans",
+        "text_italic": false,
         "text_size": 12,
+        "text_strike": false,
+        "text_underline": false,
         "text_weight": "semibold"
       },
       "z": "front"
@@ -95,9 +105,12 @@
         "hue": "indigo",
         "label_color": "hue",
         "label_font": "sans",
+        "label_italic": false,
         "label_placement": "inside",
         "label_position": "top_left",
         "label_size": 12,
+        "label_strike": false,
+        "label_underline": false,
         "label_weight": "semibold",
         "padding": 24,
         "radius": 16,
@@ -108,7 +121,7 @@
     }
   ],
   "infrastructure": "infra-lab",
-  "intent_version": "1.6.0",
+  "intent_version": "1.7.0",
   "pins": [
     {
       "at": "2026-10-04T18:30:00Z",

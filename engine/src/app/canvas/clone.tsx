@@ -144,7 +144,7 @@ export function CloneLayer({ ghost }: { ghost: GhostStore }) {
         ))}
         {now.lines.map(({ c, a, b }) => {
           const path = pathOf({ kind: "point", at: a }, { kind: "point", at: b }, c.route, c.bend);
-          return <g key={c.id} className={`connector hue-${c.style.hue}`}><Stroke d={path.d} a={path.a} b={path.b} dirA={path.dirA} dirB={path.dirB} heads={c.heads} style={c.style} label={c.label} mid={path.mid} /></g>;
+          return <g key={c.id} className={`connector hue-${c.style.hue}`}><Stroke d={path.d} a={path.a} b={path.b} dirA={path.dirA} dirB={path.dirB} heads={c.heads} style={c.style} label={c.label} points={path.points} /></g>;
         })}
       </svg>
     </ViewportPortal>

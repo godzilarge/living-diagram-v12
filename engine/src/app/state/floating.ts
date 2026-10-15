@@ -10,13 +10,17 @@ import { t } from "../../i18n";
 import { size } from "./selection";
 import type { Multi } from "./selection";
 import { codeEntries } from "./code-bar";
+import { textEntries } from "./text-bar";
+import { carriesText, itemsOf } from "./text-format";
+import type { Mixed, PositionKind, TextPosition } from "./text-format";
 
 // ——— Quoi ———
 
 /** Les icônes Lucide de la barre, par nom (le composant les dessine). */
 export type IconName = "textSize" | "bold" | "alignLeft" | "alignCenter" | "alignRight" | "layers" | "lock" | "unlock" | "duplicate" | "delete"
-  | "editLabel" | "addRow" | "addColumn" | "header" | "replace" | "reverse" | "selectMembers" | "paint" | "pin" | "unpin" | "group"
-  | "note" | "connect" | "hide" | "isolate" | "align" | "highlighter" | "listOrdered" | "fitHeight";
+  | "addRow" | "addColumn" | "header" | "replace" | "reverse" | "selectMembers" | "paint" | "pin" | "unpin" | "group"
+  | "note" | "connect" | "hide" | "isolate" | "align" | "highlighter" | "listOrdered" | "fitHeight"
+  | "italic" | "underline" | "strike" | "textColor" | "labelPlace" | "wrap" | "search" | "abandon" | "save";
 /** Les glyphes dessinés à la main (ce que Lucide n'a pas) : ils montrent la valeur posée sur le bouton. */
 export type GlyphName = "fill" | "border" | "corners" | "heads" | "route" | "widths" | "strokes" | "width" | "stroke" | "shape" | "opacity" | "position" | "plane";
 export type Face =
@@ -36,11 +40,16 @@ export type Volet =
   | { kind: "align"; count: number; rows: AlignCell[][]; grid: boolean }
   | { kind: "position"; value: string }
   | { kind: "groups"; hosts: string[]; groups: { id: string; label: string }[] }
-  | { kind: "codeLanguage"; value: string; text: string } | { kind: "codeFont"; value: string };
+  | { kind: "codeLanguage"; value: string; text: string } | { kind: "codeFont"; value: string }
+  /** La taille libre (lot 4 bis) : « − n + », puis la police (sans / mono d'un texte, les quatre d'un bloc de code) ;
+   *  `null` = mixte. */
+  | { kind: "textSize"; value: number | null; font: string | null; fonts: "text" | "code" }
+  | { kind: "textColor"; value: string | null }
+  | { kind: "textPosition"; position: PositionKind; value: Mixed<TextPosition> };
 export interface AlignCell { mode: BarAlign; label: string; keys: string; aria: string; distribute: boolean }
 /** Un bouton : `id` dit ce qu'il fait (le composant l'exécute), `keys` son raccourci écrit, `aria` le même pour
  *  `aria-keyshortcuts` ; un bouton à volet propose (il n'agit pas seul). */
-export interface BarButton { id: string; label: string; face: Face; keys?: string; aria?: string; pressed?: boolean; danger?: boolean; volet?: Volet }
+export interface BarButton { id: string; label: string; face: Face; keys?: string; aria?: string; pressed?: boolean | "mixed"; danger?: boolean; volet?: Volet }
 export type BarEntry = BarButton | { id: "sep" };
 const SEP: BarEntry = { id: "sep" };
 
@@ -88,18 +97,18 @@ function hueButton(hues: string[], volet: Extract<Volet, { kind: "hue" }>): BarB
 const choice = (id: string, label: string, title: string, value: string | number, options: Choice[], face: Face): BarButton =>
   button(id, label, face, { volet: { kind: "choice", title, value: String(value), options } });
 
-// Les valeurs proposées : un petit nombre de crans, la fiche garde le réglage fin (curseurs, valeurs libres).
-export const TEXT_SIZES: [string, number][] = [["S", 12], ["M", 13], ["L", 15]];
+// Les valeurs proposées : un petit nombre de crans, la fiche garde le réglage fin (curseurs, valeurs libres). La taille
+// du texte est libre (lot 4 bis) : son volet a un champ.
 export const FILLS = [0, 25, 50, 100];
 export const RADII = [0, 6, 12, 24];
 export const OPACITIES = [25, 50, 75, 100];
 export const WIDTHS = [1, 2, 3, 4];
-const ALIGN_CYCLE = ["left", "center", "right"] as const;
 const HEAD_CYCLE = ["none/none", "none/arrow", "arrow/none", "arrow/arrow"] as const;
 const HEAD_WORD: Record<string, string> = { "none/none": "none", "none/arrow": "end", "arrow/none": "start", "arrow/arrow": "both" };
 
-/** Les annotations : la teinte, puis ce que la sorte a de fréquent ; le plan seulement quand il dit vrai (une
- *  annotation attachée se dessine au-dessus de son ancre, lot 1) ; dupliquer et supprimer au bout. */
+/** Les annotations : la teinte, puis ce que la sorte a de fréquent, puis son texte (lot 4 bis) ; le plan seulement
+ *  quand il dit vrai (une annotation attachée se dessine au-dessus de son ancre, lot 1) ; dupliquer et supprimer au
+ *  bout. « Modifier l'étiquette » d'une forme n'est plus dans la barre (double-clic, Entrée, F2). */
 function annotationEntries(a: Annotation): BarEntry[] {
   const s = a.style, c = a.content;
   const hue = hueButton([s.hue], { kind: "hue", value: s.hue, inherited: null, allowDefault: false });
@@ -109,34 +118,26 @@ function annotationEntries(a: Annotation): BarEntry[] {
   const dup = button("duplicate", L("duplicate"), icon("duplicate"), keys("Ctrl+D"));
   const del = button("delete", L("delete"), icon("delete"), { ...keys(L("keyDelete")), danger: true });
   if (c.kind === "code") return codeEntries(a, c, { hue, plane, lock, dup, del, sep: SEP }); // lot 16 : code-bar.ts
-  if (c.kind === "note") {
-    const size = TEXT_SIZES.find(([, px]) => px === s.text_size);
-    const align = ALIGN_CYCLE.includes(s.text_align as typeof ALIGN_CYCLE[number]) ? s.text_align : "left";
-    return [hue, SEP,
-      choice("text_size", L("textSizeOf", { value: size ? L("size" + size[0]) : s.text_size + " px" }), L("textSize"), s.text_size,
-        TEXT_SIZES.map(([name, px]) => ({ value: String(px), label: L("size" + name), num: String(px) })), icon("textSize")),
-      button("bold", L("bold"), icon("bold"), { pressed: s.text_weight === "bold" }),
-      button("text_align", L("textAlignOf", { value: L("textAligns." + align) }), icon(align === "center" ? "alignCenter" : align === "right" ? "alignRight" : "alignLeft")),
-      SEP, ...plane, lock, SEP, dup, del];
-  }
+  const text = carriesText(a) ? [SEP, ...textEntries([{ kind: "annotation", a }])] : [];
+  if (c.kind === "note") return [hue, ...text, SEP, ...plane, lock, SEP, dup, del];
   if (c.kind === "shape") {
     const corners = c.shape === "ellipse" ? [] : [choice("radius", L("corners"), L("corners"), s.radius, RADII.map((r) => ({ value: String(r), label: r ? String(r) : L("square"), glyph: "corners" as const })), glyph("corners", s.radius))];
     return [hue,
       choice("fill_opacity", L("fill"), L("fill"), s.fill_opacity, FILLS.map((f) => ({ value: String(f), label: f === 0 ? L("fillNone") : f === 100 ? L("fillFull") : f + " %", glyph: "fill" as const })), glyph("fill", s.fill_opacity)),
       choice("stroke_style", L("border"), L("border"), s.stroke_style, ["solid", "dashed", "dotted", "none"].map((v) => ({ value: v, label: L("stroke." + v), glyph: "border" as const })), glyph("border", s.stroke_style)),
-      ...corners, SEP,
-      button("edit_label", L("editLabel"), icon("editLabel"), keys(L("keyEdit"))), SEP, ...plane, lock, SEP, dup, del];
+      ...corners, ...text, SEP, ...plane, lock, SEP, dup, del];
   }
   if (c.kind === "table") {
     return [button("add_row", L("addRow"), icon("addRow")), button("add_column", L("addColumn"), icon("addColumn")),
-      button("header", L("header"), icon("header"), { pressed: c.header }), SEP, hue, SEP, ...plane, SEP, del];
+      button("header", L("header"), icon("header"), { pressed: c.header }), SEP, hue, ...text, SEP, ...plane, SEP, del];
   }
   return [button("replace", L("replace"), icon("replace")),
     choice("opacity", L("opacity"), L("opacity"), s.opacity, OPACITIES.map((o) => ({ value: String(o), label: o + " %", glyph: "opacity" as const })), glyph("opacity", s.opacity)),
     SEP, ...plane, lock, SEP, del];
 }
 
-/** Le connecteur : pointes (un cycle des quatre), tracé | teinte, épaisseur, style | inverser, verrou | supprimer. */
+/** Le connecteur : pointes (un cycle des quatre), tracé | teinte, épaisseur, style | son étiquette (lot 4 bis) |
+ *  inverser, verrou | supprimer. */
 function connectorEntries(c: Connector): BarEntry[] {
   const heads = c.heads.start + "/" + c.heads.end, s = c.style;
   return [
@@ -145,19 +146,21 @@ function connectorEntries(c: Connector): BarEntry[] {
     SEP, hueButton([s.hue], { kind: "hue", value: s.hue, inherited: null, allowDefault: false }),
     choice("stroke_width", L("width"), L("width"), s.stroke_width, WIDTHS.map((w) => ({ value: String(w), label: String(w), glyph: "width" as const })), glyph("widths", s.stroke_width)),
     choice("line_style", L("lineStyle"), L("lineStyle"), s.stroke_style, ["solid", "dashed", "dotted"].map((v) => ({ value: v, label: L("stroke." + v), glyph: "stroke" as const })), glyph("strokes", s.stroke_style)),
+    SEP, ...textEntries([{ kind: "connector", c }]),
     SEP, button("reverse", L("reverse"), icon("reverse")),
     button("lock", c.locked ? L("unlock") : L("lock"), icon(c.locked ? "lock" : "unlock"), { pressed: c.locked }),
     SEP, button("delete", L("delete"), icon("delete"), { ...keys(L("keyDelete")), danger: true }),
   ];
 }
 
-/** Le groupe : teinte, forme, position de l'étiquette | sélectionner les membres, leur appliquer la teinte | supprimer. */
+/** Le groupe : teinte, forme | son étiquette (lot 4 bis : la position en fait partie, neuf places dedans ou dehors) |
+ *  sélectionner les membres, leur appliquer la teinte | supprimer. */
 function groupEntries(model: Model, g: Group): BarEntry[] {
   const s = g.style, present = g.members.some((host) => model.nodeByHost.has(host));
   return [
     hueButton([s.hue], { kind: "hue", value: s.hue, inherited: null, allowDefault: false }),
     choice("shape", L("shape"), L("shape"), s.shape, ["rectangle", "ellipse"].map((v) => ({ value: v, label: L("shapes." + v), glyph: "shape" as const })), glyph("shape", s.shape)),
-    button("label_position", L("labelPosition"), glyph("position", s.label_position), { volet: { kind: "position", value: s.label_position } }),
+    SEP, ...textEntries([{ kind: "group", g }]),
     SEP, ...(present ? [button("select_members", L("selectMembers"), icon("selectMembers")), button("paint_members", L("paintMembers"), icon("paint"))] : []),
     ...(present ? [SEP] : []), button("delete", L("deleteGroup"), icon("delete"), { ...keys(L("keyDelete")), danger: true }),
   ];
@@ -245,6 +248,9 @@ function multiEntries(model: Model, multi: Multi): BarEntry[] {
   if (devices.length) out.push(button("group", L("group"), icon("group"), { volet: { kind: "groups", hosts: devices, groups: groupsOf(model) } }));
   const hues = multiHues(model, multi, devices);
   if (hues) out.push(hueButton(hues.effective.slice(0, 2), { kind: "hue", value: hues.value, inherited: hues.inherited, allowDefault: hues.devicesOnly }));
+  // le texte de toute une sélection (lot 4 bis) : une valeur commune, ou « — »
+  const text = textEntries(itemsOf(model, multi));
+  if (text.length) { if (out.length && out[out.length - 1].id !== "sep") out.push(SEP); out.push(...text); }
   const editables = multi.annotations.length + multi.connectors.length;
   if (editables + multi.groups.length) {
     const flags = multi.annotations.map((id) => model.annotationById.get(id)).concat(multi.connectors.map((id) => model.connectorById.get(id)) as never[])
@@ -282,8 +288,6 @@ export function nextHeads(c: Pick<Connector, "heads">): { start: "none" | "arrow
   const [start, end] = HEAD_CYCLE[(at + 1) % HEAD_CYCLE.length].split("/") as ["none" | "arrow", "none" | "arrow"];
   return { start, end };
 }
-/** Le cycle de l'alignement du texte d'une note. */
-export const nextTextAlign = (align: string): "left" | "center" | "right" => ALIGN_CYCLE[(Math.max(0, ALIGN_CYCLE.indexOf(align as typeof ALIGN_CYCLE[number])) + 1) % ALIGN_CYCLE.length];
 /** La clé d'une sélection : la barre rappelée par Alt+T vaut pour elle seule. */
 export const selectionKey = (selection: Selection | null, multi: Multi): string => (size(multi) >= 2 ? JSON.stringify(multi) : selection ? selection.kind + ":" + selection.id : "");
 
@@ -341,37 +345,37 @@ export interface BarPlace { x: number; y: number; below: boolean; side: BarSide;
  *  d'autre de son centre). `beside` (un connecteur : son tracé est un obstacle) : la barre peut aussi se poser à gauche
  *  ou à droite de l'ancre, centrée sur elle (un tracé vertical n'est jamais couvert). Rien ne tient : en haut de la
  *  zone. `null` : l'ancre est hors de la zone (la barre attend qu'on revienne). L'ergot pointe l'ancre même quand la
- *  barre s'est décalée. */
-export function placeBar(anchor: Rect, width: number, zone: Zone, obstacles: Obstacle[], beside = false): BarPlace | null {
+ *  barre s'est décalée. `height` : la barre de recherche d'un bloc qu'on écrit a deux rangées (lot 16 bis). */
+export function placeBar(anchor: Rect, width: number, zone: Zone, obstacles: Obstacle[], beside = false, height: number = BAR_H): BarPlace | null {
   if (anchor.x + anchor.w < zone.left || anchor.x > zone.right || anchor.y + anchor.h < zone.top || anchor.y > zone.bottom) return null;
   const cx = anchor.x + anchor.w / 2, cy = anchor.y + anchor.h / 2, center = clamp(cx - width / 2, zone.left, zone.right - width);
   const lo = Math.max(zone.left, cx + HOLD - width), hi = Math.min(zone.right - width, cx - HOLD);
-  const rows = [{ below: false, y: anchor.y - GAP - BAR_H }, { below: true, y: anchor.y + anchor.h + GAP }].filter((r) => r.y >= zone.top && r.y + BAR_H <= zone.bottom);
+  const rows = [{ below: false, y: anchor.y - GAP - height }, { below: true, y: anchor.y + anchor.h + GAP }].filter((r) => r.y >= zone.top && r.y + height <= zone.bottom);
   const caretOf = (x: number): number => Math.round(clamp(cx - x, CARET_MIN, width - CARET_MIN));
   const coverOf = (bar: Rect): number => obstacles.reduce((sum, o) => (o.box.y < bar.y + bar.h && o.box.y + o.box.h > bar.y ? sum + overlap(bar, o.box) * o.weight : sum), 0);
   let best: (BarPlace & { cost: number }) | null = null;
   const consider = (x: number, y: number, side: BarSide, penalty: number): void => {
-    const covers = coverOf({ x, y, w: width, h: BAR_H }), cost = covers + penalty;
+    const covers = coverOf({ x, y, w: width, h: height }), cost = covers + penalty;
     if (!best || cost < best.cost) best = { x, y, below: side === "below", side, covers, cost, caret: 0, caretY: 0 };
   };
   for (const row of rows) {
     // seuls les obstacles de cette rangée donnent des places (une toile de 500 cartes n'en a que quelques-unes à cette hauteur)
     const xs = [center];
-    obstacles.forEach((o) => { if (o.box.y < row.y + BAR_H && o.box.y + o.box.h > row.y) xs.push(o.box.x - GAP - width, o.box.x + o.box.w + GAP); });
+    obstacles.forEach((o) => { if (o.box.y < row.y + height && o.box.y + o.box.h > row.y) xs.push(o.box.x - GAP - width, o.box.x + o.box.w + GAP); });
     for (const x0 of xs) {
       const x = lo <= hi ? clamp(x0, lo, hi) : center;
       consider(x, row.y, row.below ? "below" : "above", (row.below ? BELOW_COST : 0) + Math.abs(x - center) * SHIFT_COST);
     }
   }
   if (beside) {
-    const y = clamp(cy - BAR_H / 2, zone.top, zone.bottom - BAR_H);
+    const y = clamp(cy - height / 2, zone.top, zone.bottom - height);
     if (anchor.x - GAP - width >= zone.left) consider(anchor.x - GAP - width, y, "left", BESIDE_COST);
     if (anchor.x + anchor.w + GAP + width <= zone.right) consider(anchor.x + anchor.w + GAP, y, "right", BESIDE_COST);
   }
   const found = best as (BarPlace & { cost: number }) | null;
   if (!found) { const x = Math.round(center), y = Math.round(zone.top); return { x, y, below: false, side: "above", covers: 0, caret: caretOf(x), caretY: 0 }; }
   const x = Math.round(found.x), y = Math.round(found.y);
-  return { x, y, below: found.below, side: found.side, covers: Math.round(found.covers), caret: caretOf(x), caretY: Math.round(clamp(cy - y, 10, BAR_H - 10)) };
+  return { x, y, below: found.below, side: found.side, covers: Math.round(found.covers), caret: caretOf(x), caretY: Math.round(clamp(cy - y, 10, height - 10)) };
 }
 
 /** La place d'un volet : son coin haut gauche, `up` (au-dessus de ce qu'il ouvre), `maxH` (raccourci : sa liste défile ;
@@ -429,4 +433,4 @@ export function nextGroup(count: number, at: number, back: boolean): number {
  *  coché y prend le focus), avant une action seule (« appliquer » la suggestion d'un langage) ; sinon le premier. */
 export const startGroup = (units: { grouped: boolean }[]): number => Math.max(0, units.findIndex((u) => u.grouped));
 
-export const floating = { GRID_MIN, isGridKey, multiHues, targetOf, shows, entriesOf, barLabel, nextHeads, nextTextAlign, selectionKey, alignFromKey, alignCommand, movableCount, alignRows, anchorOf, placeBar, placeVolet, toScreen, ariaKeys, BAR_H, GAP, VOLET_MIN_H, nextGroup, startGroup };
+export const floating = { GRID_MIN, isGridKey, multiHues, targetOf, shows, entriesOf, barLabel, nextHeads, selectionKey, alignFromKey, alignCommand, movableCount, alignRows, anchorOf, placeBar, placeVolet, toScreen, ariaKeys, BAR_H, GAP, VOLET_MIN_H, nextGroup, startGroup };

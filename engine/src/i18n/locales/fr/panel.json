@@ -254,7 +254,12 @@
     "placement": "placement",
     "placementLabel": "dans ou hors du cadre",
     "inside": "dans le cadre",
-    "outside": "hors du cadre"
+    "outside": "hors du cadre",
+    "decoration": "style du texte",
+    "textPadding": "marge du texte",
+    "lineHeight": "interligne",
+    "labelAt": "place",
+    "labelSide": "côté"
   },
   "group": {
     "kind": "Groupe",
@@ -487,6 +492,9 @@
     "tipTitle": "{{kind}}, {{nature}}, ligne {{line}} ; lisible par tous ceux qui ouvrent {{infrastructure}}",
     "tipShieldTitle_one": "1 valeur sensible gardée telle quelle, lisible par tous ceux qui ouvrent {{infrastructure}}",
     "tipShieldTitle_many": "{{count}} valeurs sensibles gardées telles quelles, lisibles par tous ceux qui ouvrent {{infrastructure}}",
-    "tipShieldTitle_other": "{{count}} valeurs sensibles gardées telles quelles, lisibles par tous ceux qui ouvrent {{infrastructure}}"
+    "tipShieldTitle_other": "{{count}} valeurs sensibles gardées telles quelles, lisibles par tous ceux qui ouvrent {{infrastructure}}",
+    "wrap": "retour à la ligne",
+    "wrapOn": "activé",
+    "wrapOff": "désactivé"
   }
 }

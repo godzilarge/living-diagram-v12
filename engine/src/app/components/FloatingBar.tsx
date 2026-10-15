@@ -28,13 +28,18 @@ import type { GuideStore } from "../canvas/GuideLayer";
 import { t } from "../../i18n";
 import { FloatingHost, GRID } from "../canvas/Flow";
 import type { Toile } from "../canvas/toile";
-import { alignCommand, alignFromKey, isGridKey, anchorOf, barLabel, entriesOf, movableCount, nextGroup, nextHeads, nextTextAlign, placeBar, placeVolet, selectionKey, shows, startGroup, targetOf, toScreen, BAR_H, GAP } from "../state/floating";
+import { alignCommand, alignFromKey, isGridKey, anchorOf, barLabel, entriesOf, movableCount, nextGroup, nextHeads, placeBar, placeVolet, selectionKey, shows, startGroup, targetOf, toScreen, BAR_H, GAP } from "../state/floating";
 import type { BarAlign, BarButton, BarEntry, Geometry, Obstacle, Rect, Target, Zone } from "../state/floating";
 import { useEditable, useStore } from "../state/store";
 import { FaceOf } from "./floating-faces";
 import { VoletBody } from "./FloatingVolet";
 import type { GridControls } from "./FloatingVolet";
 import { codeRun } from "../state/code-bar";
+import { TEXT_IDS, textChangeOf } from "../state/text-bar";
+import { itemsOf, shortcutOf } from "../state/text-format";
+import type { TextItem } from "../state/text-format";
+import { writing } from "../code/writing";
+import { WritingBar } from "./WritingBar";
 import { typing } from "../canvas/keys";
 import { CHROME } from "../canvas/chrome";
 
@@ -44,7 +49,7 @@ const NO_VIEW: [number, number, number] = [0, 0, 1];
 type Commands = ReturnType<typeof useStore>["commands"];
 
 /** La zone de la barre, relative à la toile : sous la recherche et la barre d'outils, au-dessus de la bande, à gauche du panneau. */
-function zoneOf(host: DOMRect): Zone {
+export function zoneOf(host: DOMRect): Zone {
   const rect = (selector: string): DOMRect | null => { const el = document.querySelector(selector); return el ? el.getBoundingClientRect() : null; };
   const tops = [".search", ".toolbar"].map(rect).filter((r): r is DOMRect => !!r && r.height > 0);
   const band = rect(".band"), panel = rect(".panel");
@@ -111,16 +116,26 @@ function labelOf(anchor: Rect, host: DOMRect, connector: string): Rect {
   return { x, y, w: Math.max(anchor.x + anchor.w, r.right - host.left) - x, h: Math.max(anchor.y + anchor.h, r.bottom - host.top) - y };
 }
 
+/** Les objets d'une cible qui portent du texte (lot 4 bis) ; un bloc de code n'en est pas (sa taille et sa police sont
+ *  les siennes, code-bar.ts). */
+export function textItemsOf(model: Model, target: Target): TextItem[] {
+  if (target.kind === "annotation") return target.a.content.kind === "code" ? [] : itemsOf(model, { hosts: [], annotations: [target.a.id], connectors: [], groups: [] });
+  if (target.kind === "connector") return [{ kind: "connector", c: target.c }];
+  if (target.kind === "group") return [{ kind: "group", g: target.g }];
+  return target.kind === "multi" ? itemsOf(model, target.multi) : [];
+}
+
 /** Ce qu'un bouton fait, pour la cible, par les commandes du store. */
 function execute(button: BarButton, value: string | null, target: Target, model: Model, toile: Toile, commands: Commands, pickFile: () => void): void {
   const id = button.id;
+  // le texte (lot 4 bis) : un changement pour l'objet ou toute la sélection, une écriture
+  const text = (TEXT_IDS as readonly string[]).includes(id) ? textItemsOf(model, target) : [];
+  const change = text.length ? textChangeOf(id, value) : null;
+  if (change) { commands.textFormat(text, change); return; }
   if (target.kind === "annotation") {
     const a = target.a, s = a.style, update = (patch: Parameters<Commands["annotationUpdate"]>[1]): void => commands.annotationUpdate(a.id, patch);
     const style = (patch: Partial<typeof s>): void => update({ style: patch });
     if (id === "hue" && value) style({ hue: value as typeof s.hue });
-    else if (id === "text_size" && value) style({ text_size: Number(value) });
-    else if (id === "bold") style({ text_weight: s.text_weight === "bold" ? "regular" : "bold" });
-    else if (id === "text_align") style({ text_align: nextTextAlign(s.text_align) });
     else if (id === "fill_opacity" && value) style({ fill_opacity: Number(value) });
     else if (id === "stroke_style" && value) style({ stroke_style: value as typeof s.stroke_style });
     else if (id === "radius" && value) style({ radius: Number(value) });
@@ -157,7 +172,6 @@ function execute(button: BarButton, value: string | null, target: Target, model:
     const style = (patch: Partial<typeof g.style>): void => commands.groupUpdate(g.id, { style: patch });
     if (id === "hue" && value) style({ hue: value as typeof g.style.hue });
     else if (id === "shape" && value) style({ shape: value as typeof g.style.shape });
-    else if (id === "label_position" && value) style({ label_position: value as typeof g.style.label_position });
     else if (id === "select_members") commands.selectHosts(present);
     else if (id === "paint_members") commands.colorHosts(present, g.style.hue);
     else if (id === "delete") commands.groupDelete(g.id);
@@ -206,7 +220,11 @@ function stopOf(unit: HTMLElement): HTMLElement | null {
 
 export function FloatingBar() {
   const host = useContext(FloatingHost);
-  return host ? <Bar toile={host.toile} gate={host.gate} guides={host.guides} /> : null;
+  // pendant l'écriture d'un bloc de code, la barre devient celle de l'écriture (lot 16 bis), quelle que soit la préférence
+  const now = useSyncExternalStore(writing.subscribe, writing.get, writing.get);
+  const editable = useEditable();
+  if (!host) return null;
+  return now && editable ? <WritingBar w={now} /> : <Bar toile={host.toile} gate={host.gate} guides={host.guides} />;
 }
 
 function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolean; subscribe: (l: () => void) => () => void }; guides: GuideStore }) {
@@ -275,7 +293,11 @@ function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolea
       const now = latest.current;
       if (now.state.view.mode === "journal" || typing(event.target)) return;
       const inBar = !!(event.target as Element | null)?.closest?.(".fbar, .fvolet");
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && (event.key === "." || event.code === "Period")) {
+      // le texte (lot 4 bis) : Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Maj+X, Ctrl+Maj+> et < sur la sélection, barre affichée ou non
+      const textChange = now.target && now.editable && now.model && now.state.view.mode === "diagram" ? shortcutOf(event.key, event.code, event.ctrlKey || event.metaKey, event.shiftKey, event.altKey) : null;
+      const textTargets = textChange && now.model && now.target ? textItemsOf(now.model, now.target) : [];
+      if (textChange && textTargets.length) { event.preventDefault(); commands.textFormat(textTargets, textChange); return; }
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && (event.key === "." || event.code === "Period")) {
         event.preventDefault();
         const next = !now.state.prefs.fbar;
         commands.setPrefs({ fbar: next });
@@ -493,7 +515,7 @@ function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolea
             const tint = b.face.kind === "glyph" && b.face.glyph === "fill" && target.kind === "annotation" ? " hue-" + target.a.style.hue : "";
             return (
               <button key={b.id} type="button" data-id={b.id} tabIndex={tab} className={"fb" + (b.volet ? " opens" : "") + (b.danger ? " danger" : "") + (b.face.kind === "text" || b.face.kind === "value" ? " named" : "") + tint}
-                aria-label={b.label} aria-keyshortcuts={b.aria} aria-pressed={b.pressed === undefined ? undefined : b.pressed ? "true" : "false"}
+                aria-label={b.label} aria-keyshortcuts={b.aria} aria-pressed={b.pressed === undefined ? undefined : b.pressed === "mixed" ? "mixed" : b.pressed ? "true" : "false"}
                 aria-haspopup={b.volet ? (b.volet.kind === "groups" ? "menu" : "dialog") : undefined} aria-expanded={b.volet ? (open === b.id ? "true" : "false") : undefined}
                 onClick={() => { if (b.volet) toggle(b, false); else run(b); }}
                 onPointerEnter={(event) => { if (!open) showTip(event.currentTarget, b.label, b.keys || "", false); }} onPointerLeave={() => showTip(null, "", "", false)}

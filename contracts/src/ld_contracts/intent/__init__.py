@@ -6,6 +6,7 @@ from ld_contracts.intent.annotations import (
     DEFAULT_ANNOTATION_SIZE,
     DEFAULT_ANNOTATION_STYLE,
     MAX_ANNOTATIONS,
+    TEXT_DEFAULTS,
     Anchor,
     Annotation,
     AnnotationStyle,
@@ -28,6 +29,7 @@ from ld_contracts.intent.connectors import (
     ConnectorStyle,
     FreeEnd,
     Heads,
+    LabelSide,
     Side,
 )
 from ld_contracts.intent.intent import (
@@ -60,6 +62,7 @@ __all__ = [
     "MAX_CONNECTORS",
     "MAX_GROUPS",
     "MAX_PINS",
+    "TEXT_DEFAULTS",
     "Anchor",
     "Annotation",
     "AnnotationStyle",
@@ -74,6 +77,7 @@ __all__ = [
     "Group",
     "GroupStyle",
     "Heads",
+    "LabelSide",
     "Side",
     "Hue",
     "ImageContent",

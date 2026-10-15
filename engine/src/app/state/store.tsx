@@ -37,6 +37,8 @@ import { clipboardCommands } from "./clipboard-commands";
 import type { ClipboardCommands } from "./clipboard-commands";
 import { floatingCommands } from "./floating-commands";
 import { codeCommands } from "./code-commands";
+import { textCommands } from "./text-commands";
+import type { TextCommands } from "./text-commands";
 import type { CodeCommands } from "./code-commands";
 import type { FloatingCommands } from "./floating-commands";
 import { intentCommands } from "./intent-commands";
@@ -52,7 +54,7 @@ import { said } from "./said";
 
 export interface CanvasHandle { toile: Toile; intents: IntentHost; placements: PlacementHost; writer: AppWriter; placer: Placer | null; undo: Undo }
 
-export interface Commands extends JournalCommands, ClipboardCommands, FloatingCommands, CodeCommands, IntentCommands {
+export interface Commands extends JournalCommands, ClipboardCommands, FloatingCommands, CodeCommands, TextCommands, IntentCommands {
   connect: (fields: { token: string; infrastructure: string; author: string }) => void;
   listRuns: () => void;
   openRun: (runId: string, from: string) => void;
@@ -358,6 +360,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       }),
       ...floatingCommands({ handle: () => handleRef.current }),
       ...codeCommands({ dispatch, current, handle: () => handleRef.current }),
+      ...textCommands({ handle: () => handleRef.current }),
       ...intentCommands({ dispatch, current, session, handle: () => handleRef.current, codeInsert: (at) => commands.codeInsert(at) }),
       selectedHosts: () => current().hosts,
       resetMoves: () => { const g = graph(); if (g) { g.resetPins(); dispatch({ type: "touched" }); } },

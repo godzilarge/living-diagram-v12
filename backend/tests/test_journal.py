@@ -307,7 +307,7 @@ def test_a_code_block_is_named_by_its_title_never_by_its_text_and_found_by_its_k
     trouvent, comme la page l'écrit."""
     store = IntentStore(tmp_path)
     code = {"kind": "code", "text": "enable secret 5 $1$abc\n!", "language": "cisco_ios", "title": "running-config"}
-    code = {**code, "highlight": True, "line_numbers": True, "font": "jetbrains_mono"}
+    code = {**code, "highlight": True, "line_numbers": True, "font": "jetbrains_mono", "wrap": True}
     _write(store, LAB, "o", [{"op": "annotation_create", "content": code}], 0)
     _write(store, LAB, "o", [{"op": "annotation_create", "content": {**code, "title": ""}}], 1)
     _write(store, LAB, "o", [{"op": "annotation_update", "id": "a1-1", "y": 40}], 2)

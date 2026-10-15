@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipToile", "clipboard", "code", "context", "debug", "floating", "gridding", "guides", "handles", "history", "hover", "http", "i18n", "initialState", "intentHost", "journal", "journalCsv", "model", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "toile", "tool", "undoing", "walking", "wheel"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipToile", "clipboard", "code", "codeBar", "context", "debug", "floating", "gridding", "guides", "handles", "history", "hover", "http", "i18n", "initialState", "intentHost", "journal", "journalCsv", "model", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "textBar", "textFormat", "textLook", "toile", "tool", "undoing", "walking", "wheel", "writing"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -987,8 +987,9 @@ function floatingModel() {
   const rect = { ...note, id: "a1-4", content: { kind: "shape", shape: "rectangle", label: "Baie 12" } };
   const table = { ...note, id: "a1-5", content: { kind: "table", header: true, rows: [["a", "b"]], widths: null, heights: null, merges: [] } };
   const image = { ...note, id: "a1-6", locked: true, content: { kind: "image", asset: "x".repeat(64), alt: "" } };
-  const line = { id: "c1-1", start: { kind: "free", x: 0, y: 0 }, end: { kind: "annotation", ref: "a1-1", side: "auto" }, heads: { start: "none", end: "arrow" }, route: "straight", bend: 0, z: "front", locked: false, label: "", style: { hue: "slate", stroke_style: "solid", stroke_width: 2, opacity: 100 } };
-  const group = { id: "g1-1", label: "Cœurs", members: ["sw-core-01", "sw-core-02"], style: { hue: "indigo", shape: "rectangle", label_position: "top_left" } };
+  const line = { id: "c1-1", start: { kind: "free", x: 0, y: 0 }, end: { kind: "annotation", ref: "a1-1", side: "auto" }, heads: { start: "none", end: "arrow" }, route: "straight", bend: 0, z: "front", locked: false, label: "",
+    style: { hue: "slate", stroke_style: "solid", stroke_width: 2, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_italic: false, text_underline: false, text_strike: false, label_at: 50, label_side: "on" } };
+  const group = { id: "g1-1", label: "Cœurs", members: ["sw-core-01", "sw-core-02"], style: { hue: "indigo", shape: "rectangle", label_position: "top_left", label_placement: "inside", label_size: 12, label_weight: "semibold", label_font: "sans", label_color: "hue", label_italic: false, label_underline: false, label_strike: false } };
   const node = (hostname, extra = {}) => [hostname, { hostname, kind: "device", type: "switch", ...extra }];
   return {
     annotationById: new Map([note, attached, ellipse, rect, table, image].map((a) => [a.id, a])), connectorById: new Map([[line.id, line]]), groupById: new Map([[group.id, group]]),
@@ -1019,20 +1020,28 @@ test("la barre contextuelle (floating.ts) : quelle sélection en a une, pour que
   assert.equal(f.shows({ ...ctx, preferred: false }), false, "masquée par préférence");
   assert.equal(f.shows({ ...ctx, preferred: false, summoned: true }), true, "Alt+T la rappelle");
   const ids = (target) => clone(f.entriesOf(model, target).map((e) => e.id));
-  assert.deepEqual(ids(one("annotation", "a1-1")), ["hue", "sep", "text_size", "bold", "text_align", "sep", "plane", "lock", "sep", "duplicate", "delete"], "la note");
-  assert.deepEqual(ids(one("annotation", "a1-2")), ["hue", "sep", "text_size", "bold", "text_align", "sep", "lock", "sep", "duplicate", "delete"], "attachée : pas de plan (lot 1)");
-  assert.deepEqual(ids(one("annotation", "a1-3")), ["hue", "fill_opacity", "stroke_style", "sep", "edit_label", "sep", "plane", "lock", "sep", "duplicate", "delete"], "une ellipse n'a pas de coins");
-  assert.deepEqual(ids(one("annotation", "a1-4")), ["hue", "fill_opacity", "stroke_style", "radius", "sep", "edit_label", "sep", "plane", "lock", "sep", "duplicate", "delete"], "la forme");
-  assert.deepEqual(ids(one("annotation", "a1-5")), ["add_row", "add_column", "header", "sep", "hue", "sep", "plane", "sep", "delete"], "le tableau");
-  assert.deepEqual(ids(one("annotation", "a1-6")), ["replace", "opacity", "sep", "plane", "lock", "sep", "delete"], "l'image");
-  assert.deepEqual(ids(one("connector", "c1-1")), ["heads", "route", "sep", "hue", "stroke_width", "line_style", "sep", "reverse", "lock", "sep", "delete"], "le connecteur");
-  assert.deepEqual(ids(one("group", "g1-1")), ["hue", "shape", "label_position", "sep", "select_members", "paint_members", "sep", "delete"], "le groupe");
+  // le texte (lot 4 bis) : taille et police, gras, italique, souligné, barré, couleur, position ; « modifier l'étiquette »
+  // quitte la barre d'une forme (double-clic, Entrée, F2)
+  const TEXT = ["text_size", "bold", "italic", "underline", "strike", "text_color", "text_position"];
+  assert.deepEqual(ids(one("annotation", "a1-1")), ["hue", "sep", ...TEXT, "sep", "plane", "lock", "sep", "duplicate", "delete"], "la note");
+  assert.deepEqual(ids(one("annotation", "a1-2")), ["hue", "sep", ...TEXT, "sep", "lock", "sep", "duplicate", "delete"], "attachée : pas de plan (lot 1)");
+  assert.deepEqual(ids(one("annotation", "a1-3")), ["hue", "fill_opacity", "stroke_style", "sep", ...TEXT, "sep", "plane", "lock", "sep", "duplicate", "delete"], "une ellipse n'a pas de coins");
+  assert.deepEqual(ids(one("annotation", "a1-4")), ["hue", "fill_opacity", "stroke_style", "radius", "sep", ...TEXT, "sep", "plane", "lock", "sep", "duplicate", "delete"], "la forme");
+  assert.deepEqual(ids(one("annotation", "a1-5")), ["add_row", "add_column", "header", "sep", "hue", "sep", ...TEXT, "sep", "plane", "sep", "delete"], "le tableau");
+  assert.deepEqual(ids(one("annotation", "a1-6")), ["replace", "opacity", "sep", "plane", "lock", "sep", "delete"], "l'image : pas de texte");
+  assert.deepEqual(ids(one("connector", "c1-1")), ["heads", "route", "sep", "hue", "stroke_width", "line_style", "sep", ...TEXT, "sep", "reverse", "lock", "sep", "delete"], "le connecteur : son étiquette");
+  assert.deepEqual(ids(one("group", "g1-1")), ["hue", "shape", "sep", ...TEXT, "sep", "select_members", "paint_members", "sep", "delete"], "le groupe : son étiquette (la position en fait partie)");
   assert.deepEqual(ids(one("node", "sw-core-01")), ["hue", "sep", "pin", "group", "sep", "note", "connect", "sep", "hide", "isolate"], "l'équipement");
   const entries = (target) => f.entriesOf(model, target);
   const by = (target, id) => entries(target).find((e) => e.id === id);
   assert.equal(by(one("annotation", "a1-6"), "lock").pressed, true, "verrouillée : la bascule est enfoncée");
-  assert.equal(by(one("annotation", "a1-1"), "text_size").volet.value, "13");
-  assert.deepEqual(clone(by(one("annotation", "a1-1"), "text_size").volet.options.map((o) => o.value)), ["12", "13", "15"]);
+  assert.deepEqual(clone(by(one("annotation", "a1-1"), "text_size").volet), { kind: "textSize", value: 13, font: "sans", fonts: "text" }, "la taille libre, puis la police");
+  assert.deepEqual(clone(by(one("annotation", "a1-1"), "text_size").face), { kind: "value", icon: "textSize", text: "13" });
+  assert.deepEqual(clone(by(one("annotation", "a1-1"), "text_position").volet), { kind: "textPosition", position: "box", value: { align: "left", valign: "top" } });
+  assert.deepEqual(clone(by(one("annotation", "a1-5"), "text_position").volet.value), { align: "left" }, "un tableau : l'horizontal seul");
+  assert.deepEqual(clone(by(one("connector", "c1-1"), "text_position").volet), { kind: "textPosition", position: "connector", value: { at: 50, side: "on" } });
+  assert.deepEqual(clone(by(one("group", "g1-1"), "text_position").volet), { kind: "textPosition", position: "group", value: { position: "top_left", placement: "inside" } });
+  assert.deepEqual(clone([by(one("annotation", "a1-1"), "bold").keys, by(one("annotation", "a1-1"), "strike").keys, by(one("annotation", "a1-1"), "strike").aria]), ["Ctrl+B", "Ctrl+Maj+X", "Control+Shift+X"]);
   assert.equal(by(one("annotation", "a1-1"), "delete").keys, "Suppr");
   assert.equal(by(one("annotation", "a1-1"), "delete").aria, "Delete");
   assert.equal(by(one("annotation", "a1-1"), "duplicate").aria, "Control+D");
@@ -1056,7 +1065,8 @@ test("la barre contextuelle, sélection multiple : aligner et répartir, grouper
   const align = f.entriesOf(model, two).find((e) => e.id === "align").volet;
   assert.deepEqual(clone(align.rows.map((r) => r.map((c) => c.mode))), [["left", "center", "right"], ["top", "middle", "bottom"]], "à deux, pas de répartition");
   const mixed = many([{ kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }, { kind: "annotation", id: "a1-1" }, { kind: "connector", id: "c1-1" }]);
-  assert.deepEqual(ids(mixed), ["align", "sep", "group", "hue", "sep", "duplicate", "delete", "lock"], "mixte");
+  const TEXT = ["text_size", "bold", "italic", "underline", "strike", "text_color"];
+  assert.deepEqual(ids(mixed), ["align", "sep", "group", "hue", "sep", ...TEXT, "sep", "duplicate", "delete", "lock"], "mixte : le texte de la note et du connecteur, sans position (deux familles)");
   const rows = f.entriesOf(model, mixed).find((e) => e.id === "align").volet.rows;
   assert.deepEqual(clone(rows.map((r) => r.map((c) => c.mode))), [["left", "center", "right", "distribute-horizontal"], ["top", "middle", "bottom", "distribute-vertical"]], "à trois, répartir");
   assert.deepEqual(clone(rows[0].map((c) => c.keys)), ["Alt+A", "Alt+H", "Alt+D", "Alt+Maj+H"]);
@@ -1064,11 +1074,11 @@ test("la barre contextuelle, sélection multiple : aligner et répartir, grouper
   assert.equal(f.entriesOf(model, mixed).find((e) => e.id === "delete").label, "supprimer les annotations (les équipements restent)");
   assert.equal(f.movableCount(model, sel.multiOf([{ kind: "node", id: "old-sw" }, { kind: "annotation", id: "a1-6" }, { kind: "node", id: "sw-core-01" }])).count, 1, "ni un fantôme, ni une annotation verrouillée ne s'alignent");
   const notes = many([{ kind: "annotation", id: "a1-1" }, { kind: "annotation", id: "a1-4" }]);
-  assert.deepEqual(ids(notes), ["align", "sep", "hue", "sep", "duplicate", "delete", "lock"], "des annotations seules : pas de groupe ; la teinte (prototype validé)");
+  assert.deepEqual(ids(notes), ["align", "sep", "hue", "sep", ...TEXT, "text_position", "sep", "duplicate", "delete", "lock"], "des annotations seules : pas de groupe ; la teinte (prototype validé) ; une note et une forme : la position de la boîte");
   const locked = many([{ kind: "annotation", id: "a1-6" }, { kind: "group", id: "g1-1" }]);
-  assert.deepEqual(ids(locked), ["hue", "sep", "duplicate", "delete", "lock"], "une image verrouillée et un groupe : rien ne s'aligne (le cadre n'est pas une boîte qui bouge seule)");
+  assert.deepEqual(ids(locked), ["hue", "sep", ...TEXT, "text_position", "sep", "duplicate", "delete", "lock"], "une image verrouillée et un groupe : rien ne s'aligne (le cadre n'est pas une boîte qui bouge seule) ; le texte du groupe");
   assert.equal(f.entriesOf(model, locked).find((e) => e.id === "lock").label, "déverrouiller", "l'image verrouillée : le verrou propose de l'ouvrir");
-  assert.deepEqual(ids(many([{ kind: "group", id: "g1-1" }, { kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }])), ["align", "sep", "group", "hue", "sep", "delete"], "un groupe avec ses membres : supprimer le groupe, les équipements restent");
+  assert.deepEqual(ids(many([{ kind: "group", id: "g1-1" }, { kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }])), ["align", "sep", "group", "hue", "sep", ...TEXT, "text_position", "sep", "delete"], "un groupe avec ses membres : supprimer le groupe, les équipements restent");
   const lockedTwo = f.targetOf({ ...model, annotationById: new Map([...model.annotationById].map(([k, a]) => [k, { ...a, locked: true }])) }, null, sel.multiOf([{ kind: "annotation", id: "a1-1" }, { kind: "annotation", id: "a1-4" }]));
   const lockButton = f.entriesOf({ ...model, annotationById: new Map([...model.annotationById].map(([k, a]) => [k, { ...a, locked: true }])) }, lockedTwo).find((e) => e.id === "lock");
   assert.equal(lockButton.pressed, true, "toutes verrouillées : la bascule est enfoncée");
@@ -1100,9 +1110,110 @@ test("la barre contextuelle, sélection multiple : aligner et répartir, grouper
   // les cycles
   assert.deepEqual(clone(f.nextHeads({ heads: { start: "none", end: "arrow" } })), { start: "arrow", end: "none" });
   assert.deepEqual(clone(f.nextHeads({ heads: { start: "arrow", end: "arrow" } })), { start: "none", end: "none" });
-  assert.equal(f.nextTextAlign("left"), "center");
-  assert.equal(f.nextTextAlign("right"), "left");
   assert.equal(f.selectionKey(null, sel.empty()), "");
+});
+
+// ——— La mise en forme du texte (lot 4 bis de docs/11) ———
+const NOTE_TEXT = { hue: "amber", text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top", text_italic: false, text_underline: false, text_strike: false, text_padding: 8, text_line_height: 135 };
+const textNote = (id, style = {}, kind = "note") => ({ kind: "annotation", a: { id, content: kind === "table" ? { kind: "table" } : { kind }, style: { ...NOTE_TEXT, ...style } } });
+const textLine = (id, style = {}) => ({ kind: "connector", c: { id, style: { hue: "slate", text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_italic: false, text_underline: false, text_strike: false, label_at: 50, label_side: "on", ...style } } });
+const textGroup = (id, style = {}) => ({ kind: "group", g: { id, style: { hue: "indigo", label_size: 12, label_weight: "semibold", label_font: "sans", label_color: "hue", label_italic: false, label_underline: false, label_strike: false, label_position: "top_left", label_placement: "inside", ...style } } });
+
+test("le texte (text-format.ts) : le format d'un objet, la valeur commune d'une sélection (« null » = mixte), les opérations d'un changement", () => {
+  const T = loadApp().textFormat;
+  const note = textNote("a1-1", { text_size: 20, text_italic: true }), shape = textNote("a1-2", { text_weight: "bold" }, "shape");
+  assert.deepEqual(clone(T.formatOf(note)), { size: 20, font: "sans", weight: "regular", bold: false, italic: true, underline: false, strike: false, color: "ink" });
+  assert.deepEqual(clone(T.formatOf(textGroup("g1-1", { label_strike: true, label_color: "red" }))), { size: 12, font: "sans", weight: "semibold", bold: false, italic: false, underline: false, strike: true, color: "red" }, "un groupe : ses `label_*`");
+  assert.equal(T.formatOfStyle(false, { text_size: 9 }).italic, false, "un style d'avant 1.7.0 : les nouveaux champs à leur défaut");
+  assert.deepEqual(clone(T.commonFormat([note, shape])), { size: null, font: "sans", weight: null, bold: null, italic: null, underline: false, strike: false, color: "ink" }, "ce qui diffère est mixte");
+  assert.equal(T.commonFormat([]), null);
+  assert.equal(T.carriesText({ content: { kind: "image" } }), false);
+  assert.equal(T.carriesText({ content: { kind: "code" } }), false, "un bloc de code a sa taille et sa police à lui");
+  // la position : une famille par sorte ; une note et une forme partagent la boîte ; avec un tableau, l'horizontal seul
+  assert.deepEqual([T.commonPositionKind([note, shape]), T.commonPositionKind([note, textNote("a1-3", {}, "table")]), T.commonPositionKind([note, textLine("c1-1")]), T.commonPositionKind([textGroup("g1-1")])], ["box", "table", null, "group"]);
+  assert.deepEqual(clone(T.commonPosition([note, shape])), { align: "left", valign: "top" });
+  // les opérations : une par objet qui change, dans les champs de sa sorte ; rien pour un objet déjà à la valeur
+  const ops = T.textOps([note, shape, textLine("c1-1"), textGroup("g1-1")], { toggle: "bold" });
+  assert.deepEqual(clone(ops), [
+    { op: "annotation_update", id: "a1-1", style: { text_weight: "bold" } },
+    { op: "connector_update", id: "c1-1", style: { text_weight: "bold" } },
+    { op: "group_update", id: "g1-1", style: { label_weight: "bold" } },
+  ], "gras partout s'il ne l'est pas partout ; la forme, déjà grasse, n'a rien à écrire");
+  assert.deepEqual(clone(T.textOps([shape, textNote("a1-4", { text_weight: "bold" })], { toggle: "bold" })), [
+    { op: "annotation_update", id: "a1-2", style: { text_weight: "regular" } },
+    { op: "annotation_update", id: "a1-4", style: { text_weight: "regular" } },
+  ], "gras partout : la bascule rend le normal");
+  assert.equal(T.toggledValue([note, shape], "italic"), true, "pas partout en italique : la bascule l'allume partout");
+  assert.deepEqual(clone(T.textOps([note], { toggle: "italic" })), [{ op: "annotation_update", id: "a1-1", style: { text_italic: false } }]);
+  assert.deepEqual(clone(T.textOps([textGroup("g1-1")], { toggle: "strike" })), [{ op: "group_update", id: "g1-1", style: { label_strike: true } }]);
+  assert.deepEqual(clone(T.textOps([note, shape], { size: 70 })), [{ op: "annotation_update", id: "a1-1", style: { text_size: 64 } }, { op: "annotation_update", id: "a1-2", style: { text_size: 64 } }], "bornée à 64");
+  assert.deepEqual(clone(T.textOps([note, shape], { step: 1 })), [{ op: "annotation_update", id: "a1-1", style: { text_size: 24 } }, { op: "annotation_update", id: "a1-2", style: { text_size: 14 } }], "un cran de l'échelle, chacun depuis la sienne");
+  assert.deepEqual(clone(T.textOps([note, shape], { delta: -1 })), [{ op: "annotation_update", id: "a1-1", style: { text_size: 19 } }, { op: "annotation_update", id: "a1-2", style: { text_size: 12 } }], "« − » d'une sélection mixte : un pixel chacun");
+  assert.deepEqual(clone(T.textOps([note, textLine("c1-1")], { color: "violet" })), [{ op: "annotation_update", id: "a1-1", style: { text_color: "violet" } }, { op: "connector_update", id: "c1-1", style: { text_color: "violet" } }]);
+  assert.deepEqual(clone(T.textOps([note, textLine("c1-1"), textGroup("g1-1")], { align: "center" })), [{ op: "annotation_update", id: "a1-1", style: { text_align: "center" } }], "une position ne vaut que pour sa famille");
+  assert.deepEqual(clone(T.textOps([textLine("c1-1")], { at: 104.4 })), [{ op: "connector_update", id: "c1-1", style: { label_at: 100 } }]);
+  assert.deepEqual(clone(T.textOps([textLine("c1-1")], { side: "below" })), [{ op: "connector_update", id: "c1-1", style: { label_side: "below" } }]);
+  assert.deepEqual(clone(T.textOps([textGroup("g1-1")], { position: "bottom_right" })), [{ op: "group_update", id: "g1-1", style: { label_position: "bottom_right" } }]);
+  assert.deepEqual(clone(T.textOps([note, textNote("a1-3", {}, "table")], { padding: 99 })), [{ op: "annotation_update", id: "a1-1", style: { text_padding: 64 } }], "la marge : une note ou une forme, bornée");
+  assert.deepEqual(clone(T.textOps([note], { lineHeight: 50 })), [{ op: "annotation_update", id: "a1-1", style: { text_line_height: 100 } }]);
+  assert.deepEqual(clone(T.textOps([note], { weight: "semibold" })), [{ op: "annotation_update", id: "a1-1", style: { text_weight: "semibold" } }]);
+  assert.deepEqual(clone(T.textOps([note], { font: "sans" })), [], "déjà à la valeur : rien");
+  assert.deepEqual(clone(T.commonBox([note, shape])), { padding: 8, lineHeight: 135 });
+  assert.equal(T.commonBox([note, textLine("c1-1")]), null, "la marge et l'interligne : des notes et des formes seulement");
+  // les raccourcis : la lettre lue, sinon la touche ; Ctrl+Maj+> et <, sur un clavier américain ou français
+  const key = (k, code, ctrl, shift, alt = false) => clone(T.shortcutOf(k, code, ctrl, shift, alt));
+  assert.deepEqual([key("b", "KeyB", true, false), key("i", "KeyI", true, false), key("u", "KeyU", true, false), key("X", "KeyX", true, true)], [{ toggle: "bold" }, { toggle: "italic" }, { toggle: "underline" }, { toggle: "strike" }]);
+  assert.deepEqual([key(">", "Period", true, true), key("<", "Comma", true, true), key("<", "IntlBackslash", true, false)], [{ step: 1 }, { step: -1 }, { step: -1 }]);
+  assert.deepEqual([key("b", "KeyB", false, false), key("x", "KeyX", true, false), key("b", "KeyB", true, false, true), key("i", "KeyI", true, true)], [null, null, null, null], "sans Ctrl, Ctrl+X (couper), Alt, Ctrl+Maj+I : rien");
+});
+
+test("le texte dans la barre (text-bar.ts) : « 13 ⌄ », « — » et l'état mixte d'une sélection, la valeur choisie dans un volet devient un changement", () => {
+  const { textBar: B } = loadApp();
+  const note = textNote("a1-1", { text_size: 20, text_italic: true }), shape = textNote("a1-2", { text_weight: "bold", text_italic: true }, "shape");
+  const one = B.textEntries([note]), both = B.textEntries([note, shape]);
+  const by = (entries, id) => entries.find((e) => e.id === id);
+  assert.deepEqual(clone(by(one, "text_size").face), { kind: "value", icon: "textSize", text: "20" });
+  assert.deepEqual(clone(by(both, "text_size").face), { kind: "value", icon: "textSize", text: "—" }, "mixte : « — »");
+  assert.equal(by(both, "text_size").volet.value, null);
+  assert.deepEqual([by(both, "bold").pressed, by(both, "italic").pressed, by(both, "underline").pressed], ["mixed", true, false]);
+  assert.match(by(both, "bold").label, /mixte/);
+  assert.equal(by(one, "text_color").label, "couleur du texte : encre");
+  assert.equal(B.colorWord("hue"), "teinte de l'objet");
+  assert.equal(B.colorWord("violet"), "violet");
+  assert.equal(B.colorWord(null), "mixte");
+  assert.deepEqual(clone(by(B.textEntries([textLine("c1-1", { label_at: 10 })]), "text_position").face), { kind: "icon", icon: "labelPlace" });
+  assert.equal(by(B.textEntries([textGroup("g1-1", { label_position: "bottom_right" })]), "text_position").label, "position de l'étiquette : bas droite");
+  assert.deepEqual(clone(B.textEntries([])), []);
+  const change = (id, value) => clone(B.textChangeOf(id, value));
+  assert.deepEqual([change("bold", null), change("text_size", "size:22"), change("text_size", "delta:-1"), change("text_size", "font:mono"), change("text_color", "color:teal"), change("text_position", "at:90"), change("text_position", "valign:bottom"), change("text_position", "placement:outside")],
+    [{ toggle: "bold" }, { size: 22 }, { delta: -1 }, { font: "mono" }, { color: "teal" }, { at: 90 }, { valign: "bottom" }, { placement: "outside" }]);
+  assert.equal(B.textChangeOf("text_size", null), null);
+  assert.equal(B.textChangeOf("text_size", "nope:1"), null);
+});
+
+test("l'allure d'un texte (text-look.ts) : classes de police et de couleur, attributs SVG de graisse, d'italique, de soulignement", () => {
+  const { textLook: L } = loadApp();
+  assert.deepEqual(clone(L.lookOf(false, { text_font: "mono", text_color: "violet", text_weight: "bold", text_italic: true, text_underline: true, text_strike: true }, "annotation-text", "text-ink")),
+    { className: "annotation-text font-mono tc-violet", fontWeight: 750, fontStyle: "italic", textDecoration: "underline line-through" });
+  assert.deepEqual(clone(L.lookOf(true, { label_font: "sans", label_color: "ink", label_weight: "semibold" }, "frame-label", "label-ink")), { className: "frame-label label-ink", fontWeight: 600 }, "rien de plus qu'avant 1.7.0");
+  assert.equal(L.lookOf(false, { text_color: "hue", text_weight: "regular" }, "annotation-text", "text-ink").className, "annotation-text", "la teinte de l'objet : le défaut de la classe");
+});
+
+test("l'écriture en cours (writing.ts) : une seule à la fois, ses changements pour sa clé seulement, fermée par sa clé", () => {
+  const { writing: store } = loadApp();
+  const seen = [];
+  const off = store.subscribe(() => seen.push(store.get() && store.get().size));
+  store.open({ key: "annotation:a1-1", draft: false, size: 13, font: "jetbrains_mono", wrap: true, dirty: false, search: {}, actions: {} });
+  store.update("annotation:a1-1", { size: 14 });
+  store.update("annotation:a1-1", { size: 14 });
+  store.update("draft:2", { size: 40 });
+  assert.equal(store.get().size, 14, "une autre clé ne change rien ; la même valeur ne notifie pas");
+  store.close("draft:2");
+  assert.ok(store.get(), "fermer une autre clé ne ferme rien");
+  store.close("annotation:a1-1");
+  assert.equal(store.get(), null);
+  off();
+  assert.deepEqual(seen, [13, 14, null]);
 });
 
 test("la barre contextuelle, où : au-dessus, sinon dessous, jamais hors de la zone ; elle évite une annotation ; un connecteur s'ancre au milieu", () => {
@@ -1115,6 +1226,9 @@ test("la barre contextuelle, où : au-dessus, sinon dessous, jamais hors de la z
   assert.equal(low.below, true, "le haut manque : dessous");
   assert.equal(low.y, 120 + 80 + 8);
   assert.equal(f.placeBar({ ...anchor, y: 900 }, 280, zone, []), null, "l'ancre hors de la zone : pas de place");
+  const twoRows = f.placeBar(anchor, 280, zone, [], false, 72);
+  assert.deepEqual([twoRows.y, twoRows.below], [400 - 8 - 72, false], "la barre de la recherche a deux rangées : sa hauteur compte (lot 16 bis)");
+  assert.equal(f.placeBar({ ...anchor, y: 150 }, 280, zone, [], false, 72).below, true, "deux rangées ne tiennent pas au-dessus : dessous");
   const tall = f.placeBar({ x: 400, y: 110, w: 200, h: 680 }, 280, zone, []);
   assert.deepEqual([tall.y, tall.below], [100, false], "ni dessus ni dessous : en haut de la zone");
   // une annotation au-dessus, centrée : la barre passe dessous (passer dessous coûte moins que la couvrir)

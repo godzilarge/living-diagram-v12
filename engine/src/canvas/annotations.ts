@@ -24,13 +24,18 @@ export const KIND_LABEL: Record<string, string> = labelMap("common:annotationKin
 export const LABEL: Record<string, string> = labelMap("common:annotationWord", [
   "rectangle", "ellipse", "free", "device", "group", "back", "front", "left", "center", "right", "top", "middle", "bottom",
 ]);
+/** La mise en forme du texte (Intent 1.7.0, `TEXT_DEFAULTS` du contrat), la même pour toutes les sortes : le dessin
+ *  d'avant (marge de 8, interligne de 135 %). */
+export const TEXT_DEFAULTS = { text_italic: false, text_underline: false, text_strike: false, text_padding: 8, text_line_height: 135 } as const;
+/** Les bornes de la marge et de l'interligne (en pourcent de la taille), celles du contrat. */
+export const TEXT_BOUNDS = { text_padding: [0, 64], text_line_height: [100, 300] } as const;
 /** Les défauts du contrat, par sorte (`DEFAULT_ANNOTATION_STYLE`) : le document ne porte que ce qui a été décidé. */
 export const DEFAULT_STYLE: Record<AnnotationKind, AnnotationStyle> = {
-  note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
-  shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle" },
-  table: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 6, opacity: 100, text_size: 12, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
-  image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
-  code: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
+  note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top", ...TEXT_DEFAULTS },
+  shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle", ...TEXT_DEFAULTS },
+  table: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 6, opacity: 100, text_size: 12, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top", ...TEXT_DEFAULTS },
+  image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top", ...TEXT_DEFAULTS },
+  code: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top", ...TEXT_DEFAULTS },
 };
 export const DEFAULT_SIZE: Record<AnnotationKind, Box> = { note: { w: 220, h: 80 }, shape: { w: 200, h: 120 }, table: { w: 160, h: 52 }, image: { w: 320, h: 240 }, code: { w: 480, h: 240 } };
 export const TABLE_CELL_W = 80, TABLE_ROW_H = 26, PAD = 8;
@@ -73,8 +78,8 @@ export const anchorRect = (anchor: AnchorPoint): Frame => (anchor.kind === "grou
 
 const widthOf = (text: string, style: Pick<AnnotationStyle, "text_size" | "text_font">): number =>
   (style.text_font === "mono" ? monoWidth(text, style.text_size) : textWidth(text, style.text_size));
-/** La hauteur d'une ligne de texte : 1,35 fois la taille. */
-export const lineHeight = (size: number): number => Math.round(size * 1.35);
+/** La hauteur d'une ligne de texte : l'interligne (en pourcent, 135 par défaut, Intent 1.7.0) fois la taille. */
+export const lineHeight = (size: number, percent: number = TEXT_DEFAULTS.text_line_height): number => Math.round((size * percent) / 100);
 
 /** Le retour à la ligne d'un texte dans une largeur : par mots, un mot trop long coupé ; les retours écrits sont gardés. */
 export function wrapText(text: string, width: number, style: Pick<AnnotationStyle, "text_size" | "text_font">): string[] {
@@ -102,12 +107,12 @@ export function wrapText(text: string, width: number, style: Pick<AnnotationStyl
 }
 
 export interface TextLine { text: string; x: number; y: number }
-/** Les lignes d'une note ou l'étiquette d'une forme, placées dans la boîte selon l'alignement ; ce qui dépasse en bas
- *  est coupé (le reste se lit dans la fiche). */
-export function layoutText(text: string, frame: Frame, style: AnnotationStyle, pad = PAD): { lines: TextLine[]; anchor: "start" | "middle" | "end"; clipped: boolean } {
+/** Les lignes d'une note ou l'étiquette d'une forme, placées dans la boîte selon l'alignement, à la marge et à
+ *  l'interligne du style (Intent 1.7.0) ; ce qui dépasse en bas est coupé (le reste se lit dans la fiche). */
+export function layoutText(text: string, frame: Frame, style: AnnotationStyle, pad = style.text_padding ?? PAD): { lines: TextLine[]; anchor: "start" | "middle" | "end"; clipped: boolean } {
   const inner = Math.max(10, frame.w - 2 * pad);
   const all = wrapText(text, inner, style);
-  const lh = lineHeight(style.text_size);
+  const lh = lineHeight(style.text_size, style.text_line_height ?? TEXT_DEFAULTS.text_line_height);
   const max = Math.max(1, Math.floor((frame.h - 2 * pad) / lh));
   const kept = all.slice(0, max);
   const block = kept.length * lh;
@@ -163,4 +168,4 @@ export function summary(a: Annotation): string {
 /** La version du dessin d'une annotation pour une clé (contenu, boîte, style, ancre) : change quand elle change. */
 export const signature = (a: Annotation): string => JSON.stringify([a.anchor, a.x, a.y, a.w, a.h, a.z, a.locked, a.leader, a.content, a.style]);
 
-export const annotations = { KINDS, SHAPES, ANCHORS, PLANES, ALIGNS, VALIGNS, BOUNDS, KIND_LABEL, LABEL, DEFAULT_STYLE, DEFAULT_SIZE, TABLE_CELL_W, TABLE_ROW_H, kindOf, anchorHost, anchorGroup, isOrphan, frameOf, offsetOf, anchorRect, borderPoint, wrapText, layoutText, lineHeight, fitCell, leaderOf, dashArray, shownWith, summary, signature };
+export const annotations = { KINDS, SHAPES, ANCHORS, PLANES, ALIGNS, VALIGNS, BOUNDS, TEXT_BOUNDS, TEXT_DEFAULTS, KIND_LABEL, LABEL, DEFAULT_STYLE, DEFAULT_SIZE, TABLE_CELL_W, TABLE_ROW_H, kindOf, anchorHost, anchorGroup, isOrphan, frameOf, offsetOf, anchorRect, borderPoint, wrapText, layoutText, lineHeight, fitCell, leaderOf, dashArray, shownWith, summary, signature };

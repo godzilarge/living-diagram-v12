@@ -1,14 +1,15 @@
 // La fiche d'un bloc de code (lot 16 de docs/11), les parties propres à la sorte, dans la fiche d'annotation : l'alerte
 // des valeurs sensibles gardées (et « Retirer ces valeurs »), le titre, le code **en entier** coloré par les mêmes
 // familles que la toile (des `span` à classes, jamais du HTML), copier ; puis « Affichage » (repliée) : langage,
-// police, coloration, numéros, hauteur de la boîte (et « ajuster au contenu »), taille. Les mêmes réglages que la barre
+// police, coloration, numéros, retour à la ligne (lot 16 bis), hauteur de la boîte (et « ajuster au contenu »), taille
+// libre de 8 à 64. Les mêmes réglages que la barre
 // contextuelle (parité). Sans nom, tout se lit.
 import { Check, Copy, Eraser, MoveVertical, ShieldAlert } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Annotation } from "../../../canvas/types";
 import type { CodeContent } from "../../../contracts/intent";
-import { CODE, CODE_SIZE, fitHeight, lineCount, lineWindow, minHeight } from "../../code/geometry";
+import { CODE, CODE_SIZE, fitHeightOf, lineCount, lineWindow, minHeight } from "../../code/geometry";
 import { LANGUAGES, LANGUAGE_LABEL } from "../../code/languages";
 import { withSecrets } from "../../code/secrets";
 import type { Secret } from "../../code/secrets";
@@ -105,13 +106,14 @@ export function CodeDisplay({ a, c }: { a: Annotation; c: CodeContent }) {
   const low = minHeight(a.style.text_size);
   const height = (h: number): number => Math.max(low, state.prefs.snap ? Math.round(h / CODE.GRID) * CODE.GRID : Math.round(h));
   const set = (patch: Parameters<typeof commands.codeSet>[1]): void => commands.codeSet([a.id], patch);
-  const fit = fitHeight(lineCount(c.text), a.style.text_size);
+  const fit = fitHeightOf({ w: a.w, size: a.style.text_size, font: c.font, numbers: c.line_numbers, text: c.text, wrap: c.wrap });
   return (
     <Section title={t("code.display")} collapsible defaultOpen={false}>
       <Row label={t("code.language")}><Select label={t("code.language")} value={c.language} options={LANGUAGES.map((l) => ({ value: l.id, label: LANGUAGE_LABEL[l.id] }))} onChange={(language) => set({ language: language as CodeContent["language"] })} /></Row>
       <Row label={t("code.font")} stack><FontList value={c.font} inVolet={false} onPick={(font) => set({ font: font as CodeContent["font"] })} /></Row>
       {c.language !== "plain" ? <Row label={t("code.highlight")}><Segmented label={t("code.highlight")} value={c.highlight ? "on" : "off"} options={[{ value: "on", label: t("code.highlightOn") }, { value: "off", label: t("code.highlightOff") }]} onPick={(v) => set({ highlight: v === "on" })} /></Row> : null}
       <Row label={t("code.numbers")}><Segmented label={t("code.numbers")} value={c.line_numbers ? "on" : "off"} options={[{ value: "on", label: t("code.numbersOn") }, { value: "off", label: t("code.numbersOff") }]} onPick={(v) => set({ line_numbers: v === "on" })} /></Row>
+      <Row label={t("code.wrap")}><Segmented label={t("code.wrap")} value={c.wrap ? "on" : "off"} options={[{ value: "on", label: t("code.wrapOn") }, { value: "off", label: t("code.wrapOff") }]} onPick={(v) => set({ wrap: v === "on" })} /></Row>
       <Row label={t("code.height")}>
         <span className="insp-fit-row">
           <NumberField label={t("code.heightLabel")} value={a.h} min={low} max={4000} step={CODE.GRID} unit="px" onCommit={(h) => { const next = height(h); if (next !== a.h) commands.annotationUpdate(a.id, { h: next }); }} />

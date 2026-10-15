@@ -13,7 +13,7 @@ import type { Annotation } from "../../canvas/types";
 import type { CodeContent } from "../../contracts/intent";
 import type { Op } from "../../shell/apps";
 import { DEFAULT_SIZE, DEFAULT_STYLE } from "../../canvas/annotations";
-import { CODE, fitHeight, lineCount, pasteWidth } from "../code/geometry";
+import { CODE, fitHeight, fitHeightOf, lineCount, pasteWidth } from "../code/geometry";
 import { DEFAULT_CODE_CONTENT, LANGUAGE_LABEL, detectLanguage, normalizeCode, pasteChoice } from "../code/languages";
 import type { LanguageId } from "../code/languages";
 import { findSecrets, maskSecrets } from "../code/secrets";
@@ -29,6 +29,8 @@ export const CODE_MAX = 20_000;
 export const PASTE_RAW_MAX = CODE_MAX * 4;
 /** Un bloc inséré : douze lignes à la taille du code. */
 const INSERT_LINES = 12;
+/** Ce qu'un brouillon montre avant que la barre n'y touche : les défauts d'un bloc neuf. */
+const DRAFT_LOOK = { size: DEFAULT_STYLE.code.text_size, font: DEFAULT_CODE_CONTENT.font, wrap: DEFAULT_CODE_CONTENT.wrap } as const;
 /** Ce que la page dit après un enregistrement : rien de plus, les valeurs retirées, ou gardées telles quelles. */
 export type CodeOutcome = "plain" | "removed" | "kept";
 export interface CodeCommands {
@@ -48,8 +50,9 @@ export interface CodeCommands {
   codeCopy: (id: string) => void;
   /** Retirer d'un coup les valeurs sensibles d'un bloc (la fiche le propose tant qu'il en reste). */
   codeRemoveSecrets: (id: string) => void;
-  /** Un réglage du contenu (langage, police, coloration, numéros, titre) pour un ou plusieurs blocs, en une écriture. */
-  codeSet: (ids: string[], patch: Partial<Pick<CodeContent, "language" | "font" | "highlight" | "line_numbers" | "title">>) => void;
+  /** Un réglage du contenu (langage, police, coloration, numéros, retour à la ligne, titre) pour un ou plusieurs blocs, en
+   *  une écriture. */
+  codeSet: (ids: string[], patch: Partial<Pick<CodeContent, "language" | "font" | "highlight" | "line_numbers" | "wrap" | "title">>) => void;
   /** Ajuster la hauteur au contenu (60 lignes au plus). */
   codeFit: (ids: string[]) => void;
   /** Dire quelque chose sur la ligne d'état (un bloc verrouillé, un texte trop long). */
@@ -79,7 +82,7 @@ export function codeCommands({ dispatch, current, handle }: CodeDeps): CodeComma
       if (!h || !h.intents.canWrite()) return;
       const w = DEFAULT_SIZE.code.w, hh = fitHeight(INSERT_LINES, DEFAULT_STYLE.code.text_size);
       const c = at || ((p) => ({ x: p.x - w / 2, y: p.y - hh / 2 }))(h.toile.viewCenter());
-      codeView.setDraft({ key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text: "", language: "plain", sure: false, x: snap(c.x), y: snap(c.y), w, h: hh, pasted: false });
+      codeView.setDraft({ key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text: "", language: "plain", sure: false, x: snap(c.x), y: snap(c.y), w, h: hh, pasted: false, ...DRAFT_LOOK });
     },
     codePaste: (raw, options = {}) => {
       const h = handle();
@@ -93,12 +96,12 @@ export function codeCommands({ dispatch, current, handle }: CodeDeps): CodeComma
       if (choice.as === "nothing") { if (options.force) say(t("shell:code.noText")); return !!options.force; }
       if (choice.as === "note") return false;
       if (!ready(text)) return true;
-      const w = pasteWidth(text), hh = fitHeight(lineCount(text), 13, CODE.PASTE_MAX);
+      const w = pasteWidth(text), hh = fitHeightOf({ w, size: DRAFT_LOOK.size, font: DRAFT_LOOK.font, numbers: true, text, wrap: DRAFT_LOOK.wrap }, CODE.PASTE_MAX);
       // au point visé (menu), sinon au pointeur s'il est sur la toile ; sinon au centre de la vue, décalé à gauche pour
       // que l'avertissement tienne à droite
       const center = h.toile.viewCenter(), p = options.at || h.toile.pointer;
       const at = p ? { x: p.x, y: p.y } : { x: center.x - w / 2 - 240, y: center.y - hh / 2 };
-      const draft: CodeDraft = { key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text, language: choice.language, sure: choice.sure, x: snap(at.x), y: snap(at.y), w, h: hh, pasted: true };
+      const draft: CodeDraft = { key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text, language: choice.language, sure: choice.sure, x: snap(at.x), y: snap(at.y), w, h: hh, pasted: true, ...DRAFT_LOOK };
       // sans valeur sensible, le bloc s'enregistre aussitôt ; sinon le brouillon s'ouvre avec l'avertissement (la toile)
       if (secret) codeView.setDraft(draft); else commands.codeCreate(draft, text, "plain", 0);
       return true;
@@ -114,12 +117,14 @@ export function codeCommands({ dispatch, current, handle }: CodeDeps): CodeComma
       // un brouillon inséré vide est « texte brut » : la détection propose le langage de ce qu'on y a écrit
       const guess = draft.language === "plain" ? detectLanguage(text) : null;
       const language: LanguageId = guess && guess.sure ? guess.id : draft.language;
-      const content: CodeContent = { ...DEFAULT_CODE_CONTENT, text, language };
-      const lines = lineCount(text), hh = draft.pasted ? draft.h : Math.max(draft.h, fitHeight(lines, 13, CODE.PASTE_MAX));
+      const content: CodeContent = { ...DEFAULT_CODE_CONTENT, text, language, font: draft.font, wrap: draft.wrap };
+      const lines = lineCount(text);
+      const hh = draft.pasted ? draft.h : Math.max(draft.h, fitHeightOf({ w: draft.w, size: draft.size, font: draft.font, numbers: content.line_numbers, text, wrap: draft.wrap }, CODE.PASTE_MAX));
       // un collage en texte brut n'a rien de « reconnu » ni de « proposé » : il dit seulement ce qu'il est
       const created = t(draft.pasted && language !== "plain" ? (draft.sure ? "shell:code.createdSure" : "shell:code.createdGuess") : "shell:code.created", { count: lines, language: LANGUAGE_LABEL[language] });
       const extra = outcomeText(outcome, removed);
-      void h.intents.onAnnotation([{ op: "annotation_create", content, x: draft.x, y: draft.y, w: draft.w, h: hh }], extra ? created + " · " + extra : created).then((intent) => {
+      const style = draft.size === DEFAULT_STYLE.code.text_size ? {} : { style: { text_size: draft.size } };
+      void h.intents.onAnnotation([{ op: "annotation_create", content, x: draft.x, y: draft.y, w: draft.w, h: hh, ...style }], extra ? created + " · " + extra : created).then((intent) => {
         if (!intent) return;
         const id = "a" + intent.revision + "-1";
         if (h.toile.model.annotationById.has(id)) h.toile.reveal({ kind: "annotation", id });
@@ -179,7 +184,7 @@ export function codeCommands({ dispatch, current, handle }: CodeDeps): CodeComma
       const ops: Op[] = ids.flatMap((id) => {
         const found = contentOf(h, id);
         if (!found) return [];
-        const hh = fitHeight(lineCount(found.c.text), found.a.style.text_size);
+        const hh = fitHeightOf({ w: found.a.w, size: found.a.style.text_size, font: found.c.font, numbers: found.c.line_numbers, text: found.c.text, wrap: found.c.wrap });
         return hh === found.a.h ? [] : [{ op: "annotation_update" as const, id, h: hh }];
       });
       ids.forEach((id) => codeView.setFirst(id, 0));

@@ -13,11 +13,13 @@ import { useReactFlow } from "@xyflow/react";
 import { t } from "../../i18n";
 import type { Annotation } from "../../canvas/types";
 import type { CodeContent } from "../../contracts/intent";
-import { CODE, baseline, charWidth, footer, keyScroll, layout, lineCount, scrollbar, thumbDrag, trackClick, wheelLines } from "../code/geometry";
+import { CODE, baseline, baselineOffset, footer, keyScroll, layout, lineCount, rowX, scrollbar, secretBoxes, thumbDrag, trackClick, wheelLines } from "../code/geometry";
 import type { CodeLayout } from "../code/geometry";
 import { LANGUAGE_LABEL, LANGUAGE_SHORT } from "../code/languages";
+import { measuredBaseline, onFontsLoaded } from "../code/probe";
 import { findSecrets, withSecrets } from "../code/secrets";
-import { clipLine, linesOf } from "../code/tokens";
+import { clipLine, linesOf, rowSegments } from "../code/tokens";
+import type { Line } from "../code/tokens";
 import { codeView } from "../code/view";
 import { typing } from "./keys";
 import type { Commands } from "../state/store";
@@ -44,9 +46,35 @@ export function secretsIn(text: string): ReturnType<typeof findSecrets> {
   return found;
 }
 
-/** La géométrie d'un bloc (taille du code, police, numéros), pour une boîte et une première ligne. */
+/** La géométrie d'un bloc (taille du code, police, numéros, retour à la ligne), pour une boîte et une première rangée. */
 export const layoutOf = (a: Annotation, c: CodeContent, w: number, h: number, first: number): CodeLayout =>
-  layout({ w, h, size: a.style.text_size, font: c.font, numbers: c.line_numbers, total: lineCount(c.text) }, first);
+  layout({ w, h, size: a.style.text_size, font: c.font, numbers: c.line_numbers, text: c.text, wrap: c.wrap }, first);
+
+// Les polices finissent de se charger : la ligne de base mesurée change (probe.ts), les blocs se redessinent.
+let fontsVersion = 0;
+const fontListeners = new Set<() => void>();
+const subscribeFonts = (listener: () => void): (() => void) => {
+  if (!fontListeners.size) onFontsLoaded(() => { fontsVersion += 1; fontListeners.forEach((l) => l()); });
+  fontListeners.add(listener);
+  return () => { fontListeners.delete(listener); };
+};
+/** Le décalage de la ligne de base dans une rangée : mesuré dans la page (celui de l'écriture), sinon calculé. */
+export function useBaseline(font: string, size: number, lh: number): number {
+  useSyncExternalStore(subscribeFonts, () => fontsVersion, () => fontsVersion);
+  return measuredBaseline(font, size, lh) ?? baselineOffset(size, lh, font);
+}
+
+/** Une rangée montrée : ses morceaux colorés, coupés à la rangée (retour à la ligne) ou au bord avec un repère. */
+function RowText({ l, segs, i, offset, colored }: { l: CodeLayout; segs: Line; i: number; offset: number; colored: boolean }) {
+  const row = l.rows[l.first + i];
+  const { segs: kept, clipped } = l.wrap ? { segs: rowSegments(segs, row.from, row.to), clipped: false } : clipLine(segs, l.cols);
+  return (
+    <text x={rowX(l, row)} y={baseline(i, l.lh, offset)} xmlSpace="preserve" data-line={row.line} data-from={row.from}>
+      {kept.map((s, k) => <tspan key={k} className={s.c && (colored || s.c === "masked" || s.c === "secret") ? "tk-" + s.c : undefined}>{s.t}</tspan>)}
+      {clipped ? <tspan className="tk-clip">›</tspan> : null}
+    </text>
+  );
+}
 
 function Pill({ text, right, cy, off }: { text: string; right: number; cy: number; off: boolean }) {
   const w = Math.round(text.length * PILL_CH + 14);
@@ -59,7 +87,8 @@ export function CodeBody({ a, c, w, h, first, editing = false, idSuffix = "", on
   const copied = useCopied() === a.id;
   const secrets = secretsIn(c.text);
   const all = withSecrets(linesOf(a.id + idSuffix, c.text, c.language, c.highlight), secrets);
-  const shown = all.slice(l.first, l.first + l.visible);
+  const shown = l.rows.slice(l.first, l.first + l.visible);
+  const offset = useBaseline(c.font, size, l.lh);
   const clip = "code-clip-" + a.id + idSuffix, cy = CODE.HEAD / 2;
   const copyX = w - 8 - 24;
   const pill = (LANGUAGE_SHORT[c.language] || c.language).toUpperCase();
@@ -82,7 +111,7 @@ export function CodeBody({ a, c, w, h, first, editing = false, idSuffix = "", on
       </g>
       {c.title
         ? <text className="code-title" x={CODE.RAIL + 12} y={cy + 4.5}>{title}</text>
-        : <text className="code-count" x={CODE.RAIL + 12} y={cy + 4}>{t("shell:code.lines", { count: l.total })}</text>}
+        : <text className="code-count" x={CODE.RAIL + 12} y={cy + 4}>{t("shell:code.lines", { count: l.lines })}</text>}
       <Pill text={pill} right={pillRight} cy={cy} off={!colored} />
       {secrets.length ? (
         // le bouclier : au survol, la bulle rappelle chaque valeur gardée et qui la lit (secret-tip.ts ; Flow la montre)
@@ -100,27 +129,19 @@ export function CodeBody({ a, c, w, h, first, editing = false, idSuffix = "", on
           {copied ? <Check className="code-icon" x={5} y={5} width={14} height={14} aria-hidden="true" /> : <Copy className="code-icon" x={5} y={5} width={14} height={14} aria-hidden="true" />}
         </g>
       ) : null}
-      {c.line_numbers ? (
+      {c.line_numbers && !editing ? (
         <g className="code-nums" fontSize={size}>
-          {shown.map((_, i) => <text key={i} x={CODE.RAIL + l.gutter - CODE.GUTTER} y={baseline(i, l.lh, size)} textAnchor="end">{String(l.first + i + 1)}</text>)}
+          {shown.map((row, i) => (row.cont ? null : <text key={i} x={CODE.RAIL + l.gutter - CODE.GUTTER} y={baseline(i, l.lh, offset)} textAnchor="end">{String(row.line + 1)}</text>))}
         </g>
       ) : null}
-      {editing || !secrets.length ? null : <SecretHits secrets={secrets} l={l} size={size} font={c.font} />}
+      {editing || !secrets.length ? null : <SecretHits secrets={secrets} l={l} />}
       {editing ? null : (
         <g className="code-text" fontSize={size}>
-          {shown.map((segs, i) => {
-            const { segs: kept, clipped } = clipLine(segs, l.cols);
-            return (
-              <text key={l.first + i} x={l.textX} y={baseline(i, l.lh, size)} xmlSpace="preserve">
-                {kept.map((s, k) => <tspan key={k} className={s.c && (colored || s.c === "masked" || s.c === "secret") ? "tk-" + s.c : undefined}>{s.t}</tspan>)}
-                {clipped ? <tspan className="tk-clip">›</tspan> : null}
-              </text>
-            );
-          })}
+          {shown.map((row, i) => <RowText key={l.first + i} l={l} segs={all[row.line] || []} i={i} offset={offset} colored={colored} />)}
         </g>
       )}
       {bar && !editing ? <ScrollBar id={a.id} l={l} bar={bar} /> : null}
-      {foot ? (
+      {foot && !editing ? (
         <>
           <text className="code-foot-hint" x={w - 14} y={h - l.foot / 2 + 4} textAnchor="end">{t("shell:code.foot", { from: foot.from, to: foot.to, total: foot.total })}</text>
           {foot.from > 1 || foot.below > 0 ? <text className="code-foot-more" x={CODE.RAIL + 12} y={h - l.foot / 2 + 4}>{foot.below > 0 ? t("shell:code.below", { count: foot.below }) : t("shell:code.end")}</text> : null}
@@ -131,16 +152,12 @@ export function CodeBody({ a, c, w, h, first, editing = false, idSuffix = "", on
 }
 
 /** Sous chaque valeur sensible gardée et visible, une zone de survol (le texte du code ne prend pas le pointeur) :
- *  la bulle dit sa nature et qui la lit (secret-tip.ts), jamais la valeur ; le clic passe au bloc. */
-function SecretHits({ secrets, l, size, font }: { secrets: ReturnType<typeof findSecrets>; l: CodeLayout; size: number; font: string }) {
-  const cw = charWidth(size, font);
+ *  la bulle dit sa nature et qui la lit (secret-tip.ts), jamais la valeur ; le clic passe au bloc. Une valeur coupée
+ *  par le retour à la ligne a une zone par rangée. */
+function SecretHits({ secrets, l }: { secrets: ReturnType<typeof findSecrets>; l: CodeLayout }) {
   return (
     <g className="code-secrets">
-      {secrets.map((f, i) => {
-        const row = f.line - l.first, end = Math.min(f.end, l.cols);
-        if (row < 0 || row >= l.visible || f.start >= end) return null;
-        return <rect key={i} className="code-hit" data-secret={i} x={l.textX + f.start * cw} y={CODE.HEAD + CODE.PAD + row * l.lh} width={(end - f.start) * cw} height={l.lh} />;
-      })}
+      {secretBoxes(secrets, l).map((b, k) => <rect key={k} className="code-hit" data-secret={b.index} x={b.x} y={b.y} width={b.w} height={b.h} />)}
     </g>
   );
 }

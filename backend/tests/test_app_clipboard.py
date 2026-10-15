@@ -555,7 +555,7 @@ def test_the_application_pastes_from_one_infrastructure_to_another_in_a_browser(
             # lot 16, M3)
             code = {"kind": "code", "text": "snmp-server community Comm-S3cret RO\nend", "language": "cisco_ios"}
             code |= {"title": ""}
-            code |= {"highlight": True, "line_numbers": True, "font": "jetbrains_mono"}
+            code |= {"highlight": True, "line_numbers": True, "font": "jetbrains_mono", "wrap": True}
             block = {**lost["annotations"][0], "id": "a9-2", "content": code, "w": 480, "h": 120}
             block["frame"] = {"x": 0, "y": 0, "w": 480, "h": 120}
             secret = {**lost, "annotations": [block]}

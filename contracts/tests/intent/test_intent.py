@@ -296,6 +296,7 @@ def code_content(**overrides) -> dict:
         "highlight": True,
         "line_numbers": True,
         "font": "jetbrains_mono",
+        "wrap": True,
     }
     return {**base, **overrides}
 
@@ -345,14 +346,144 @@ def test_a_code_block_is_a_fifth_kind_of_annotation_with_a_bounded_text_a_langua
             assert first_error(exc)["type"] == kind, (kind, doc["content"])
 
 
-def test_a_1_5_document_reads_as_1_6_unchanged():
-    """Additif : un document 1.5.x n'a rien à recevoir, seule sa version monte."""
+def _pre_1_7(item: dict, *keys: str) -> dict:
+    """Un objet tel qu'un document 1.6.x l'écrivait : sans les clés de la mise en forme du texte."""
+    return {**item, "style": {k: v for k, v in item["style"].items() if k not in keys}}
+
+
+TEXT_KEYS = ("text_italic", "text_underline", "text_strike", "text_padding", "text_line_height")
+LABEL_KEYS = ("text_italic", "text_underline", "text_strike", "label_at", "label_side")
+GROUP_KEYS = ("label_italic", "label_underline", "label_strike")
+
+
+def test_a_1_5_document_reads_as_1_7_with_its_text_at_the_defaults():
+    """Additif : un document 1.5.x n'a rien à recevoir que les défauts de 1.7.0 ; seule sa version monte."""
     from ld_contracts.intent import upgraded
 
-    old = intent_doc(intent_version="1.5.0", annotations=[annotation_doc()], connectors=[connector_doc()])
+    note = _pre_1_7(annotation_doc(), *TEXT_KEYS)
+    old = intent_doc(intent_version="1.5.0", annotations=[note], connectors=[_pre_1_7(connector_doc(), *LABEL_KEYS)])
     read = Intent.model_validate(upgraded(old))
-    assert read.intent_version == INTENT_VERSION == "1.6.0"
+    assert read.intent_version == INTENT_VERSION == "1.7.0"
     assert read.annotations[0].content.kind == "note" and read.connectors[0].id == "c4-1"
+
+
+def test_a_1_6_document_reads_as_1_7_with_the_text_defaults_and_wrapped_code_blocks():
+    """1.7.0 (lot 4 bis et 16 bis de docs/11) : un document écrit en 1.6.x se relit avec ni italique, ni souligné, ni
+    barré, la marge (8) et l'interligne (135) d'avant, l'étiquette d'un connecteur au milieu et sur le tracé, un bloc de
+    code avec retour à la ligne ; une clé écrite n'est jamais remplacée ; la validation d'un fichier reste stricte."""
+    from ld_contracts.intent import upgraded
+
+    note = _pre_1_7(annotation_doc("a4-1", style={"text_size": 18}), *TEXT_KEYS)
+    code = annotation_doc("a4-2", content=code_content())
+    code = _pre_1_7({**code, "content": {k: v for k, v in code["content"].items() if k != "wrap"}}, *TEXT_KEYS)
+    line = _pre_1_7(connector_doc(), *LABEL_KEYS)
+    group = _pre_1_7(group_doc(), *GROUP_KEYS)
+    group = {**group, "style": {k: v for k, v in group["style"].items() if k not in GROUP_KEYS}}
+    old = intent_doc(intent_version="1.6.0", annotations=[note, code], connectors=[line], groups=[group])
+    with pytest.raises(ValidationError):
+        Intent.model_validate(old)
+    read = Intent.model_validate(upgraded(old))
+    first, block = read.annotations
+    assert (first.style.text_size, first.style.text_italic, first.style.text_padding, first.style.text_line_height) == (
+        18,
+        False,
+        8,
+        135,
+    )
+    assert block.content.wrap is True and block.style.text_strike is False
+    style = read.connectors[0].style
+    assert (style.label_at, style.label_side, style.text_underline) == (50, "on", False)
+    assert read.groups[0].style.label_italic is False and read.groups[0].style.label_strike is False
+    kept = _pre_1_7(annotation_doc(style={"text_italic": True}), "text_padding")
+    assert (
+        Intent.model_validate(upgraded(intent_doc(intent_version="1.6.2", annotations=[kept])))
+        .annotations[0]
+        .style.text_italic
+    ), "une clé écrite reste"
+
+
+def test_the_text_of_every_object_takes_ink_its_hue_or_any_of_the_twelve_hues():
+    """1.7.0 : `text_color` (annotation, connecteur) et `label_color` (groupe) prennent `ink`, `hue` ou l'une des douze
+    teintes ; un autre nom est refusé."""
+    from ld_contracts.intent import Hue
+    from ld_contracts.intent.base import LabelColor
+
+    assert {h.value for h in Hue} | {"ink", "hue"} == {c.value for c in LabelColor}
+    note = annotation_doc(style={"text_color": "violet"})
+    line = connector_doc(style={"text_color": "teal"})
+    group = group_doc(style={"label_color": "red"})
+    read = Intent.model_validate(intent_doc(annotations=[note], connectors=[line], groups=[group]))
+    assert (read.annotations[0].style.text_color, read.connectors[0].style.text_color) == ("violet", "teal")
+    assert read.groups[0].style.label_color == "red"
+    for doc in (
+        intent_doc(annotations=[annotation_doc(style={"text_color": "purple"})]),
+        intent_doc(connectors=[connector_doc(style={"text_color": "black"})]),
+        intent_doc(groups=[group_doc(style={"label_color": "white"})]),
+    ):
+        with pytest.raises(ValidationError) as exc:
+            Intent.model_validate(doc)
+        assert first_error(exc)["type"] == "enum"
+
+
+@pytest.mark.parametrize(
+    ("make", "key", "bad", "kind"),
+    [
+        (annotation_doc, "text_italic", "yes", "bool_type"),
+        (annotation_doc, "text_underline", 1, "bool_type"),
+        (annotation_doc, "text_strike", None, "bool_type"),
+        (annotation_doc, "text_padding", -1, "greater_than_equal"),
+        (annotation_doc, "text_padding", 65, "less_than_equal"),
+        (annotation_doc, "text_padding", 8.0, "int_type"),
+        (annotation_doc, "text_line_height", 99, "greater_than_equal"),
+        (annotation_doc, "text_line_height", 301, "less_than_equal"),
+        (connector_doc, "label_at", -1, "greater_than_equal"),
+        (connector_doc, "label_at", 101, "less_than_equal"),
+        (connector_doc, "label_side", "left", "enum"),
+        (connector_doc, "text_italic", "true", "bool_type"),
+        (group_doc, "label_italic", 0, "bool_type"),
+        (group_doc, "label_underline", "no", "bool_type"),
+        (group_doc, "label_strike", [], "bool_type"),
+    ],
+)
+def test_the_text_formatting_is_strict_and_bounded(make, key, bad, kind):
+    """1.7.0 : booléens stricts, marge 0-64, interligne 100-300 %, place de l'étiquette 0-100 %, côté parmi trois."""
+    section = {annotation_doc: "annotations", connector_doc: "connectors", group_doc: "groups"}[make]
+    with pytest.raises(ValidationError) as exc:
+        Intent.model_validate(intent_doc(**{section: [make(style={key: bad})]}))
+    assert first_error(exc)["type"] == kind, (key, bad)
+
+
+def test_the_text_formatting_bounds_are_accepted_and_every_key_is_required():
+    ok = [
+        annotation_doc(style={"text_padding": 0, "text_line_height": 100}),
+        annotation_doc("a4-2", style={"text_padding": 64, "text_line_height": 300}),
+    ]
+    lines = [
+        connector_doc(style={"label_at": 0, "label_side": "above"}),
+        connector_doc("c4-2", style={"label_at": 100, "label_side": "below"}),
+    ]
+    assert len(Intent.model_validate(intent_doc(annotations=ok, connectors=lines)).connectors) == 2
+    for section, make, key in (
+        ("annotations", annotation_doc, "text_line_height"),
+        ("connectors", connector_doc, "label_side"),
+        ("groups", group_doc, "label_strike"),
+    ):
+        item = make()
+        item = {**item, "style": {k: v for k, v in item["style"].items() if k != key}}
+        with pytest.raises(ValidationError) as exc:
+            Intent.model_validate(intent_doc(**{section: [item]}))
+        assert first_error(exc)["type"] == "missing", key
+
+
+def test_a_code_block_says_whether_it_wraps_its_lines():
+    """1.7.0 (lot 16 bis) : `wrap` est un booléen strict, requis ; vrai par défaut à la relecture d'un 1.6.x."""
+    nowrap = annotation_doc(content=code_content(wrap=False))
+    assert Intent.model_validate(intent_doc(annotations=[nowrap])).annotations[0].content.wrap is False
+    bare = {k: v for k, v in code_content().items() if k != "wrap"}
+    for content, kind in ((code_content(wrap="no"), "bool_type"), (bare, "missing")):
+        with pytest.raises(ValidationError) as exc:
+            Intent.model_validate(intent_doc(annotations=[annotation_doc(content=content)]))
+        assert first_error(exc)["type"] == kind
 
 
 def table_doc(rows: list, merges: list) -> dict:

@@ -17,7 +17,7 @@ import { useEditable, useStore } from "../../state/store";
 import { Badge } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, Menu, NumberField, Row, Section, Segmented, Select, TextInput, Title } from "../../ui/inspector";
 import { HistoryButton, HostLink, HueSetting, WriteHint, signed } from "./shared";
-import { StrokeRow, TextRows, options } from "./style";
+import { StrokeRow, TextSection, options } from "./style";
 
 const LINES = ["solid", "dashed", "dotted"] as const;
 const HEAD_OPTIONS = ["none/arrow", "arrow/none", "arrow/arrow", "none/none"] as const;
@@ -98,14 +98,7 @@ export function ConnectorCard({ model, c }: { model: Model; c: Connector }) {
             <Row label={t("connector.strokeRow")}><StrokeRow label={t("connector.strokeStyle")} value={s.stroke_style} options={options(LINES)} width={s.stroke_width} bounds={BOUNDS.stroke_width}
               onStyle={(stroke_style) => style({ stroke_style: stroke_style as ConnectorStyle["stroke_style"] })} onWidth={(stroke_width) => style({ stroke_width })} /></Row>
           </Section>
-          <Section title={t("annotation.textSection")} collapsible defaultOpen={false}>
-            <TextRows value={{ size: s.text_size, weight: s.text_weight, font: s.text_font, color: s.text_color }}
-              bounds={{ size: BOUNDS.text_size, weights: WEIGHTS, fonts: FONTS, colors: LABEL_COLORS }}
-              onChange={(p) => style({
-                ...(p.size !== undefined ? { text_size: p.size } : {}), ...(p.weight ? { text_weight: p.weight as ConnectorStyle["text_weight"] } : {}),
-                ...(p.font ? { text_font: p.font as ConnectorStyle["text_font"] } : {}), ...(p.color ? { text_color: p.color as ConnectorStyle["text_color"] } : {}),
-              })} />
-          </Section>
+          <TextSection items={[{ kind: "connector", c }]} />
         </>
       ) : (
         <Section title={t("annotation.appearance")}><Facts rows={[[t("annotation.hue"), hueLabel(s.hue)], [t("connector.route"), LABEL[c.route]], [t("connector.heads"), headLabel(heads)]]} /></Section>

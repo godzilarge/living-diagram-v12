@@ -13,11 +13,10 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, us
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { dashArray, KIND_LABEL, layoutText } from "../../canvas/annotations";
 import type { Frame, Segment } from "../../canvas/annotations";
-import { WEIGHT_VALUE } from "../../canvas/groups";
 import type { Point } from "../../canvas/layout";
 import type { Range } from "../../canvas/table";
 import type { Annotation } from "../../canvas/types";
-import type { TableContent } from "../../contracts/intent";
+import type { CodeContent, TableContent } from "../../contracts/intent";
 import type { ConnectorPatch } from "../../shell/apps";
 import type { ContextTarget } from "../state/context";
 import { PillSvg } from "./pill";
@@ -30,10 +29,11 @@ import type { EndKind, Pick } from "./snap";
 import { TableBody } from "./table";
 import { InlineInput, useFinish } from "./inline";
 import type { Cell } from "./table";
-import { CodeBody, CodeView, codeLabel, useCode } from "./code";
+import { CodeBody, CodeView, codeLabel, layoutOf, useCode } from "./code";
 import { CodeEditor } from "./code-edit";
+import { lookOf } from "./text-look";
 import { codeView } from "../code/view";
-import { boundedBox } from "../code/geometry";
+import { boundedBox, rowOf } from "../code/geometry";
 import type { CodeOutcome } from "../state/code-commands";
 
 export interface AnnotationData extends Record<string, unknown> {
@@ -165,11 +165,10 @@ export function Body({ a, frame, editing = false }: { a: Annotation; frame: Fram
   const s = a.style, c = a.content;
   const stroke = s.stroke_style === "none" ? 0 : s.stroke_width;
   const dash = dashArray(s) || undefined;
-  const textClass = "annotation-text" + (s.text_font === "mono" ? " font-mono" : "") + (s.text_color === "ink" ? " text-ink" : "");
-  const weight = WEIGHT_VALUE[s.text_weight] || 450;
+  const look = lookOf(false, s, "annotation-text", "text-ink");
   const text = (content: string, pad?: number) => {
     const laid = layoutText(content, frame, s, pad);
-    return <text className={textClass} fontSize={s.text_size} fontWeight={weight} textAnchor={laid.anchor}>{laid.lines.map((l, i) => <tspan key={i} x={l.x} y={l.y}>{l.text}</tspan>)}</text>;
+    return <text className={look.className} fontSize={s.text_size} fontWeight={look.fontWeight} fontStyle={look.fontStyle} textDecoration={look.textDecoration} textAnchor={laid.anchor}>{laid.lines.map((l, i) => <tspan key={i} x={l.x} y={l.y}>{l.text}</tspan>)}</text>;
   };
   const box = c.kind === "shape" && c.shape === "ellipse"
     ? <ellipse className="annotation-shape" cx={frame.w / 2} cy={frame.h / 2} rx={frame.w / 2} ry={frame.h / 2} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={dash} />
@@ -256,13 +255,19 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
     if (canEdit && (a.content.kind === "note" || a.content.kind === "shape" || a.content.kind === "code")) setEditing(true);
     else if (editable && a.locked && a.content.kind === "code" && code.commands) code.commands.codeSay(t("shell:code.locked"));
   }, [canEdit, editable, a.locked, a.content.kind, code]);
-  // un bloc de code écrit : le texte vu (valeurs retirées ou gardées) part par les commandes du store (lot 16)
-  const codeDone = useCallback((text: string | null, outcome: CodeOutcome, removed: number): void => {
+  // un bloc de code écrit : le texte vu (valeurs retirées ou gardées) part par les commandes du store (lot 16) ; la
+  // lecture reprend à la rangée qui était en haut de l'écriture (lot 16 bis)
+  const codeDone = useCallback((text: string | null, outcome: CodeOutcome, removed: number, top: { line: number; k: number }): void => {
     setEditing(false);
     codeView.setPending(code.infrastructure, a.id, null);
+    if (a.content.kind === "code") codeView.setFirst(a.id, rowOf(layoutOf(a, { ...a.content, text: text ?? a.content.text }, a.w, a.h, 0), top));
     if (text === null || !code.commands) return;
     code.commands.codeSave(a.id, text, outcome, removed);
-  }, [a.id, code]);
+  }, [a, code]);
+  // ce que la barre règle pendant l'écriture : écrit tout de suite (taille après la rafale), comme hors écriture
+  const codeSize = useCallback((text_size: number): void => { if (code.commands) code.commands.annotationUpdate(a.id, { style: { text_size } }); }, [a.id, code]);
+  const codeFont = useCallback((font: string): void => { if (code.commands) code.commands.codeSet([a.id], { font: font as CodeContent["font"] }); }, [a.id, code]);
+  const codeWrap = useCallback((wrap: boolean): void => { if (code.commands) code.commands.codeSet([a.id], { wrap }); }, [a.id, code]);
   const done = useCallback((text: string | null): void => {
     setEditing(false);
     if (text === null) return;
@@ -292,7 +297,8 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
         </g>
       </svg>
       {editing && a.content.kind === "note" ? <NoteEditor initial={a.content.text} onDone={done} /> : null}
-      {editing && a.content.kind === "code" ? <CodeEditor w={frame.w} h={frame.h} size={a.style.text_size} font={a.content.font} numbers={a.content.line_numbers}
+      {editing && a.content.kind === "code" ? <CodeEditor writingKey={"annotation:" + a.id} draft={false} w={frame.w} h={frame.h} size={a.style.text_size} font={a.content.font} numbers={a.content.line_numbers}
+        wrap={a.content.wrap} language={a.content.language} highlight={a.content.highlight} onSize={codeSize} onFont={codeFont} onWrap={codeWrap}
         initial={pending ?? a.content.text} saved={a.content.text} warnAtOnce={pending !== null} onLeave={codeLeave} first={codeView.first(a.id)} label={t("shell:code.editorLabel", { name: codeLabel(a.content) })} infrastructure={code.infrastructure} onDone={codeDone} /> : null}
     </>
   );

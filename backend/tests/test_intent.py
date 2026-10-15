@@ -139,12 +139,12 @@ def test_a_document_written_before_1_1_is_read_with_empty_colours_and_rewritten_
     }
     (folder / "intent.json").write_text(json.dumps(old), encoding="utf-8")
     read = store.load(INFRA)
-    assert read.intent_version == "1.6.0" and read.type_colors == () and read.groups == () and read.pins[0].x == 1
+    assert read.intent_version == "1.7.0" and read.type_colors == () and read.groups == () and read.pins[0].x == 1
     assert json.loads((folder / "intent.json").read_text())["intent_version"] == "1.0.0", "lire ne réécrit rien"
     written = store.apply(
         INFRA, ops(ColorOp(op="color", hostname="sw-core-01", hue="red")), now=NOW + timedelta(days=1)
     )
-    assert written.revision == 2 and json.loads((folder / "intent.json").read_text())["intent_version"] == "1.6.0"
+    assert written.revision == 2 and json.loads((folder / "intent.json").read_text())["intent_version"] == "1.7.0"
 
 
 def test_groups_are_created_with_a_server_id_completed_style_then_updated_added_removed_deleted(store: IntentStore):
@@ -405,11 +405,11 @@ def test_a_document_written_in_1_3_is_read_with_its_arrows_as_connectors(store: 
     }
     (folder / "intent.json").write_text(json.dumps(old), encoding="utf-8")
     read = store.load(INFRA)
-    assert read.intent_version == "1.6.0" and [a.id for a in read.annotations] == ["a2-2"]
+    assert read.intent_version == "1.7.0" and [a.id for a in read.annotations] == ["a2-2"]
     assert read.annotations[0].content.widths is None and read.annotations[0].content.merges == ()
     assert [c.id for c in read.connectors] == ["c2-1"] and read.connectors[0].end.x == 110
     written = store.apply(INFRA, ops(pin("sw-core-01", 1, 2)), now=datetime(2026, 10, 9, tzinfo=UTC))
-    assert written.intent_version == "1.6.0" and len(written.connectors) == 1
+    assert written.intent_version == "1.7.0" and len(written.connectors) == 1
     assert Intent.model_validate_json((folder / "intent.json").read_text(encoding="utf-8")).revision == 3
 
 
@@ -427,7 +427,7 @@ def test_a_document_written_before_1_3_is_read_with_empty_annotations(store: Int
         "groups": [],
     }
     (folder / "intent.json").write_text(json.dumps(old), encoding="utf-8")
-    assert store.load(INFRA).annotations == () and store.load(INFRA).intent_version == "1.6.0"
+    assert store.load(INFRA).annotations == () and store.load(INFRA).intent_version == "1.7.0"
 
 
 def test_operations_apply_in_order_and_the_pins_come_out_sorted(store: IntentStore):
@@ -551,3 +551,95 @@ def test_a_label_with_a_slash_gets_a_safe_folder_and_keeps_its_exact_name(store:
     assert done.infrastructure == "site/lab" and store.load("site/lab") == done
     folders = [p.name for p in (store.root / "_intent").iterdir()]
     assert len(folders) == 1 and folders[0].startswith("_") and "/" not in folders[0]
+
+
+def test_a_document_written_in_1_6_reads_with_the_text_defaults_and_is_rewritten_in_1_7(store: IntentStore):
+    """Lots 4 bis et 16 bis (Intent 1.7.0) : un `intent.json` 1.6.0 se relit avec la mise en forme au défaut (le dessin
+    d'avant) et un bloc de code qui revient à la ligne ; lire ne réécrit rien, l'écriture suivante l'écrit en 1.7.0."""
+    from ld_contracts.intent import DEFAULT_ANNOTATION_STYLE, DEFAULT_CONNECTOR_STYLE, DEFAULT_GROUP_STYLE
+
+    added = {
+        "text_italic",
+        "text_underline",
+        "text_strike",
+        "text_padding",
+        "text_line_height",
+        "label_at",
+        "label_side",
+    }
+    added |= {"label_italic", "label_underline", "label_strike"}
+    old_style = lambda style: {k: v for k, v in style.items() if k not in added}  # noqa: E731
+    folder = store.root / "_intent" / INFRA
+    folder.mkdir(parents=True)
+    at = "2026-10-14T18:30:00Z"
+    code = {"kind": "code", "text": "vlan 20", "language": "cisco_ios", "title": "", "highlight": True}
+    code |= {"line_numbers": True, "font": "jetbrains_mono"}
+    box = {
+        "x": 0,
+        "y": 0,
+        "w": 480,
+        "h": 240,
+        "z": "front",
+        "locked": False,
+        "leader": False,
+        "author": "orhan",
+        "at": at,
+    }
+    old = {
+        "intent_version": "1.6.0",
+        "infrastructure": INFRA,
+        "revision": 2,
+        "updated_at": at,
+        "pins": [],
+        "type_colors": [],
+        "device_colors": [],
+        "groups": [
+            {
+                "id": "g1-1",
+                "label": "Cœur",
+                "description": "",
+                "members": ["sw-core-01"],
+                "author": "orhan",
+                "at": at,
+                "style": old_style(DEFAULT_GROUP_STYLE),
+            },
+        ],
+        "annotations": [
+            {
+                "id": "a2-1",
+                "anchor": {"kind": "free", "ref": None},
+                **box,
+                "content": code,
+                "style": old_style(DEFAULT_ANNOTATION_STYLE["code"]),
+            },
+        ],
+        "connectors": [
+            {
+                "id": "c2-1",
+                "start": {"kind": "free", "x": 0, "y": 0},
+                "end": {"kind": "free", "x": 9, "y": 9},
+                "heads": {"start": "none", "end": "arrow"},
+                "route": "straight",
+                "bend": 0,
+                "label": "x",
+                "z": "front",
+                "locked": False,
+                "style": old_style(DEFAULT_CONNECTOR_STYLE),
+                "author": "orhan",
+                "at": at,
+            },
+        ],
+    }
+    (folder / "intent.json").write_text(json.dumps(old), encoding="utf-8")
+    read = store.load(INFRA)
+    assert read.intent_version == "1.7.0" and read.annotations[0].content.wrap is True
+    assert (read.annotations[0].style.text_padding, read.annotations[0].style.text_line_height) == (8, 135)
+    assert (read.connectors[0].style.label_at, read.connectors[0].style.label_side) == (50, "on")
+    assert read.groups[0].style.label_italic is False
+    assert json.loads((folder / "intent.json").read_text())["intent_version"] == "1.6.0", "lire ne réécrit rien"
+    written = store.apply(INFRA, ops(pin("sw-core-01", 1, 2)), now=datetime(2026, 10, 15, tzinfo=UTC))
+    on_disk = json.loads((folder / "intent.json").read_text())
+    assert written.revision == 3 and on_disk["intent_version"] == "1.7.0"
+    assert (
+        on_disk["annotations"][0]["content"]["wrap"] is True and on_disk["connectors"][0]["style"]["label_side"] == "on"
+    )

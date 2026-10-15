@@ -2,17 +2,19 @@
 // (un disque coupé quand la sélection en mêle deux), ou un glyphe dessiné ici, au trait, 16 × 16, qui montre la valeur
 // posée (remplissage, bordure, coins, pointes, tracé…) : on lit l'état sans ouvrir. Les glyphes du prototype validé le
 // 2026-10-14, recopiés en SVG pur (attributs de présentation : jamais de style en ligne, CSP).
-import { ALargeSmall, AlignStartVertical, ChevronDown, Highlighter, ListOrdered, MoveVertical, ArrowRightLeft, BetweenHorizontalEnd, BetweenVerticalEnd, Bold, CopyPlus, EyeOff, Focus, Group, ImageUp, Layers, Lock, LockOpen,
-  MoveUpRight, Paintbrush, PanelTop, Pin, PinOff, SquareDashedMousePointer, StickyNote, TextAlignCenter, TextAlignEnd, TextAlignStart, TextCursorInput, Trash2 } from "lucide-react";
+import { ALargeSmall, AlignStartVertical, Baseline, Check, ChevronDown, GitCommitHorizontal, Highlighter, Italic, ListOrdered, MoveVertical, ArrowRightLeft, BetweenHorizontalEnd, BetweenVerticalEnd, Bold, CopyPlus, EyeOff, Focus, Group, ImageUp, Layers, Lock, LockOpen,
+  MoveUpRight, Paintbrush, PanelTop, Pin, PinOff, Search, SquareDashedMousePointer, StickyNote, Strikethrough, TextAlignCenter, TextAlignEnd, TextAlignStart, TextWrap, Trash2, Underline, X } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Face, GlyphName, IconName } from "../state/floating";
 
 const ICONS: Record<IconName, ReactNode> = {
   textSize: <ALargeSmall />, bold: <Bold />, alignLeft: <TextAlignStart />, alignCenter: <TextAlignCenter />, alignRight: <TextAlignEnd />, layers: <Layers />,
-  lock: <Lock />, unlock: <LockOpen />, duplicate: <CopyPlus />, delete: <Trash2 />, editLabel: <TextCursorInput />, addRow: <BetweenHorizontalEnd />,
+  lock: <Lock />, unlock: <LockOpen />, duplicate: <CopyPlus />, delete: <Trash2 />, addRow: <BetweenHorizontalEnd />,
   addColumn: <BetweenVerticalEnd />, header: <PanelTop />, replace: <ImageUp />, reverse: <ArrowRightLeft />, selectMembers: <SquareDashedMousePointer />,
   paint: <Paintbrush />, pin: <Pin />, unpin: <PinOff />, group: <Group />, note: <StickyNote />, connect: <MoveUpRight />, hide: <EyeOff />, isolate: <Focus />,
   align: <AlignStartVertical />, highlighter: <Highlighter />, listOrdered: <ListOrdered />, fitHeight: <MoveVertical />,
+  italic: <Italic />, underline: <Underline />, strike: <Strikethrough />, textColor: <Baseline />, labelPlace: <GitCommitHorizontal />,
+  wrap: <TextWrap />, search: <Search />, abandon: <X />, save: <Check />,
 };
 export const iconOf = (name: IconName): ReactNode => ICONS[name];
 

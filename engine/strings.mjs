@@ -51,6 +51,8 @@ export const ALLOWED = new Map([
   ["src/canvas/connectors.ts:sans", "valeur du contrat (`text_font` : `sans` | `mono`), jamais affichée telle quelle"],
   ["src/canvas/annotations.ts:sans", "valeur du contrat (`text_font` : `sans` | `mono`), jamais affichée telle quelle (le brouillon d'un bloc de code lit les défauts, lot 16)"],
   ["src/app/code/tokens.ts:comment", "nom d'un jeton de Prism (`comment`, la famille des commentaires), jamais affiché"],
+  ["src/app/state/text-format.ts:sans", "valeur du contrat (`text_font` / `label_font` : `sans` | `mono`), le défaut d'un style relu sans police (lot 4 bis)"],
+  ["src/app/components/TextVolets.tsx:sans", "valeur du contrat (`text_font` : `sans` | `mono`) d'un choix du volet ; le mot affiché vient des catalogues (lot 4 bis)"],
 ]);
 // Garde-fou : le scan lit bien l'application (un fichier livré vide ou mal découpé ne prouverait rien).
 const MIN_TEXTS = 500;

@@ -1,29 +1,43 @@
-// L'écriture en place d'un bloc de code (lot 16 de docs/11) : un `textarea` à chasse fixe posé sur la zone du code, la
-// gouttière des numéros gardée et défilant avec lui ; il s'ouvre là où l'on lisait (le curseur sur la première ligne
-// visible). Ctrl+Entrée enregistre, Échap annule, Tab insère quatre espaces, un clic dehors enregistre. Rien n'est
-// enregistré sans que les valeurs sensibles aient été vues : l'avertissement (code-warn.tsx) s'ouvre à côté du bloc,
-// liste chaque valeur avec sa ligne et sa nature, un point rouge dans la gouttière ; « Retirer ces valeurs »,
-// « Garder tel quel » ou « Modifier le texte ». Les dimensions libres passent par des variables CSS posées par le CSSOM,
-// jamais par un style en ligne. Revue du 2026-10-15 : seules les valeurs **nouvelles** par rapport au texte enregistré
-// sont signalées (une valeur gardée ne se redemande pas) ; un champ démonté avec une valeur nouvelle non vue rend son
-// texte à la page, qui le garde en attente (M1) ; un texte trop long garde le champ ouvert (M2) ; le texte est remis à
-// sa forme normalisée avant l'avertissement, pour que lignes et sélection tombent juste (B2).
+// L'écriture en place d'un bloc de code (lots 16 et 16 bis de docs/11) : CodeMirror 6 (code/editor.ts) posé sur la zone
+// du code, aux mesures exactes de la lecture (gouttière, x du texte, hauteur de rangée, coupures : aucun saut en
+// passant de l'une à l'autre), ouvert là où l'on lisait. Ctrl+Entrée enregistre ; Échap ferme la recherche, puis
+// enregistre et sort ; un clic dehors enregistre ; abandonner passe par la barre (✕, deux clics s'il y a des
+// modifications). Ctrl+Z / Ctrl+Y défont le texte (l'historique de l'éditeur, jamais celui du diagramme), Ctrl+F / Ctrl+H
+// cherchent et remplacent (l'interface est dans la barre contextuelle, components/WritingBar.tsx), Ctrl + molette change
+// la taille du code. Rien n'est enregistré sans que les valeurs sensibles aient été vues : marquées en direct dans le
+// texte, puis l'avertissement (code-warn.tsx) avant l'enregistrement, comme au lot 16. Les dimensions passent par des
+// variables CSS posées par le CSSOM, jamais par un style en ligne. Revue du 2026-10-15, gardée : seules les valeurs
+// **nouvelles** par rapport au texte enregistré sont signalées (M1) ; un champ démonté avec une valeur nouvelle non vue
+// rend son texte à la page, qui le garde en attente ; un texte trop long garde l'écriture ouverte (M2).
+import { useStore as useFlowStore } from "@xyflow/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ClipboardEvent as ReactClipboardEvent, KeyboardEvent } from "react";
 import { t } from "../../i18n";
-import { CODE, editorGutter, lineHeight, offsetOfLine } from "../code/geometry";
-import { cleanTyped, normalizeCode } from "../code/languages";
+import { CODE, layout, openingOf } from "../code/geometry";
+import { openEditor } from "../code/editor";
+import type { EditorSession } from "../code/editor";
+import { normalizeCode } from "../code/languages";
 import { maskSecrets, newSecrets } from "../code/secrets";
 import type { Secret } from "../code/secrets";
+import { CLOSED } from "../code/search";
+import { writing } from "../code/writing";
+import { stepSize, wheelSteps } from "../state/sizes";
 import { CODE_MAX } from "../state/code-commands";
 import type { CodeOutcome } from "../state/code-commands";
 import { useCode } from "./code";
 import { CodeWarn } from "./code-warn";
+import { debug } from "../state/debug";
+
+/** Une rafale de tailles (molette, pas à pas de la barre) ne s'écrit qu'une fois, ce délai après la dernière. */
+const SIZE_SETTLE_MS = 400;
+/** Ce qui, cliqué, ne quitte pas l'écriture : elle-même, la barre et ses volets, l'avertissement. */
+const INSIDE = ".code-editor, .fbar, .fvolet, .ftip, .code-warn-panel";
 
 export interface EditorProps {
-  /** La boîte (unités du dessin) ; le champ couvre tout sous l'en-tête. */
-  w: number; h: number; size: number; font: string; numbers: boolean;
-  /** Le texte de départ et la première ligne lue (l'écriture s'ouvre là) ; `saved` : le texte enregistré (vide pour un
+  /** L'écriture, pour la barre : « annotation:a3-1 » ou « draft:4 ». */
+  writingKey: string; draft: boolean;
+  /** La boîte (unités du dessin) et ce qui règle le dessin du code. */
+  w: number; h: number; size: number; font: string; numbers: boolean; wrap: boolean; language: string; highlight: boolean;
+  /** Le texte de départ et la première rangée lue (l'écriture s'ouvre là) ; `saved` : le texte enregistré (vide pour un
    *  brouillon), les valeurs qu'il porte déjà ne sont pas redemandées. */
   initial: string; saved?: string; first: number; label: string; infrastructure: string;
   /** Ouvre l'avertissement tout de suite (un collage qui porte des valeurs sensibles, une écriture en attente). */
@@ -32,152 +46,184 @@ export interface EditorProps {
   saveOnLeave?: boolean;
   /** Démonté sans fin avec une valeur nouvelle jamais vue : le texte, rendu à la page (qui le garde en attente). */
   onLeave?: (text: string) => void;
-  /** `null` : abandon ; sinon le texte vu, et ce qui en a été fait. */
-  onDone: (text: string | null, outcome: CodeOutcome, removed: number) => void;
+  /** Ce que la barre règle pendant l'écriture : la page l'écrit (un bloc) ou le garde (un brouillon). */
+  onSize: (size: number) => void; onFont: (font: string) => void; onWrap: (wrap: boolean) => void;
+  /** `null` : abandon ; sinon le texte vu, ce qui en a été fait, et la rangée en haut de l'écriture (la lecture y reprend). */
+  onDone: (text: string | null, outcome: CodeOutcome, removed: number, top: { line: number; k: number }) => void;
 }
 
 const setVars = (el: HTMLElement | null, vars: Record<string, string>): void => { if (el) for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v); };
 
-export function CodeEditor({ w, h, size, font, numbers, initial, saved = "", first, label, infrastructure, warnAtOnce = false, saveOnLeave = true, onLeave, onDone }: EditorProps) {
-  const area = useRef<HTMLTextAreaElement>(null), gutter = useRef<HTMLDivElement>(null), box = useRef<HTMLDivElement>(null);
+export function CodeEditor(props: EditorProps) {
+  const { w, h, font, numbers, wrap, language, highlight, initial, saved = "", warnAtOnce = false } = props;
+  const box = useRef<HTMLDivElement>(null), cm = useRef<HTMLDivElement>(null);
+  const session = useRef<EditorSession | null>(null);
   const { commands } = useCode();
+  const zoom = useFlowStore((s) => s.transform[2]);
+  // la taille vivante : la molette et le pas à pas la changent tout de suite, la page l'écrit après la rafale
+  const [live, setLive] = useState<number | null>(null);
+  const size = live ?? props.size;
+  const [lines, setLines] = useState(() => initial.split("\n").length);
   const [warn, setWarn] = useState<{ text: string; found: Secret[] } | null>(() => {
     if (!warnAtOnce) return null;
     const text = normalizeCode(initial), found = newSecrets(text, saved);
     return found.length ? { text, found } : null;
   });
-  const [lines, setLines] = useState(() => initial.split("\n").length);
-  const finished = useRef(false), value = useRef(initial), latest = useRef(onDone), leave = useRef(onLeave);
-  latest.current = onDone;
-  leave.current = onLeave;
-  const lh = lineHeight(size), total = Math.max(lines, 1);
-  const flagged = new Set(warn ? warn.found.map((f) => f.line) : []);
-  // la gouttière s'élargit du point rouge quand une ligne est marquée (il ne touche plus un numéro à deux chiffres)
-  const gutterW = numbers ? editorGutter(total, size, font, flagged.size > 0) : 0;
+  const finished = useRef(false), value = useRef(initial), warnRef = useRef(warn);
+  const latest = useRef(props);
+  latest.current = props;
+  warnRef.current = warn;
+  // la géométrie de la lecture, au nombre de lignes de ce qui s'écrit (la gouttière suit ses chiffres)
+  const l = layout({ w, h, size, font, numbers, text: value.current, wrap });
+  const say = (text: string): void => { if (commands) commands.codeSay(text); };
+  const topOf = (): { line: number; k: number } => (session.current ? session.current.topLine(l.lh) : { line: 0, k: 0 });
   const finish = (text: string | null, outcome: CodeOutcome = "plain", removed = 0): void => {
     if (finished.current) return;
     finished.current = true;
-    latest.current(text, outcome, removed);
+    latest.current.onDone(text, outcome, removed, topOf());
   };
-  // Démonté sans fin (la toile ne monte que ce qui se voit, lot 13) : enregistré comme quitté, sauf s'il porte une valeur
-  // sensible nouvelle non vue (jamais enregistrée en silence) : le texte est rendu à la page (`onLeave`), qui le garde en
-  // attente et le dit ; jamais perdu (revue, M1). Un brouillon s'abandonne (la page le dit).
-  useEffect(() => () => {
-    if (finished.current) return;
-    finished.current = true;
-    const text = normalizeCode(value.current);
-    if (!saveOnLeave) { latest.current(null, "plain", 0); return; }
-    // (de même un texte trop long : refusé à l'enregistrement, il serait perdu ; il attend, et se dit au retour)
-    if ((newSecrets(text, saved).length || text.length > CODE_MAX) && leave.current) { leave.current(text); return; }
-    latest.current(text.trim() ? text : null, "plain", 0);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => {
-    setVars(box.current, { "--ce-top": CODE.HEAD + "px", "--ce-h": Math.max(lh * 3, h - CODE.HEAD) + "px", "--ce-fs": size + "px", "--ce-lh": lh + "px",
-      "--ce-pl": (numbers ? CODE.RAIL + gutterW : CODE.LEFT) + "px", "--ce-py": CODE.PAD + "px", "--ce-gw": gutterW + "px", "--ce-gl": CODE.RAIL + "px" });
-  }, [h, size, lh, numbers, gutterW]);
-  useEffect(() => {
-    const el = area.current;
-    if (!el) return;
-    // ouvert avec l'avertissement (un collage) : le focus est à lui (il l'a pris en se montant), pas au champ (audit du
-    // 2026-10-15, P1 : l'effet du parent passait après celui de l'enfant et le reprenait)
-    if (warn) return;
-    const at = offsetOfLine(el.value, first);
-    el.focus({ preventScroll: true });
-    el.setSelectionRange(at, at);
-    el.scrollTop = first * lh;
-    sync();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const sync = (): void => {
-    const el = area.current;
-    if (el) setVars(gutter.current, { "--gs": -el.scrollTop + "px" });
-  };
-  /** Le champ remis à un texte (normalisé, ou nettoyé d'un dépôt), le curseur gardé à sa place relative. */
-  const replace = (el: HTMLTextAreaElement, text: string, caret: number): void => {
-    el.value = text;
-    el.setSelectionRange(caret, caret);
-    value.current = text;
-    setLines(text.split("\n").length);
-  };
-  const tooLong = (): void => { if (commands) commands.codeSay(t("shell:code.tooLong", { max: CODE_MAX })); };
   const commit = (): void => {
-    const el = area.current;
-    if (!el || finished.current) return;
-    const text = normalizeCode(el.value);
+    const s = session.current;
+    if (!s || finished.current) return;
+    const text = normalizeCode(s.text());
     if (!text.trim()) { finish(null); return; }
-    // trop long : le champ reste ouvert avec ce qui a été écrit, la page le dit (revue, M2)
-    if (text.length > CODE_MAX) { tooLong(); el.focus({ preventScroll: true }); return; }
+    // trop long : l'écriture reste ouverte avec ce qui a été écrit, la page le dit (revue, M2)
+    if (text.length > CODE_MAX) { say(t("shell:code.tooLong", { max: CODE_MAX })); s.focus(); return; }
     const found = newSecrets(text, saved);
-    if (found.length) {
-      // le champ montre le texte qui sera enregistré : numéros, points rouges et sélection tombent juste (revue, B2)
-      if (el.value !== text) replace(el, text, Math.min(el.selectionStart, text.length));
-      setWarn({ text, found });
-      return;
-    }
-    finish(text);
+    if (!found.length) { finish(text); return; }
+    // l'écriture montre le texte qui sera enregistré : numéros, points rouges et sélection tombent juste (revue, B2)
+    if (s.text() !== text) s.view.dispatch({ changes: { from: 0, to: s.view.state.doc.length, insert: text } });
+    setWarn({ text, found });
   };
-  const select = (f: Secret): void => {
-    const el = area.current;
-    if (!el) return;
-    const lines = el.value.split("\n");
-    if (f.line >= lines.length) { el.focus(); return; }
-    const at = offsetOfLine(el.value, f.line) + f.start;
-    el.focus({ preventScroll: true });
-    el.setSelectionRange(at, Math.min(at + (f.end - f.start), at + lines[f.line].length - f.start));
-    el.scrollTop = Math.max(0, f.line * lh - el.clientHeight / 3);
-    sync();
-  };
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
   const toWarn = (last: boolean): void => {
     const all = box.current ? Array.from(box.current.querySelectorAll<HTMLElement>(".code-warn-panel button")) : [];
     const target = last ? all[all.length - 1] : box.current ? box.current.querySelector<HTMLElement>(".code-warn-panel .pbtn.primary") : null;
     if (target) target.focus({ preventScroll: true });
   };
-  const keys = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    event.stopPropagation();
-    if (event.key === "Escape") { event.preventDefault(); if (warn) setWarn(null); else finish(null); return; }
-    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); commit(); return; }
-    // l'avertissement ouvert, Tab n'écrit rien dans le texte : il va à l'avertissement (son choix d'abord)
-    if (event.key === "Tab" && warn) { event.preventDefault(); toWarn(event.shiftKey); return; }
-    if (event.key === "Tab" && !event.shiftKey) { event.preventDefault(); event.currentTarget.setRangeText("    ", event.currentTarget.selectionStart, event.currentTarget.selectionEnd, "end"); value.current = event.currentTarget.value; }
+
+  // L'ouverture : CodeMirror dans la zone du code, là où l'on lisait ; la barre apprend qu'une écriture est ouverte.
+  useLayoutEffect(() => {
+    const el = cm.current;
+    if (!el) return undefined;
+    const p = latest.current;
+    const opened = layout({ w: p.w, h: p.h, size: p.size, font: p.font, numbers: p.numbers, text: p.initial, wrap: p.wrap }, p.first);
+    const s = openEditor(el, {
+      text: p.initial, language: p.language, highlight: p.highlight, numbers: p.numbers, wrap: p.wrap, cols: opened.cols, lh: opened.lh, label: p.label,
+      at: openingOf(p.initial, opened),
+    }, {
+      onSave: () => commitRef.current(),
+      onEscape: () => { if (!warnRef.current) return false; setWarn(null); return true; },
+      onTab: (back) => { if (!warnRef.current) return false; toWarn(back); return true; },
+      onDoc: (text) => {
+        value.current = text;
+        setLines(text.split("\n").length);
+        if (warnRef.current) setWarn(null);
+        writing.update(p.writingKey, { dirty: text !== p.initial });
+      },
+      onSearch: (search) => writing.update(p.writingKey, { search }),
+      onTooLong: () => say(t("shell:code.tooLong", { max: CODE_MAX })),
+      schedule: (fn, ms) => { const timer = window.setTimeout(fn, ms); return () => window.clearTimeout(timer); },
+      max: CODE_MAX,
+    });
+    session.current = s;
+    debug.noteEditor(s.view);
+    // ouvert avec l'avertissement (un collage) : le focus est à lui, pas au texte (audit du 2026-10-15, P1)
+    if (warnRef.current) window.requestAnimationFrame(() => toWarn(false));
+    writing.open({
+      key: p.writingKey, draft: p.draft, size: p.size, font: p.font, wrap: p.wrap, dirty: false, search: CLOSED,
+      actions: {
+        save: () => commitRef.current(),
+        abandon: () => finish(null),
+        setSize: (next) => setLive(next),
+        setFont: (next) => latest.current.onFont(next),
+        setWrap: (next) => latest.current.onWrap(next),
+        search: s.search,
+        focus: () => s.focus(),
+        element: () => box.current,
+      },
+    });
+    return () => {
+      writing.close(p.writingKey);
+      if (debug.editor() === s.view) debug.noteEditor(null);
+      leaveRef.current(s);
+      s.destroy();
+      session.current = null;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Démonté sans fin (la toile ne monte que ce qui se voit, lot 13) : enregistré comme quitté, sauf s'il porte une valeur
+  // sensible nouvelle non vue (jamais enregistrée en silence) ou s'il est trop long : rendu à la page (`onLeave`), qui le
+  // garde en attente et le dit ; jamais perdu (revue, M1). Un brouillon s'abandonne (la page le dit).
+  const leave = (s: EditorSession): void => {
+    if (finished.current) return;
+    finished.current = true;
+    const p = latest.current, text = normalizeCode(s.text()), top = s.topLine(l.lh);
+    if (!(p.saveOnLeave ?? true)) { p.onDone(null, "plain", 0, top); return; }
+    if ((newSecrets(text, saved).length || text.length > CODE_MAX) && p.onLeave) { p.onLeave(text); return; }
+    p.onDone(text.trim() ? text : null, "plain", 0, top);
   };
-  const paste = (event: ReactClipboardEvent<HTMLTextAreaElement>): void => {
-    const raw = event.clipboardData ? event.clipboardData.getData("text/plain") : "";
-    if (!raw) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const el = event.currentTarget, text = normalizeCode(raw);
-    if (el.value.length - (el.selectionEnd - el.selectionStart) + text.length > CODE_MAX) { tooLong(); return; }
-    el.setRangeText(text, el.selectionStart, el.selectionEnd, "end");
-    value.current = el.value;
-    setLines(el.value.split("\n").length);
-  };
-  // un texte déposé (glisser-déposer contourne le collage) ou tapé : tabulations, CR et caractères interdits nettoyés
-  // tout de suite, les colonnes restent justes (revue, B2 et B4)
-  const changed = (el: HTMLTextAreaElement): void => {
-    const raw = el.value, clean = cleanTyped(raw);
-    if (clean !== raw) replace(el, clean, cleanTyped(raw.slice(0, el.selectionStart)).length);
-    else value.current = raw;
-    const n = el.value.split("\n").length;
-    if (n !== lines) setLines(n);
-    if (warn) setWarn(null);
-  };
+  const leaveRef = useRef(leave);
+  leaveRef.current = leave;
+
+  // La géométrie suit la boîte, la taille, la police, les numéros et le retour à la ligne : mêmes mesures que la lecture.
+  useLayoutEffect(() => {
+    setVars(cm.current, {
+      "--cm-top": CODE.HEAD + "px", "--cm-left": CODE.RAIL + "px", "--cm-w": w - CODE.RAIL + "px", "--cm-h": h - CODE.HEAD - l.foot + "px",
+      "--cm-fs": size + "px", "--cm-lh": l.lh + "px", "--cm-gw": (numbers ? l.gutter : CODE.LEFT) + "px", "--cm-pad": CODE.PAD + "px",
+      // `cols` caractères et une demi-colonne de jeu : les arrondis du navigateur ne décident jamais d'une coupure
+      "--cm-wrapw": (l.cols + 0.5) * l.cw + "px",
+    });
+    if (cm.current) cm.current.classList.toggle("no-numbers", !numbers);
+    if (session.current) { session.current.setGeometry({ cols: l.cols, wrap }); }
+  }, [w, h, size, numbers, wrap, l.cols, l.lh, l.gutter, l.foot, l.cw, lines]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (session.current) session.current.setLanguage(language, highlight); }, [language, highlight]);
+  useEffect(() => { if (session.current) session.current.measure(); }, [zoom]);
+  useEffect(() => { writing.update(props.writingKey, { size, font, wrap }); }, [props.writingKey, size, font, wrap]);
+  // la taille vivante s'écrit après la rafale ; revenue de la page, elle n'est plus « vivante »
+  useEffect(() => {
+    if (live === null) return undefined;
+    if (live === props.size) { setLive(null); return undefined; }
+    const timer = window.setTimeout(() => latest.current.onSize(live), SIZE_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [live, props.size]);
+
+  // Ctrl + molette dans l'écriture : la taille du code (hors écriture, elle reste le zoom de la toile).
+  useEffect(() => {
+    const el = cm.current;
+    if (!el) return undefined;
+    let acc = 0;
+    const wheel = (event: WheelEvent): void => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault(); event.stopPropagation();
+      const step = wheelSteps(acc, event.deltaY, event.deltaMode);
+      acc = step.acc;
+      if (step.steps) setLive((now) => { let next = now ?? latest.current.size; for (let i = 0; i < Math.abs(step.steps); i += 1) next = stepSize(next, step.steps > 0 ? 1 : -1); return next; });
+    };
+    el.addEventListener("wheel", wheel, { passive: false, capture: true });
+    return () => el.removeEventListener("wheel", wheel, { capture: true });
+  }, []);
+  // Un clic dehors (ni l'écriture, ni la barre et ses volets, ni l'avertissement) enregistre.
+  useEffect(() => {
+    const down = (event: PointerEvent): void => {
+      const target = event.target as Element | null;
+      if (!target || !target.closest || target.closest(INSIDE) || warnRef.current) return;
+      commitRef.current();
+    };
+    document.addEventListener("pointerdown", down, true);
+    return () => document.removeEventListener("pointerdown", down, true);
+  }, []);
+
   return (
     <div ref={box} className={"code-editor cf-" + font} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onContextMenu={(event) => event.stopPropagation()}>
-      <div className="code-edit-hint" aria-hidden="true">
-        <kbd>{t("shell:code.keySave")}</kbd> {t("shell:code.hintSave")} <kbd>{t("shell:code.keyCancel")}</kbd> {t("shell:code.hintCancel")} <kbd>Tab</kbd> {t("shell:code.hintTab")}
-      </div>
-      {numbers ? (
-        <div className="code-edit-gutter" aria-hidden="true">
-          <div ref={gutter} className="code-edit-nums">{Array.from({ length: total }, (_, i) => <div key={i} className={flagged.has(i) ? "flag" : undefined}>{i + 1}</div>)}</div>
-        </div>
-      ) : null}
-      <textarea ref={area} className="code-edit nodrag nopan nowheel" defaultValue={initial} aria-label={label} spellCheck={false} autoCapitalize="off" autoCorrect="off" wrap="off"
-        maxLength={CODE_MAX} onKeyDown={keys} onScroll={sync} onPaste={paste} onChange={(event) => changed(event.target)}
-        onBlur={(event) => { const to = event.relatedTarget as Node | null; if (warn || (to && box.current && box.current.contains(to))) return; commit(); }} />
+      <div ref={cm} className="code-cm nodrag nopan nowheel" data-writing={props.writingKey} onKeyDown={(event) => event.stopPropagation()} />
       {warn ? (
-        <CodeWarn text={warn.text} found={warn.found} infrastructure={infrastructure} width={w}
-          onGo={select} onRemove={() => finish(maskSecrets(warn.text, warn.found), "removed", warn.found.length)}
-          onKeep={() => finish(warn.text, "kept", 0)} onEdit={() => { const f = warn.found[0]; setWarn(null); window.requestAnimationFrame(() => select(f)); }}
-          onClose={() => { setWarn(null); if (area.current) area.current.focus(); }} />
+        <CodeWarn text={warn.text} found={warn.found} infrastructure={props.infrastructure} width={w}
+          onGo={(f) => { if (session.current) session.current.select(f.line, f.start, f.end); }}
+          onRemove={() => finish(maskSecrets(warn.text, warn.found), "removed", warn.found.length)}
+          onKeep={() => finish(warn.text, "kept", 0)} onEdit={() => { const f = warn.found[0]; setWarn(null); window.requestAnimationFrame(() => { if (session.current) session.current.select(f.line, f.start, f.end); }); }}
+          onClose={() => { setWarn(null); if (session.current) session.current.focus(); }} />
       ) : null}
     </div>
   );

@@ -9,6 +9,8 @@ from typing import Annotated, Literal
 
 from ld_contracts.enums import DeviceType
 from ld_contracts.intent.annotations import (
+    LINE_HEIGHT,
+    TEXT_PADDING,
     Anchor,
     AnnotationContent,
     AnnotationId,
@@ -18,7 +20,16 @@ from ld_contracts.intent.annotations import (
     TextValign,
     ZOrder,
 )
-from ld_contracts.intent.connectors import BEND_BOUND, ConnectorEnd, ConnectorId, Head, Heads, LineStyle, Route
+from ld_contracts.intent.connectors import (
+    BEND_BOUND,
+    ConnectorEnd,
+    ConnectorId,
+    Head,
+    Heads,
+    LabelSide,
+    LineStyle,
+    Route,
+)
 from ld_contracts.intent.intent import (
     Author,
     Coordinate,
@@ -192,6 +203,9 @@ class GroupStylePatch(ApiModel):
     label_weight: LabelWeight | None = None
     label_font: LabelFont | None = None
     label_color: LabelColor | None = None
+    label_italic: Annotated[bool, Field(strict=True)] | None = None
+    label_underline: Annotated[bool, Field(strict=True)] | None = None
+    label_strike: Annotated[bool, Field(strict=True)] | None = None
 
 
 Members = Annotated[list[PinHostname], Field(min_length=1, max_length=10_000)]
@@ -260,6 +274,11 @@ class AnnotationStylePatch(ApiModel):
     text_color: LabelColor | None = None
     text_align: TextAlign | None = None
     text_valign: TextValign | None = None
+    text_italic: Annotated[bool, Field(strict=True)] | None = None
+    text_underline: Annotated[bool, Field(strict=True)] | None = None
+    text_strike: Annotated[bool, Field(strict=True)] | None = None
+    text_padding: Annotated[int, Field(strict=True, ge=TEXT_PADDING[0], le=TEXT_PADDING[1])] | None = None
+    text_line_height: Annotated[int, Field(strict=True, ge=LINE_HEIGHT[0], le=LINE_HEIGHT[1])] | None = None
 
 
 def _free_anchor() -> Anchor:
@@ -323,6 +342,11 @@ class ConnectorStylePatch(ApiModel):
     text_weight: LabelWeight | None = None
     text_font: LabelFont | None = None
     text_color: LabelColor | None = None
+    text_italic: Annotated[bool, Field(strict=True)] | None = None
+    text_underline: Annotated[bool, Field(strict=True)] | None = None
+    text_strike: Annotated[bool, Field(strict=True)] | None = None
+    label_at: Annotated[int, Field(strict=True, ge=0, le=100)] | None = None
+    label_side: LabelSide | None = None
 
 
 def _default_heads() -> Heads:

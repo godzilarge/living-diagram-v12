@@ -11,10 +11,10 @@ import type { Group, GroupStyle, Model } from "../../../canvas/types";
 import { useEditable, useStore } from "../../state/store";
 import { Facts, IconButton, Inspector, InspectorHead, List, ListRow, Menu, NumberField, PositionField, Row, Section, Segmented, TextArea, Title, TitleInput } from "../../ui/inspector";
 import { HistoryButton, HostLink, HueSetting, WriteHint, signed } from "./shared";
-import { StrokeRow, TextRows, options } from "./style";
+import { StrokeRow, TextSection, options } from "./style";
 
 type StylePatch = Partial<GroupStyle>;
-function StyleSections({ s, onStyle }: { s: GroupStyle; onStyle: (patch: StylePatch) => void }) {
+function StyleSections({ s, group, onStyle }: { s: GroupStyle; group: Group; onStyle: (patch: StylePatch) => void }) {
   const { t } = useTranslation("panel");
   const placementWords = { inside: t("style.inside"), outside: t("style.outside") };
   return (
@@ -28,16 +28,7 @@ function StyleSections({ s, onStyle }: { s: GroupStyle; onStyle: (patch: StylePa
           onStyle={(stroke_style) => onStyle({ stroke_style: stroke_style as GroupStyle["stroke_style"] })} onWidth={(stroke_width) => onStyle({ stroke_width })} /></Row>
         {s.shape !== "ellipse" ? <Row label={t("style.corners")}><NumberField label={t("style.corners")} value={s.radius} min={BOUNDS.radius[0]} max={BOUNDS.radius[1]} unit="px" onCommit={(radius) => onStyle({ radius })} /></Row> : null}
       </Section>
-      <Section title={t("style.label")} collapsible defaultOpen={false}>
-        <Row label={t("style.position")}><PositionField label={t("style.labelPosition")} options={POSITIONS} names={STYLE_LABEL} value={s.label_position} onPick={(label_position) => onStyle({ label_position })} /></Row>
-        <Row label={t("style.placement")}><Segmented label={t("style.placementLabel")} value={s.label_placement} options={options(PLACEMENTS, placementWords)} onPick={(label_placement) => onStyle({ label_placement })} /></Row>
-        <TextRows value={{ size: s.label_size, weight: s.label_weight, font: s.label_font, color: s.label_color }}
-          bounds={{ size: BOUNDS.label_size, weights: WEIGHTS, fonts: FONTS, colors: LABEL_COLORS }}
-          onChange={(p) => onStyle({
-            ...(p.size !== undefined ? { label_size: p.size } : {}), ...(p.weight ? { label_weight: p.weight as GroupStyle["label_weight"] } : {}),
-            ...(p.font ? { label_font: p.font as GroupStyle["label_font"] } : {}), ...(p.color ? { label_color: p.color as GroupStyle["label_color"] } : {}),
-          })} />
-      </Section>
+      {group ? <TextSection items={[{ kind: "group", g: group }]} /> : null}
     </>
   );
 }
@@ -81,7 +72,7 @@ export function GroupCard({ model, group }: { model: Model; group: Group }) {
           })}
         </List>
       </Section>
-      {canWrite ? <StyleSections s={s} onStyle={(style) => commands.groupUpdate(group.id, { style })} />
+      {canWrite ? <StyleSections s={s} group={group} onStyle={(style) => commands.groupUpdate(group.id, { style })} />
         : <Section title={t("group.appearance")}><Facts rows={[[t("group.shape"), STYLE_LABEL[s.shape]], [t("group.hue"), hueLabel(s.hue)]]} /></Section>}
     </Inspector>
   );

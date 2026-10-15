@@ -40,6 +40,8 @@ SHAPE_LABEL_MAX_LENGTH = 80
 ALT_MAX_LENGTH = 120
 CODE_MAX_LENGTH = 20_000
 CODE_TITLE_MAX_LENGTH = 80
+TEXT_PADDING = (0, 64)
+LINE_HEIGHT = (100, 300)
 
 AnnotationId = Annotated[str, StringConstraints(pattern=r"^a[0-9]+-[0-9]+$")]
 AnchorRef = Annotated[str, StringConstraints(min_length=1, max_length=HOSTNAME_MAX_LENGTH, pattern=PRINTABLE)]
@@ -121,6 +123,20 @@ class AnnotationStyle(ContractModel):
     text_color: LabelColor = Field(description="Couleur du texte : la teinte, ou l'encre du thème.")
     text_align: TextAlign = Field(description="Alignement horizontal du texte dans la boîte.")
     text_valign: TextValign = Field(description="Alignement vertical du texte dans la boîte.")
+    text_italic: StrictBool = Field(description="Texte en italique (1.7.0).")
+    text_underline: StrictBool = Field(description="Texte souligné (1.7.0).")
+    text_strike: StrictBool = Field(description="Texte barré (1.7.0).")
+    text_padding: StrictInt = Field(
+        ge=TEXT_PADDING[0],
+        le=TEXT_PADDING[1],
+        description="Marge entre le bord de la boîte et le texte, en unités du dessin (1.7.0) ; lue par la note et la "
+        "forme.",
+    )
+    text_line_height: StrictInt = Field(
+        ge=LINE_HEIGHT[0],
+        le=LINE_HEIGHT[1],
+        description="Interligne, en pourcent de la taille du texte (1.7.0) ; lu par la note et la forme.",
+    )
 
 
 class NoteContent(ContractModel):
@@ -249,6 +265,11 @@ class CodeContent(ContractModel):
     highlight: StrictBool = Field(description="Coloration syntaxique allumée ; sans effet sur `plain`.")
     line_numbers: StrictBool = Field(description="Numéros de ligne affichés dans une gouttière.")
     font: CodeFont = Field(description="La police, à chasse fixe (`style.text_font` n'est pas lu pour un bloc).")
+    wrap: StrictBool = Field(
+        description="Retour à la ligne (1.7.0) : une ligne plus large que la boîte continue sur la rangée suivante, "
+        "en retrait ; sinon elle est coupée à droite. La règle de coupure est celle de la page, en lecture comme en "
+        "écriture."
+    )
 
 
 class ImageContent(ContractModel):
@@ -264,6 +285,15 @@ AnnotationContent = Annotated[
 ]
 ANNOTATION_KINDS = ("note", "shape", "table", "image", "code")
 
+# Les réglages du texte ajoutés en 1.7.0 (lot 4 bis de docs/11), mêmes défauts pour toutes les sortes : le dessin
+# d'avant (marge de 8, interligne de 1,35), ni italique, ni souligné, ni barré.
+TEXT_DEFAULTS: dict[str, object] = {
+    "text_italic": False,
+    "text_underline": False,
+    "text_strike": False,
+    "text_padding": 8,
+    "text_line_height": 135,
+}
 DEFAULT_ANNOTATION_STYLE: dict[str, dict[str, object]] = {
     "note": {
         "hue": "amber",
@@ -278,6 +308,7 @@ DEFAULT_ANNOTATION_STYLE: dict[str, dict[str, object]] = {
         "text_color": "ink",
         "text_align": "left",
         "text_valign": "top",
+        **TEXT_DEFAULTS,
     },
     "shape": {
         "hue": "slate",
@@ -292,6 +323,7 @@ DEFAULT_ANNOTATION_STYLE: dict[str, dict[str, object]] = {
         "text_color": "hue",
         "text_align": "center",
         "text_valign": "middle",
+        **TEXT_DEFAULTS,
     },
     "table": {
         "hue": "slate",
@@ -306,6 +338,7 @@ DEFAULT_ANNOTATION_STYLE: dict[str, dict[str, object]] = {
         "text_color": "ink",
         "text_align": "left",
         "text_valign": "top",
+        **TEXT_DEFAULTS,
     },
     "image": {
         "hue": "slate",
@@ -320,6 +353,7 @@ DEFAULT_ANNOTATION_STYLE: dict[str, dict[str, object]] = {
         "text_color": "ink",
         "text_align": "left",
         "text_valign": "top",
+        **TEXT_DEFAULTS,
     },
     "code": {
         "hue": "slate",
@@ -334,6 +368,7 @@ DEFAULT_ANNOTATION_STYLE: dict[str, dict[str, object]] = {
         "text_color": "ink",
         "text_align": "left",
         "text_valign": "top",
+        **TEXT_DEFAULTS,
     },
 }
 DEFAULT_ANNOTATION_SIZE: dict[str, tuple[int, int]] = {

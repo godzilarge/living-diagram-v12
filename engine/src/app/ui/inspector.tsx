@@ -106,8 +106,8 @@ export const Hint = ({ icon, children }: { icon?: ReactNode; children: ReactNode
 // ---------- les boutons ----------
 
 /** Une action en icône (30 × 30) ; son nom en infobulle et pour les lecteurs d'écran. */
-export function IconButton({ label, onClick, pressed, disabled, children }: { label: string; onClick: () => void; pressed?: boolean; disabled?: boolean; children: ReactNode }) {
-  return <button type="button" className="ibtn" aria-label={label} title={label} aria-pressed={pressed === undefined ? undefined : pressed ? "true" : "false"} disabled={disabled} onClick={onClick}>{children}</button>;
+export function IconButton({ label, onClick, pressed, disabled, children }: { label: string; onClick: () => void; pressed?: boolean | "mixed"; disabled?: boolean; children: ReactNode }) {
+  return <button type="button" className="ibtn" aria-label={label} title={label} aria-pressed={pressed === undefined ? undefined : pressed === "mixed" ? "mixed" : pressed ? "true" : "false"} disabled={disabled} onClick={onClick}>{children}</button>;
 }
 
 /** Un bouton texte : secondaire par défaut ; `primary` une seule fois par fiche, quand il crée. */

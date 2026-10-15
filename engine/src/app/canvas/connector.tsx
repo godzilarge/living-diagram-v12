@@ -13,8 +13,8 @@ import { useReactFlow, useStore, useStoreApi } from "@xyflow/react";
 import type { Node, NodeProps, ReactFlowState } from "@xyflow/react";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
-import { WEIGHT_VALUE, dashArray } from "../../canvas/groups";
-import { arrowHead, bendFrom, headSize, pathOf, summary } from "../../canvas/connectors";
+import { dashArray } from "../../canvas/groups";
+import { arrowHead, bendFrom, headSize, labelCenter, pathOf, summary } from "../../canvas/connectors";
 import type { EndPlace, Shape } from "../../canvas/connectors";
 import type { Point } from "../../canvas/layout";
 import { STUB_R, textWidth } from "../../canvas/card";
@@ -24,6 +24,7 @@ import { AnnotationContext } from "./annotation";
 import { STUB_SLOT } from "./nodes";
 import { sameItems } from "./reuse";
 import { useFinish } from "./inline";
+import { lookOf } from "./text-look";
 import type { CardData } from "./nodes";
 import type { EndKind, Pick } from "./snap";
 
@@ -91,13 +92,19 @@ function LabelEditor({ at, initial, onDone }: { at: Point; initial: string; onDo
   );
 }
 
-/** Le tracé d'un connecteur dans un `svg` : trait, pointes, étiquette ; partagé avec le brouillon d'un connecteur qu'on tire. */
-export function Stroke({ d, a, b, dirA, dirB, heads, style, label, mid }: { d: string; a: Point; b: Point; dirA: Point; dirB: Point; heads: Connector["heads"]; style: Connector["style"]; label: string; mid: Point }) {
+/** La boîte de l'étiquette d'un connecteur (texte estimé, jamais mesuré) : sa largeur et sa hauteur. */
+export const labelBox = (label: string, size: number): { w: number; h: number } => ({ w: label ? textWidth(label, size) + 10 : 0, h: size * 1.5 + 4 });
+
+/** Le tracé d'un connecteur dans un `svg` : trait, pointes, étiquette ; partagé avec le brouillon d'un connecteur qu'on
+ *  tire et le fantôme d'un Alt + glissé. L'étiquette se pose à sa place le long du tracé et de son côté (`points` : le
+ *  tracé dans le repère du `svg`, Intent 1.7.0), dans l'allure de son texte (lot 4 bis). */
+export function Stroke({ d, a, b, dirA, dirB, heads, style, label, points }: { d: string; a: Point; b: Point; dirA: Point; dirB: Point; heads: Connector["heads"]; style: Connector["style"]; label: string; points: Point[] }) {
   const s = style;
   const dash = dashArray({ stroke_style: s.stroke_style, stroke_width: s.stroke_width }) || undefined;
   const size = headSize(s);
-  const textClass = "annotation-text" + (s.text_font === "mono" ? " font-mono" : "") + (s.text_color === "ink" ? " text-ink" : "");
-  const labelW = label ? textWidth(label, s.text_size) + 10 : 0;
+  const look = lookOf(false, s, "annotation-text", "text-ink");
+  const box = labelBox(label, s.text_size);
+  const at = label ? labelCenter({ points }, s.label_at ?? 50, s.label_side ?? "on", box.w, box.h) : { x: 0, y: 0 };
   return (
     <>
       <path className="connector-line" d={d} strokeWidth={s.stroke_width} strokeDasharray={dash} strokeLinecap="round" strokeLinejoin="round" />
@@ -105,8 +112,8 @@ export function Stroke({ d, a, b, dirA, dirB, heads, style, label, mid }: { d: s
       {heads.end === "arrow" ? <polygon className="connector-head" points={arrowHead(b, dirB, size)} /> : null}
       {label ? (
         <g className="connector-label">
-          <rect className="connector-label-box" x={mid.x - labelW / 2} y={mid.y - s.text_size * 0.75 - 3} width={labelW} height={s.text_size * 1.5 + 4} rx={4} />
-          <text className={textClass} x={mid.x} y={mid.y + s.text_size * 0.36} textAnchor="middle" fontSize={s.text_size} fontWeight={WEIGHT_VALUE[s.text_weight] || 600}>{label}</text>
+          <rect className="connector-label-box" x={at.x - box.w / 2} y={at.y - s.text_size * 0.75 - 3} width={box.w} height={box.h} rx={4} />
+          <text className={look.className} x={at.x} y={at.y + s.text_size * 0.36} textAnchor="middle" fontSize={s.text_size} fontWeight={look.fontWeight} fontStyle={look.fontStyle} textDecoration={look.textDecoration}>{label}</text>
         </g>
       ) : null}
     </>
@@ -199,7 +206,7 @@ export function ConnectorNode({ data, selected, positionAbsoluteX, positionAbsol
       onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); actions.menu({ kind: "connector", id: c.id }, event); }}>
       <path className="hover-ring" d={d} strokeWidth={s.stroke_width + 2 * k} />
       <path className="connector-hit nodrag nopan" d={d} strokeWidth={HIT * k} onPointerDown={down("body")} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
-      <Stroke d={d} a={a} b={b} dirA={path.dirA} dirB={path.dirB} heads={c.heads} style={s} label={editing ? "" : c.label} mid={mid} />
+      <Stroke d={d} a={a} b={b} dirA={path.dirA} dirB={path.dirB} heads={c.heads} style={s} label={editing ? "" : c.label} points={path.points.map(rel)} />
       {canEdit && !editing ? (
         <g className={"connector-handles" + (selected ? " shown" : "")}>
           {path.bendable ? <circle className="connector-handle bend nodrag nopan" cx={mid.x} cy={mid.y} r={(HANDLE_R - 1) * k} onPointerDown={down("bend")} onPointerMove={move} onPointerUp={up} onPointerCancel={up} /> : null}
@@ -207,7 +214,7 @@ export function ConnectorNode({ data, selected, positionAbsoluteX, positionAbsol
           <circle className={"connector-handle end nodrag nopan" + (c.end.kind === "free" ? "" : " attached")} cx={b.x} cy={b.y} r={HANDLE_R * k} onPointerDown={down("end")} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
         </g>
       ) : null}
-      {editing ? <LabelEditor at={mid} initial={c.label} onDone={doneLabel} /> : null}
+      {editing ? <LabelEditor at={rel(labelCenter(path, s.label_at ?? 50, s.label_side ?? "on", Math.max(160, labelBox(c.label, s.text_size).w), 24))} initial={c.label} onDone={doneLabel} /> : null}
       <title>{summary(c)}</title>
     </svg>
   );

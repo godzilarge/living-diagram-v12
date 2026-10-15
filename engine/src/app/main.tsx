@@ -8,6 +8,11 @@ import { alignment, boxAlignment, gridding } from "../canvas/align";
 import { guides } from "./canvas/guides";
 import { selecting } from "./state/selection";
 import { floating } from "./state/floating";
+import { codeBar } from "./state/code-bar";
+import { textBar } from "./state/text-bar";
+import { textFormat } from "./state/text-format";
+import { textLook } from "./canvas/text-look";
+import { writing } from "./code/writing";
 import { clipboard } from "./state/clipboard";
 import { wheel } from "./canvas/wheel";
 import { code } from "./code";
@@ -42,7 +47,7 @@ import "@xyflow/react/dist/base.css";
 import "./styles/index.css";
 import "./styles/flow.css";
 
-export const LDApp = { address, clipboard, code, floating, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reusing, reducer, initialState, model: { build: buildModel }, toile: { createToile, NUDGE_MS }, clipToile: { payloadFromToile, targetOf }, undoing: { createUndo }, intentHost: { createIntentHost, OPS_PER_REQUEST }, query, alignment, boxAlignment, gridding, guides, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
+export const LDApp = { address, clipboard, code, floating, codeBar, textBar, textFormat, textLook, writing, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reusing, reducer, initialState, model: { build: buildModel }, toile: { createToile, NUDGE_MS }, clipToile: { payloadFromToile, targetOf }, undoing: { createUndo }, intentHost: { createIntentHost, OPS_PER_REQUEST }, query, alignment, boxAlignment, gridding, guides, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
   i18n: { LANGUAGES, detectLanguage, effectiveLanguage, setLanguage, language: () => i18n.language, t } };
 (globalThis as unknown as { LDApp: typeof LDApp }).LDApp = LDApp;
 

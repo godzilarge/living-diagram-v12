@@ -5,19 +5,21 @@ stable (le `hostname` du nœud, le `type` du contrat d'entrée, l'`id` d'un grou
 coordonnée ni par une run : l'épingle (1.0.0), la couleur d'un type et la couleur d'un équipement (1.1.0), le groupe
 (1.2.0, docs/10 §5), l'annotation (1.3.0, docs/10 §6 : note, forme, tableau, image, libre ou attachée ;
 `annotations.py`), le connecteur (1.4.0 : une ligne ou une flèche à deux bouts, libres ou attachés ; `connectors.py`),
-le bloc de code (1.6.0 : une cinquième sorte d'annotation, `CodeContent`).
+le bloc de code (1.6.0 : une cinquième sorte d'annotation, `CodeContent`), la mise en forme du texte (1.7.0 : italique,
+souligné, barré, douze teintes pour le texte, marge et interligne, place de l'étiquette d'un connecteur, retour à la
+ligne d'un bloc de code).
 D'autres sortes viendront comme des listes à côté (additif, mineure). Toutes les clés sont écrites, aucun défaut, pas
 d'`extras` ; l'ordre de chaque liste est refusé par le type, comme dans le snapshot.
 """
 
 from enum import StrEnum
 
-from pydantic import Field, StrictInt, field_validator, model_validator
+from pydantic import Field, StrictBool, StrictInt, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 from ld_contracts.common import ContractModel, NonEmptyStr, SemVer, UtcDatetime
 from ld_contracts.enums import DeviceType
-from ld_contracts.intent.annotations import MAX_ANNOTATIONS, Annotation
+from ld_contracts.intent.annotations import MAX_ANNOTATIONS, TEXT_DEFAULTS, Annotation
 from ld_contracts.intent.base import (
     AUTHOR_MAX_LENGTH,
     COORDINATE_BOUND,
@@ -42,7 +44,7 @@ from ld_contracts.intent.base import (
 from ld_contracts.intent.connectors import DEFAULT_CONNECTOR_STYLE, MAX_CONNECTORS, Connector
 from ld_contracts.snapshot.order import require_canonical
 
-INTENT_VERSION = "1.6.0"
+INTENT_VERSION = "1.7.0"
 INTENT_MAJOR = int(INTENT_VERSION.split(".")[0])
 __all__ = [
     "AUTHOR_MAX_LENGTH",
@@ -153,7 +155,12 @@ class GroupStyle(ContractModel):
     label_size: StrictInt = Field(ge=8, le=64, description="Taille de l'étiquette, en pixels du dessin.")
     label_weight: LabelWeight = Field(description="Graisse de l'étiquette.")
     label_font: LabelFont = Field(description="Police de l'étiquette : sans (Inter) ou mono (JetBrains Mono).")
-    label_color: LabelColor = Field(description="Couleur de l'étiquette : la teinte du cadre, ou l'encre du thème.")
+    label_color: LabelColor = Field(
+        description="Couleur de l'étiquette : la teinte du cadre, l'encre du thème, ou une teinte nommée."
+    )
+    label_italic: StrictBool = Field(description="Étiquette en italique (1.7.0).")
+    label_underline: StrictBool = Field(description="Étiquette soulignée (1.7.0).")
+    label_strike: StrictBool = Field(description="Étiquette barrée (1.7.0).")
 
 
 DEFAULT_GROUP_STYLE: dict[str, object] = {
@@ -170,6 +177,9 @@ DEFAULT_GROUP_STYLE: dict[str, object] = {
     "label_weight": "semibold",
     "label_font": "sans",
     "label_color": "hue",
+    "label_italic": False,
+    "label_underline": False,
+    "label_strike": False,
 }
 
 
@@ -301,7 +311,9 @@ def upgraded(data: dict) -> dict:
     """Un document d'une mineure antérieure relu dans la mineure courante : les listes qu'il ignore, vides
     (docs/10, décision 7 ; 1.0.x sans couleurs, 1.1.x sans groupes, 1.2.x sans annotations, 1.3.x sans connecteurs,
     1.4.x sans ancre sur les bouts attachés : `side` = `auto`, le contour vers l'autre bout, ce qu'ils dessinaient ;
-    1.5.x sans bloc de code : rien à ajouter, `code` n'est qu'une sorte de plus du contenu d'une annotation).
+    1.5.x sans bloc de code : rien à ajouter, `code` n'est qu'une sorte de plus du contenu d'une annotation ; 1.6.x
+    sans mise en forme du texte : ni italique, ni souligné, ni barré, la marge et l'interligne d'avant, l'étiquette d'un
+    connecteur au milieu de son tracé, un bloc de code avec retour à la ligne, comme le défaut d'un bloc neuf).
 
     En 1.3.x, une ligne ou une flèche était une forme dans sa boîte : elle devient un connecteur (`c<revision>-<n>`,
     mêmes numéros que l'annotation), ses bouts aux coins de la boîte ; attachée, son bout de départ reste attaché à
@@ -328,7 +340,38 @@ def upgraded(data: dict) -> dict:
         added["groups"] = []
     if int(minor) < 1:
         added.update({"type_colors": [], "device_colors": []})
+    if int(minor) < 7:
+        added.update(_text_upgraded({**data, **added}))
     return {**data, "intent_version": INTENT_VERSION, **added}
+
+
+def _text_upgraded(data: dict) -> dict[str, object]:
+    """Les styles d'un 1.6.x (ou d'avant, déjà relu jusqu'à 1.6) complétés en 1.7.0 : les clés de la mise en forme du
+    texte à leur défaut, jamais une clé écrite remplacée ; `wrap` vrai sur un bloc de code."""
+    group_keys = {k: DEFAULT_GROUP_STYLE[k] for k in ("label_italic", "label_underline", "label_strike")}
+    added = ("text_italic", "text_underline", "text_strike", "label_at", "label_side")
+    connector_keys = {k: DEFAULT_CONNECTOR_STYLE[k] for k in added}
+
+    def styled(items: object, defaults: dict[str, object], content: bool = False) -> object:
+        if not isinstance(items, list):
+            return items
+        out: list[object] = []
+        for raw in items:
+            if not isinstance(raw, dict) or not isinstance(raw.get("style"), dict):
+                out.append(raw)
+                continue
+            item = {**raw, "style": {**defaults, **raw["style"]}}
+            body = raw.get("content")
+            if content and isinstance(body, dict) and body.get("kind") == "code":
+                item["content"] = {"wrap": True, **body}
+            out.append(item)
+        return out
+
+    return {
+        "groups": styled(data.get("groups"), group_keys),
+        "annotations": styled(data.get("annotations"), TEXT_DEFAULTS, content=True),
+        "connectors": styled(data.get("connectors"), connector_keys),
+    }
 
 
 def _annotations_upgraded(annotations: object) -> dict[str, object]:

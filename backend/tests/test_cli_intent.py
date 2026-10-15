@@ -70,7 +70,13 @@ def test_intent_lists_the_pins_or_says_there_are_none(capsys, tmp_path):
     assert (
         "connecteur c5-1\tannotation a4-1 (s) → 300,40\tstraight none/arrow\tvoir\talice\t2026-10-09T00:00:00Z" in out
     )
-    code = {"text": "vlan 20\n name voix", "language": "cisco_ios", "highlight": True, "line_numbers": True}
+    code = {
+        "text": "vlan 20\n name voix",
+        "language": "cisco_ios",
+        "highlight": True,
+        "line_numbers": True,
+        "wrap": True,
+    }
     block = AnnotationCreateOp(
         op="annotation_create",
         content={"kind": "code", "title": "vlans", "font": "ibm_plex_mono", **code},
@@ -82,6 +88,16 @@ def test_intent_lists_the_pins_or_says_there_are_none(capsys, tmp_path):
     out = capsys.readouterr().out
     assert "annotation a6-1\tcode cisco_ios 2 ligne(s) « vlans »\tfree\t0,0 480x120\talice" in out
     assert "name voix" not in out, "le texte d'un bloc ne s'imprime jamais (il peut porter une valeur sensible)"
+    nowrap = AnnotationCreateOp(
+        op="annotation_create", content={"kind": "code", "title": "", "font": "jetbrains_mono", **code, "wrap": False}
+    )
+    store.apply("infra-lab", IntentOps(author="alice", ops=[nowrap]), now=datetime(2026, 10, 15, tzinfo=UTC))
+    assert cli.main(["intent", "--infrastructure", "infra-lab", "--archive", str(archive)]) == 0
+    out = capsys.readouterr().out
+    assert "annotation a7-1\tcode cisco_ios 2 ligne(s), sans retour à la ligne\tfree" in out, (
+        "1.7.0 : le non-défaut se dit"
+    )
+    assert "a6-1\tcode cisco_ios 2 ligne(s) « vlans »\tfree" in out, "le défaut (retour à la ligne) ne se dit pas"
 
 
 def test_intent_needs_an_infrastructure_and_isolates_a_corrupt_store(capsys, tmp_path):

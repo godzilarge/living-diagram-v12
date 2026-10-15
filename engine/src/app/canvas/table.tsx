@@ -10,12 +10,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { fitCell } from "../../canvas/annotations";
 import type { Frame } from "../../canvas/annotations";
-import { WEIGHT_VALUE } from "../../canvas/groups";
 import { MAX_CELL, cellAt, cells, grid, isSingle, mergeAt, rangeOf, resizeColumn, resizeRow } from "../../canvas/table";
 import type { Grid, Range } from "../../canvas/table";
 import type { Annotation } from "../../canvas/types";
 import type { TableContent } from "../../contracts/intent";
 import { useFinish } from "./inline";
+import { lookOf } from "./text-look";
 
 export type Cell = [number, number];
 /** Ce qu'un clic droit sur une cellule dit au menu : la cellule, et la plage choisie si elle la contient. */
@@ -128,8 +128,7 @@ export function TableBody({ a, content, frame, active, editable, onContent, onMe
       setTimeout(() => onEdit([after.r, after.c]), 0);
     }
   };
-  const textClass = "annotation-text" + (s.text_font === "mono" ? " font-mono" : "") + (s.text_color === "ink" ? " text-ink" : "");
-  const weight = WEIGHT_VALUE[s.text_weight] || 450;
+  const look = lookOf(false, s, "annotation-text", "text-ink"), weight = look.fontWeight;
   const anchor = s.text_align === "right" ? "end" : s.text_align === "center" ? "middle" : "start";
   const stroke = s.stroke_style === "none" ? 0 : s.stroke_width;
   const picked = pick ? { x: g.xs[pick.c0], y: g.ys[pick.r0], w: g.xs[pick.c1 + 1] - g.xs[pick.c0], h: g.ys[pick.r1 + 1] - g.ys[pick.r0] } : null;
@@ -139,7 +138,7 @@ export function TableBody({ a, content, frame, active, editable, onContent, onMe
       <rect className="annotation-shape" x={0} y={0} width={frame.w} height={frame.h} rx={s.radius} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} />
       {content.header ? <rect className="annotation-head" x={0} y={0} width={frame.w} height={g.ys[1]} rx={s.radius} /> : null}
       {boxes.map((b) => <rect key={b.r + ":" + b.c} className="table-cell" x={b.x} y={b.y} width={b.w} height={b.h} data-cell={b.r + ":" + b.c} />)}
-      <text className={textClass} fontSize={s.text_size} fontWeight={weight} textAnchor={anchor}>
+      <text className={look.className} fontSize={s.text_size} fontWeight={weight} fontStyle={look.fontStyle} textDecoration={look.textDecoration} textAnchor={anchor}>
         {boxes.map((b) => {
           const x = s.text_align === "right" ? b.x + b.w - PAD : s.text_align === "center" ? b.x + b.w / 2 : b.x + PAD;
           const y = b.y + Math.min(b.h / 2 + s.text_size * 0.36, b.h - 3);

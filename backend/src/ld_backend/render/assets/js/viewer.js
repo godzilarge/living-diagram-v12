@@ -2946,7 +2946,10 @@
     label_size: 12,
     label_weight: "semibold",
     label_font: "sans",
-    label_color: "hue"
+    label_color: "hue",
+    label_italic: false,
+    label_underline: false,
+    label_strike: false
   };
   var STYLE_LABEL = labelMap("common:groupStyle", [
     "rectangle",
@@ -3053,12 +3056,14 @@
     "middle",
     "bottom"
   ]);
+  var TEXT_DEFAULTS = { text_italic: false, text_underline: false, text_strike: false, text_padding: 8, text_line_height: 135 };
+  var TEXT_BOUNDS = { text_padding: [0, 64], text_line_height: [100, 300] };
   var DEFAULT_STYLE2 = {
-    note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
-    shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle" },
-    table: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 6, opacity: 100, text_size: 12, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
-    image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
-    code: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" }
+    note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top", ...TEXT_DEFAULTS },
+    shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle", ...TEXT_DEFAULTS },
+    table: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 6, opacity: 100, text_size: 12, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top", ...TEXT_DEFAULTS },
+    image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top", ...TEXT_DEFAULTS },
+    code: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top", ...TEXT_DEFAULTS }
   };
   var DEFAULT_SIZE = { note: { w: 220, h: 80 }, shape: { w: 200, h: 120 }, table: { w: 160, h: 52 }, image: { w: 320, h: 240 }, code: { w: 480, h: 240 } };
   var TABLE_CELL_W = 80;
@@ -3094,7 +3099,7 @@
   }
   var anchorRect = (anchor) => anchor.kind === "group" ? anchor.frame : { x: anchor.center.x - anchor.box.w / 2, y: anchor.center.y - anchor.box.h / 2, w: anchor.box.w, h: anchor.box.h };
   var widthOf = (text2, style) => style.text_font === "mono" ? monoWidth(text2, style.text_size) : textWidth(text2, style.text_size);
-  var lineHeight = (size) => Math.round(size * 1.35);
+  var lineHeight = (size, percent = TEXT_DEFAULTS.text_line_height) => Math.round(size * percent / 100);
   function wrapText(text2, width2, style) {
     const out = [];
     const fits = (s2) => widthOf(s2, style) <= width2;
@@ -3121,10 +3126,10 @@
     });
     return out;
   }
-  function layoutText(text2, frame, style, pad = PAD2) {
+  function layoutText(text2, frame, style, pad = style.text_padding ?? PAD2) {
     const inner = Math.max(10, frame.w - 2 * pad);
     const all = wrapText(text2, inner, style);
-    const lh = lineHeight(style.text_size);
+    const lh = lineHeight(style.text_size, style.text_line_height ?? TEXT_DEFAULTS.text_line_height);
     const max = Math.max(1, Math.floor((frame.h - 2 * pad) / lh));
     const kept = all.slice(0, max);
     const block = kept.length * lh;
@@ -3167,7 +3172,7 @@
     return c.alt || t2("common:annotationKind.image");
   }
   var signature = (a) => JSON.stringify([a.anchor, a.x, a.y, a.w, a.h, a.z, a.locked, a.leader, a.content, a.style]);
-  var annotations = { KINDS, SHAPES: SHAPES2, ANCHORS, PLANES, ALIGNS, VALIGNS, BOUNDS: BOUNDS2, KIND_LABEL, LABEL: LABEL2, DEFAULT_STYLE: DEFAULT_STYLE2, DEFAULT_SIZE, TABLE_CELL_W, TABLE_ROW_H, kindOf, anchorHost, anchorGroup, isOrphan, frameOf: frameOf2, offsetOf, anchorRect, borderPoint, wrapText, layoutText, lineHeight, fitCell, leaderOf, dashArray: dashArray2, shownWith, summary, signature };
+  var annotations = { KINDS, SHAPES: SHAPES2, ANCHORS, PLANES, ALIGNS, VALIGNS, BOUNDS: BOUNDS2, TEXT_BOUNDS, TEXT_DEFAULTS, KIND_LABEL, LABEL: LABEL2, DEFAULT_STYLE: DEFAULT_STYLE2, DEFAULT_SIZE, TABLE_CELL_W, TABLE_ROW_H, kindOf, anchorHost, anchorGroup, isOrphan, frameOf: frameOf2, offsetOf, anchorRect, borderPoint, wrapText, layoutText, lineHeight, fitCell, leaderOf, dashArray: dashArray2, shownWith, summary, signature };
 
   // src/canvas/connectors.ts
   var ROUTES = ["straight", "elbow", "curve"];
@@ -3175,7 +3180,21 @@
   var END_KINDS = ["free", "device", "group", "annotation"];
   var BOUNDS3 = { stroke_width: [1, 8], opacity: [10, 100], text_size: [8, 64], bend: [-2e3, 2e3] };
   var LABEL3 = labelMap("common:connectorWord", ["straight", "elbow", "curve", "none", "arrow", "free", "device", "group", "annotation"]);
-  var DEFAULT_STYLE3 = { hue: "slate", stroke_width: 2, stroke_style: "solid", opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue" };
+  var DEFAULT_STYLE3 = {
+    hue: "slate",
+    stroke_width: 2,
+    stroke_style: "solid",
+    opacity: 100,
+    text_size: 12,
+    text_weight: "semibold",
+    text_font: "sans",
+    text_color: "hue",
+    text_italic: false,
+    text_underline: false,
+    text_strike: false,
+    label_at: 50,
+    label_side: "on"
+  };
   var DEFAULT_HEADS = { start: "none", end: "arrow" };
   var DEFAULT_LENGTH = 160;
   var SIDES = ["auto", "n", "e", "s", "w"];
@@ -3285,17 +3304,43 @@
     const b = fixedB || (end.kind === "box" ? outlinePoint(end.frame, end.shape || RECT, towardB) : cb);
     const real = waypoints(a, b, route, bend, da, db);
     const points = [a, ...real.via, b];
-    let d, mid;
+    let d, mid, line = points;
     if (route === "curve" && real.via.length) {
       const c = real.via[0];
       d = `M${r1(a.x)},${r1(a.y)} Q${r1(c.x)},${r1(c.y)} ${r1(b.x)},${r1(b.y)}`;
       mid = { x: (a.x + 2 * c.x + b.x) / 4, y: (a.y + 2 * c.y + b.y) / 4 };
+      line = Array.from({ length: ARC_SAMPLES + 1 }, (_, i) => {
+        const t3 = i / ARC_SAMPLES, u = 1 - t3;
+        return { x: u * u * a.x + 2 * u * t3 * c.x + t3 * t3 * b.x, y: u * u * a.y + 2 * u * t3 * c.y + t3 * t3 * b.y };
+      });
     } else {
       d = points.map((p, i) => (i ? "L" : "M") + r1(p.x) + "," + r1(p.y)).join(" ");
       const m = real.median;
       mid = m ? { x: (m[0].x + m[1].x) / 2, y: (m[0].y + m[1].y) / 2 } : real.via.length ? real.via[Math.floor((real.via.length - 1) / 2)] : { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     }
-    return { d, a, b, mid, dirA: unit(points[1], a), dirB: unit(points[points.length - 2], b), chord: { a: real.chord[0], b: real.chord[1] }, bendable: route !== "elbow" || !!real.median };
+    return { d, a, b, mid, dirA: unit(points[1], a), dirB: unit(points[points.length - 2], b), chord: { a: real.chord[0], b: real.chord[1] }, bendable: route !== "elbow" || !!real.median, points: line };
+  }
+  var ARC_SAMPLES = 32;
+  function along(path, t3) {
+    const pts = path.points, lengths = pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i].x, p.y - pts[i].y));
+    const total2 = lengths.reduce((sum, l) => sum + l, 0);
+    let left = Math.min(1, Math.max(0, t3)) * total2;
+    for (let i = 0; i < lengths.length; i += 1) {
+      if (left <= lengths[i] || i === lengths.length - 1) {
+        const k = lengths[i] ? Math.min(1, left / lengths[i]) : 0, p = pts[i], q = pts[i + 1];
+        return { at: { x: p.x + (q.x - p.x) * k, y: p.y + (q.y - p.y) * k }, dir: unit(p, q) };
+      }
+      left -= lengths[i];
+    }
+    return { at: pts[0], dir: { x: 1, y: 0 } };
+  }
+  function labelCenter(path, at, side, w, h2, gap = 4) {
+    const { at: p, dir: dir2 } = along(path, at / 100);
+    if (side !== "above" && side !== "below") return p;
+    let n2 = { x: -dir2.y, y: dir2.x };
+    if (n2.y > 0 || n2.y === 0 && n2.x > 0) n2 = { x: -n2.x, y: -n2.y };
+    const k = (side === "above" ? 1 : -1) * (Math.abs(n2.x) * w / 2 + Math.abs(n2.y) * h2 / 2 + gap);
+    return { x: p.x + n2.x * k, y: p.y + n2.y * k };
   }
   function bendFrom(a, b, route, at) {
     if (route === "elbow") return Math.round(Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? at.x - (a.x + b.x) / 2 : at.y - (a.y + b.y) / 2);
@@ -3317,7 +3362,7 @@
   var freeEnd = (at) => ({ kind: "free", x: Math.round(at.x), y: Math.round(at.y) });
   var attachedEnd = (kind, ref, side = "auto") => ({ kind, ref, side });
   var reversed = (c) => ({ start: c.end, end: c.start, heads: { start: c.heads.end, end: c.heads.start } });
-  var connectors = { ROUTES, HEADS, END_KINDS, SIDES, FIXED_SIDES, SIDE_LABEL, STUB, BOUNDS: BOUNDS3, LABEL: LABEL3, DEFAULT_STYLE: DEFAULT_STYLE3, DEFAULT_HEADS, DEFAULT_LENGTH, attachedEnds, key, hostsOf, isOrphan: isOrphan2, shownWith: shownWith2, normal, anchorPoint, anchorsOf, nearestAnchor, outlinePoint, normalOf, pathOf, bendFrom, arrowHead, headSize, bbox, summary: summary2, freeEnd, attachedEnd, reversed };
+  var connectors = { ROUTES, HEADS, END_KINDS, SIDES, FIXED_SIDES, SIDE_LABEL, STUB, BOUNDS: BOUNDS3, LABEL: LABEL3, DEFAULT_STYLE: DEFAULT_STYLE3, DEFAULT_HEADS, DEFAULT_LENGTH, attachedEnds, key, hostsOf, isOrphan: isOrphan2, shownWith: shownWith2, normal, anchorPoint, anchorsOf, nearestAnchor, outlinePoint, normalOf, pathOf, along, labelCenter, bendFrom, arrowHead, headSize, bbox, summary: summary2, freeEnd, attachedEnd, reversed };
 
   // src/canvas/dom.ts
   var SVG_NS = "http://www.w3.org/2000/svg";

@@ -57,10 +57,14 @@ BLOCK = "document.querySelector('.react-flow__node[data-id=\"annotation:{0}\"] s
 RECT = "JSON.parse(JSON.stringify({0}.getBoundingClientRect()))"
 FIRST = "Number(({0}.querySelector('.code-nums text') || {{ textContent: '0' }}).textContent)"
 ZOOM = "LDApp.debug.handle().toile.viewport().zoom"
-EDITING = "document.activeElement && document.activeElement.classList.contains('code-edit')"
-EDITOR = "document.querySelector('.code-edit')"
-SELECTED = f"(() => {{ const t = {EDITOR}; return t.value.slice(t.selectionStart, t.selectionEnd); }})()"
-CARET_LINE = f"(() => {{ const t = {EDITOR}; return t.value.slice(0, t.selectionStart).split('\\n').length; }})()"
+# l'écriture (lot 16 bis) : CodeMirror, sa vue exposée aux tests (`LDApp.debug.editor()`)
+EDITING = "!!document.querySelector('.code-cm') && document.activeElement && !!document.activeElement.closest('.code-cm')"
+VIEW = "LDApp.debug.editor()"
+EDITOR_TEXT = f"{VIEW}.state.doc.toString()"
+SELECTED = f"(() => {{ const s = {VIEW}.state.selection.main; return {VIEW}.state.sliceDoc(s.from, s.to); }})()"
+CARET_LINE = f"(() => {{ const v = {VIEW}; return v.state.doc.lineAt(v.state.selection.main.head).number; }})()"
+OPEN = "!!document.querySelector('.code-cm')"
+ABANDON = "document.querySelector('.fbar.writing .fb[data-id=code_abandon]')"
 WARN_KINDS = (
     "Array.from(document.querySelectorAll('.code-warn-row .code-warn-kind')).map((e) => e.firstChild.textContent)"
 )
@@ -107,6 +111,17 @@ def _paste(tab, text: str) -> None:
     data = f"const d = new DataTransfer(); d.setData('text/plain', {json.dumps(text)});"
     event = "new ClipboardEvent('paste', { clipboardData: d, bubbles: true })"
     tab.js(f"(() => {{ {data} window.dispatchEvent({event}); }})()")
+
+
+def _abandon(tab, *, dirty: bool) -> None:
+    """Abandonner l'écriture par la barre (lot 16 bis : Échap enregistre) : un clic, deux s'il y a des modifications."""
+    from tests.test_view import _wait
+
+    _wait(tab, f"!!{ABANDON}")
+    tab.js(f"{ABANDON}.click()")
+    if dirty:
+        _wait(tab, f"{ABANDON}.getAttribute('aria-pressed') === 'true'")
+        tab.js(f"{ABANDON}.click()")
 
 
 def _wheel(tab, x: float, y: float, dy: float) -> None:
@@ -171,13 +186,13 @@ def _too_long_keeps_the_draft(tab, base: str, auth: dict) -> None:
     _wait(tab, EDITING)
     tab.call("Input.insertText", {"text": "x" * 19990})
     tab.call("Input.insertText", {"text": "\t\t\t\t\tx"})
-    _wait(tab, f"{EDITOR}.value.length === 20009")
-    assert "\t" not in tab.js(f"{EDITOR}.value"), "une tabulation devient des espaces dès qu'elle entre"
+    _wait(tab, f"{EDITOR_TEXT}.length === 20009")
+    assert "\t" not in tab.js(EDITOR_TEXT), "une tabulation devient des espaces dès qu'elle entre"
     _press(tab, "Enter", 13, CTRL)
     _wait(tab, f"/bloc de code trop long/.test({NOTE})")
-    assert tab.js(f"!!{EDITOR} && {EDITOR}.value.length === 20009"), "le brouillon reste, avec son texte"
+    assert tab.js(f"{OPEN} && {EDITOR_TEXT}.length === 20009"), "le brouillon reste, avec son texte"
     assert len(_codes(base, auth)) == before
-    _press(tab, "Escape", 27)
+    _abandon(tab, dirty=True)
     _wait(tab, "!document.querySelector('.code-draft')")
     assert len(_codes(base, auth)) == before
 
@@ -215,7 +230,7 @@ def _paste_with_secrets(tab, base: str, auth: dict) -> None:
     _paste(tab, PASTE_CISCO)
     _wait(tab, "!!document.querySelector('.code-warn-panel')")
     assert tab.js(WARN_KINDS) == KINDS
-    assert tab.js("document.querySelectorAll('.code-edit-nums .flag').length") == 5, "un point rouge par ligne"
+    assert tab.js("document.querySelectorAll('.code-cm .cm-lineNumbers .cm-gutterElement.flag').length") == 5, "un point rouge par ligne"
     shown = tab.js("document.querySelector('.code-warn-panel').textContent")
     assert "Dc01-RoCommunity" not in shown, "jamais revue en clair"
     assert len(_codes(base, auth)) == 1, "rien n'est enregistré avant le choix"
@@ -241,7 +256,7 @@ def _seed_long(tab, base: str, auth: dict, url: str) -> str:
     from tests.test_view import _wait
 
     content = {"kind": "code", "text": _long_config(), "language": "cisco_ios", "title": "running-config"}
-    content |= {"highlight": True, "line_numbers": True, "font": "jetbrains_mono"}
+    content |= {"highlight": True, "line_numbers": True, "font": "jetbrains_mono", "wrap": True}
     op = {"op": "annotation_create", "x": 0, "y": 600, "w": 560, "h": 580, "content": content}
     params = {"infrastructure": "infra-lab"}
     done = httpx.post(f"{base}/api/intent/patches", params=params, headers=auth, json={"author": "orhan", "ops": [op]})
@@ -279,7 +294,7 @@ def _scroll_and_settings(tab, base: str, auth: dict, ident: str) -> None:
     _fbar(tab, "code_highlight")
     _wait(tab, f"{block}.querySelectorAll('.code-text tspan.tk-keyword').length > 0")
     assert tab.js(PLEX_LOADED) is False, "aucun bloc en Plex : son fichier n'est pas téléchargé"
-    _fbar(tab, "code_font")
+    _fbar(tab, "text_size")  # la police est dans le volet de la taille (lot 16 bis)
     _wait(tab, "!!document.querySelector('.fvolet .font-item.cf-ibm_plex_mono')")
     tab.js("document.querySelector('.fvolet .font-item.cf-ibm_plex_mono').click()")
     _wait(tab, f"!!{block}.querySelector('.code-block.cf-ibm_plex_mono')")
@@ -331,16 +346,18 @@ def _edit_and_copy(tab, base: str, auth: dict, ident: str) -> None:
     reading = tab.js(FIRST.format(block))
     _dblclick(tab, x, y)
     _wait(tab, EDITING)
+    wait(0.3)  # CodeMirror mesure à l'image suivante, puis aligne la rangée lue en haut (editor.ts, alignTop)
     assert tab.js(CARET_LINE) == reading, "le curseur sur la première ligne lue"
     tab.call("Input.insertText", {"text": "! oublié\n"})
-    _press(tab, "Escape", 27)
-    _wait(tab, "!document.querySelector('.code-edit')")
+    _abandon(tab, dirty=True)  # abandonner : deux clics s'il y a des modifications (lot 16 bis)
+    _wait(tab, f"!{OPEN}")
     assert "oublié" not in _code(base, auth, ident)["content"]["text"]
     _dblclick(tab, x, y)
     _wait(tab, EDITING)
+    wait(0.3)
     tab.call("Input.insertText", {"text": "! relu le 14/10\n"})
     _press(tab, "Enter", 13, CTRL)
-    _wait(tab, "!document.querySelector('.code-edit')")
+    _wait(tab, f"!{OPEN}")
     _wait(tab, f"/annotation modifiée/.test({NOTE})")
     edited = _code(base, auth, ident)["content"]["text"]
     assert edited.split("\n").index("! relu le 14/10") == reading - 1
@@ -371,20 +388,20 @@ def _paste_keeps_focus_in_the_warning(tab, base: str, auth: dict) -> None:
     assert tab.js(f"{panel}.getAttribute('aria-modal')") == "true"
     rows = f"{panel}.querySelectorAll('ul.code-warn-list > li > button.code-warn-row').length"
     assert tab.js(rows) == 5, "ul / li / button"
-    text = tab.js(f"{EDITOR}.value")
+    text = tab.js(EDITOR_TEXT)
     for _ in range(6):
         _press(tab, "Tab", 9)
         assert tab.js(f"{panel}.contains(document.activeElement)"), "Tab reste dans l'avertissement"
     _press(tab, "Tab", 9, SHIFT)
     assert tab.js(f"{panel}.contains(document.activeElement)"), "Maj+Tab aussi"
-    assert tab.js(f"{EDITOR}.value") == text, "rien n'est écrit dans le texte collé"
-    tab.js(f"{EDITOR}.focus()")
+    assert tab.js(EDITOR_TEXT) == text, "rien n'est écrit dans le texte collé"
+    tab.js(f"{VIEW}.focus()")
     _press(tab, "Tab", 9)
     assert tab.js(f"{panel}.contains(document.activeElement)"), "du champ, Tab va à l'avertissement"
-    assert tab.js(f"{EDITOR}.value") == text, "sans rien écrire"
+    assert tab.js(EDITOR_TEXT) == text, "sans rien écrire"
     _press(tab, "Escape", 27)
     _wait(tab, f"!document.querySelector('.code-warn-panel') && {EDITING}")
-    _press(tab, "Escape", 27)
+    _abandon(tab, dirty=False)  # Échap enregistrerait (lot 16 bis) : abandonner passe par la barre
     _wait(tab, "!document.querySelector('.code-draft')")
     assert len(_codes(base, auth)) == before, "rien n'a été enregistré"
 
@@ -419,8 +436,8 @@ def _warning_beside_the_sheet(tab, base: str, auth: dict, ident: str) -> None:
         assert got["top"] >= 0 and got["bottom"] <= got["height"], got
         _press(tab, "Escape", 27)
         _wait(tab, f"!document.querySelector('.code-warn-panel') && {EDITING}")
-        _press(tab, "Escape", 27)
-        _wait(tab, "!document.querySelector('.code-edit')")
+        _abandon(tab, dirty=True)
+        _wait(tab, f"!{OPEN}")
         assert _code(base, auth, ident)["content"]["text"] == before
     finally:
         tab.call("Emulation.clearDeviceMetricsOverride")
@@ -447,7 +464,8 @@ def _paste_as_code(tab, base: str, auth: dict) -> None:
     annotations = _intent_doc(base, auth)["annotations"]
     notes = [a for a in annotations if a["content"]["kind"] == "note" and "vlans" in a["content"]["text"]]
     assert not notes, "pas une note"
-    _right_click(tab, 300, 520)
+    wait(0.5)  # la vue se pose sur le bloc créé (reveal) : le clic droit vise le fond, loin de lui
+    _right_click(tab, 220, 260)
     item = (
         "Array.from(document.querySelectorAll('.context-menu .context-item'))"
         ".find((b) => /coller comme bloc de code/.test(b.textContent))"
@@ -517,7 +535,7 @@ def _language_volet_keyboard(tab, base: str, auth: dict, url: str) -> None:
     from tests.test_view import _wait
 
     content = {"kind": "code", "text": PYTHON, "language": "plain", "title": "brut"}
-    content |= {"highlight": True, "line_numbers": True, "font": "jetbrains_mono"}
+    content |= {"highlight": True, "line_numbers": True, "font": "jetbrains_mono", "wrap": True}
     op = {"op": "annotation_create", "x": 900, "y": 600, "w": 520, "h": 260, "content": content}
     params, body = {"infrastructure": "infra-lab"}, {"author": "orhan", "ops": [op]}
     done = httpx.post(f"{base}/api/intent/patches", params=params, headers=auth, json=body)

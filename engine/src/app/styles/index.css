@@ -1,6 +1,7 @@
 /* L'ordre compte : jetons, polices, socle, toile, interface, inspecteur (les fiches du panneau), journal (la vue Journal),
    barre contextuelle (lot 4 de docs/11 ; elle reprend les jetons des contrôles de l'inspecteur), repères d'alignement et
-   grille (lot 8 ; après la barre, dont le volet porte « mettre en grille »), bloc de code (lot 16). */
+   grille (lot 8 ; après la barre, dont le volet porte « mettre en grille »), bloc de code (lot 16), son écriture dans
+   CodeMirror et la barre de l'écriture (lot 16 bis). */
 @import "./tokens.css";
 @import "./fonts.css";
 @import "./base.css";
@@ -11,3 +12,4 @@
 @import "./floating.css";
 @import "./guides.css";
 @import "./code.css";
+@import "./editor.css";

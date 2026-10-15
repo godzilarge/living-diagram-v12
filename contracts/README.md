@@ -439,6 +439,16 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-10-15** — **`Intent` 1.6.0 → 1.7.0, additif : la mise en forme du texte et le retour à la ligne d'un bloc de
+  code** (lots 4 bis et 16 bis de `docs/11`). `LabelColor` prend aussi les douze noms de `Hue` (un texte d'une autre
+  couleur que son objet) ; italique, souligné, barré en booléens stricts (`text_*` d'une annotation et d'un connecteur,
+  `label_*` d'un groupe) ; `text_padding` (0-64, défaut 8) et `text_line_height` (100-300 %, défaut 135) dans le style de
+  toute annotation, lus par la note et la forme seulement (comme `text_font` n'est pas lu pour un bloc de code : un style
+  a toutes ses clés) ; `label_at` (0-100 %, défaut 50) et `label_side` (`above | on | below`, défaut `on`) **dans le
+  style du connecteur**, comme la position de l'étiquette d'un groupe est dans le sien (un réglage de mise en forme,
+  copiable avec le style) ; `CodeContent.wrap` booléen requis. Toutes les clés requises, comme `side` en 1.5.0 : un
+  client doit les écrire. `upgraded()` relit un 1.6.x avec les défauts, c'est-à-dire le dessin d'avant et un bloc de code
+  qui revient à la ligne (le défaut d'un bloc neuf, décision d'Orhan) ; une clé écrite n'est jamais remplacée.
 - **2026-10-14** — **`Intent` 1.5.0 → 1.6.0, additif : le bloc de code** (lot 16 de `docs/11`, prototype validé par
   Orhan : « C'est très bon, on code ça maintenant »). Une cinquième sorte de contenu d'annotation, `CodeContent` :
   `kind: "code"`, `text` 1 à 20 000 caractères, multi-ligne, **ni tabulation ni retour chariot** (la page normalise :

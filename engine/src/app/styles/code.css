@@ -80,24 +80,11 @@
 .code-thumb { fill: var(--code-thumb); cursor: grab; }
 .code-thumb:hover, .code-thumb:active { fill: var(--code-thumb-hover); }
 
-/* ——— l'écriture en place : un textarea en chasse fixe sur la zone du code, la gouttière gardée ——— */
+/* ——— l'écriture en place : CodeMirror sur la zone du code (editor.css, lot 16 bis) ; le bloc écrit passe au-dessus ——— */
 .react-flow__node:has(.code-editor) { z-index: 1000 !important; }
 .code-editor { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-.code-edit { position: absolute; left: 0; top: var(--ce-top, 34px); width: 100%; height: var(--ce-h, 200px); box-sizing: border-box; margin: 0;
-  padding: var(--ce-py, 10px) 12px var(--ce-py, 10px) var(--ce-pl, 16px); resize: none; border: 1px solid var(--accent); border-radius: 0 0 8px 8px;
-  background: var(--code-bg); color: var(--code-ink); font: 400 var(--ce-fs, 13px)/var(--ce-lh, 20px) var(--code-font, var(--mono)); white-space: pre;
-  overflow: auto; tab-size: 4; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; box-shadow: 0 0 0 3px var(--accent-soft); caret-color: var(--accent);
-  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
-.code-edit:focus { outline: none; }
-.code-edit::selection, .insp-code pre ::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); color: inherit; }
-.code-edit-gutter { position: absolute; z-index: 1; left: var(--ce-gl, 4px); top: calc(var(--ce-top, 34px) + 1px); width: var(--ce-gw, 40px); height: calc(var(--ce-h, 200px) - 2px);
-  overflow: hidden; pointer-events: none; padding-top: var(--ce-py, 10px); box-sizing: border-box; background: var(--code-gutter); border-bottom-left-radius: 8px; }
-.code-edit-nums { transform: translateY(var(--gs, 0px)); padding-right: 12px; text-align: right; font: 400 var(--ce-fs, 13px)/var(--ce-lh, 20px) var(--code-font, var(--mono)); color: var(--code-num); font-variant-numeric: tabular-nums; }
-.code-edit-nums .flag { position: relative; color: var(--tk-secret); font-weight: 600; }
-.code-edit-nums .flag::before { content: ""; position: absolute; left: 4px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--tk-secret); }
-.code-edit-hint { position: absolute; left: 0; bottom: calc(100% + 8px); scale: var(--unzoom, 1); transform-origin: left bottom; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px;
-  border-radius: var(--ctl-r); background: var(--bg-elev-2); border: 1px solid var(--line-strong); box-shadow: var(--shadow-tip); font: 400 12px/1 var(--sans); color: var(--ink-3); white-space: nowrap; pointer-events: none; }
-.code-edit-hint kbd { font: 500 11px/1 var(--mono); color: var(--ink-2); }
+.annotation.kind-code.code-editing .code-body { stroke: var(--accent); stroke-width: 1.5; }
+.insp-code pre ::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); color: inherit; }
 
 /* le brouillon (un collage, une insertion) : dans le plan, à sa place */
 .code-draft { position: absolute; left: 0; top: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)); width: var(--dw, 480px); height: var(--dh, 240px); pointer-events: all; }

@@ -17,6 +17,8 @@ import type { Multi } from "../../state/selection";
 import { useEditable, useStore } from "../../state/store";
 import { IconButton, Inspector, InspectorHead, List, MoreLink, Row, Section, TextButton, Title } from "../../ui/inspector";
 import { GroupPicker, HueSetting, WriteHint } from "./shared";
+import { TextSection } from "./style";
+import { itemsOf } from "../../state/text-format";
 
 const LIMIT = 12;
 
@@ -49,6 +51,8 @@ export function MultiCard({ model, picked }: { model: Model; picked: Multi }) {
   const canWrite = useEditable();
   const control = state.view.mode === "control"; // en vue Contrôle, la sélection se lit : ni teinte ni groupe
   const hues = multiHues(model, picked, devices);
+  // le texte de toute la sélection (lot 4 bis : la barre contextuelle de même), « — » quand il diffère
+  const texts = itemsOf(model, picked);
   const [name, setName] = useState("");
   const create = (event: FormEvent): void => { event.preventDefault(); if (devices.length) commands.groupCreate(name.trim() || t("multi.defaultName"), devices); setName(""); };
   const shown = all ? sorted : sorted.slice(0, LIMIT);
@@ -74,6 +78,7 @@ export function MultiCard({ model, picked }: { model: Model; picked: Multi }) {
           <Row label={t("hue")}><HueSetting value={hues.value} inherited={hues.inherited} allowDefault={hues.devicesOnly} onPick={(next) => commands.colorItems(picked, next)} /></Row>
         </Section>
       ) : null}
+      {canWrite && texts.length ? <TextSection items={texts} /> : null}
       {devices.length && canWrite ? (
         <Section title={t("multi.group")}>
           {/* le bouton ne devient primaire qu'une fois le nom écrit : rien ne crie tant qu'on n'a rien décidé */}

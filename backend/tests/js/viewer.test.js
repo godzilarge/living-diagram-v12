@@ -2354,3 +2354,36 @@ test("le dessin de la bulle (bubble.ts) : colonnes alignées, rythme, points et 
   });
   assert.equal(LD.tip.clipName("a".repeat(40)).length, 36, "un nom trop long se raccourcit au milieu");
 });
+
+test("Intent 1.7.0 (lot 4 bis) : l'étiquette d'un connecteur se pose le long du tracé et de son côté ; la marge et l'interligne d'une note", () => {
+  const { LD } = load(page);
+  const C = LD.connectors, A = LD.annotations;
+  const boxA = { kind: "box", frame: { x: 0, y: 0, w: 100, h: 50 } }, boxB = { kind: "box", frame: { x: 300, y: 0, w: 100, h: 50 } };
+  const straight = C.pathOf(boxA, boxB, "straight", 0);
+  assert.deepEqual(clone(straight.points), [{ x: 100, y: 25 }, { x: 300, y: 25 }], "le tracé en points");
+  assert.deepEqual(clone(C.along(straight, 0.5).at), { x: 200, y: 25 });
+  assert.deepEqual(clone(C.along(straight, 0.1).at), { x: 120, y: 25 });
+  assert.deepEqual(clone(C.along(straight, 2).at), { x: 300, y: 25 }, "borné au tracé");
+  assert.deepEqual(clone(C.labelCenter(straight, 50, "on", 40, 20)), { x: 200, y: 25 }, "sur le trait");
+  assert.deepEqual(clone(C.labelCenter(straight, 50, "above", 40, 20)), { x: 200, y: 25 - 14 }, "au-dessus : la moitié de sa hauteur et 4 d'écart");
+  assert.deepEqual(clone(C.labelCenter(straight, 50, "below", 40, 20)), { x: 200, y: 25 + 14 });
+  const up = C.pathOf({ kind: "point", at: { x: 0, y: 200 } }, { kind: "point", at: { x: 0, y: 0 } }, "straight", 0);
+  assert.deepEqual(clone(C.labelCenter(up, 50, "above", 40, 20)), { x: -24, y: 100 }, "un tracé vertical : « au-dessus » est à gauche, la moitié de sa largeur");
+  const reversed = C.pathOf(boxB, boxA, "straight", 0);
+  assert.equal(C.labelCenter(reversed, 50, "above", 40, 20).y < 25, true, "au-dessus quel que soit le sens du tracé");
+  const elbow = C.pathOf(boxA, { kind: "point", at: { x: 300, y: 200 } }, "elbow", 0);
+  assert.equal(elbow.points.length, 4, "un coudé : ses coins");
+  const curve = C.pathOf(boxA, boxB, "curve", 40);
+  assert.equal(curve.points.length, 33, "une courbe échantillonnée");
+  const mid = C.along(curve, 0.5).at;
+  assert.ok(Math.abs(mid.x - 200) < 0.5 && Math.abs(mid.y - curve.mid.y) < 1, "le milieu de l'arc");
+  // la marge et l'interligne d'une note (défauts : le dessin d'avant)
+  const style = { ...A.DEFAULT_STYLE.note };
+  assert.deepEqual(clone(A.TEXT_DEFAULTS), { text_italic: false, text_underline: false, text_strike: false, text_padding: 8, text_line_height: 135 });
+  const before = A.layoutText("a\nb", { x: 0, y: 0, w: 220, h: 200 }, style);
+  assert.deepEqual(clone(before.lines.map((l) => [l.x, l.y])), [[8, 8 + 13], [8, 8 + 18 + 13]], "8 de marge, 18 d'interligne à 13 px (1,35)");
+  const after = A.layoutText("a\nb", { x: 0, y: 0, w: 220, h: 200 }, { ...style, text_padding: 20, text_line_height: 200 });
+  assert.deepEqual(clone(after.lines.map((l) => [l.x, l.y])), [[20, 20 + 13], [20, 20 + 26 + 13]]);
+  assert.equal(A.lineHeight(13), 18);
+  assert.equal(A.lineHeight(13, 300), 39);
+});

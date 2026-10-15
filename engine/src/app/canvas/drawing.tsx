@@ -44,7 +44,7 @@ export function SketchLayer({ sketch }: { sketch: SketchStore }) {
   return (
     <ViewportPortal>
       <svg className="sketch-layer connector hue-slate" aria-hidden="true">
-        {path ? <Stroke d={path.d} a={path.a} b={path.b} dirA={path.dirA} dirB={path.dirB} heads={DEFAULT_HEADS} style={DEFAULT_STYLE} label="" mid={path.mid} /> : null}
+        {path ? <Stroke d={path.d} a={path.a} b={path.b} dirA={path.dirA} dirB={path.dirB} heads={DEFAULT_HEADS} style={DEFAULT_STYLE} label="" points={path.points} /> : null}
         {now.marks ? <TargetMarks marks={now.marks} k={k} /> : null}
       </svg>
     </ViewportPortal>

@@ -15,7 +15,8 @@ export const END_KINDS = ["free", "device", "group", "annotation"] as const;
 export const BOUNDS = { stroke_width: [1, 8], opacity: [10, 100], text_size: [8, 64], bend: [-2000, 2000] } as const;
 export const LABEL: Record<string, string> = labelMap("common:connectorWord", ["straight", "elbow", "curve", "none", "arrow", "free", "device", "group", "annotation"]);
 /** Les défauts du contrat (`DEFAULT_CONNECTOR_STYLE`, `DEFAULT_HEADS`). */
-export const DEFAULT_STYLE: ConnectorStyle = { hue: "slate", stroke_width: 2, stroke_style: "solid", opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue" };
+export const DEFAULT_STYLE: ConnectorStyle = { hue: "slate", stroke_width: 2, stroke_style: "solid", opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue",
+  text_italic: false, text_underline: false, text_strike: false, label_at: 50, label_side: "on" };
 export const DEFAULT_HEADS: Connector["heads"] = { start: "none", end: "arrow" };
 export const DEFAULT_LENGTH = 160;
 
@@ -35,7 +36,9 @@ export type EndPlace = { kind: "point"; at: Point } | { kind: "box"; frame: Fram
 export interface Anchor { side: FixedSide; at: Point }
 /** Un tracé : le chemin SVG, ses deux bouts, son milieu (étiquette, poignée), les tangentes aux bouts (pointes), la corde
  *  que la courbure décale, et si une courbure a un sens (un coudé en équerre n'en a pas). */
-export interface Path { d: string; a: Point; b: Point; mid: Point; dirA: Point; dirB: Point; chord: { a: Point; b: Point }; bendable: boolean }
+export interface Path { d: string; a: Point; b: Point; mid: Point; dirA: Point; dirB: Point; chord: { a: Point; b: Point }; bendable: boolean;
+  /** Les points du tracé, de `a` à `b` : les coins d'un tracé droit ou coudé, l'arc d'une courbe échantillonné. */
+  points: Point[] }
 
 export const attachedEnds = (c: Pick<Connector, "start" | "end">): { kind: string; ref: string }[] =>
   [c.start, c.end].flatMap((e) => (e.kind === "free" ? [] : [{ kind: e.kind, ref: e.ref }]));
@@ -143,17 +146,46 @@ export function pathOf(start: EndPlace, end: EndPlace, route: string, bend: numb
   const b = fixedB || (end.kind === "box" ? outlinePoint(end.frame, end.shape || RECT, towardB) : cb);
   const real = waypoints(a, b, route, bend, da, db); // puis entre les vrais bouts
   const points = [a, ...real.via, b];
-  let d: string, mid: Point;
+  let d: string, mid: Point, line = points;
   if (route === "curve" && real.via.length) {
     const c = real.via[0];
     d = `M${r1(a.x)},${r1(a.y)} Q${r1(c.x)},${r1(c.y)} ${r1(b.x)},${r1(b.y)}`;
     mid = { x: (a.x + 2 * c.x + b.x) / 4, y: (a.y + 2 * c.y + b.y) / 4 };
+    line = Array.from({ length: ARC_SAMPLES + 1 }, (_, i) => { const t = i / ARC_SAMPLES, u = 1 - t; return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y }; });
   } else {
     d = points.map((p, i) => (i ? "L" : "M") + r1(p.x) + "," + r1(p.y)).join(" ");
     const m = real.median;
     mid = m ? { x: (m[0].x + m[1].x) / 2, y: (m[0].y + m[1].y) / 2 } : real.via.length ? real.via[Math.floor((real.via.length - 1) / 2)] : { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
   }
-  return { d, a, b, mid, dirA: unit(points[1], a), dirB: unit(points[points.length - 2], b), chord: { a: real.chord[0], b: real.chord[1] }, bendable: route !== "elbow" || !!real.median };
+  return { d, a, b, mid, dirA: unit(points[1], a), dirB: unit(points[points.length - 2], b), chord: { a: real.chord[0], b: real.chord[1] }, bendable: route !== "elbow" || !!real.median, points: line };
+}
+/** Les segments qui approchent un arc (la place d'une étiquette le long d'une courbe). */
+const ARC_SAMPLES = 32;
+
+/** Le point à la fraction `t` (0 à 1) de la longueur d'un tracé, et sa direction (unitaire, vers l'arrivée). */
+export function along(path: Pick<Path, "points">, t: number): { at: Point; dir: Point } {
+  const pts = path.points, lengths = pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i].x, p.y - pts[i].y));
+  const total = lengths.reduce((sum, l) => sum + l, 0);
+  let left = Math.min(1, Math.max(0, t)) * total;
+  for (let i = 0; i < lengths.length; i += 1) {
+    if (left <= lengths[i] || i === lengths.length - 1) {
+      const k = lengths[i] ? Math.min(1, left / lengths[i]) : 0, p = pts[i], q = pts[i + 1];
+      return { at: { x: p.x + (q.x - p.x) * k, y: p.y + (q.y - p.y) * k }, dir: unit(p, q) };
+    }
+    left -= lengths[i];
+  }
+  return { at: pts[0], dir: { x: 1, y: 0 } };
+}
+/** Le centre de l'étiquette d'un connecteur (Intent 1.7.0) : à `at` % de la longueur du tracé ; `on` : sur le trait ;
+ *  `above` : écartée du trait vers le haut de l'écran (vers la gauche d'un trait vertical), juste assez pour que sa
+ *  boîte (`w` × `h`) ne le touche pas ; `below` : de l'autre côté. */
+export function labelCenter(path: Pick<Path, "points">, at: number, side: string, w: number, h: number, gap = 4): Point {
+  const { at: p, dir } = along(path, at / 100);
+  if (side !== "above" && side !== "below") return p;
+  let n = { x: -dir.y, y: dir.x };
+  if (n.y > 0 || (n.y === 0 && n.x > 0)) n = { x: -n.x, y: -n.y }; // vers le haut, ou vers la gauche
+  const k = (side === "above" ? 1 : -1) * (Math.abs(n.x) * w / 2 + Math.abs(n.y) * h / 2 + gap);
+  return { x: p.x + n.x * k, y: p.y + n.y * k };
 }
 /** La courbure lue d'un point glissé au milieu du tracé : écart signé à la corde (courbe), décalage du segment médian (coudé). */
 export function bendFrom(a: Point, b: Point, route: string, at: Point): number {
@@ -182,4 +214,4 @@ export const attachedEnd = (kind: "device" | "group" | "annotation", ref: string
 /** Les deux bouts échangés (et les pointes avec eux). */
 export const reversed = (c: Pick<Connector, "start" | "end" | "heads">): Pick<Connector, "start" | "end" | "heads"> => ({ start: c.end, end: c.start, heads: { start: c.heads.end, end: c.heads.start } });
 
-export const connectors = { ROUTES, HEADS, END_KINDS, SIDES, FIXED_SIDES, SIDE_LABEL, STUB, BOUNDS, LABEL, DEFAULT_STYLE, DEFAULT_HEADS, DEFAULT_LENGTH, attachedEnds, key, hostsOf, isOrphan, shownWith, normal, anchorPoint, anchorsOf, nearestAnchor, outlinePoint, normalOf, pathOf, bendFrom, arrowHead, headSize, bbox, summary, freeEnd, attachedEnd, reversed };
+export const connectors = { ROUTES, HEADS, END_KINDS, SIDES, FIXED_SIDES, SIDE_LABEL, STUB, BOUNDS, LABEL, DEFAULT_STYLE, DEFAULT_HEADS, DEFAULT_LENGTH, attachedEnds, key, hostsOf, isOrphan, shownWith, normal, anchorPoint, anchorsOf, nearestAnchor, outlinePoint, normalOf, pathOf, along, labelCenter, bendFrom, arrowHead, headSize, bbox, summary, freeEnd, attachedEnd, reversed };

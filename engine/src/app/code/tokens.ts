@@ -127,8 +127,24 @@ export function linesOf(id: string, text: string, language: string, highlight: b
   return lines;
 }
 
+/** Les morceaux d'une rangée (lot 16 bis) : les segments d'une ligne entre les colonnes [from, to), coupés au besoin
+ *  (un jeton à cheval sur deux rangées garde sa famille de part et d'autre). */
+export function rowSegments(segs: Line, from: number, to: number): Line {
+  const out: Line = [];
+  let at = 0;
+  for (const s of segs) {
+    const start = at, end = at + s.t.length;
+    at = end;
+    if (end <= from) continue;
+    if (start >= to) break;
+    out.push(start >= from && end <= to ? s : { t: s.t.slice(Math.max(0, from - start), Math.min(s.t.length, to - start)), c: s.c });
+  }
+  return out;
+}
+
 /** Une ligne coupée à `max` caractères (chasse fixe : la largeur se calcule) ; `clipped` si coupée (la place du
- *  repère « › » est réservée). Pas de retour à la ligne : une configuration ne se coupe pas. */
+ *  repère « › » est réservée). Sans retour à la ligne (`wrap` faux, lot 16 bis) : la ligne ne se coupe pas, elle
+ *  s'arrête au bord. */
 export function clipLine(segs: Line, max: number): { segs: Line; clipped: boolean } {
   const length = segs.reduce((k, s) => k + s.t.length, 0);
   if (length <= max) return { segs, clipped: false };
@@ -143,4 +159,4 @@ export function clipLine(segs: Line, max: number): { segs: Line; clipped: boolea
   return { segs: out, clipped: true };
 }
 
-export const tokens = { FAMILIES, MASK, LONG_LINE, familyOf, codeLines, clipLine };
+export const tokens = { FAMILIES, MASK, LONG_LINE, familyOf, codeLines, rowSegments, clipLine };

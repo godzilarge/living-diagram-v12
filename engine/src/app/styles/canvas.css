@@ -212,6 +212,19 @@
 .annotation-text { fill: var(--type); font-family: var(--sans); pointer-events: none; white-space: pre; }
 .annotation-text.font-mono { font-family: var(--mono); }
 .annotation-text.text-ink { fill: var(--ink); }
+/* la couleur d'un texte nommée (Intent 1.7.0, lot 4 bis) : l'une des douze teintes, quelle que soit celle de l'objet */
+.annotation-text.tc-blue, .frame-label.tc-blue { fill: var(--hue-blue); }
+.annotation-text.tc-sky, .frame-label.tc-sky { fill: var(--hue-sky); }
+.annotation-text.tc-indigo, .frame-label.tc-indigo { fill: var(--hue-indigo); }
+.annotation-text.tc-violet, .frame-label.tc-violet { fill: var(--hue-violet); }
+.annotation-text.tc-pink, .frame-label.tc-pink { fill: var(--hue-pink); }
+.annotation-text.tc-red, .frame-label.tc-red { fill: var(--hue-red); }
+.annotation-text.tc-orange, .frame-label.tc-orange { fill: var(--hue-orange); }
+.annotation-text.tc-amber, .frame-label.tc-amber { fill: var(--hue-amber); }
+.annotation-text.tc-lime, .frame-label.tc-lime { fill: var(--hue-lime); }
+.annotation-text.tc-green, .frame-label.tc-green { fill: var(--hue-green); }
+.annotation-text.tc-teal, .frame-label.tc-teal { fill: var(--hue-teal); }
+.annotation-text.tc-slate, .frame-label.tc-slate { fill: var(--hue-slate); }
 .annotation-alt { fill: var(--ink-3); font-style: italic; }
 .annotation-head { fill: var(--type); fill-opacity: 0.22; pointer-events: none; }
 /* le tableau sur la toile (table.tsx) : les cellules, la plage choisie, les frontières glissables, le champ en place */

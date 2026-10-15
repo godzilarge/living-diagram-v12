@@ -2066,14 +2066,14 @@ câble `down`, un contrôle `link_down` apparu), en forme canonique :
 
 Le JSON Schema équivalent est `src/ld_contracts/schema/diff-v1.schema.json`.
 
-## Partie D — Intention : Intent v1.6.0
+## Partie D — Intention : Intent v1.7.0
 
 L'intention est ce que l'humain veut en plus de ce que la collecte montre : des patchs keyés par identité
 stable, qui survivent aux runs. Six sortes de patch : l'épingle (la place voulue d'un équipement sur le
 dessin, 1.0.0), la couleur d'un type et la couleur d'un équipement (1.1.0), le groupe (des membres et un
 style, 1.2.0 ; docs/10 §5), l'annotation (une note, une forme, un tableau ou une image, libre ou attachée,
 1.3.0 ; docs/10 §6 ; le bloc de code, 1.6.0), le connecteur (une ligne ou une flèche à deux bouts, 1.4.0 ;
-ancres 1.5.0). D'autres
+ancres 1.5.0) ; la mise en forme du texte de chacun (1.7.0). D'autres
 sortes viendront comme des listes à côté, sans rien changer à celles-ci.
 Ce document est écrit par l'API de Living Diagram (`POST /api/intent/patches`) et lu par la toile ; il ne
 concerne pas l'exportateur. Sa version suit son propre semver.
@@ -2170,7 +2170,10 @@ Le style d'un groupe (docs/10 §5) : toutes clés écrites ; le serveur complèt
 | `label_size` | entier ≥ 8 ≤ 64 | oui | Taille de l'étiquette, en pixels du dessin. |
 | `label_weight` | [LabelWeight](#labelweight) | oui | Graisse de l'étiquette. |
 | `label_font` | [LabelFont](#labelfont) | oui | Police de l'étiquette : sans (Inter) ou mono (JetBrains Mono). |
-| `label_color` | [LabelColor](#labelcolor) | oui | Couleur de l'étiquette : la teinte du cadre, ou l'encre du thème. |
+| `label_color` | [LabelColor](#labelcolor) | oui | Couleur de l'étiquette : la teinte du cadre, l'encre du thème, ou une teinte nommée. |
+| `label_italic` | booléen | oui | Étiquette en italique (1.7.0). |
+| `label_underline` | booléen | oui | Étiquette soulignée (1.7.0). |
+| `label_strike` | booléen | oui | Étiquette barrée (1.7.0). |
 
 #### Annotation
 
@@ -2272,6 +2275,7 @@ dans ce document). Les valeurs sensibles ne sont pas jugées ici : la page avert
 | `highlight` | booléen | oui | Coloration syntaxique allumée ; sans effet sur `plain`. |
 | `line_numbers` | booléen | oui | Numéros de ligne affichés dans une gouttière. |
 | `font` | [CodeFont](#codefont) | oui | La police, à chasse fixe (`style.text_font` n'est pas lu pour un bloc). |
+| `wrap` | booléen | oui | Retour à la ligne (1.7.0) : une ligne plus large que la boîte continue sur la rangée suivante, en retrait ; sinon elle est coupée à droite. La règle de coupure est celle de la page, en lecture comme en écriture. |
 
 #### AnnotationStyle
 
@@ -2292,6 +2296,11 @@ Le style d'une annotation (docs/10 §6) : toutes clés écrites ; le serveur com
 | `text_color` | [LabelColor](#labelcolor) | oui | Couleur du texte : la teinte, ou l'encre du thème. |
 | `text_align` | [TextAlign](#textalign) | oui | Alignement horizontal du texte dans la boîte. |
 | `text_valign` | [TextValign](#textvalign) | oui | Alignement vertical du texte dans la boîte. |
+| `text_italic` | booléen | oui | Texte en italique (1.7.0). |
+| `text_underline` | booléen | oui | Texte souligné (1.7.0). |
+| `text_strike` | booléen | oui | Texte barré (1.7.0). |
+| `text_padding` | entier ≥ 0 ≤ 64 | oui | Marge entre le bord de la boîte et le texte, en unités du dessin (1.7.0) ; lue par la note et la forme. |
+| `text_line_height` | entier ≥ 100 ≤ 300 | oui | Interligne, en pourcent de la taille du texte (1.7.0) ; lu par la note et la forme. |
 
 #### Connector
 
@@ -2343,7 +2352,8 @@ La pointe à chaque bout : aucune (une ligne), une flèche à l'arrivée, au dé
 
 #### ConnectorStyle
 
-Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création.
+Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création. La place de
+l'étiquette (`label_at`, `label_side`) est du style, comme la position de l'étiquette d'un groupe.
 
 | Champ | Type | Requis | Signification |
 |---|---|---|---|
@@ -2354,7 +2364,12 @@ Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les
 | `text_size` | entier ≥ 8 ≤ 64 | oui | Taille de l'étiquette, en pixels du dessin. |
 | `text_weight` | [LabelWeight](#labelweight) | oui | Graisse de l'étiquette. |
 | `text_font` | [LabelFont](#labelfont) | oui | Police de l'étiquette : sans (Inter) ou mono (JetBrains Mono). |
-| `text_color` | [LabelColor](#labelcolor) | oui | Couleur de l'étiquette : la teinte, ou l'encre du thème. |
+| `text_color` | [LabelColor](#labelcolor) | oui | Couleur de l'étiquette : la teinte du connecteur, l'encre du thème, ou une teinte nommée. |
+| `text_italic` | booléen | oui | Étiquette en italique (1.7.0). |
+| `text_underline` | booléen | oui | Étiquette soulignée (1.7.0). |
+| `text_strike` | booléen | oui | Étiquette barrée (1.7.0). |
+| `label_at` | entier ≥ 0 ≤ 100 | oui | Place de l'étiquette le long du tracé, en pourcent de sa longueur depuis le départ. |
+| `label_side` | [LabelSide](#labelside) | oui | L'étiquette au-dessus du tracé, dessus ou au-dessous (1.7.0). |
 
 ### Énumérations
 
@@ -2384,7 +2399,7 @@ Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les
 
 #### LabelColor
 
-`hue` \| `ink`
+`hue` \| `ink` \| `blue` \| `sky` \| `indigo` \| `violet` \| `pink` \| `red` \| `orange` \| `amber` \| `lime` \| `green` \| `teal` \| `slate`
 
 #### LabelFont
 
@@ -2397,6 +2412,10 @@ Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les
 #### LabelPosition
 
 `top_left` \| `top` \| `top_right` \| `left` \| `center` \| `right` \| `bottom_left` \| `bottom` \| `bottom_right`
+
+#### LabelSide
+
+`above` \| `on` \| `below`
 
 #### LabelWeight
 
@@ -2469,6 +2488,11 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
 - **Une couleur est une teinte nommée** (`hue`, douze valeurs), jamais une valeur libre : le moteur donne à
   chaque teinte sa valeur sombre et sa valeur claire ; les défauts par type vivent dans le moteur, pas ici
   (docs/10).
+- **La mise en forme du texte** (1.7.0) : italique, souligné, barré (`text_*` d'une annotation ou d'un
+  connecteur, `label_*` d'un groupe), une couleur de texte parmi l'encre, la teinte de l'objet ou les douze
+  teintes ; la marge et l'interligne d'une note ou d'une forme ; la place de l'étiquette d'un connecteur le long
+  de son tracé (`label_at`, en pourcent) et de son côté (`label_side`) ; le retour à la ligne d'un bloc de code
+  (`wrap`). Un document 1.6.x se relit avec les défauts : le dessin d'avant, un bloc de code qui revient à la ligne.
 - **Toutes les clés sont écrites** ; aucun défaut, pas d'`extras` ; entiers stricts, dates ISO 8601 avec fuseau.
 - **Ordre canonique vérifié par le type** : `pins` et `device_colors` triées par `hostname`, `type_colors` par
   `type`, `groups`, `annotations` et `connectors` par `id`, les `members` d'un groupe par `hostname` ; uniques.
@@ -2547,7 +2571,12 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
         "text_align": "left",
         "text_color": "ink",
         "text_font": "sans",
+        "text_italic": false,
+        "text_line_height": 135,
+        "text_padding": 8,
         "text_size": 13,
+        "text_strike": false,
+        "text_underline": false,
         "text_valign": "top",
         "text_weight": "regular"
       },
@@ -2582,12 +2611,17 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
       },
       "style": {
         "hue": "slate",
+        "label_at": 50,
+        "label_side": "on",
         "opacity": 100,
         "stroke_style": "dashed",
         "stroke_width": 2,
         "text_color": "hue",
         "text_font": "sans",
+        "text_italic": false,
         "text_size": 12,
+        "text_strike": false,
+        "text_underline": false,
         "text_weight": "semibold"
       },
       "z": "front"
@@ -2617,9 +2651,12 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
         "hue": "indigo",
         "label_color": "hue",
         "label_font": "sans",
+        "label_italic": false,
         "label_placement": "inside",
         "label_position": "top_left",
         "label_size": 12,
+        "label_strike": false,
+        "label_underline": false,
         "label_weight": "semibold",
         "padding": 24,
         "radius": 16,
@@ -2630,7 +2667,7 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
     }
   ],
   "infrastructure": "infra-lab",
-  "intent_version": "1.6.0",
+  "intent_version": "1.7.0",
   "pins": [
     {
       "at": "2026-10-04T18:30:00Z",

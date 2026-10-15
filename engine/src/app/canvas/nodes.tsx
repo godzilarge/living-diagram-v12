@@ -9,10 +9,10 @@ import { memo, useCallback, useContext, useEffect, useState } from "react";
 import { t } from "../../i18n";
 import { AnnotationContext, EditRequest, claim } from "./annotation";
 import { InlineInput } from "./inline";
+import { lookOf } from "./text-look";
 import type { Node, NodeProps } from "@xyflow/react";
 import { STUB_R } from "../../canvas/card";
 import type { CardPlan } from "../../canvas/card";
-import { WEIGHT_VALUE } from "../../canvas/groups";
 import type { LabelSlot } from "../../canvas/groups";
 import { PIN, glyph } from "../../canvas/icons";
 import type { GroupStyle } from "../../canvas/types";
@@ -133,14 +133,14 @@ export function FrameNode({ data }: NodeProps<FrameNodeType>) {
     if (next && next !== data.label) actions.groupLabel(data.id, next); // un nom vide ne s'écrit pas (1 à 80 caractères)
   }, [actions, data.id, data.label]);
   const stroke = s.stroke_style === "none" ? 0 : s.stroke_width;
-  const labelClass = "frame-label" + (s.label_font === "mono" ? " font-mono" : "") + (s.label_color === "ink" ? " label-ink" : "");
+  const look = lookOf(true, s, "frame-label", "label-ink");
   return (
     <svg className={"frame hue-" + s.hue + " " + data.classes} width={data.w} height={data.h} viewBox={`0 0 ${data.w} ${data.h}`} overflow="visible" aria-hidden={editing ? undefined : "true"} data-group={data.id}
       onDoubleClick={(event) => { if (data.editable) { event.stopPropagation(); setEditing(true); } }}>
       {s.shape === "ellipse"
         ? <ellipse className="frame-shape" cx={data.w / 2} cy={data.h / 2} rx={data.w / 2} ry={data.h / 2} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={data.dash || undefined} strokeLinecap="round" />
         : <rect className="frame-shape" x={0} y={0} width={data.w} height={data.h} rx={s.radius} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={data.dash || undefined} strokeLinecap="round" />}
-      {editing ? null : <text className={labelClass} x={data.slot.x} y={data.slot.y} textAnchor={data.slot.anchor} dominantBaseline={data.slot.baseline} fontSize={s.label_size} fontWeight={WEIGHT_VALUE[s.label_weight] || 600}>{data.label}</text>}
+      {editing ? null : <text className={look.className} x={data.slot.x} y={data.slot.y} textAnchor={data.slot.anchor} dominantBaseline={data.slot.baseline} fontSize={s.label_size} fontWeight={look.fontWeight} fontStyle={look.fontStyle} textDecoration={look.textDecoration}>{data.label}</text>}
       {s.shape === "ellipse"
         ? <ellipse className="hover-ring" cx={data.w / 2} cy={data.h / 2} rx={data.w / 2} ry={data.h / 2} />
         : <rect className="hover-ring" x={0} y={0} width={data.w} height={data.h} rx={s.radius} />}

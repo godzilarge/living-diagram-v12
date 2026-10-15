@@ -243,7 +243,12 @@
     "placement": "placement",
     "placementLabel": "inside or outside the frame",
     "inside": "inside the frame",
-    "outside": "outside the frame"
+    "outside": "outside the frame",
+    "decoration": "text style",
+    "textPadding": "text padding",
+    "lineHeight": "line height",
+    "labelAt": "placement",
+    "labelSide": "side"
   },
   "group": {
     "kind": "Group",
@@ -466,6 +471,9 @@
     "tipMore_other": "and {{count}} more, in the code",
     "tipTitle": "{{kind}}, {{nature}}, line {{line}}; readable by everyone who opens {{infrastructure}}",
     "tipShieldTitle_one": "1 sensitive value kept as is, readable by everyone who opens {{infrastructure}}",
-    "tipShieldTitle_other": "{{count}} sensitive values kept as is, readable by everyone who opens {{infrastructure}}"
+    "tipShieldTitle_other": "{{count}} sensitive values kept as is, readable by everyone who opens {{infrastructure}}",
+    "wrap": "line wrapping",
+    "wrapOn": "on",
+    "wrapOff": "off"
   }
 }

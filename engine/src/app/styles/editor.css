@@ -1,0 +1,68 @@
+/* L'écriture d'un bloc de code dans CodeMirror (lot 16 bis de docs/11) : posée sur la zone du code, aux mesures exactes
+   de la lecture (variables posées par le CSSOM : --cm-top, --cm-left, --cm-w, --cm-h, --cm-fs, --cm-lh, --cm-gw, --cm-pad,
+   --cm-wrapw), transparente (le bloc dessiné en SVG dessous donne le fond, l'en-tête, la gouttière). Les règles de
+   CodeMirror arrivent par une feuille construite (`adoptedStyleSheets`, après les nôtres) : les nôtres portent une classe
+   de plus pour l'emporter. Aucun style en ligne. */
+.code-cm { position: absolute; z-index: 1; left: var(--cm-left, 4px); top: var(--cm-top, 34px); width: var(--cm-w, 400px); height: var(--cm-h, 200px); }
+.code-cm .cm-editor { height: 100%; background: transparent; color: var(--code-ink); }
+.code-cm .cm-editor.cm-focused { outline: none; }
+.code-cm .cm-editor .cm-scroller { font-family: var(--code-font, var(--mono)); font-size: var(--cm-fs, 13px); line-height: var(--cm-lh, 20px); overflow: auto;
+  text-rendering: geometricPrecision; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; scrollbar-width: thin; scrollbar-color: var(--code-thumb) transparent; }
+.code-cm .cm-editor .cm-content { padding: var(--cm-pad, 10px) 0; caret-color: var(--accent); }
+.code-cm .cm-editor .cm-line { padding: 0; }
+.code-cm .cm-editor .cm-gutters { width: var(--cm-gw, 40px); min-width: var(--cm-gw, 40px); box-sizing: border-box; background: transparent; border: 0; color: var(--code-num); }
+.code-cm .cm-editor .cm-gutter { width: 100%; min-width: 0; }
+.code-cm .cm-editor .cm-lineNumbers .cm-gutterElement { position: relative; box-sizing: border-box; min-width: 0; padding: 0 12px 0 0; text-align: right; font-variant-numeric: tabular-nums; }
+.code-cm.no-numbers .cm-editor .cm-lineNumbers .cm-gutterElement { color: transparent; }
+/* une valeur sensible repérée en direct : la ligne marquée d'un point rouge dans la marge de la gouttière, la valeur soulignée */
+.code-cm .cm-editor .cm-lineNumbers .cm-gutterElement.flag { color: var(--tk-secret); font-weight: 600; }
+.code-cm .cm-editor .cm-lineNumbers .cm-gutterElement.flag::before { content: ""; position: absolute; left: 3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--tk-secret); }
+.code-cm .cm-editor .cm-secret { text-decoration: underline dotted var(--tk-secret); text-underline-offset: 2px; }
+.code-cm .cm-editor .cm-activeLine { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.code-cm .cm-editor .cm-activeLineGutter { background: transparent; color: var(--ink-2); }
+.code-cm .cm-editor .cm-selectionBackground, .code-cm .cm-editor.cm-focused .cm-selectionBackground { background: color-mix(in srgb, var(--accent) 32%, transparent); }
+.code-cm .cm-editor .cm-cursor { border-left-color: var(--accent); }
+.code-cm .cm-editor .cm-searchMatch { background: color-mix(in srgb, var(--warning) 26%, transparent); outline: 1px solid color-mix(in srgb, var(--warning) 55%, transparent); }
+.code-cm .cm-editor .cm-searchMatch-selected { background: color-mix(in srgb, var(--accent) 38%, transparent); }
+.code-cm .cm-editor .cm-selectionMatch { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.code-cm .cm-editor .cm-matchingBracket { background: color-mix(in srgb, var(--accent) 22%, transparent); outline: none; }
+.code-search-anchors { display: none; }
+/* les jetons : les familles de la lecture, en couleur de texte */
+.code-cm .tk-comment { color: var(--tk-comment); font-style: italic; } .code-cm .tk-keyword { color: var(--tk-keyword); }
+.code-cm .tk-string { color: var(--tk-string); } .code-cm .tk-number { color: var(--tk-number); }
+.code-cm .tk-function { color: var(--tk-function); } .code-cm .tk-builtin { color: var(--tk-builtin); }
+.code-cm .tk-property { color: var(--tk-property); } .code-cm .tk-punct { color: var(--tk-punct); }
+.code-cm .tk-variable { color: var(--tk-variable); } .code-cm .tk-masked { color: var(--tk-masked); font-style: italic; }
+
+/* le retour à la ligne : la règle de wrap.ts, imposée mot à mot (aucune coupure du navigateur ne compte) ; les rangées
+   de suite en retrait de --hang colonnes (classes hang-0 à hang-80) ; la largeur du texte, celle de la lecture */
+.code-cm .cm-editor .cm-content.ld-wrap { white-space: pre-wrap; word-break: normal; overflow-wrap: normal; flex: 0 0 auto; width: var(--cm-wrapw, 400px); }
+.code-cm .cm-editor .ld-wrap .w-n { white-space: nowrap; }
+.code-cm .cm-editor .ld-wrap .w-a { line-break: anywhere; word-break: break-all; }
+.code-cm .cm-editor .ld-wrap .cm-line.hang { padding-left: calc(var(--hang, 0) * 1ch); text-indent: calc(var(--hang, 0) * -1ch); }
+.hang-0{--hang:0}.hang-1{--hang:1}.hang-2{--hang:2}.hang-3{--hang:3}.hang-4{--hang:4}.hang-5{--hang:5}.hang-6{--hang:6}.hang-7{--hang:7}.hang-8{--hang:8}.hang-9{--hang:9}
+.hang-10{--hang:10}.hang-11{--hang:11}.hang-12{--hang:12}.hang-13{--hang:13}.hang-14{--hang:14}.hang-15{--hang:15}.hang-16{--hang:16}.hang-17{--hang:17}.hang-18{--hang:18}.hang-19{--hang:19}
+.hang-20{--hang:20}.hang-21{--hang:21}.hang-22{--hang:22}.hang-23{--hang:23}.hang-24{--hang:24}.hang-25{--hang:25}.hang-26{--hang:26}.hang-27{--hang:27}.hang-28{--hang:28}.hang-29{--hang:29}
+.hang-30{--hang:30}.hang-31{--hang:31}.hang-32{--hang:32}.hang-33{--hang:33}.hang-34{--hang:34}.hang-35{--hang:35}.hang-36{--hang:36}.hang-37{--hang:37}.hang-38{--hang:38}.hang-39{--hang:39}
+.hang-40{--hang:40}.hang-41{--hang:41}.hang-42{--hang:42}.hang-43{--hang:43}.hang-44{--hang:44}.hang-45{--hang:45}.hang-46{--hang:46}.hang-47{--hang:47}.hang-48{--hang:48}.hang-49{--hang:49}
+.hang-50{--hang:50}.hang-51{--hang:51}.hang-52{--hang:52}.hang-53{--hang:53}.hang-54{--hang:54}.hang-55{--hang:55}.hang-56{--hang:56}.hang-57{--hang:57}.hang-58{--hang:58}.hang-59{--hang:59}
+.hang-60{--hang:60}.hang-61{--hang:61}.hang-62{--hang:62}.hang-63{--hang:63}.hang-64{--hang:64}.hang-65{--hang:65}.hang-66{--hang:66}.hang-67{--hang:67}.hang-68{--hang:68}.hang-69{--hang:69}
+.hang-70{--hang:70}.hang-71{--hang:71}.hang-72{--hang:72}.hang-73{--hang:73}.hang-74{--hang:74}.hang-75{--hang:75}.hang-76{--hang:76}.hang-77{--hang:77}.hang-78{--hang:78}.hang-79{--hang:79}
+.hang-80{--hang:80}
+
+/* la ligne de base réelle d'une rangée (probe.ts) : une ligne hors de la vue, aux mesures de l'écriture */
+.code-probe { position: fixed; left: -10000px; top: 0; visibility: hidden; white-space: pre; font-family: var(--code-font, var(--mono)); font-size: var(--probe-fs, 13px); line-height: var(--probe-lh, 20px); text-rendering: geometricPrecision; }
+.code-probe-mark { display: inline-block; width: 0; height: 0; vertical-align: baseline; }
+
+/* la barre de l'écriture et de la recherche (WritingBar) : les gabarits de la barre, un champ dedans */
+.fbar.writing .fbar-body.two-rows { flex-direction: column; align-items: stretch; height: auto; padding: 4px; gap: 4px; }
+.fbar.writing .fbar-row { display: flex; align-items: center; gap: 2px; }
+.fb-field { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: var(--ctl-r); background: var(--ctl-bg); box-shadow: inset 0 0 0 1px var(--ctl-line); color: var(--ink-3); }
+.fb-field svg { width: 14px; height: 14px; flex: none; }
+.fb-input { width: 180px; height: 26px; border: 0; padding: 0; background: transparent; color: var(--ink); font: 400 12.5px/1 var(--mono); outline: none; }
+.fb-field:focus-within { box-shadow: inset 0 0 0 1px var(--accent); }
+.fb-count { min-width: 64px; font: 400 11.5px/1 var(--sans); color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }
+.fb-count.none { color: var(--warning); }
+.step-input { width: 34px; height: 24px; border: 0; padding: 0; background: transparent; outline: none; }
+.step-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+.fb[data-id="code_abandon"][aria-pressed="true"] { color: var(--error); background: color-mix(in srgb, var(--error) 13%, transparent); }

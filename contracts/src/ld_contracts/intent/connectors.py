@@ -96,8 +96,18 @@ class LineStyle(StrEnum):
     DOTTED = "dotted"
 
 
+class LabelSide(StrEnum):
+    """Où l'étiquette se pose par rapport au tracé (1.7.0) : au-dessus (du côté du haut de l'écran ; à gauche d'un
+    tracé vertical), dessus (centrée sur le trait), au-dessous."""
+
+    ABOVE = "above"
+    ON = "on"
+    BELOW = "below"
+
+
 class ConnectorStyle(ContractModel):
-    """Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création."""
+    """Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les défauts à la création. La place de
+    l'étiquette (`label_at`, `label_side`) est du style, comme la position de l'étiquette d'un groupe."""
 
     hue: Hue = Field(description="Teinte nommée du trait, des pointes et de l'étiquette (si `text_color` = hue).")
     stroke_width: StrictInt = Field(ge=1, le=8, description="Épaisseur du trait.")
@@ -106,7 +116,16 @@ class ConnectorStyle(ContractModel):
     text_size: StrictInt = Field(ge=8, le=64, description="Taille de l'étiquette, en pixels du dessin.")
     text_weight: LabelWeight = Field(description="Graisse de l'étiquette.")
     text_font: LabelFont = Field(description="Police de l'étiquette : sans (Inter) ou mono (JetBrains Mono).")
-    text_color: LabelColor = Field(description="Couleur de l'étiquette : la teinte, ou l'encre du thème.")
+    text_color: LabelColor = Field(
+        description="Couleur de l'étiquette : la teinte du connecteur, l'encre du thème, ou une teinte nommée."
+    )
+    text_italic: StrictBool = Field(description="Étiquette en italique (1.7.0).")
+    text_underline: StrictBool = Field(description="Étiquette soulignée (1.7.0).")
+    text_strike: StrictBool = Field(description="Étiquette barrée (1.7.0).")
+    label_at: StrictInt = Field(
+        ge=0, le=100, description="Place de l'étiquette le long du tracé, en pourcent de sa longueur depuis le départ."
+    )
+    label_side: LabelSide = Field(description="L'étiquette au-dessus du tracé, dessus ou au-dessous (1.7.0).")
 
 
 DEFAULT_CONNECTOR_STYLE: dict[str, object] = {
@@ -118,6 +137,11 @@ DEFAULT_CONNECTOR_STYLE: dict[str, object] = {
     "text_weight": "semibold",
     "text_font": "sans",
     "text_color": "hue",
+    "text_italic": False,
+    "text_underline": False,
+    "text_strike": False,
+    "label_at": 50,
+    "label_side": "on",
 }
 DEFAULT_HEADS: dict[str, str] = {"start": "none", "end": "arrow"}
 

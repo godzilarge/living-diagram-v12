@@ -27,6 +27,11 @@ export const LANGUAGE_SHORT: Record<string, string> = labelMap("common:codeLangu
  *  Source »), séparateurs de ligne et de paragraphe Unicode (revue du 2026-10-15, B4). */
 const BANNED = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]/;
 
+/** Ce qu'une écriture ne garde jamais tel quel (lot 16 bis : l'éditeur nettoie ce qui est tapé ou déposé) : une
+ *  tabulation, un retour chariot, un caractère interdit. */
+const UNCLEAN = /[\t\r\u0000-\u0008\u000b-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]/;
+export const unclean = (text: string): boolean => UNCLEAN.test(text);
+
 /** Une ligne, tabulations en espaces à quatre colonnes et caractères interdits retirés. */
 function cleanLine(line: string): string {
   let col = 0, out = "";
@@ -97,7 +102,8 @@ export function pasteChoice(text: string, options: { secret: boolean; force: boo
   return { as: "code", language: found.id, sure: found.id !== "plain" && found.sure };
 }
 
-/** Le contenu d'un bloc neuf : texte brut, coloré, numéroté, JetBrains Mono, sans titre (contrat : tout s'écrit). */
-export const DEFAULT_CODE_CONTENT: CodeContent = { kind: "code", text: "", language: "plain", title: "", highlight: true, line_numbers: true, font: "jetbrains_mono" };
+/** Le contenu d'un bloc neuf : texte brut, coloré, numéroté, JetBrains Mono, sans titre, avec retour à la ligne
+ *  (contrat : tout s'écrit ; `wrap` vrai par défaut, Intent 1.7.0). */
+export const DEFAULT_CODE_CONTENT: CodeContent = { kind: "code", text: "", language: "plain", title: "", highlight: true, line_numbers: true, font: "jetbrains_mono", wrap: true };
 
-export const languages = { LANGUAGES, LANGUAGE_IDS, DEFAULT_CODE_CONTENT, cleanTyped, normalizeCode, detectLanguage, pastedAsCode, pasteChoice, prismNameOf };
+export const languages = { LANGUAGES, LANGUAGE_IDS, DEFAULT_CODE_CONTENT, cleanTyped, unclean, normalizeCode, detectLanguage, pastedAsCode, pasteChoice, prismNameOf };
