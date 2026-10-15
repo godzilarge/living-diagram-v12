@@ -21,7 +21,7 @@ import type { TableContent } from "../../contracts/intent";
 import { createToile } from "../canvas/toile";
 import { createUndo } from "../canvas/undo";
 import { dropLocal } from "../state/history";
-import type { Toile } from "../canvas/toile";
+import type { MoveCause, Toile } from "../canvas/toile";
 import { useEditable, useStore } from "../state/store";
 import type { ViewState } from "../state/types";
 import { itemsOf, same as sameMulti, size } from "../state/selection";
@@ -91,10 +91,13 @@ export function Canvas() {
     const undo = createUndo(model, writer, intents, g, history, note);
     // Un geste sur une sélection mixte (lot 2 de docs/11) : épingles et opérations des annotations et connecteurs en une
     // seule écriture, donc une seule entrée d'annulation.
-    const onBlock = (pins: Map<string, Point>, ops: Op[], cause: "aligned" | "dragged"): void => {
+    // Mettre en grille (lot 8) passe toujours par ici : sans nom, les équipements restent placés localement et la page le dit.
+    const onBlock = (pins: Map<string, Point>, ops: Op[], cause: MoveCause): void => {
       const pinOps = Array.from(pins.keys()).sort().map((hostname): Op => { const p = pins.get(hostname) as Point; return { op: "pin", hostname, x: Math.round(p.x), y: Math.round(p.y) }; });
       const count = pins.size + new Set(ops.map((op) => ("id" in op ? op.id : ""))).size;
-      void intents.apply(pinOps.concat(ops), text(cause === "aligned" ? "shell:messages.itemsAligned" : "shell:messages.itemsMoved", { count, author: writer.author }));
+      if (cause === "gridded" && !intents.canWrite()) { note(text("shell:messages.griddedLocal", { count })); return; }
+      const key = cause === "gridded" ? "shell:messages.itemsGridded" : cause === "aligned" ? "shell:messages.itemsAligned" : "shell:messages.itemsMoved";
+      void intents.apply(pinOps.concat(ops), text(key, { count, author: writer.author }));
     };
     created = createToile(model, { onSelect, onPin: intents.onPin, onPins: intents.onPins, onPlaced: placements.onPlaced, onMoved: undo.onMoved, onBlock,
       canWrite: () => stateRef.current.view.mode === "diagram" && intents.canWrite(),

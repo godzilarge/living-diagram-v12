@@ -86,6 +86,9 @@ export interface Commands extends JournalCommands, ClipboardCommands, FloatingCo
    *  groupe) ; faux si l'élément ne s'édite pas ainsi. */
   editSelection: () => boolean;
   align: (mode: AlignMode | BoxMode) => void;
+  /** Mettre la sélection en grille (lot 8 de docs/11) : `cols` choisies dans le volet, sinon le moins de cases vides ;
+   *  l'ordre et l'aimant viennent des préférences. Sous trois éléments, la ligne d'état le dit. */
+  grid: (cols?: number | null) => void;
   fit: () => void;
   /** Centre la vue sur la sélection (un élément ou la sélection multiple). */
   center: () => void;
@@ -373,6 +376,12 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         return true;
       },
       align: (mode) => { const g = graph(); if (g) g.alignSelected(mode); },
+      grid: (cols) => {
+        const g = graph();
+        if (!g) return;
+        const p = current().prefs;
+        if (!g.gridSelected({ cols, order: p.gridOrder, snap: p.snap ? GRID : null })) dispatch({ type: "note", text: t("shell:messages.gridNeedsThree"), at: Date.now() });
+      },
       fit: () => { const g = graph(); if (g) g.fit(); },
       center: () => { const g = graph(); if (g) g.frame(); },
       unpin: (hosts) => { if (handleRef.current) handleRef.current.intents.unpin(hosts); },

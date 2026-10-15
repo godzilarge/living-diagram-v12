@@ -4,8 +4,9 @@
 // page (`onSelect`, `onPin`, `onPins`, `onPlaced`) comme graph.ts le fait pour `/view`. Déterministe : le placement
 // vient de scene.ts, les positions sont des centres entiers en unités du dessin ; la vue (zoom, décalage) est celle
 // de React Flow, que la toile lit et pose par `attach`.
-import { align as alignPositions, alignBoxes } from "../../canvas/align";
-import type { AlignMode, Box, BoxMode } from "../../canvas/align";
+import { align as alignPositions, alignBoxes, gridBoxes } from "../../canvas/align";
+import type { AlignMode, Box, BoxMode, GridItem, GridOrder } from "../../canvas/align";
+import { KIND_LABEL } from "../../canvas/annotations";
 import type { End } from "../../canvas/connectors";
 import type { Op } from "../../shell/apps";
 import { empty, has, itemOf, itemsOf, multiOf, primaryOf, readingOrder, cycle as cycleOrder, selectionOf, single, size } from "../state/selection";
@@ -20,6 +21,13 @@ import type { Model, ModelLink, Selection } from "../../canvas/types";
 import { centered, fitZoom, openingView } from "./opening";
 
 export interface Viewport { x: number; y: number; zoom: number }
+/** Pourquoi des équipements ont bougé d'un geste : aligner, glisser (graph.ts), ou mettre en grille (lot 8 de docs/11,
+ *  propre à l'application : il passe toujours par `onBlock`, la page dit le message). */
+export type MoveCause = PinsCause | "gridded";
+/** Mettre la sélection en grille : colonnes (sinon le moins de cases vides), ordre, pas de l'aimant (`null` sans). */
+export interface GridOptions { cols?: number | null; order: GridOrder; snap: number | null }
+/** Une grille calculée sur la sélection : ses dimensions et la place à venir de chaque élément (boîte dans le plan, nom). */
+export interface GridShape { cols: number; rows: number; count: number; places: { key: string; name: string; box: Box }[] }
 export interface Insets { top: number; right: number; bottom: number; left: number }
 /** Ce que la toile sait de la vue : la taille du canevas, la vue courante, et comment en poser une. */
 export interface ViewPort { rect: () => { width: number; height: number }; get: () => Viewport; set: (view: Viewport, animate: boolean) => void }
@@ -35,7 +43,7 @@ export interface ToileHooks {
   later?: (run: () => void, ms: number) => () => void;
   /** Un geste sur une sélection mixte (glissé, alignement, flèches) : les épingles et les opérations des annotations et
    *  connecteurs, à enregistrer en une seule écriture (une entrée d'annulation). */
-  onBlock?: (pins: Map<string, Point>, ops: Op[], cause: PinsCause) => void;
+  onBlock?: (pins: Map<string, Point>, ops: Op[], cause: MoveCause) => void;
   /** Peut-on écrire l'intention (un nom, la vue Diagramme) ? Sinon annotations et connecteurs ne bougent pas. */
   canWrite?: () => boolean;
 }
@@ -99,6 +107,11 @@ export interface Toile {
   dropped: (hosts: string[], ops?: Op[]) => void;
   /** Aligne la sélection : des cartes seules par leurs centres (`AlignMode`), une sélection mixte par les boîtes. */
   alignSelected: (mode: AlignMode | BoxMode) => Map<string, Point>;
+  /** La grille que « mettre en grille » poserait (l'aperçu du volet), sans rien bouger ; `null` sous trois éléments. */
+  gridPlan: (options: GridOptions) => GridShape | null;
+  /** Met la sélection en grille (équipements et annotations non verrouillées ; cadres et connecteurs ne bougent pas) :
+   *  un paquet d'épingles et les places des annotations en une écriture, une entrée d'annulation. */
+  gridSelected: (options: GridOptions) => GridShape | null;
   /** Déplace la sélection de (dx, dy) au clavier ; une rafale de flèches n'enregistre qu'un paquet, `NUDGE_MS` après la
    *  dernière. Rend faux s'il n'y a aucun équipement sélectionné. */
   nudge: (dx: number, dy: number) => boolean;
@@ -316,8 +329,9 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
   }
   // Une écriture pour un geste : les épingles seules passent par `onPin` / `onPins` (comme avant) ; avec des annotations
   // ou des connecteurs, tout part ensemble par `onBlock` (une seule entrée d'annulation).
-  function save(hosts: string[], cause: PinsCause, ops: Op[] = []): void {
+  function save(hosts: string[], cause: MoveCause, ops: Op[] = []): void {
     const moves = new Map(hosts.filter((host) => at(host)).map((host): [string, Point] => [host, { ...(at(host) as Point) }]));
+    if (cause === "gridded") { if (hooks.onBlock) hooks.onBlock(moves, ops, cause); return; }
     if (ops.length && hooks.onBlock) hooks.onBlock(moves, ops, cause);
     else if (moves.size > 1 && hooks.onPins) hooks.onPins(moves, cause);
     else if (hooks.onPin) moves.forEach((point, host) => hooks.onPin?.(host, point));
@@ -382,6 +396,42 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     save(Array.from(hostMoves.keys()).sort(), "aligned", noteOps(shifted));
     settle(Array.from(hostMoves.keys()));
     return hostMoves;
+  }
+  // Mettre en grille (lot 8 de docs/11) : les mêmes éléments qu'un alignement par les boîtes (équipements de la run,
+  // annotations non verrouillées si l'on peut écrire), rangés par `gridBoxes` (align.ts) ; trois au moins.
+  const noteName = (id: string): string => {
+    const a = model.annotationById.get(id), c = a ? a.content : null;
+    const text = !c ? "" : c.kind === "note" ? c.text.split("\n")[0] : c.kind === "shape" ? c.label : c.kind === "image" ? c.alt || "" : "";
+    return text.trim() || (c ? KIND_LABEL[c.kind] || c.kind : id);
+  };
+  function gridItems(): GridItem[] {
+    const hosts = Array.from(state.selected).filter((host) => at(host) && !(model.nodeByHost.get(host) || { ghost: true }).ghost).sort();
+    const items = hosts.map((host): GridItem => { const c = at(host) as Point, b = toile.boxes.get(host) || { w: 0, h: 0 }; return { id: "node\u0000" + host, name: host, box: { x: c.x - b.w / 2, y: c.y - b.h / 2, w: b.w, h: b.h } }; });
+    return items.concat(movableNotes().sort().map((id): GridItem => ({ id: "annotation\u0000" + id, name: noteName(id), box: { ...(toile.frames.get(id) as Box) } })));
+  }
+  function gridOf(options: GridOptions): { shape: GridShape; items: GridItem[]; places: Map<string, Point> } | null {
+    const items = gridItems();
+    if (items.length < 3) return null;
+    const plan = gridBoxes(items, options);
+    if (!plan) return null;
+    const places = plan.ordered.map((g) => { const p = plan.places.get(g.id) as Point; return { key: g.id, name: g.name, box: { x: p.x, y: p.y, w: g.box.w, h: g.box.h } }; });
+    return { shape: { cols: plan.cols, rows: plan.rows, count: items.length, places }, items, places: plan.places };
+  }
+  function gridSelected(options: GridOptions): GridShape | null {
+    flush();
+    const got = gridOf(options);
+    if (!got) return null;
+    const hostMoves = new Map<string, Point>(), shifted: string[] = [];
+    got.items.forEach((g) => {
+      const corner = got.places.get(g.id) as Point, [kind, id] = g.id.split("\u0000");
+      if (corner.x === g.box.x && corner.y === g.box.y) return;
+      if (kind === "node") { const point = { x: Math.round(corner.x + g.box.w / 2), y: Math.round(corner.y + g.box.h / 2) }; moveTo(id, point); hostMoves.set(id, point); }
+      else { shiftNote(id, corner.x - g.box.x, corner.y - g.box.y); shifted.push(id); }
+    });
+    bump();
+    if (hostMoves.size || shifted.length) save(Array.from(hostMoves.keys()).sort(), "gridded", noteOps(shifted));
+    settle(Array.from(hostMoves.keys()));
+    return got.shape;
   }
   // Les flèches : la sélection bouge tout de suite, l'enregistrement attend la fin de la rafale.
   let nudging: { hosts: Set<string>; notes: Set<string>; lines: Set<string>; cancel: () => void } | null = null;
@@ -454,6 +504,7 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     scene: () => current || (current = visible(model, state.filters)),
     render, repaint: bump, fit, frame, open, notable, select, selectItems, allItems, cycle, shapes,
     viewport: () => (view ? { ...view.get() } : null), restoreView: (next) => { if (view) view.set(next, true); }, selectHosts, reveal, moveTo, dropped, alignSelected, nudge, flush, restore,
+    gridPlan: (options) => { const got = gridOf(options); return got ? got.shape : null; }, gridSelected,
     moveLines: (ids, dx, dy) => { const kept = ids.filter((id) => model.connectorById.has(id) && (dx || dy)); kept.forEach((id) => shiftLine(id, dx, dy)); return lineOps(kept).filter((op) => op.op === "connector_update" && (op.start || op.end)); },
     resetPins: () => { state.pinned = savedPins(); render(true); },
     replaceAll: () => { state.pinned = savedPins(); state.placed = new Map(); render(false, true); },

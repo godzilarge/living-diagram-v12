@@ -2,11 +2,15 @@
 // la valeur posée, « ambre → violet » au survol), puis le choix : les douze teintes et « défaut » (la grille de
 // l'inspecteur, `HueGrid`), une piste de crans (le gabarit `.seg` de l'inspecteur), aligner et répartir en deux rangées,
 // la position d'une étiquette (3 × 3, `PositionGrid`), ou un petit menu (nouveau groupe, ajouter à). Rien ne s'écrit
-// ici : chaque choix remonte à la barre (`onPick`), qui l'exécute par les commandes du store.
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, Group, SquareDashedMousePointer } from "lucide-react";
+// ici : chaque choix remonte à la barre (`onPick`), qui l'exécute par les commandes du store. Sous les alignements,
+// « mettre en grille » (lot 8 de docs/11, prototype validé) : colonnes (− / +), ordre (par nom ou à l'écran), puis
+// l'action ; l'en-tête dit le résultat (« 12 → 4 × 3 ») et survoler la section montre chaque place à venir.
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceAround, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceAround, Group, LayoutGrid, Minus, Plus, SquareDashedMousePointer } from "lucide-react";
 import { useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { GRID_ORDERS } from "../../canvas/align";
+import type { GridOrder } from "../../canvas/align";
 import { POSITIONS, STYLE_LABEL } from "../../canvas/groups";
 import { HUES, HUE_LABEL } from "../../canvas/hues";
 import type { HueName } from "../../canvas/hues";
@@ -34,8 +38,55 @@ function moveFocus(event: KeyboardEvent<HTMLElement>, cols: number): void {
 
 const Caption = ({ label, value }: { label: string; value: string }) => <div className="volet-cap"><span>{label}</span><b>{value}</b></div>;
 
+/** Ce que la barre donne au volet pour « mettre en grille » : le compte, les colonnes et rangées, l'ordre, et quoi faire. */
+export interface GridControls {
+  count: number; cols: number; rows: number; order: GridOrder;
+  setCols: (cols: number) => void; setOrder: (order: GridOrder) => void;
+  /** Montrer (ou effacer) l'aperçu ; `at` : les réglages survolés, pas encore choisis. */
+  preview: (on: boolean, at?: { cols?: number; order?: GridOrder }) => void;
+  run: () => void;
+}
+
+/** La section « mettre en grille » du volet : deux réglages nommés, puis l'action pleine largeur avec son raccourci. */
+function GridSection({ grid }: { grid: GridControls }) {
+  const { t } = useTranslation("shell");
+  const on = (): void => grid.preview(true), off = (): void => grid.preview(false);
+  const hover = { onPointerEnter: on, onPointerLeave: off };
+  return (
+    <>
+      <div className="volet-rule" aria-hidden="true" />
+      <div className="order-row">
+        <span className="order-label" id="grid-cols-label">{t("fbar.gridColumns")}</span>
+        <div className="stepper" role="group" aria-labelledby="grid-cols-label">
+          <button type="button" className="step" aria-label={t("fbar.gridFewer")} disabled={grid.cols <= 1} onClick={() => grid.setCols(grid.cols - 1)} {...hover}><Minus aria-hidden="true" /></button>
+          <span className="step-val" aria-live="polite" aria-label={t("fbar.gridColumnsCount", { count: grid.cols })}>{grid.cols}</span>
+          <button type="button" className="step" aria-label={t("fbar.gridMore")} disabled={grid.cols >= grid.count} onClick={() => grid.setCols(grid.cols + 1)} {...hover}><Plus aria-hidden="true" /></button>
+        </div>
+      </div>
+      <div className="order-row">
+        <span className="order-label">{t("fbar.gridOrder")}</span>
+        <div className="seg volet-seg grid-order" role="radiogroup" aria-label={t("fbar.gridOrderLabel")} onKeyDown={(event) => moveFocus(event, GRID_ORDERS.length)}>
+          {GRID_ORDERS.map((o) => {
+            const chosen = o === grid.order;
+            return (
+              <button key={o} type="button" role="radio" className="seg-item" aria-checked={chosen ? "true" : "false"} tabIndex={chosen ? 0 : -1}
+                onClick={() => grid.setOrder(o)} onPointerEnter={() => grid.preview(true, { order: o })} onPointerLeave={off}>
+                <span>{t(`fbar.gridOrders.${o}`)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <button type="button" className="grid-go" data-role="grid" aria-keyshortcuts="Alt+G" onClick={grid.run} {...hover}
+        onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) on(); }} onBlur={off}>
+        <LayoutGrid aria-hidden="true" /><span className="grid-go-label">{t("fbar.grid")}</span><span className="grid-go-keys">Alt+G</span>
+      </button>
+    </>
+  );
+}
+
 /** Le corps d'un volet ; `onTip` : montrer (ou cacher) l'infobulle d'une case d'alignement. */
-export function VoletBody({ button, onPick, onTip }: { button: BarButton; onPick: (value: string | null) => void; onTip: (el: HTMLElement | null, label: string, keys: string) => void }) {
+export function VoletBody({ button, onPick, onTip, grid }: { button: BarButton; onPick: (value: string | null) => void; onTip: (el: HTMLElement | null, label: string, keys: string) => void; grid?: GridControls }) {
   const { t } = useTranslation("shell");
   const volet = button.volet as Volet;
   const [preview, setPreview] = useState<string | null>(null);
@@ -73,9 +124,10 @@ export function VoletBody({ button, onPick, onTip }: { button: BarButton; onPick
   }
   if (volet.kind === "align") {
     const cols = volet.rows[0].length;
+    const gridded = volet.grid && grid && grid.count >= 3 ? grid : null;
     return (
       <>
-        <Caption label={button.label} value={t("fbar.items", { count: volet.count })} />
+        <Caption label={button.label} value={gridded ? t("fbar.gridResult", { total: gridded.count, cols: gridded.cols, rows: gridded.rows }) : t("fbar.items", { count: volet.count })} />
         <div className={"align-grid cols-" + cols} role="group" aria-label={button.label} onKeyDown={(event) => moveFocus(event, cols)}>
           {volet.rows.flat().map((cell, i) => (
             <button key={cell.mode} type="button" className={"vgrid-item" + (cell.distribute ? " dist" : "")} aria-label={cell.label} aria-keyshortcuts={cell.aria} tabIndex={i === 0 ? 0 : -1}
@@ -85,6 +137,7 @@ export function VoletBody({ button, onPick, onTip }: { button: BarButton; onPick
             </button>
           ))}
         </div>
+        {gridded ? <GridSection grid={gridded} /> : null}
       </>
     );
   }

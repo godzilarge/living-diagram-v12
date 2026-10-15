@@ -27,7 +27,8 @@ export interface Choice { value: string; label: string; num?: string; glyph?: Gl
 export type Volet =
   | { kind: "hue"; value: string | null; inherited: string | null; allowDefault: boolean }
   | { kind: "choice"; title: string; value: string; options: Choice[] }
-  | { kind: "align"; count: number; rows: AlignCell[][] }
+  /** `grid` : « mettre en grille » sous les alignements (lot 8 de docs/11 ; trois éléments au moins, comme répartir). */
+  | { kind: "align"; count: number; rows: AlignCell[][]; grid: boolean }
   | { kind: "position"; value: string }
   | { kind: "groups"; hosts: string[]; groups: { id: string; label: string }[] };
 export interface AlignCell { mode: BarAlign; label: string; keys: string; aria: string; distribute: boolean }
@@ -176,6 +177,10 @@ function deviceEntries(model: Model, host: string): BarEntry[] {
 
 // ——— La sélection multiple : aligner et répartir, grouper, teinte, puis ce qui s'efface ———
 
+/** Mettre en grille demande trois éléments (deux sont déjà une rangée), comme répartir ; Alt+G (lot 8 de docs/11). */
+export const GRID_MIN = 3;
+/** Alt+G : la lettre lue sur la touche, sinon sa place sur le clavier (comme les alignements). */
+export const isGridKey = (key: string, code: string): boolean => key.toLowerCase() === "g" || code === "KeyG";
 /** Les alignements de la barre : les boîtes (bords, milieux, répartir), les raccourcis du prototype validé. */
 export type BarAlign = "left" | "center" | "right" | "top" | "middle" | "bottom" | "distribute-horizontal" | "distribute-vertical";
 /** Les raccourcis : Alt + lettre, Alt + Maj + lettre pour répartir. */
@@ -228,7 +233,7 @@ export function multiHues(model: Model, multi: Multi, devices: string[]): { effe
 function multiEntries(model: Model, multi: Multi): BarEntry[] {
   const out: BarEntry[] = [];
   const { count } = movableCount(model, multi);
-  if (count >= 2) out.push(button("align", L("align"), icon("align"), { volet: { kind: "align", count, rows: alignRows(count) } }), SEP);
+  if (count >= 2) out.push(button("align", L("align"), icon("align"), { volet: { kind: "align", count, rows: alignRows(count), grid: count >= GRID_MIN } }), SEP);
   const devices = multi.hosts.filter((host) => { const n = model.nodeByHost.get(host); return !!n && n.kind !== "stub" && !n.ghost; });
   if (devices.length) out.push(button("group", L("group"), icon("group"), { volet: { kind: "groups", hosts: devices, groups: groupsOf(model) } }));
   const hues = multiHues(model, multi, devices);
@@ -385,4 +390,4 @@ export function placeVolet(bar: Rect, below: boolean, opener: Rect, w: number, h
   return { ...kept[0], y: Math.round(kept[0].y) };
 }
 
-export const floating = { multiHues, targetOf, shows, entriesOf, barLabel, nextHeads, nextTextAlign, selectionKey, alignFromKey, alignCommand, movableCount, alignRows, anchorOf, placeBar, placeVolet, toScreen, ariaKeys, BAR_H, GAP };
+export const floating = { GRID_MIN, isGridKey, multiHues, targetOf, shows, entriesOf, barLabel, nextHeads, nextTextAlign, selectionKey, alignFromKey, alignCommand, movableCount, alignRows, anchorOf, placeBar, placeVolet, toScreen, ariaKeys, BAR_H, GAP };

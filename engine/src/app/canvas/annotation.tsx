@@ -54,9 +54,14 @@ export interface AnnotationActions {
   hold: (reason: string, on: boolean) => void;
   /** Le nom d'un groupe édité sur son cadre (lot 2 de docs/11). */
   groupLabel: (id: string, label: string) => void;
+  /** Un redimensionnement en cours (lot 8 de docs/11) : la boîte proposée, corrigée par les repères d'alignement (le
+   *  bord tiré s'aligne sur les bords des autres, puis l'aimant de la grille) ; `guideEnd` à la relâche. */
+  guideResize: (id: string, start: Frame, raw: Frame, handle: HandleId, mods: { ratio: boolean; center: boolean; free: boolean }) => Frame;
+  guideEnd: () => void;
 }
 const freePick = (at: Point): Pick => ({ end: { kind: "free", x: at.x, y: at.y }, place: { kind: "point", at }, target: null, anchors: [], snapped: null });
-export const AnnotationContext = createContext<AnnotationActions>({ resize: () => undefined, edit: () => undefined, content: () => undefined, menu: () => undefined, connector: () => undefined, pick: freePick, aim: () => undefined, hold: () => undefined, groupLabel: () => undefined });
+export const AnnotationContext = createContext<AnnotationActions>({ resize: () => undefined, edit: () => undefined, content: () => undefined, menu: () => undefined, connector: () => undefined, pick: freePick, aim: () => undefined, hold: () => undefined, groupLabel: () => undefined,
+  guideResize: (_id, _start, raw) => raw, guideEnd: () => undefined });
 /** Les gestes d'édition en place qu'une commande (menu, F2, Entrée) peut demander au nœud : éditer telle cellule, tel
  *  texte ; `kind` = « group » : le nom d'un groupe sur son cadre. */
 export type EditAsk = { id: string; cell: Cell | null; at: number; kind?: "annotation" | "group" };
@@ -76,8 +81,9 @@ function GesturePill({ place }: { place: PillPlace }) {
 }
 
 /** Les huit poignées (handles.ts) : un glissé redimensionne la boîte en direct, la relâche écrit ; la poignée saisie
- *  porte la pastille « L × H ». */
-function Handles({ frame, onResize }: { frame: Frame; onResize: (next: Frame, done: boolean, handle: HandleId) => void }) {
+ *  porte la pastille « L × H ». `adjust` : les repères d'alignement corrigent la boîte proposée (Ctrl tenu : libre). */
+function Handles({ frame, onResize, adjust, release }: { frame: Frame; onResize: (next: Frame, done: boolean, handle: HandleId) => void;
+  adjust: (start: Frame, raw: Frame, handle: HandleId, mods: { ratio: boolean; center: boolean; free: boolean }) => Frame; release: () => void }) {
   const rf = useReactFlow();
   const zoom = useZoom();
   const drag = useRef<{ id: HandleId; start: Frame; sx: number; sy: number } | null>(null);
@@ -86,7 +92,8 @@ function Handles({ frame, onResize }: { frame: Frame; onResize: (next: Frame, do
     const d = drag.current;
     if (!d) return null;
     const k = rf.getZoom() || 1;
-    return resized(d.start, d.id, (event.clientX - d.sx) / k, (event.clientY - d.sy) / k, { ratio: event.shiftKey, center: event.altKey });
+    const mods = { ratio: event.shiftKey && d.id.length === 2, center: event.altKey, free: event.ctrlKey || event.metaKey };
+    return adjust(d.start, resized(d.start, d.id, (event.clientX - d.sx) / k, (event.clientY - d.sy) / k, { ratio: event.shiftKey, center: event.altKey }), d.id, mods);
   };
   const down = useCallback((id: HandleId) => (event: ReactPointerEvent<SVGRectElement>): void => {
     if (event.button !== 0) return; // un clic droit ouvre le menu, il ne glisse ni n'écrit rien (audit, M4)
@@ -98,13 +105,14 @@ function Handles({ frame, onResize }: { frame: Frame; onResize: (next: Frame, do
   const move = useCallback((event: ReactPointerEvent<SVGRectElement>): void => {
     const box = next(event);
     if (box && drag.current) onResize(box, false, drag.current.id);
-  }, [rf, onResize]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rf, onResize, adjust]); // eslint-disable-line react-hooks/exhaustive-deps
   const up = useCallback((event: ReactPointerEvent<SVGRectElement>): void => {
     const box = next(event), d = drag.current;
     drag.current = null;
     setGrabbed(null);
+    release();
     if (box && d) onResize(box, true, d.id);
-  }, [rf, onResize]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rf, onResize, release]); // eslint-disable-line react-hooks/exhaustive-deps
   const shapes = handleShapes(frame, zoom);
   return (
     <g className={"annotation-handles" + (grabbed ? " resizing" : "")}>
@@ -204,6 +212,7 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
     const was = data.frame;
     if (next.x !== was.x || next.y !== was.y || next.w !== was.w || next.h !== was.h) actions.resize(a.id, next);
   }, [a.id, data.frame, actions]);
+  const adjust = useCallback((start: Frame, raw: Frame, handle: HandleId, mods: { ratio: boolean; center: boolean; free: boolean }): Frame => actions.guideResize(a.id, start, raw, handle, mods), [actions, a.id]);
   const canEdit = editable && !a.locked;
   const dbl = useCallback((): void => { if (canEdit && (a.content.kind === "note" || a.content.kind === "shape")) setEditing(true); }, [canEdit, a.content.kind]);
   const done = useCallback((text: string | null): void => {
@@ -228,7 +237,7 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
           {a.content.kind === "shape" && a.content.shape === "ellipse"
             ? <ellipse className="hover-ring" cx={frame.w / 2} cy={frame.h / 2} rx={frame.w / 2} ry={frame.h / 2} />
             : <rect className="hover-ring" x={0} y={0} width={frame.w} height={frame.h} rx={a.style.radius} />}
-          {selected && canEdit && !editingNow && !data.multi ? <Handles frame={frame} onResize={onResize} /> : null}
+          {selected && canEdit && !editingNow && !data.multi ? <Handles frame={frame} onResize={onResize} adjust={adjust} release={actions.guideEnd} /> : null}
           {moved ? <GesturePill place={moved} /> : null}
           {editing && a.content.kind === "shape" ? <InlineInput at={{ x: 6, y: Math.max(0, frame.h / 2 - 13) }} width={Math.max(60, frame.w - 12)} height={26} initial={a.content.label} max={80} label={t("shell:canvas.shapeLabel")} onDone={done} /> : null}
         </g>

@@ -15,8 +15,9 @@ export type ContextTarget =
   | { kind: "connector"; id: string };
 /** Une entrée ; `keys` : son raccourci écrit (« Ctrl+C »), `aria` : le même pour `aria-keyshortcuts` (« Control+C »). */
 export interface MenuItem { id: string; label: string; danger?: boolean; checked?: boolean; sep?: boolean; keys?: string; aria?: string }
-/** `items` : la sélection mixte, comptée (lot 3 : copier dit « le nom », « les noms » ou « la sélection »). */
-export interface MenuContext { editable: boolean; selectedHosts: string[]; hasSelection: boolean; pinned: (host: string) => boolean; items?: number }
+/** `items` : la sélection mixte, comptée (lot 3 : copier dit « le nom », « les noms » ou « la sélection ») ; `grid` :
+ *  la cible fait partie d'une sélection d'au moins trois éléments qui se rangent (lot 8 : « mettre en grille »). */
+export interface MenuContext { editable: boolean; selectedHosts: string[]; hasSelection: boolean; pinned: (host: string) => boolean; items?: number; grid?: boolean }
 
 const sep = (): MenuItem => ({ id: "sep", label: "", sep: true });
 /** Une entrée : son libellé est la clé `context.<key>` du catalogue, écrite dans la langue de la page à l'ouverture. */
@@ -24,6 +25,8 @@ const item = (id: string, key: string, extra: Partial<MenuItem> = {}): MenuItem 
 // Le presse-papiers (lot 3 de docs/11) : copier, couper, coller, dupliquer, avec leurs raccourcis écrits.
 const SHORTCUT: Record<string, string> = { copy: "C", cut: "X", paste: "V", duplicate: "D" };
 const clip = (id: "copy" | "cut" | "paste" | "duplicate", key: string): MenuItem => item("clip:" + id, key, { keys: t(("shell:context.keys." + id) as never), aria: "Control+" + SHORTCUT[id] });
+/** Mettre la sélection en grille (lot 8 de docs/11) : sans aperçu (il recouvrirait les places), Ctrl+Z l'annule. */
+const gridItem = (): MenuItem => item("grid", "grid", { keys: "Alt+G", aria: "Alt+G" });
 /** Les entrées du menu pour une cible ; un sous-ensemble en lecture seule. */
 export function menuItems(target: ContextTarget, model: Model, ctx: MenuContext): MenuItem[] {
   const out: MenuItem[] = [];
@@ -42,8 +45,8 @@ export function menuItems(target: ContextTarget, model: Model, ctx: MenuContext)
     if (write) out.push(clip("paste", "pasteHere"));
     if (write) {
       out.push(sep());
-      if (multi) out.push(item("align:horizontal", "alignH"), item("align:vertical", "alignV"), item("group", "group"));
-      else out.push(item("note", "note"), item("connect", "connect"));
+      if (multi) out.push(item("align:horizontal", "alignH"), item("align:vertical", "alignV"), ...(ctx.grid ? [gridItem()] : []), item("group", "group"));
+      else out.push(...(ctx.grid ? [gridItem()] : []), item("note", "note"), item("connect", "connect"));
       if (ctx.pinned(target.id)) out.push(item("unpin", multi ? "unpinMany" : "unpin"));
     }
     return out;
@@ -88,7 +91,9 @@ export function menuItems(target: ContextTarget, model: Model, ctx: MenuContext)
   } else if (write && a.content.kind === "note") out.push(item("text", "editText"), sep());
   out.push(item("center", "center"), sep(), clip("copy", "copy"));
   if (!write) return out;
-  out.push(clip("cut", "cut"), clip("paste", "pasteHere"), clip("duplicate", "duplicate"), sep(), item("lock", a.locked ? "unlock" : "lock"));
+  out.push(clip("cut", "cut"), clip("paste", "pasteHere"), clip("duplicate", "duplicate"), sep());
+  if (ctx.grid) out.push(gridItem(), sep());
+  out.push(item("lock", a.locked ? "unlock" : "lock"));
   // attachée, une annotation se dessine au-dessus de son ancre (React Flow : un enfant passe au-dessus de son parent) :
   // « mettre dessous » mentirait ; seul « mettre dessus » reste, pour un document qui dirait encore « dessous »
   if (a.anchor.kind === "free" || a.z === "back") out.push(item("plane", a.z === "back" ? "toFront" : "toBack"));

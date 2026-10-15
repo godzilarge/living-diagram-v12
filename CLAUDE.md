@@ -1759,7 +1759,37 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   tout comme rendu et comme qualité » ; `.impeccable/prototype-lot-8/`). Ctrl (pas Alt, pris par le clonage) suspend
   l'aimantation ; repères en chartreuse par défaut et **couleur au choix** (préférence du navigateur dans Affichage, pas
   une intention) ; grille par nom et au moins de cases vides. Détail : `docs/11` § Lot 8 « Prototype validé ».
-  Implémentation lancée.
+  Implémentation lancée (relancée après une interruption qui avait arrêté le premier agent ; lot 13 commité avant,
+  23f1aa0).
+- **Barre contextuelle : retours d'Orhan à l'usage, lot 4 bis** (2026-10-14) : « pas un gadget », elle doit formater
+  le texte et éditer les objets vite et complètement : taille libre (pas des choix fixes), souligné, italique,
+  alignement et position du texte plus riches, volets cohérents avec la barre. Le contrat admet déjà toute taille de 8 à
+  64 ; souligné et italique sont additifs au contrat `Intent`. Prototype lancé en parallèle du lot 8 (hors du projet),
+  code après le lot 8. Détail : `docs/11` § Lot 4 « Retours d'Orhan à l'usage ». **Prototype jugé le même jour** (« bien
+  mieux ») : retirer les graisses du volet police (redondant avec B) ; les cinq questions à la recommandation sauf avis
+  contraire. Orhan propose aussi un **bloc de code** (configurations, Python) : avis rendu et retenu, **lot 16** dans
+  `docs/11` (cinquième sorte d'annotation ; Python, Bash, JSON, YAML d'abord ; coloration au choix par bloc ; une
+  bibliothèque éprouvée plutôt qu'un coloreur maison ; avertissement sur les secrets avant d'enregistrer ; même mineure
+  `Intent` que le lot 4 bis). Prototype lancé en parallèle du lot 8.
+- **Prototype du lot 16 (bloc de code) validé ; codé tout de suite dans un worktree** (2026-10-14, « C'est très bon, on
+  code ça maintenant »). Prism 1.30.0 (MIT, `tokenize`, jetons en `tspan`) ; Python, Bash, JSON, YAML, Cisco IOS / NX-OS
+  (grammaire Obsidian, MIT) et FortiOS (grammaire écrite) ; coloration au choix par bloc ; quatre polices à chasse fixe
+  OFL ; secrets signalés avant l'enregistrement ; collage d'un code = bloc ; **hauteur libre et défilement dans le
+  bloc** (Orhan a refusé la hauteur déduite des lignes) : la molette défile sur un bloc sélectionné seul, zoome ailleurs.
+  Ordre révisé : lot 16 (`Intent` 1.6.0) avant le lot 4 bis (1.7.0) ; lot 9 en 1.8.0. Fusion après le lot 8. Détail :
+  `docs/11` § Lot 16.
+- **Lot 8 livré : repères d'alignement, aimant aux objets, mettre en grille** (2026-10-15, agent Opus, relu par
+  l'orchestrateur, captures conformes au prototype ; détail dans `docs/11` § Lot 8 « Fait »). Pendant un glissé ou un
+  redimensionnement, centre ↔ centre, bord ↔ bord et écart égal se proposent à 8 px d'écran, la boîte s'y colle, l'aimant
+  de la grille s'applique après sur l'axe libre ; **Ctrl** suspend tout ; React Flow n'aimante plus lui-même
+  (`snapToGrid` retiré, correction dans `onNodesChange`). Calcul pur `app/canvas/guides.ts`, branchement `guide-drag.ts`,
+  couche `GuideLayer.tsx` à état propre (un pas de glissé ne reconstruit jamais la toile). **Mettre en grille**
+  (`canvas/align.ts`) : trois éléments au moins, colonnes au moins de cases vides réglables, ordre par nom ou à l'écran,
+  une écriture et un Ctrl+Z, depuis le volet « aligner et répartir » (aperçu au survol), le clic droit et Alt+G.
+  Préférences du navigateur : `guides`, `guideHue` (teintes à ≥ 3:1 dans les deux thèmes, testé), `gridOrder`. Mesuré à
+  500 équipements : un pas 0,16 ms, glissé 40-45 i/s (32 sans repères, aucune régression). 22 mutations sur 22.
+  **À surveiller** : la garde de la jauge a échoué 3 fois sur ~50 passages (vue envoyée loin, cartes encore montées
+  0,6 s après), cause non établie. Parqués : écart égal au redimensionnement, repères aux flèches (voulu).
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 

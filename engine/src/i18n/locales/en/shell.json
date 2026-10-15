@@ -74,7 +74,9 @@
     "lightTitle": "light theme",
     "darkTitle": "dark theme",
     "toLight": "switch to the light theme",
-    "toDark": "switch to the dark theme"
+    "toDark": "switch to the dark theme",
+    "guides": "alignment guides",
+    "guidesTitle": "alignment guides: a drag snaps to nearby objects · hold Ctrl to drag freely"
   },
   "connect": {
     "label": "Living Diagram: open an infrastructure",
@@ -161,7 +163,10 @@
     "showPins": "pins",
     "showNotes": "annotations",
     "editing": "editing",
-    "showFbar": "context bar"
+    "showFbar": "context bar",
+    "guideColor": "guide colour",
+    "guideDefault": "default",
+    "chartreuse": "chartreuse"
   },
   "band": {
     "label": "archived runs of the infrastructure",
@@ -292,7 +297,8 @@
       "cut": "Ctrl+X",
       "paste": "Ctrl+V",
       "duplicate": "Ctrl+D"
-    }
+    },
+    "grid": "arrange in a grid"
   },
   "palette": {
     "label": "type palette",
@@ -349,7 +355,12 @@
     "devicesKept": "devices come from the data: they cannot be deleted, they can be hidden",
     "hideOffer": "hide",
     "itemsCut_one": "{{count}} item cut ({{author}}) · Ctrl+Z to undo",
-    "itemsCut_other": "{{count}} items cut ({{author}}) · Ctrl+Z to undo"
+    "itemsCut_other": "{{count}} items cut ({{author}}) · Ctrl+Z to undo",
+    "itemsGridded_one": "{{count}} item arranged in a grid, saved ({{author}})",
+    "itemsGridded_other": "{{count}} items arranged in a grid, saved ({{author}})",
+    "griddedLocal_one": "{{count}} device arranged in a grid here: give your name to save the pins",
+    "griddedLocal_other": "{{count}} devices arranged in a grid here: give your name to save the pins",
+    "gridNeedsThree": "arrange in a grid: select at least three items"
   },
   "canvas": {
     "haActive": "active",
@@ -395,7 +406,8 @@
     },
     "imageLoading": "loading image…",
     "shapeLabel": "label of the shape",
-    "groupName": "name of the group"
+    "groupName": "name of the group",
+    "guideFree": "free"
   },
   "live": {
     "selected": "{{kind}} {{label}} selected",
@@ -573,6 +585,19 @@
     "unlockedItems_other": "{{count}} items unlocked ({{author}})",
     "hueOf": "hue: {{value}}",
     "huedItems_one": "hue {{hue}} on {{count}} item ({{author}})",
-    "huedItems_other": "hue {{hue}} on {{count}} items ({{author}})"
+    "huedItems_other": "hue {{hue}} on {{count}} items ({{author}})",
+    "grid": "arrange in a grid",
+    "gridColumns": "columns",
+    "gridOrder": "order",
+    "gridOrderLabel": "grid order",
+    "gridOrders": {
+      "name": "by name",
+      "screen": "as shown"
+    },
+    "gridFewer": "one column fewer",
+    "gridMore": "one column more",
+    "gridResult": "{{total}} → {{cols}} × {{rows}}",
+    "gridColumnsCount_one": "{{count}} column",
+    "gridColumnsCount_other": "{{count}} columns"
   }
 }

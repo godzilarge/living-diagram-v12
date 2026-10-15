@@ -31,6 +31,10 @@
   --pill-tint: 16%; /* le fond d'une pastille : sa teinte mêlée au fond relevé (app.css, .pill) */
   --icon-mark: #0b0f14; /* le symbole en réserve dans l'icône de type : le fond, sur les teintes claires du sombre */
   --grid: #1f2a38;
+  /* les repères d'alignement (lot 8 de docs/11) : un vert chartreuse, la seule teinte que cette toile n'emploie pas déjà
+     (rouge = erreur, rose = changé, cyan = sélection, ambre et orange = avertissement) ; 14:1 sur le fond. La couleur
+     se choisit (préférence du navigateur) : `--guide` est alors posé sur la racine par le CSSOM (prefs.ts). */
+  --guide-default: #c6f03a; --guide: var(--guide-default); --guide-ink: #0b0f14;
   --scrim: rgba(5, 8, 12, 0.35);
   --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
@@ -72,6 +76,7 @@
   --pill-tint: 10%;
   --icon-mark: #ffffff; /* blanc sur les teintes profondes du clair */
   --grid: #d6dde7;
+  --guide-default: #4f7a00; --guide: var(--guide-default); --guide-ink: #ffffff; /* 4,5:1 sur le fond clair */
   --scrim: rgba(20, 27, 36, 0.25);
   --shadow: 0 14px 40px rgba(20, 27, 36, 0.16), 0 0 0 1px rgba(20, 27, 36, 0.05);
   --shadow-tip: 0 8px 18px rgba(20, 27, 36, 0.18);

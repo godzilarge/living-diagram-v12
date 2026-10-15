@@ -596,6 +596,7 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             prefs = json.loads(tab.js("localStorage.getItem('ld-prefs')"))
             assert 460 <= prefs.pop("panelWidth") <= 470, "la largeur glissée est rangée à la relâche"
             expected = {"theme": "light", "language": None, "grid": True, "snap": False, "minimap": True, "fbar": True}
+            expected |= {"guides": True, "guideHue": None, "gridOrder": "name"}  # les repères (lot 8 de docs/11)
             assert prefs == expected
             tab.js(
                 "document.querySelector('.panel .panel-resize')"

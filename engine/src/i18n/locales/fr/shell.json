@@ -83,7 +83,9 @@
     "lightTitle": "thème clair",
     "darkTitle": "thème sombre",
     "toLight": "passer au thème clair",
-    "toDark": "passer au thème sombre"
+    "toDark": "passer au thème sombre",
+    "guides": "repères d'alignement",
+    "guidesTitle": "repères d'alignement : un glissé s'aligne sur les objets voisins · Ctrl tenu pour s'en passer"
   },
   "connect": {
     "label": "Living Diagram : ouvrir une infrastructure",
@@ -176,7 +178,10 @@
     "showPins": "épingles",
     "showNotes": "annotations",
     "editing": "édition",
-    "showFbar": "barre contextuelle"
+    "showFbar": "barre contextuelle",
+    "guideColor": "couleur des repères",
+    "guideDefault": "défaut",
+    "chartreuse": "chartreuse"
   },
   "band": {
     "label": "runs archivées de l'infrastructure",
@@ -315,7 +320,8 @@
       "cut": "Ctrl+X",
       "paste": "Ctrl+V",
       "duplicate": "Ctrl+D"
-    }
+    },
+    "grid": "mettre en grille"
   },
   "palette": {
     "label": "palette des types",
@@ -378,7 +384,14 @@
     "hideOffer": "masquer",
     "itemsCut_one": "{{count}} élément coupé ({{author}}) · Ctrl+Z pour annuler",
     "itemsCut_many": "{{count}} éléments coupés ({{author}}) · Ctrl+Z pour annuler",
-    "itemsCut_other": "{{count}} éléments coupés ({{author}}) · Ctrl+Z pour annuler"
+    "itemsCut_other": "{{count}} éléments coupés ({{author}}) · Ctrl+Z pour annuler",
+    "itemsGridded_one": "{{count}} élément mis en grille, enregistré ({{author}})",
+    "itemsGridded_many": "{{count}} éléments mis en grille, enregistrés ({{author}})",
+    "itemsGridded_other": "{{count}} éléments mis en grille, enregistrés ({{author}})",
+    "griddedLocal_one": "{{count}} équipement mis en grille ici : donnez votre nom pour enregistrer les épingles",
+    "griddedLocal_many": "{{count}} équipements mis en grille ici : donnez votre nom pour enregistrer les épingles",
+    "griddedLocal_other": "{{count}} équipements mis en grille ici : donnez votre nom pour enregistrer les épingles",
+    "gridNeedsThree": "mettre en grille : sélectionnez trois éléments au moins"
   },
   "canvas": {
     "haActive": "actif",
@@ -426,7 +439,8 @@
     },
     "imageLoading": "image en chargement…",
     "shapeLabel": "étiquette de la forme",
-    "groupName": "nom du groupe"
+    "groupName": "nom du groupe",
+    "guideFree": "libre"
   },
   "live": {
     "selected": "sélection : {{kind}} {{label}}",
@@ -623,6 +637,20 @@
     "hueOf": "teinte : {{value}}",
     "huedItems_one": "teinte {{hue}} sur {{count}} élément ({{author}})",
     "huedItems_many": "teinte {{hue}} sur {{count}} éléments ({{author}})",
-    "huedItems_other": "teinte {{hue}} sur {{count}} éléments ({{author}})"
+    "huedItems_other": "teinte {{hue}} sur {{count}} éléments ({{author}})",
+    "grid": "mettre en grille",
+    "gridColumns": "colonnes",
+    "gridOrder": "ordre",
+    "gridOrderLabel": "ordre de la grille",
+    "gridOrders": {
+      "name": "par nom",
+      "screen": "à l'écran"
+    },
+    "gridFewer": "une colonne de moins",
+    "gridMore": "une colonne de plus",
+    "gridResult": "{{total}} → {{cols}} × {{rows}}",
+    "gridColumnsCount_one": "{{count}} colonne",
+    "gridColumnsCount_many": "{{count}} colonnes",
+    "gridColumnsCount_other": "{{count}} colonnes"
   }
 }

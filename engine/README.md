@@ -317,6 +317,21 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   la toile ne la connaît pas), `FloatingVolet.tsx`, `floating-faces.tsx` (icônes et glyphes qui montrent la valeur),
   `styles/floating.css` ; `HueGrid` et `PositionGrid` (`ui/inspector.tsx`) sont les grilles de l'inspecteur, partagées ;
   `state/floating-commands.ts` (épingler ici, verrouiller une sélection).
+- **Les repères d'alignement et « mettre en grille »** (lot 8 de `docs/11`, 2026-10-14 ; prototype validé
+  `.impeccable/prototype-lot-8/`, qui fait foi pour le rendu). Pendant un glissé (une carte, un bloc, une annotation, un
+  cadre), un Alt + glissé et le redimensionnement d'une annotation, un trait chartreuse de 1 px dit « aligné avec »
+  (centre ↔ centre, bord ↔ bord, le centre d'abord, une ligne par axe ; l'écart égal se cote en capsule) et la boîte s'y
+  colle à moins de 8 px d'écran ; l'aimant de la grille s'applique **après**, sur l'axe libre ; **Ctrl** tenu suspend les
+  deux (la pastille du geste dit « libre ») ; les flèches n'ont pas de repères. Le calcul est pur
+  (`app/canvas/guides.ts`, testé sous Node, 0,16 ms par pas avec 400 candidates), le branchement corrige les positions que
+  React Flow propose avant de les montrer (`app/canvas/guide-drag.ts`, dans `onNodesChange` ; React Flow n'aimante plus
+  lui-même), la couche se dessine à l'écran dans son propre état (`app/canvas/GuideLayer.tsx`) : un pas de glissé ne
+  reconstruit jamais la toile. **Mettre en grille** (`gridBoxes` dans `canvas/align.ts`) : dans le volet « aligner et
+  répartir » (colonnes − / + au moins de cases vides, ordre par nom ou à l'écran, aperçu au survol, l'en-tête dit « 12 →
+  4 × 3 »), par **Alt+G** et au clic droit d'une sélection ; trois éléments au moins, une écriture, un Ctrl+Z. Les
+  préférences du navigateur : repères allumés (bouton règle de `Controls`), leur couleur (panneau Affichage : le
+  chartreuse et les teintes qui tiennent 3:1 sur la toile dans les deux thèmes, `GUIDE_HUES`, vérifié par un test),
+  l'ordre de la grille. Parcours Chromium : `backend/tests/test_app_guides.py`.
 - **Une seule pastille** (`canvas/pill.ts`, `app/canvas/pill.tsx`, `.pill` dans `styles/app.css`) : tout fait court (rôle
   HA, stack, vitesse, MLAG, statut, gravité) a la même capsule ; seul le ton (`tone-*`) change. Une commande est un
   rectangle aux coins de 6, jamais une capsule. Les vitesses (`canvas/speed.ts`) et les faisceaux révélés au clic
@@ -434,6 +449,7 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   `Background` de React Flow), aimant (un glissé s'aligne sur la grille, `snapToGrid`), minimap (`MiniMap` de React
   Flow, cartes colorées par type, cadre déplaçable). Réglées par `Controls`, en bas à gauche, avec « cadrer tout ».
   La barre contextuelle affichée ou masquée (`fbar`, lot 4) se règle par Ctrl + . ou dans le panneau Affichage.
+  Les repères d'alignement (`guides`, `guideHue`) et l'ordre de « mettre en grille » (`gridOrder`) : lot 8, plus haut.
 - **La langue** (2026-10-10, `src/i18n/`) : **i18next + react-i18next**, sur une instance propre ; les composants lisent
   `t` par `useTranslation()` (espace `shell` par défaut, `useTranslation(["shell", "common"])` pour en lire un autre,
   clé `common:…`), un module TypeScript pur importe `t` de `i18n/`. Catalogues **embarqués** (un JSON par langue et par

@@ -758,6 +758,24 @@ pendant Maj + flèches ; trois carrés proches dans la barre d'une forme (rempli
 d'une grosse sélection (`docs/a-juger-a-l-usage.md`). Captures : `.impeccable/planche-lot-4/` (1 à 6), script
 `scripts/capture_lot4.py`.
 
+**Retours d'Orhan à l'usage, 2026-10-14 (lot 4 bis, prototype d'abord)** : « Cette barre n'est pas là pour décorer et
+n'est pas un gadget, elle est là pour permettre à l'utilisateur de formater son texte rapidement et efficacement, et plus
+globalement d'éditer rapidement et facilement des objets. Il est donc crucial que les options de personnalisation soient
+plus flexibles et complètes. » Ses cinq points : (1) taille du texte limitée à des choix fixes, il veut choisir
+réellement la taille comme dans tous les outils du marché ; (2) pas de souligné ; (3) pas d'italique ; (4) alignement et
+position du texte bien trop limités ; (5) le style des volets (sous-menus) n'est pas cohérent avec la barre. Constat :
+le contrat admet déjà toute taille entière de 8 à 64 (`text_size`), la limite (1) est dans l'interface ; (2) et (3)
+demandent des champs additifs au contrat `Intent` (mineure à coordonner avec le lot 9, qui prévoit aussi 1.6.0) ; (4)
+est à préciser sur le prototype. Méthode : un prototype (skills frontend-design et impeccable,
+`.impeccable/prototype-lot-4-bis/`) jugé par Orhan, puis l'implémentation après le lot 8 (mêmes fichiers).
+
+**Prototype du lot 4 bis jugé le 2026-10-14** (revue de design indépendante 30/40, P1 corrigés) : « vraiment beaucoup
+plus propre, c'est bien mieux ». Une correction : **retirer normal / demi-gras / gras du volet « police »**, redondant
+avec le bouton gras de la barre. Les cinq questions du README (italique / souligné / barré sur la boîte puis par
+caractère au lot 15, douze teintes pour le texte, « modifier l'étiquette » retiré de la barre d'une forme, pas de
+justifié, étiquette de connecteur en pourcentage avec trois repères) : recommandations retenues sauf avis contraire
+d'Orhan avant l'implémentation.
+
 ### Lot 5 — Lisibilité des cartes : le nom, le niveau de détail (P0, S)
 
 **En une phrase** : un nom d'équipement se lit à tout zoom où on travaille.
@@ -956,6 +974,86 @@ première place libre). Réponses d'Orhan, qui remplacent la spécification ci-d
 
 Le geste existe aussi au clic droit d'une sélection et par **Alt+G** (à juger à l'usage dans le navigateur d'Orhan, avec le
 seuil de 8 px sur une grosse infrastructure).
+
+**Fait le 2026-10-14** : les repères d'alignement, l'aimant aux objets et « mettre en grille », transposés du prototype
+validé (trait plein de 1 px interrompu sur les boîtes qu'il traverse, croix aux coins d'un repère de bord, cote d'un écart
+égal en capsule entre deux butées, quatre équerres autour d'une sélection glissée, pastille du geste « X, Y » à la
+première place libre, « libre » quand Ctrl est tenu, aperçu de la grille avec le nom de chaque place, estompage allégé
+pendant le geste et objets alignés à pleine opacité). **Le calcul** (`engine/src/app/canvas/guides.ts`, pur, testé sous
+Node, `LDApp.guides`) : centre ↔ centre et bord ↔ bord, le centre avant un bord, l'écart égal (entre deux voisins, au bout
+d'une paire) au rang d'un bord, le plus proche à rang égal, une ligne par axe ; tolérance 8 px d'écran / zoom ;
+candidates = cartes, disques, annotations, cadres de groupe et de cluster de la vue élargie de moitié, 400 au plus, les
+plus proches d'abord (un cadre ou un cluster ne compte pas pour l'espacement) ; l'aimant de la grille **après** les
+repères, sur l'axe qu'ils n'ont pas pris (`placeMove`) ; le bord tiré d'un redimensionnement de même (`placeResize`,
+jamais sous 20). **Le branchement** (`app/canvas/guide-drag.ts`) : au début d'un geste, une photographie (boîtes qui
+bougent, candidates), puis à chaque pas la correction appliquée aux positions que React Flow propose (`onNodesChange`,
+avant qu'elles ne soient montrées : React Flow n'aimante plus lui-même, `snapToGrid` retiré) ; Ctrl lu sur le pointeur et
+au clavier (Ctrl pressé ou relâché sans bouger : la toile se replace aussitôt) ; à la relâche, les places corrigées sont
+celles des nœuds montrés (React Flow rend les siennes, brutes) ; Alt + glissé (`clone.tsx`) : l'écart du fantôme corrigé,
+les originaux restent des candidates (une copie s'aligne volontiers sur l'original), l'aimant par pas de 20 sur l'axe
+libre comme avant ; le redimensionnement d'une annotation (`annotation.tsx`, `guideResize`). **La couche**
+(`app/canvas/GuideLayer.tsx`) : en coordonnées d'écran, un état à part (`GuideStore`) : un pas de glissé ne redessine
+qu'elle, jamais la toile (la version de la toile ne bouge pas pendant un glissé, mesuré) ; elle lit cet état **à la
+prochaine image** (une mise à jour synchrone par `useSyncExternalStore` faisait rendre la toile de React Flow dans le même
+pas : une image de 117 à 133 ms au premier glissé, une fois sur trois à huit, dans la garde de la jauge ; trouvé par
+bissection) ; abonnée à la vue seulement quand elle montre quelque chose, sa propre couche de composition ; les objets
+alignés reçoivent `guide-hit` sur leur nœud et repassent à pleine opacité ; l'estompage allégé (`guiding`) ne se pose que
+jusqu'à 150 équipements dessinés (au-delà, repeindre toutes les cartes estompées d'un coup coûte). **Mettre en grille**
+(`gridBoxes`, `gridColumns`, `naturalCompare`, `screenOrder` dans `engine/src/canvas/align.ts`, à côté d'`alignBoxes` ;
+`/view` n'en embarque rien, `viewer.js` inchangé à l'octet) : les éléments d'un alignement (équipements de la run,
+annotations non verrouillées ; cadres et connecteurs ne bougent pas), trois au moins ; colonnes par défaut **le moins de
+cases vides** entre ⌈√n⌉ et ⌈√(1,6 n)⌉, à égalité la plus large (12 → 4 × 3, 20 → 5 × 4, 144 → 16 × 9 plutôt que
+12 × 12) ; ordre **par nom** (chiffres comme des nombres, sans la casse ni locale) ou **à l'écran** (rangées par y puis
+x) ; case = la plus grande boîte + 60, chaque boîte centrée dans sa case, départ au coin haut gauche de la sélection,
+aimantées si l'aimant est mis ; `toile.gridSelected` / `gridPlan` (aperçu) ; un paquet d'épingles et les places des
+annotations en **une** écriture, donc un Ctrl+Z (« 12 éléments mis en grille, enregistrés (orhan) ») ; sans nom, des
+déplacements locaux, dits tels. Le volet « aligner et répartir » porte la section sous un filet (colonnes − / +,
+ordre par nom / à l'écran, « mettre en grille · Alt+G »), son en-tête dit le résultat (« 12 → 4 × 3 ») et survoler la
+section montre l'aperçu ; **Alt+G** et l'entrée « mettre en grille · Alt+G » du clic droit d'une sélection (sans aperçu)
+font le même geste ; sous trois éléments, la ligne d'état le dit. **Préférences du navigateur** (`state/prefs.ts`) :
+`guides` (bouton règle de la colonne `Controls`, allumé par défaut), `guideHue` (rangée de pastilles « couleur des
+repères » du panneau Affichage, « défaut » rend le chartreuse ; posée sur la racine par le CSSOM, `--guide:
+var(--hue-…)`), `gridOrder` (le dernier choix du volet). **Les teintes proposées** (`GUIDE_HUES`) : celles qui tiennent 3:1
+sur la toile dans les deux thèmes, vérifiées par un test Node qui lit `tokens.css` ; l'orange (2,81:1) et le vert (2,91:1)
+sur le fond clair n'y tiennent pas et ne sont pas proposés ; la cote en capsule écrit son chiffre en `--guide-ink` (le
+fond sombre en sombre, blanc en clair : de 3,19:1 sur l'ambre à 6,3:1 en clair, 6,4 à 14:1 en sombre). **Tests** : 9
+tests Node (repères : priorité, tolérance, grille après repères, Ctrl, espacement égal, redimensionnement, candidates,
+temps, trait interrompu, pastille ; couleurs et contraste ; grille ; volet, Alt+G, menu ; préférences), parcours Chromium
+`backend/tests/test_app_guides.py` (glissé à 6 px qui se colle et ligne visible bouton tenu, pastille, estompage allégé,
+épingle écrite ; Ctrl : ni ligne ni aimant, « libre » ; Alt + glissé d'une note alignée sur l'original ; bord tiré
+aligné ; repères éteints : rien ne colle ; couleur rangée, tenue au rechargement, jamais dans l'adresse ; volet : « 5 → 3 ×
+2 », − / +, ordre rangé, aperçu au survol, grille par nom écrite en épingles ; Ctrl+Z rend les places ; Alt+G ; menu) ;
+**22 mutations attrapées sur 22** (16 sous Node, 6 dans Chromium ; `.impeccable/planche-lot-8/scripts/mutations_lot8.py`).
+**Mesures** (Chromium sans écran, 500 équipements `generate --seed 7`, zoom 1, glissé de 60 mouvements, trois passages ;
+`scripts/mesure_lot8.py`, `mesures-lot8.json`) : un pas de calcul avec 400 candidates 0,16 ms dans la page, la
+photographie des candidates 0,10 ms (519 cartes, 266 dans la zone) ; glissé d'une carte repères allumés 39,6 à 44,6 i/s
+(image la plus longue 50 à 83 ms), éteints 32,6 à 32,9 i/s, la version commitée (sans repères) 31,2 à 33,9 i/s dans les
+mêmes conditions : aucune régression (les repères accélèrent même un peu : une carte collée ne bouge pas d'une image à
+l'autre) ; la toile n'est jamais reconstruite pendant un glissé (une seule version, celle de la sélection, comme avant) ;
+garde `test_app_gauge.py` verte. Sous `vm` (tests Node), les fonctions natives d'un autre contexte rendent le calcul
+une vingtaine de fois plus lent : le test du temps se mesure dans le contexte principal, comme la page. Captures :
+`.impeccable/planche-lot-8/` (`1-guide-centre`, `2-espacement-egal` pris bouton tenu, `3-guide-bord`, `4-redimension`,
+`5-volet-grille`, `6-grille-resultat`, `7-affichage-couleur-reperes`, `8-clair-1280` ; `scripts/capture_lot8.py`) ;
+détecteur Impeccable sans constat. **Écarts, décisions prises seul** : (1) le module des repères vit dans
+`engine/src/app/canvas/guides.ts` (il ne sert qu'à l'application), la grille dans `canvas/align.ts` ; (2) la pastille « X,
+Y » d'un glissé d'équipement ou d'un bloc dit le coin haut gauche de la boîte (comme le prototype) ; une annotation seule
+garde sa pastille d'avant (les valeurs de sa fiche) et la couche n'ajoute « libre » que Ctrl tenu ; (3) Maj (rapport) ou
+Alt (depuis le centre) pendant un redimensionnement font bouger deux bords : les repères s'y taisent ; (4) avec l'aimant
+mis, un redimensionnement pose le bord tiré sur la grille (avant : non aimanté), comme le prototype ; (5) Ctrl tenu
+pendant un Alt + glissé suspend aussi l'aimant de la grille (avant : pas de 20 même avec Ctrl) ; (6) l'aimant d'un bloc
+pose désormais le coin haut gauche de la boîte englobante (React Flow posait celui du premier nœud) ; (7) pas
+d'animation de 240 ms des éléments vers leur place de grille (le prototype en avait une) : la grille se pose comme un
+alignement, d'un coup ; (8) les colonnes réglées par − / + valent pour la sélection en cours (Alt+G les reprend), pas une
+préférence ; (9) la teinte « défaut » et la pastille chartreuse font la même chose (« défaut » rend le chartreuse, comme
+demandé, et se grise quand il est déjà là). (10) le parcours du presse-papiers (`test_app_clipboard.py`) mesurait l'écart exact d'un Alt + glissé : la copie s'y
+alignait désormais sur une voisine (100 au lieu de 106) ; il tient Ctrl en plus (`_alt_drag(..., free=True)`), ce qui
+est le geste « libre », aucune assertion retirée. **Garde de la jauge** : après la correction, une seule sorte d'échec
+vue, 3 fois en une cinquantaine de passages, jamais en 17 passages de la version commitée : juste après le glissé, la
+vue envoyée loin de tout, 425 à 520 cartes encore montées 0,6 s plus tard (la réponse de l'épingle arrive dans ce
+temps) ; cause non établie, à surveiller. **Parqués** : l'écart égal pendant un redimensionnement (bords seulement) ;
+les repères pendant les flèches (voulu : un carreau) ; la rafale de Ctrl pendant un Alt + glissé immobile ne redessine
+pas le fantôme avant le prochain mouvement ; aperçu de la grille au clic droit (voulu : il recouvrirait les places) ;
+Alt+G et le seuil de 8 px sont dans `docs/a-juger-a-l-usage.md`.
 
 ### Lot 9 — Ordre de superposition et verrou (P1, M) — contrat `Intent` 1.6.0
 
@@ -1209,6 +1307,42 @@ Markdown restreint dans `note.text` (contrat inchangé : c'est du texte) : `**gr
 la ligne apprend les jetons, `annotation.tsx` : `tspan` par style) ; l'éditeur en place reste un `textarea` ; un bouton
 « gras » dans la barre contextuelle entoure la sélection du champ. Un texte qui ne parse pas s'affiche brut. Test Node
 du parseur (pur), Chromium (gras rendu, lien cliquable, mutation : `<script>` reste du texte).
+
+### Lot 16 — Le bloc de code (demande d'Orhan, 2026-10-14) — prototype d'abord
+
+**En une phrase** : coller sur le diagramme un bout de configuration (switch, firewall, routeur) ou de code (Python,
+Bash, JSON, YAML), lisible, coloré si on le veut, et copiable.
+
+**Décisions** (avis rendu, retenu par Orhan le 2026-10-14) : cinquième sorte d'annotation (`code`), mêmes règles que les
+autres (libre ou attachée, connecteurs, presse-papiers, annulable, journal) ; langages d'abord **Python, Bash, JSON,
+YAML** (choix d'Orhan), puis la famille « configuration réseau » (Cisco IOS / NX-OS, FortiOS, Junos) ; **coloration
+syntaxique au choix** par bloc (activée ou texte brut) ; chasse fixe, numéros de ligne en option, bouton « copier » ;
+bloc long replié sur la toile (N premières lignes, dépliable), en entier dans la fiche ; contenu cherchable ; borne
+proposée 20 000 caractères. **Ne pas réécrire la roue** (Orhan) : une bibliothèque de coloration éprouvée, dont la
+sortie se dessine en SVG sans HTML injecté (piste : Prism, `Prism.tokenize` rend des jetons, grammaires officielles pour
+Python, Bash, JSON, YAML ; grammaires Cisco existantes à reprendre si la licence le permet ; aucune trouvée pour FortiOS)
+— choix, version épinglée et licences à écrire avant le code (nouvelle dépendance). **Secrets** : la page repère les
+motifs courants (`password`, `secret`, `community`, `pre-shared-key`, `key 7`…) et avertit avant d'enregistrer, avec
+« masquer ces valeurs » ; rien n'est envoyé ailleurs. Contrat : ajout additif dans la même mineure `Intent` que le lot
+4 bis (l'ordre et le verrou du lot 9 passent à la suivante). Ordre : lot 8 → lot 4 bis → lot 16 (ou les deux ensemble) →
+lot 7. Prototype : `.impeccable/prototype-lot-16/`.
+
+**Prototype jugé le 2026-10-14** : bibliothèque **Prism 1.30.0** (MIT, `Prism.tokenize`, jetons dessinés en `tspan`).
+Réponses d'Orhan : (1) langages de la V1 = Python, Bash, JSON, YAML, Cisco IOS / NX-OS (grammaire Prism du plugin
+Obsidian `blakebratcher/obsidian-cisco-syntax`, MIT, reprise, corrections proposées à l'auteur) et FortiOS (grammaire
+Prism écrite, aucune n'existe) ; Junos plus tard (la grammaire trouvée n'a pas de licence) ; (2) un texte de code collé
+(au moins trois lignes, langage reconnu) devient un bloc, sinon une note, Ctrl+Z annule ; (3) secrets : avertir et
+proposer (« retirer ces valeurs » → `<removed>`, « garder tel quel » avec alerte qui reste, « modifier le texte ») ;
+(4) grammaire Cisco reprise ; (5) **refusé : la hauteur n'est pas déduite des lignes** ; une très grosse configuration
+ne doit pas s'afficher en entier : **la boîte a une hauteur libre et le code défile dedans** (remplace le repli) ;
+(6) quatre polices à chasse fixe embarquées (OFL : JetBrains Mono par défaut, IBM Plex Mono, Source Code Pro, Cascadia
+Mono, chasse mesurée par police), pas de police du système. Le poids des fichiers ne s'affiche pas dans le volet.
+
+**Prototype validé le 2026-10-14** (défilement compris : la molette fait défiler un bloc sélectionné seul, zoome
+ailleurs ; Ctrl + molette zoome toujours). Orhan : « C'est très bon, on code ça maintenant. » Le lot 16 passe **avant
+le lot 4 bis**, codé dans un worktree isolé en parallèle du lot 8, fusionné après lui. Versions du contrat : lot 16 =
+`Intent` **1.6.0**, lot 4 bis = **1.7.0**, lot 9 = 1.8.0 (une mineure par lot livré : un document écrit en 1.6.0 doit
+rester valide).
 
 ### Déjà planifiés, inchangés, après ces lots (docs/10 §8)
 

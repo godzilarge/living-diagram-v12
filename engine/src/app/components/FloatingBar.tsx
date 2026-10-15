@@ -12,7 +12,8 @@
 // Cachée pendant tout geste (gate.ts) et Maj tenue (le temps d'un Maj + clic), revenue 120 ms après ; l'arrivée (150 ms,
 // 4 px) ne se joue qu'au passage de cachée à montrée. Masquée par préférence (Ctrl+. ou le panneau Affichage), Alt+T la
 // rappelle pour la sélection en cours. Clavier : Alt+T donne le focus, ← → la parcourent, ↓ ouvre un volet, Échap le
-// ferme puis rend la toile. Alt + A / H / D / W / V / S et Alt + Maj + H / V alignent une sélection multiple.
+// ferme puis rend la toile. Alt + A / H / D / W / V / S et Alt + Maj + H / V alignent une sélection multiple, Alt+G la
+// met en grille (lot 8 de docs/11 : le volet « aligner et répartir » règle colonnes et ordre et en montre l'aperçu).
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useStore as useFlowStore } from "@xyflow/react";
@@ -21,14 +22,18 @@ import { useTranslation } from "react-i18next";
 import { DEFAULT_LENGTH } from "../../canvas/connectors";
 import { MAX_COLUMNS, MAX_ROWS, columnsOf, insertColumn, insertRow } from "../../canvas/table";
 import type { Model } from "../../canvas/types";
+import { gridColumns } from "../../canvas/align";
+import type { GridOrder } from "../../canvas/align";
+import type { GuideStore } from "../canvas/GuideLayer";
 import { t } from "../../i18n";
-import { FloatingHost } from "../canvas/Flow";
+import { FloatingHost, GRID } from "../canvas/Flow";
 import type { Toile } from "../canvas/toile";
-import { alignCommand, alignFromKey, anchorOf, barLabel, entriesOf, movableCount, nextHeads, nextTextAlign, placeBar, placeVolet, selectionKey, shows, targetOf, toScreen, BAR_H, GAP } from "../state/floating";
+import { alignCommand, alignFromKey, isGridKey, anchorOf, barLabel, entriesOf, movableCount, nextHeads, nextTextAlign, placeBar, placeVolet, selectionKey, shows, targetOf, toScreen, BAR_H, GAP } from "../state/floating";
 import type { BarAlign, BarButton, BarEntry, Geometry, Obstacle, Rect, Target, Zone } from "../state/floating";
 import { useEditable, useStore } from "../state/store";
 import { FaceOf } from "./floating-faces";
 import { VoletBody } from "./FloatingVolet";
+import type { GridControls } from "./FloatingVolet";
 
 /** Le retour après un geste ou Maj relâchée ; le délai avant la première infobulle (puis sans attendre d'une case à l'autre). */
 const RETURN_MS = 120, TIP_MS = 400;
@@ -185,10 +190,10 @@ const typing = (target: EventTarget | null): boolean => {
 
 export function FloatingBar() {
   const host = useContext(FloatingHost);
-  return host ? <Bar toile={host.toile} gate={host.gate} /> : null;
+  return host ? <Bar toile={host.toile} gate={host.gate} guides={host.guides} /> : null;
 }
 
-function Bar({ toile, gate }: { toile: Toile; gate: { busy: () => boolean; subscribe: (l: () => void) => () => void } }) {
+function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolean; subscribe: (l: () => void) => () => void }; guides: GuideStore }) {
   const { state, commands, dispatch } = useStore();
   const { i18n } = useTranslation();
   const editable = useEditable();
@@ -204,6 +209,8 @@ function Bar({ toile, gate }: { toile: Toile; gate: { busy: () => boolean; subsc
   const file = useRef<HTMLInputElement>(null);
   const wasLive = useRef(false), focusNext = useRef(false), lastTip = useRef(0), tipTimer = useRef<number | null>(null);
   const placedRef = useRef<{ bar: Rect; below: boolean; anchor: Rect; zone: Zone } | null>(null);
+  // Les colonnes de « mettre en grille » réglées dans le volet (− / +) : pour cette sélection seulement.
+  const [gridCols, setGridCols] = useState<{ key: string; cols: number } | null>(null);
 
   const model = state.run.kind === "ready" ? state.run.model : null;
   const key = selectionKey(state.selection, state.picked);
@@ -223,6 +230,9 @@ function Bar({ toile, gate }: { toile: Toile; gate: { busy: () => boolean; subsc
   // La sélection change : un rappel par Alt+T ne vaut plus, un volet se ferme.
   useEffect(() => { setOpen(null); setTip(null); if (summoned && summoned !== key) setSummoned(""); }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!live) { setOpen(null); setTip(null); } }, [live]);
+  // L'aperçu d'une grille ne survit pas au volet qui le montre.
+  useEffect(() => { if (open !== "align") guides.set({ preview: null }); }, [open, guides]);
+  useEffect(() => () => guides.set({ preview: null }), [guides]);
 
   // les boutons suivent le modèle (une teinte posée : une version de plus), la sélection et la langue ; pas la vue (un
   // panoramique ne les recalcule pas)
@@ -240,8 +250,9 @@ function Bar({ toile, gate }: { toile: Toile; gate: { busy: () => boolean; subsc
 
   // Le clavier de la page : Ctrl+. (afficher / masquer, une préférence), Alt+T (le focus, ou le rappel), Alt + lettre
   // (aligner une sélection multiple), Maj tenue (la barre s'efface le temps d'un Maj + clic).
-  const latest = useRef({ state, target, visible, live, editable, model });
-  latest.current = { state, target, visible, live, editable, model };
+  const colsFor = (k: string): number | null => (gridCols && gridCols.key === k ? gridCols.cols : null);
+  const latest = useRef({ state, target, visible, live, editable, model, cols: colsFor(key) });
+  latest.current = { state, target, visible, live, editable, model, cols: colsFor(key) };
   useEffect(() => {
     let shiftTimer: number | null = null;
     const down = (event: KeyboardEvent): void => {
@@ -262,6 +273,14 @@ function Bar({ toile, gate }: { toile: Toile; gate: { busy: () => boolean; subsc
         if (!now.state.prefs.fbar) setSummoned(selectionKey(now.state.selection, now.state.picked));
         focusNext.current = true;
         if (now.live) focusFirst();
+        return;
+      }
+      // Alt+G : mettre en grille (lot 8) ; sous trois éléments, la ligne d'état le dit
+      if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && isGridKey(event.key, event.code)) {
+        if (!now.editable || now.state.view.mode !== "diagram") return;
+        event.preventDefault();
+        setOpen(null);
+        commands.grid(now.cols);
         return;
       }
       if (event.altKey && !event.ctrlKey && !event.metaKey && now.target && now.target.kind === "multi" && now.editable && now.state.view.mode === "diagram" && now.model) {
@@ -378,6 +397,21 @@ function Bar({ toile, gate }: { toile: Toile; gate: { busy: () => boolean; subsc
     const show = (): void => { lastTip.current = performance.now(); setTip({ el, label, keys, volet: inVolet }); };
     if (wait) tipTimer.current = window.setTimeout(show, wait); else show();
   };
+  // Mettre en grille, depuis le volet : colonnes (− / +), ordre (une préférence), aperçu au survol, puis le geste.
+  const count = target.kind === "multi" ? movableCount(model, target.multi).count : 0;
+  const cols = Math.max(1, Math.min(count, colsFor(key) || gridColumns(count)));
+  const order = state.prefs.gridOrder;
+  const showPreview = (on: boolean, at?: { cols?: number; order?: GridOrder }): void => {
+    const plan = on ? toile.gridPlan({ cols: at && at.cols ? at.cols : cols, order: at && at.order ? at.order : order, snap: state.prefs.snap ? GRID : null }) : null;
+    guides.set({ preview: plan ? plan.places : null });
+  };
+  const grid: GridControls = {
+    count, cols, rows: Math.ceil(count / Math.max(cols, 1)), order,
+    setCols: (next) => { const c = Math.max(1, Math.min(count, next)); setGridCols({ key, cols: c }); showPreview(true, { cols: c }); },
+    setOrder: (next) => { commands.setPrefs({ gridOrder: next }); showPreview(true, { order: next }); },
+    preview: showPreview,
+    run: () => { guides.set({ preview: null }); setOpen(null); setTip(null); commands.grid(cols); },
+  };
   const run = (button: BarButton, value: string | null = null): void => {
     execute(button, value, target, model, toile, commands, () => { if (file.current) file.current.click(); });
     if (button.volet && button.volet.kind === "groups") setOpen(null);
@@ -443,9 +477,9 @@ function Bar({ toile, gate }: { toile: Toile; gate: { busy: () => boolean; subsc
           onChange={(event) => { const chosen = event.target.files && event.target.files[0]; if (chosen && target.kind === "annotation") commands.annotationImage(chosen, target.a.id); event.target.value = ""; }} />
       </div>
       {openButton ? (
-        <div ref={volet} className={"fvolet nopan nodrag nowheel" + (target.kind === "annotation" ? " hue-" + target.a.style.hue : "")} role={openButton.volet && openButton.volet.kind === "groups" ? undefined : "dialog"}
+        <div ref={volet} className={"fvolet nopan nodrag nowheel" + (target.kind === "annotation" ? " hue-" + target.a.style.hue : "") + (openButton.volet && openButton.volet.kind === "align" && openButton.volet.grid ? " has-grid" : "")} role={openButton.volet && openButton.volet.kind === "groups" ? undefined : "dialog"}
           aria-label={openButton.volet && openButton.volet.kind === "groups" ? undefined : openButton.label} onKeyDown={voletKeys}>
-          <VoletBody button={openButton} onPick={(value) => run(openButton, value)} onTip={(el, label, keys) => showTip(el, label, keys, true, true)} />
+          <VoletBody button={openButton} onPick={(value) => run(openButton, value)} onTip={(el, label, keys) => showTip(el, label, keys, true, true)} grid={grid} />
         </div>
       ) : null}
       {tip ? <div ref={tipEl} className="ftip" aria-hidden="true"><span className="ftip-label">{tip.label}</span>{tip.keys ? <span className="ftip-keys">{tip.keys}</span> : null}</div> : null}

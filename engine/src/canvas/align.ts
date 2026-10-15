@@ -96,6 +96,82 @@ export function alignBoxes(boxes: Map<string, Box>, ids: string[], mode: BoxMode
   return moved;
 }
 
+// ——— Mettre en grille (lot 8 de docs/11, repris du lot 6 parqué) ———
+// Un geste d'édition, jamais un rangement imposé : poser d'un coup vingt switchs d'accès en rangées régulières. La grille
+// part du coin haut gauche de la boîte englobante ; une case = la plus grande boîte + 60 dans chaque sens, chaque boîte
+// centrée dans sa case ; positions entières, aimantées à la grille si l'aimant est mis. L'ordre : par nom (ce qu'un
+// ingénieur range à la main, chiffres compris : acc-2 avant acc-10), ou tel qu'on le voit (rangées par y, puis x).
+// Les colonnes par défaut : le moins de cases vides (règle validée par Orhan le 2026-10-14, `gridColumns`).
+
+export type GridOrder = "name" | "screen";
+export const GRID_ORDERS: GridOrder[] = ["name", "screen"];
+/** L'écart entre deux cases (unités du dessin). */
+export const GRID_GAP = 60;
+/** Un élément à ranger : son identité, son nom (l'ordre par nom), sa boîte. */
+export interface GridItem { id: string; name: string; box: Box }
+/** Une grille : ses colonnes et rangées, les éléments dans l'ordre des cases, et le coin haut gauche de chacun. */
+export interface GridPlan { cols: number; rows: number; ordered: GridItem[]; places: Map<string, Point> }
+
+/** Les colonnes par défaut pour `count` éléments : entre ⌈√n⌉ et ⌈√(1,6 n)⌉ (la formule du lot 6), celle qui laisse le
+ *  moins de cases vides dans la dernière rangée ; à égalité, la plus large. 12 → 4 (4 × 3), 20 → 5 (5 × 4), 3 → 3. */
+export function gridColumns(count: number): number {
+  if (count <= 1) return 1;
+  const lo = Math.ceil(Math.sqrt(count)), hi = Math.ceil(Math.sqrt(count * 1.6));
+  let best = hi, empty = Infinity;
+  for (let cols = hi; cols >= lo; cols -= 1) {
+    const holes = Math.ceil(count / cols) * cols - count;
+    if (holes < empty) { best = cols; empty = holes; }
+  }
+  return best;
+}
+
+/** L'ordre naturel de deux noms : les chiffres comparés comme des nombres (acc-2 avant acc-10), le reste sans la casse ;
+ *  à égalité, l'ordre exact des codes (le résultat ne dépend d'aucune locale). */
+export function naturalCompare(a: string, b: string): number {
+  const pa = a.toLowerCase().split(/(\d+)/), pb = b.toLowerCase().split(/(\d+)/);
+  for (let i = 0; i < Math.min(pa.length, pb.length); i += 1) {
+    if (pa[i] === pb[i]) continue;
+    const digits = i % 2 === 1; // split garde les chiffres aux places impaires
+    if (digits) { const d = Number(pa[i]) - Number(pb[i]); if (d) return d; }
+    return pa[i] < pb[i] ? -1 : 1;
+  }
+  return pa.length - pb.length || byName(a, b);
+}
+
+/** L'ordre de lecture : des rangées (deux boîtes dont les centres sont à moins d'une demi-hauteur sont sur la même),
+ *  de haut en bas, chacune de gauche à droite. */
+export function screenOrder(items: GridItem[]): GridItem[] {
+  const cy = (g: GridItem): number => g.box.y + g.box.h / 2;
+  const byY = items.slice().sort((p, q) => cy(p) - cy(q) || p.box.x - q.box.x || byName(p.id, q.id));
+  const rows: { cy: number; h: number; items: GridItem[] }[] = [];
+  byY.forEach((g) => {
+    const row = rows[rows.length - 1];
+    if (row && cy(g) - row.cy <= Math.max(row.h, g.box.h) / 2) row.items.push(g); else rows.push({ cy: cy(g), h: g.box.h, items: [g] });
+  });
+  return rows.flatMap((row) => row.items.sort((p, q) => p.box.x - q.box.x || byName(p.id, q.id)));
+}
+
+/** La grille de ces éléments ; `cols` (borné à 1..n) sinon `gridColumns`, `order` (« name » par défaut), `snap` : le pas
+ *  de l'aimant, `null` sans. `null` sans élément. */
+export function gridBoxes(items: GridItem[], options: { cols?: number | null; order?: GridOrder; snap?: number | null } = {}): GridPlan | null {
+  if (!items.length) return null;
+  const n = items.length;
+  const cols = Math.max(1, Math.min(n, Math.round(options.cols || gridColumns(n))));
+  const ordered = options.order === "screen" ? screenOrder(items) : items.slice().sort((p, q) => naturalCompare(p.name, q.name) || byName(p.id, q.id));
+  const step = options.snap || 0;
+  const fit = (v: number): number => (step ? Math.round(v / step) * step : Math.round(v));
+  const cw = Math.max(...items.map((g) => g.box.w)) + GRID_GAP, ch = Math.max(...items.map((g) => g.box.h)) + GRID_GAP;
+  const ox = fit(Math.min(...items.map((g) => g.box.x))), oy = fit(Math.min(...items.map((g) => g.box.y)));
+  const places = new Map<string, Point>();
+  ordered.forEach((g, i) => {
+    const x = ox + (i % cols) * cw + Math.round((cw - GRID_GAP - g.box.w) / 2), y = oy + Math.floor(i / cols) * ch + Math.round((ch - GRID_GAP - g.box.h) / 2);
+    places.set(g.id, { x: fit(x), y: fit(y) });
+  });
+  return { cols, rows: Math.ceil(n / cols), ordered, places };
+}
+
 export const alignment = { align, ALIGN_MODES, ALIGN_LABEL };
 /** Pour les tests de l'application (`LDApp.boxAlignment`) : `/view` n'en a pas besoin (son bundle ne l'embarque pas). */
 export const boxAlignment = { alignBoxes, BOX_MODES };
+/** De même (`LDApp.gridding`) : mettre en grille n'existe que dans l'application. */
+export const gridding = { gridColumns, gridBoxes, naturalCompare, screenOrder, GRID_GAP, GRID_ORDERS };

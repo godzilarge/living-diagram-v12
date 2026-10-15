@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "context", "debug", "floating", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "context", "debug", "floating", "gridding", "guides", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -254,7 +254,7 @@ test("les règles et l'alignement de la toile sont ceux du moteur", () => {
 
 test("les préférences du navigateur se lisent avec tolérance et passent par le réducteur", () => {
   const { prefs, reducer, initialState } = loadApp();
-  assert.deepEqual(clone(prefs.defaultPrefs()), { theme: "dark", language: null, grid: false, snap: false, minimap: true, panelWidth: 348, fbar: true }, "sombre, langue du navigateur, sans grille ni aimant, minimap, panneau de 348, barre contextuelle affichée");
+  assert.deepEqual(clone(prefs.defaultPrefs()), { theme: "dark", language: null, grid: false, snap: false, minimap: true, panelWidth: 348, fbar: true, guides: true, guideHue: null, gridOrder: "name" }, "sombre, langue du navigateur, sans grille ni aimant, minimap, panneau de 348, barre contextuelle affichée, repères allumés en chartreuse, grille par nom");
   assert.equal(prefs.parsePrefs('{"fbar":false}').fbar, false, "la barre contextuelle masquée se relit (lot 4)");
   assert.equal(prefs.parsePrefs('{"fbar":"non"}').fbar, true, "une valeur illisible : affichée");
   assert.equal(prefs.parsePrefs('{"panelWidth":5000}').panelWidth, 760, "une largeur hors bornes est ramenée au plafond");
@@ -262,7 +262,15 @@ test("les préférences du navigateur se lisent avec tolérance et passent par l
   assert.deepEqual(clone(prefs.parsePrefs(null)), clone(prefs.defaultPrefs()), "rien de rangé : les défauts");
   assert.deepEqual(clone(prefs.parsePrefs("{pas du json")), clone(prefs.defaultPrefs()), "texte illisible : les défauts");
   assert.deepEqual(clone(prefs.parsePrefs('{"theme":"light","grid":true,"snap":"oui","minimap":false,"autre":1}')),
-    { theme: "light", language: null, grid: true, snap: false, minimap: false, panelWidth: 348, fbar: true }, "un champ mal formé vaut son défaut, un champ inconnu est ignoré");
+    { theme: "light", language: null, grid: true, snap: false, minimap: false, panelWidth: 348, fbar: true, guides: true, guideHue: null, gridOrder: "name" }, "un champ mal formé vaut son défaut, un champ inconnu est ignoré");
+  // les repères (lot 8 de docs/11) : allumés ou non, leur teinte (seulement celles qui tiennent 3:1), l'ordre de la grille
+  assert.equal(prefs.parsePrefs('{"guides":false}').guides, false);
+  assert.equal(prefs.parsePrefs('{"guides":"non"}').guides, true, "illisible : allumés");
+  assert.equal(prefs.parsePrefs('{"guideHue":"teal"}').guideHue, "teal");
+  assert.equal(prefs.parsePrefs('{"guideHue":"orange"}').guideHue, null, "une teinte sous 3:1 sur la toile claire n'est pas proposée : le chartreuse");
+  assert.equal(prefs.parsePrefs('{"guideHue":"#ff00ff"}').guideHue, null, "jamais une valeur libre");
+  assert.equal(prefs.parsePrefs('{"gridOrder":"screen"}').gridOrder, "screen");
+  assert.equal(prefs.parsePrefs('{"gridOrder":"random"}').gridOrder, "name");
   assert.equal(prefs.parsePrefs('{"theme":"sepia"}').theme, "dark", "un thème inconnu vaut le défaut");
   const start = initialState();
   const lit = reducer(start, { type: "prefs", patch: { theme: "light" } });
@@ -1234,3 +1242,198 @@ test("à la jauge (lot 13) : une sélection ne redonne à React Flow que les él
   assert.equal(removed[0], shown[1]);
 });
 
+
+// ——— Lot 8 de docs/11 : les repères d'alignement, l'aimant aux objets, mettre en grille ———
+
+const card = (id, x, y, w = 240, h = 80, spaced = true) => ({ id, box: { x, y, w, h }, spaced });
+
+test("les repères (guides.ts) : centre avant bord, une ligne par axe, tolérance en unités du plan, rien hors de portée", () => {
+  const { guides: g } = loadApp();
+  const cands = [card("a", 0, 0), card("b", 600, 300)];
+  // le centre passe avant un bord plus proche : bord gauche à 2, centre à 3
+  let s = g.snapMove({ x: 2, y: 200, w: 230, h: 80 }, cands, 8);
+  assert.equal(s.dx, 3);
+  assert.deepEqual(clone(s.lines.map((l) => [l.axis, l.kind, l.at])), [["x", "center", 120]], "une ligne, sur l'axe pris, au centre de a");
+  assert.deepEqual(clone(s.lines[0].hits), ["a"]);
+  assert.equal(s.took.y, false, "rien à aligner en y");
+  // un bord : le gauche de a, à 5 ; le centre est loin
+  s = g.snapMove({ x: 5, y: 200, w: 200, h: 80 }, cands, 8);
+  assert.equal(s.dx, -5);
+  assert.equal(s.lines[0].kind, "edge");
+  assert.deepEqual(clone([s.lines[0].from, s.lines[0].to]), [0, 280], "de l'objet le plus loin à l'autre");
+  // jamais un centre sur un bord : le centre de la boîte à 5 du bord gauche de a ne colle à rien
+  s = g.snapMove({ x: -95, y: 200, w: 200, h: 80 }, cands, 8);
+  assert.equal(s.lines.length, 0, "centre ↔ centre et bord ↔ bord seulement");
+  // hors de portée : rien
+  s = g.snapMove({ x: 9, y: 200, w: 200, h: 80 }, cands, 8);
+  assert.equal(s.lines.length + s.gaps.length, 0);
+  assert.equal(s.dx, 0);
+  // la tolérance est de 8 px d'écran : 16 unités du plan au zoom 0,5
+  const raw = { x: 12, y: 207, w: 240, h: 80 };
+  assert.equal(g.placeMove(raw, cands, { guides: true, free: false, grid: null, tol: g.TOLERANCE_PX / 0.5 }).box.x, 0, "au zoom 0,5, 12 unités sont 6 px : ça colle");
+  assert.equal(g.placeMove(raw, cands, { guides: true, free: false, grid: null, tol: g.TOLERANCE_PX / 1 }).box.x, 12, "au zoom 1, 12 px : trop loin");
+});
+
+test("les repères : l'aimant de la grille après les repères, sur l'axe libre ; Ctrl tenu (free) ni l'un ni l'autre ; entier", () => {
+  const { guides: g } = loadApp();
+  const cands = [card("a", 0, 0)];
+  const raw = { x: 3.4, y: 207.6, w: 240, h: 80 };
+  const both = g.placeMove(raw, cands, { guides: true, free: false, grid: 20, tol: 8 });
+  assert.deepEqual(clone(both.box), { x: 0, y: 200, w: 240, h: 80 }, "x pris par le repère (bord et centre de a), y aimanté à la grille");
+  assert.deepEqual(clone(both.took), { x: true, y: false });
+  const free = g.placeMove(raw, cands, { guides: true, free: true, grid: 20, tol: 8 });
+  assert.deepEqual(clone(free.box), { x: 3, y: 208, w: 240, h: 80 }, "libre : ni repère ni grille, arrondi");
+  assert.equal(free.lines.length, 0);
+  const odd = g.placeMove(raw, [card("o", 7, 0)], { guides: true, free: false, grid: 20, tol: 8 });
+  assert.deepEqual(clone([odd.box.x, odd.box.y]), [7, 200], "l'axe pris par un repère n'est pas remis sur la grille");
+  const off = g.placeMove(raw, cands, { guides: false, free: false, grid: 20, tol: 8 });
+  assert.deepEqual(clone([off.box.x, off.box.y]), [0, 200], "repères éteints : la grille seule, sur les deux axes");
+});
+
+test("les repères : l'espacement égal, entre deux voisins ou au bout d'une paire ; la chaîne des écarts", () => {
+  const { guides: g } = loadApp();
+  const row = [card("c1", 0, 0), card("c2", 300, 0)];
+  const s = g.snapMove({ x: 597, y: 0, w: 240, h: 80 }, row, 8);
+  assert.equal(s.dx, 3, "au bout d'une paire espacée de 60 : le même écart");
+  assert.equal(s.gaps.length, 1);
+  assert.equal(s.gaps[0].gap, 60);
+  assert.equal(s.gaps[0].segs.length, 2, "les deux écarts de 60 se cotent");
+  assert.deepEqual(clone(s.gaps[0].hits).sort(), ["c1", "c2"]);
+  assert.equal(s.lines.find((l) => l.axis === "y").kind, "center", "en y, le centre de la rangée");
+  const between = g.snapMove({ x: 305, y: 0, w: 240, h: 80 }, [card("l", 0, 0), card("r", 600, 0)], 8);
+  assert.equal(between.dx, -5, "entre deux : au milieu");
+  assert.equal(between.gaps[0].gap, 60);
+  // un cadre ne compte pas pour l'espacement
+  const framed = g.snapMove({ x: 597, y: 0, w: 240, h: 80 }, [card("c1", 0, 0, 240, 80, false), card("c2", 300, 0, 240, 80, false)], 8);
+  assert.equal(framed.gaps.length, 0);
+});
+
+test("les repères : un redimensionnement aligne le bord tiré, puis la grille ; jamais sous la taille minimale", () => {
+  const { guides: g } = loadApp();
+  const cands = [card("a", 0, 0)];
+  const start = { x: 0, y: 200, w: 200, h: 80 };
+  const opts = { guides: true, free: false, grid: null, tol: 8, min: 20 };
+  const right = g.placeResize(start, { ...start, w: 237 }, g.edgesOf("e"), cands, opts);
+  assert.deepEqual(clone(right.box), { x: 0, y: 200, w: 240, h: 80 }, "le bord droit sur celui de a");
+  assert.deepEqual(clone(right.lines.map((l) => [l.axis, l.kind, l.at])), [["x", "edge", 240]]);
+  assert.equal(g.placeResize(start, { ...start, w: 237 }, g.edgesOf("e"), cands, { ...opts, free: true }).box.w, 237, "Ctrl : libre");
+  const corner = g.placeResize(start, { ...start, w: 237, h: 87 }, g.edgesOf("se"), cands, { ...opts, grid: 20 });
+  assert.deepEqual(clone([corner.box.w, corner.box.h]), [240, 80], "le bas, que rien n'aligne, va à la grille (280)");
+  assert.equal(g.placeResize(start, { ...start, w: 5 }, g.edgesOf("e"), [], opts).box.w, 20, "le bord droit non plus : jamais sous 20");
+  const left = g.placeResize(start, { x: 196, y: 200, w: 4, h: 80 }, g.edgesOf("w"), [], opts);
+  assert.deepEqual(clone([left.box.x, left.box.w]), [180, 20], "jamais sous 20 : le côté opposé reste");
+  assert.deepEqual(clone(g.edgesOf("nw")), [["x", 0], ["y", 0]]);
+});
+
+test("les repères : les candidates de la vue élargie, les plus proches d'abord, 400 au plus ; le calcul tient sous 2 ms", () => {
+  const { guides: g } = loadApp();
+  const zone = g.viewZone({ x: -100, y: -50, zoom: 2 }, { width: 800, height: 600 });
+  assert.deepEqual(clone(zone), { x: -50, y: -50, w: 600, h: 450 }, "la vue (50, 25, 400 × 300) élargie de moitié");
+  const all = [];
+  for (let i = 0; i < 30; i += 1) for (let j = 0; j < 30; j += 1) all.push(card(`n${String(i).padStart(2, "0")}-${String(j).padStart(2, "0")}`, i * 300, j * 140));
+  all.push(card("far", 1e6, 1e6));
+  const picked = g.pickCandidates(all, { x: -1000, y: -1000, w: 20000, h: 20000 }, { x: 0, y: 0, w: 240, h: 80 });
+  assert.equal(picked.length, 400);
+  assert.equal(picked[0].id, "n00-00", "la plus proche d'abord");
+  assert.equal(picked.some((c) => c.id === "far"), false, "hors de la zone : jamais");
+  assert.deepEqual(clone(g.pickCandidates(all.slice().reverse(), { x: -1000, y: -1000, w: 20000, h: 20000 }, { x: 0, y: 0, w: 240, h: 80 }).map((c) => c.id)), clone(picked.map((c) => c.id)), "l'ordre d'entrée ne change rien");
+  // au milieu du parc, au plus près de tout : les 400 candidates qui l'entourent, alignements et écarts partout
+  const box = { x: 4503, y: 2103, w: 240, h: 80 };
+  const around = g.pickCandidates(all, { x: -1000, y: -1000, w: 20000, h: 20000 }, box);
+  assert.ok(g.snapMove(box, around, 8).lines.length > 0);
+  // le temps se mesure dans le contexte principal, comme dans la page : un contexte `vm` à part rend les fonctions
+  // natives (Math.min, Math.max) une vingtaine de fois plus lentes depuis le code chargé, sans rapport avec la page
+  vm.runInThisContext(fs.readFileSync(APP, "utf8"), { filename: "app.js" });
+  const main = globalThis.LDApp.guides, near = main.pickCandidates(all, { x: -1000, y: -1000, w: 20000, h: 20000 }, box);
+  for (let k = 0; k < 50; k += 1) main.placeMove(box, near, { guides: true, free: false, grid: 20, tol: 8 });
+  const t0 = process.hrtime.bigint();
+  const N = 200;
+  for (let k = 0; k < N; k += 1) main.placeMove({ ...box, x: box.x + (k % 7) }, near, { guides: true, free: false, grid: 20, tol: 8 });
+  const ms = Number(process.hrtime.bigint() - t0) / 1e6 / N;
+  assert.ok(ms < 2, `un pas de glissé avec 400 candidates : ${ms.toFixed(3)} ms`);
+});
+
+test("les repères : un trait interrompu sur les boîtes qu'il traverse ; la pastille à la première place libre ; un nom raccourci", () => {
+  const { guides: g } = loadApp();
+  const line = { axis: "x", kind: "center", at: 100, from: 0, to: 300, boxes: [], hits: [] };
+  assert.deepEqual(clone(g.runs(line, [{ x: 50, y: 100, w: 100, h: 50 }, { x: 400, y: 0, w: 10, h: 10 }], 10)), [[-10, 100], [150, 310]]);
+  const edge = { ...line, at: 50 };
+  assert.deepEqual(clone(g.runs(edge, [{ x: 50, y: 100, w: 100, h: 50 }], 0)), [[0, 300]], "un repère de bord longe la boîte qu'il aligne : elle ne le coupe pas");
+  const zone = { left: 0, top: 0, right: 1000, bottom: 800 };
+  const box = { x: 100, y: 100, w: 200, h: 80 };
+  assert.deepEqual(clone(g.pillSpot(box, 60, 20, zone, [])), { x: 170, y: 188, w: 60, h: 20 }, "dessous d'abord");
+  assert.deepEqual(clone(g.pillSpot(box, 60, 20, zone, [{ x: 100, y: 180, w: 200, h: 40 }])), { x: 170, y: 72, w: 60, h: 20 }, "dessous pris : dessus");
+  assert.equal(g.fitName("DC01-ACC-04", 60, 11), "DC01-AC…");
+  assert.equal(g.fitName("DC01", 60, 11), "DC01");
+});
+
+test("la couleur des repères : chartreuse par défaut, les teintes nommées qui tiennent 3:1 sur la toile dans les deux thèmes, celles-là seulement", () => {
+  const { guides: g } = loadApp();
+  const css = fs.readFileSync(path.resolve(__dirname, "../../../engine/src/app/styles/tokens.css"), "utf8");
+  const block = (selector) => { const at = css.indexOf(selector); const open = css.indexOf("{", at); return css.slice(open, css.indexOf("}", open)); };
+  const tokens = (text) => Object.fromEntries(Array.from(text.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})/g), (m) => [m[1], m[2]]));
+  const dark = tokens(block(":root {")), light = tokens(block(':root[data-theme="light"] {'));
+  const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const holds = (name) => ratio(dark[name], dark.bg) >= 3 && ratio(light[name], light.bg) >= 3;
+  assert.ok(holds("guide-default"), "le chartreuse (#c6f03a, #4f7a00) tient sur la toile");
+  assert.equal(dark["guide-default"].toLowerCase(), "#c6f03a");
+  assert.equal(light["guide-default"].toLowerCase(), "#4f7a00");
+  const hues = ["blue", "sky", "indigo", "violet", "pink", "red", "orange", "amber", "lime", "green", "teal", "slate"];
+  const ok = hues.filter((h) => holds("hue-" + h));
+  assert.deepEqual(clone(g.GUIDE_HUES), ok, "proposées exactement : celles qui tiennent 3:1 dans les deux thèmes");
+  assert.ok(ok.length >= 8 && !ok.includes("orange"), ok.join(","));
+  assert.equal(g.guideColor("teal"), "var(--hue-teal)");
+  assert.equal(g.guideColor(null), null);
+  assert.equal(g.guideColor("orange"), null, "une teinte non proposée ne se pose pas");
+});
+
+test("mettre en grille (align.ts) : colonnes par défaut au moins de cases vides, ordre par nom ou à l'écran, places entières centrées", () => {
+  const { gridding: grid } = loadApp();
+  assert.deepEqual([1, 2, 3, 12, 20].map(grid.gridColumns), [1, 2, 3, 4, 5], "12 → 4 × 3, 20 → 5 × 4");
+  assert.equal(grid.gridColumns(144), 16, "à égalité de cases vides (12 × 12 ou 16 × 9), la plus large");
+  for (let n = 2; n <= 80; n += 1) { // la règle, exactement : entre ⌈√n⌉ et ⌈√(1,6 n)⌉, le moins de cases vides, à égalité la plus large
+    const lo = Math.ceil(Math.sqrt(n)), hi = Math.ceil(Math.sqrt(n * 1.6)), holes = (c) => Math.ceil(n / c) * c - n;
+    let want = hi;
+    for (let c = hi; c >= lo; c -= 1) if (holes(c) < holes(want)) want = c;
+    assert.equal(grid.gridColumns(n), want, `n = ${n}`);
+  }
+  assert.deepEqual(["dc01-acc-10", "dc01-acc-2", "DC01-acc-1", "dc01-acc-02"].sort(grid.naturalCompare), ["DC01-acc-1", "dc01-acc-02", "dc01-acc-2", "dc01-acc-10"], "les chiffres comme des nombres, sans la casse");
+  const items = [7, 3, 12, 1, 5, 9, 2, 11, 4, 6, 10, 8].map((k, i) => ({ id: "node\u0000acc-" + k, name: "acc-" + k, box: { x: 37 + (i % 5) * 310 + (i * 13) % 40, y: 600 + Math.floor(i / 5) * 170 - (i * 7) % 30, w: 240, h: 80 } }));
+  const plan = grid.gridBoxes(items, {});
+  assert.equal(plan.cols, 4);
+  assert.equal(plan.rows, 3);
+  assert.deepEqual(clone(plan.ordered.map((g) => g.name)), ["acc-1", "acc-2", "acc-3", "acc-4", "acc-5", "acc-6", "acc-7", "acc-8", "acc-9", "acc-10", "acc-11", "acc-12"], "par nom par défaut");
+  const ox = Math.min(...items.map((g) => g.box.x)), oy = Math.min(...items.map((g) => g.box.y));
+  assert.deepEqual(clone(plan.places.get("node\u0000acc-1")), { x: ox, y: oy }, "la grille part du coin haut gauche de la sélection");
+  assert.deepEqual(clone(plan.places.get("node\u0000acc-6")), { x: ox + 300, y: oy + 140 }, "case = la plus grande boîte + 60");
+  assert.ok(Array.from(plan.places.values()).every((p) => Number.isInteger(p.x) && Number.isInteger(p.y)));
+  const snapped = grid.gridBoxes(items, { snap: 20 });
+  assert.ok(Array.from(snapped.places.values()).every((p) => p.x % 20 === 0 && p.y % 20 === 0), "aimantées à la grille");
+  assert.equal(grid.gridBoxes(items, { cols: 99 }).cols, 12, "jamais plus de colonnes que d'éléments");
+  assert.equal(grid.gridBoxes(items, { cols: 6 }).rows, 2);
+  const screen = grid.gridBoxes(items, { order: "screen" });
+  assert.deepEqual(clone(screen.ordered.slice(0, 5).map((g) => g.name)), ["acc-7", "acc-3", "acc-12", "acc-1", "acc-5"], "à l'écran : la première rangée de gauche à droite");
+  const mixed = grid.gridBoxes([{ id: "a", name: "a", box: { x: 0, y: 0, w: 240, h: 80 } }, { id: "b", name: "b", box: { x: 0, y: 0, w: 120, h: 40 } }, { id: "c", name: "c", box: { x: 0, y: 0, w: 240, h: 80 } }], { cols: 3 });
+  assert.deepEqual(clone(mixed.places.get("b")), { x: 360, y: 20 }, "une boîte plus petite est centrée dans sa case");
+  assert.equal(grid.gridBoxes([], {}), null);
+});
+
+test("mettre en grille : le volet « aligner et répartir » la propose à partir de trois éléments ; Alt+G ; le menu d'une sélection", () => {
+  const { floating: f, selecting: sel, context: c } = loadApp();
+  const model = floatingModel();
+  const many = (items) => f.targetOf(model, null, sel.multiOf(items));
+  const voletOf = (target) => f.entriesOf(model, target).find((e) => e.id === "align").volet;
+  assert.equal(voletOf(many([{ kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }])).grid, false, "à deux : non");
+  assert.equal(voletOf(many([{ kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }, { kind: "annotation", id: "a1-1" }])).grid, true, "à trois : oui");
+  assert.equal(f.isGridKey("g", "KeyG") && f.isGridKey("©", "KeyG") && f.isGridKey("G", ""), true, "la lettre, ou sa place (Option sous macOS)");
+  assert.equal(f.isGridKey("h", "KeyH"), false);
+  const ids = (items) => clone(items.filter((i) => !i.sep).map((i) => i.id));
+  const rw = { editable: true, selectedHosts: ["sw-core-01", "sw-core-02"], hasSelection: true, pinned: () => false };
+  assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, grid: true })), ["center", "hide", "isolate", "clip:copy", "clip:paste", "align:horizontal", "align:vertical", "grid", "group"]);
+  const entry = c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, grid: true }).find((i) => i.id === "grid");
+  assert.deepEqual([entry.label, entry.keys, entry.aria], ["mettre en grille", "Alt+G", "Alt+G"]);
+  assert.equal(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, rw)).includes("grid"), false, "sans trois éléments qui se rangent : non");
+  assert.equal(ids(c.menuItems({ kind: "annotation", id: "a1-1" }, model, { ...rw, grid: true })).includes("grid"), true, "depuis une annotation de la sélection aussi");
+  assert.equal(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, editable: false, grid: true })).includes("grid"), false, "en lecture seule : jamais");
+});

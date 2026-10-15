@@ -97,3 +97,33 @@ Pas pour coder un lot : la spécification est écrite. Utile aux points de jugem
 (les recommandations sont dans `docs/11` §5), la revue indépendante des lots qui touchent le contrat ou l'API (9, 12),
 la critique Impeccable en fin de lot 4, et toute remarque de fond d'Orhan sur le modèle (qui passe avant le code, règle
 du 2026-09-20).
+
+## 4. Reprise du 2026-10-14 au soir (session coupée par la limite de contexte)
+
+> Reprends l'orchestration du plan `docs/11-audit-ui-edition-et-plan.md`. Lis d'abord `CLAUDE.md` (« Règles de
+> travail », puis les entrées du journal du 2026-10-14), `docs/11` § Lot 8 (« Prototype validé »), § Lot 16 (décisions,
+> « Prototype validé », versions du contrat), § Lot 4 (« Retours d'Orhan à l'usage », « Prototype du lot 4 bis jugé »),
+> et ce gabarit. **État à la coupure** :
+> - Dernier commit poussé : `23f1aa0` (lot 13). Aucun commit sans demande d'Orhan ; pas de stash, checkout, reset.
+> - **Lot 8** (repères d'alignement, aimant aux objets, mettre en grille ; couleur des repères au choix) : codé par un
+>   agent dans l'**arbre principal**, non commité. S'il n'a pas rendu son rapport, son travail est peut-être incomplet :
+>   `git status`, `git diff --stat`, chercher le paragraphe « Fait » à la fin de `docs/11` § Lot 8 ; s'il manque, relancer
+>   un agent Opus avec le prompt du § 2 (prototype `.impeccable/prototype-lot-8/` qui fait foi) en lui disant de **reprendre
+>   le travail en place** (lire le diff existant, finir, tester, documenter).
+> - **Lot 16** (bloc de code, `Intent` 1.6.0, Prism 1.30.0) : codé par un agent dans le **worktree**
+>   `.claude/worktrees/agent-a22f7fc3dd7c7866f` (branche `worktree-agent-a22f7fc3dd7c7866f`, partie de `23f1aa0`), non
+>   commité. Même vérification (paragraphe « Fait » de sa section Lot 16 dans `docs/11` du worktree) ; sinon relancer un
+>   agent **dans ce worktree** pour finir. Prototype qui fait foi : `.impeccable/prototype-lot-16/` (arbre principal).
+> - **Ordre de fin demandé par Orhan** : (1) relire le lot 8 (diff, suite complète `cd backend && uv run pytest`, captures
+>   `.impeccable/planche-lot-8/` comparées au prototype), journal, commit + push sur demande ; (2) fusionner le lot 16 sur
+>   `main` (commit sur la branche du worktree, puis merge ; conflits attendus : `docs/11` § Lot 16 existe des deux côtés,
+>   bundles `backend/src/ld_backend/render/assets/app/*` à **reconstruire** par `npm run build`, i18n, `Flow.tsx`,
+>   `FloatingBar.tsx`), suite complète, **revue indépendante consignée** dans `docs/revues/` (le lot touche le contrat et
+>   l'API), corrections, journal ; (3) **revue de code de toute la session** (lots 2, 3, 4, 13, 8, 16 : bugs, performance,
+>   cohérence, dette) par un agent indépendant, rapport consigné dans `docs/revues/`, puis une passe **impeccable**
+>   (critique + audit sur captures, « pas d'AI slop ») ; chaque recommandation est une hypothèse à confronter à l'usage
+>   avant de la coder (règle du 2026-10-10) ; présenter à Orhan les constats avec avis, corriger ce qu'il retient.
+> - Ensuite : lot 4 bis (barre de texte complète, `Intent` 1.7.0, prototype `.impeccable/prototype-lot-4-bis/`, retirer
+>   les graisses du volet police, cinq questions à la recommandation), puis lot 7. Lot 6 parqué.
+> - Piège : une interruption de la session par Orhan peut tuer les agents en arrière-plan ; vérifier après chaque
+>   interruption (transcription de l'agent sans « Request interrupted », fichier qui avance).

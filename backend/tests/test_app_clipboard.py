@@ -66,11 +66,12 @@ def _wait_note(tab, pattern: str) -> None:
     _wait(tab, f"/{pattern}/.test({NOTE})")
 
 
-def _alt_drag(tab, start: tuple[float, float], end: tuple[float, float], *, during=None) -> None:
-    """Un Alt + glissé réel : Alt tenu au clavier et sur chaque événement de souris ; `during`, bouton enfoncé."""
+def _alt_drag(tab, start: tuple[float, float], end: tuple[float, float], *, during=None, free: bool = False) -> None:
+    """Un Alt + glissé réel : Alt tenu au clavier et sur chaque événement de souris ; `during`, bouton enfoncé. `free` :
+    Ctrl tenu aussi, ni repère ni aimant (lot 8 de docs/11 : sans lui, la copie s'aligne sur ce qui l'entoure)."""
     alt = {"key": "Alt", "code": "AltLeft", "windowsVirtualKeyCode": 18}
     tab.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **alt, "modifiers": ALT})
-    mouse = {"button": "left", "clickCount": 1, "modifiers": ALT}
+    mouse = {"button": "left", "clickCount": 1, "modifiers": ALT | (CTRL if free else 0)}
     tab.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": start[0], "y": start[1], "buttons": 0, **mouse})
     tab.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": start[0], "y": start[1], "buttons": 1, **mouse})
     for step in range(1, 9):
@@ -288,7 +289,7 @@ def _duplicate_and_clone(tab, base: str, auth: dict, origin: tuple[int, int]) ->
         seen["original"] = _note_center(tab, "a1-1")
         seen["count"] = tab.js("LDApp.debug.handle().toile.model.intent.annotations.length")
 
-    _alt_drag(tab, start, (start[0] + 120, start[1] + 80), during=during)
+    _alt_drag(tab, start, (start[0] + 120, start[1] + 80), during=during, free=True)
     assert seen == {"ghost": True, "original": start, "count": 2}, seen
     _wait_note(tab, "1 élément collé")
     _wait(tab, f"!{GHOST}")

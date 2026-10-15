@@ -8,6 +8,7 @@ import { DEFAULT_LENGTH } from "../../canvas/connectors";
 import { deleteColumn, deleteRow, insertColumn, insertRow, merge, split } from "../../canvas/table";
 import { useEditable, useModel, useStore } from "../state/store";
 import { menuItems } from "../state/context";
+import { GRID_MIN, movableCount } from "../state/floating";
 import type { ContextTarget, MenuItem } from "../state/context";
 import type { TableContent } from "../../contracts/intent";
 import { t } from "../../i18n";
@@ -34,7 +35,10 @@ export function ContextMenu() {
   const editable = useEditable();
   if (!menu || !model || !handle) return null;
   const picked = state.picked.hosts.length + state.picked.annotations.length + state.picked.connectors.length + state.picked.groups.length;
-  const items = menuItems(menu.target, model, { editable, selectedHosts: state.hosts, hasSelection: !!state.selection || state.hosts.length > 0, pinned: (host) => model.pinByHost.has(host), items: picked });
+  // « mettre en grille » quand la cible fait partie d'une sélection d'au moins trois éléments qui se rangent (lot 8)
+  const target = menu.target, inPicked = target.kind === "node" ? state.picked.hosts.includes(target.id) : target.kind === "annotation" ? state.picked.annotations.includes(target.id) : false;
+  const grid = inPicked && movableCount(model, state.picked).count >= GRID_MIN;
+  const items = menuItems(menu.target, model, { editable, selectedHosts: state.hosts, hasSelection: !!state.selection || state.hosts.length > 0, pinned: (host) => model.pinByHost.has(host), items: picked, grid });
   if (!items.length) return null;
   // Le menu reste dans la fenêtre : il se décale à gauche ou au-dessus du clic quand la place manque.
   const rows = items.filter((i) => !i.sep).length, height = rows * ROW + items.filter((i) => i.sep).length * 9 + 12;
@@ -64,6 +68,7 @@ type Commands = ReturnType<typeof useStore>["commands"];
 type Model = NonNullable<ReturnType<typeof useModel>>;
 // Ce qu'une entrée fait : les mêmes commandes que les fiches et la barre d'outils, jamais un chemin à part.
 function execute(target: ContextTarget, id: string, plan: { x: number; y: number }, commands: Commands, model: Model): void {
+  if (id === "grid") { commands.grid(); return; }
   if (id.startsWith("clip:")) { // le presse-papiers (lot 3) : sur la sélection si la cible en fait partie, sinon sur elle seule
     const what = target.kind === "node" || target.kind === "annotation" || target.kind === "connector" ? { kind: target.kind, id: target.id } : null;
     if (id === "clip:paste") commands.pasteFromMenu(plan);

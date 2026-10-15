@@ -3,7 +3,8 @@
 // pour le pilote Chromium. Le catalogue des codes (sens, règle) est lu une fois dans le bloc JSON de la page. La langue
 // (i18n) est fixée avant le premier rendu, comme le thème : rien ne s'affiche dans une langue puis dans l'autre.
 import { createRoot } from "react-dom/client";
-import { alignment, boxAlignment } from "../canvas/align";
+import { alignment, boxAlignment, gridding } from "../canvas/align";
+import { guides } from "./canvas/guides";
 import { selecting } from "./state/selection";
 import { floating } from "./state/floating";
 import { clipboard } from "./state/clipboard";
@@ -28,13 +29,13 @@ import { tool } from "./canvas/tool";
 import { reusing } from "./canvas/reuse";
 import { initialState, reducer } from "./state/reducer";
 import { debug } from "./state/debug";
-import { defaultPrefs, parsePrefs, readPrefs } from "./state/prefs";
+import { applyGuideColor, defaultPrefs, parsePrefs, readPrefs } from "./state/prefs";
 import { LANGUAGES, applyLanguage, detectLanguage, effectiveLanguage, i18n, setLanguage, t } from "../i18n";
 import "@xyflow/react/dist/base.css";
 import "./styles/index.css";
 import "./styles/flow.css";
 
-export const LDApp = { address, clipboard, floating, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reusing, reducer, initialState, query, alignment, boxAlignment, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
+export const LDApp = { address, clipboard, floating, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reusing, reducer, initialState, query, alignment, boxAlignment, gridding, guides, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
   i18n: { LANGUAGES, detectLanguage, effectiveLanguage, setLanguage, language: () => i18n.language, t } };
 (globalThis as unknown as { LDApp: typeof LDApp }).LDApp = LDApp;
 
@@ -51,6 +52,7 @@ if (root) {
   const prefs = readPrefs();
   document.documentElement.dataset.theme = prefs.theme;
   applyLanguage(prefs.language);
+  applyGuideColor(prefs.guideHue);
   document.documentElement.style.setProperty("--panel-w", prefs.panelWidth + "px");
 }
 if (root) createRoot(root).render(<App catalogue={readCatalogue()} />);

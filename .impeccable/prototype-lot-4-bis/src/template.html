@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barre de mise en forme</title>
+<style>
+/*FONTS*/
+/*CSS*/
+</style>
+</head>
+<body>
+<div class="app" id="app" data-volets="bis">
+
+  <header class="bar glass">
+    <div class="bar-left">
+      <span class="mark"><span class="mark-dot"></span>Living Diagram</span>
+      <span class="crumb">/</span>
+      <span class="infra">demo-dc</span>
+      <span class="pill tone-neutral run-pill"><span class="pill-dot"></span>2026-01-19 02:00</span>
+    </div>
+    <div class="bar-center">
+      <div class="mode-switch" role="group" aria-label="Vues">
+        <button class="mode-item" aria-pressed="true" data-icon="workflow">Diagramme</button>
+        <button class="mode-item" aria-pressed="false" data-icon="shield-check">Contrôle <span class="pill tone-danger">6</span></button>
+        <button class="mode-item" aria-pressed="false" data-icon="history">Journal</button>
+      </div>
+      <span class="counts"><span class="count"><b>32</b> équipements</span><span class="count-sep"></span><span class="count diff"><b>+2 −1 ~9</b></span></span>
+    </div>
+    <div class="bar-right">
+      <button class="toggle" aria-pressed="true" data-icon="git-compare-arrows">changements</button>
+      <button class="toggle" aria-pressed="false" data-icon="sliders-horizontal">affichage</button>
+      <button class="toggle" aria-pressed="false" data-icon="user">orhan</button>
+    </div>
+  </header>
+
+  <div class="search glass" aria-hidden="true">
+    <span class="search-icon" data-icon="search"></span>
+    <span class="search-text">chercher : nom, port, groupe…</span>
+    <span class="kbd">/</span>
+  </div>
+
+  <div class="toolbar glass" id="toolbar" role="toolbar" aria-label="Barre d'outils de la toile"></div>
+
+  <svg class="toile" id="toile" tabindex="0" role="application" aria-label="Toile du diagramme">
+    <defs>
+      <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" class="grid-line"/></pattern>
+    </defs>
+    <g class="world" id="world">
+      <rect class="grid-fill" x="-4000" y="-4000" width="8000" height="8000" fill="url(#grid)"/>
+      <g id="layer-frames"></g>
+      <g id="layer-links"></g>
+      <g id="layer-under"></g>
+      <g id="layer-nodes"></g>
+      <g id="layer-over"></g>
+      <g id="layer-handles"></g>
+    </g>
+  </svg>
+
+  <!-- la barre : un conteneur positionné (--fx, --fy), un corps animé ; ses volets ; son infobulle -->
+  <div class="fbar" id="fbar" role="toolbar" aria-orientation="horizontal" hidden>
+    <div class="fbar-body" id="fbar-body"></div>
+  </div>
+  <div class="fvolet" id="fvolet" role="dialog" tabindex="-1" hidden></div>
+  <div class="ftip" id="ftip" role="tooltip" hidden><span class="ftip-label"></span><span class="ftip-keys"></span></div>
+  <textarea class="inplace" id="inplace" aria-label="texte de la note" hidden></textarea>
+
+  <aside class="panel" id="panel" hidden></aside>
+
+  <div class="controls glass" role="group" aria-label="Réglages de la toile">
+    <button class="cbtn" aria-pressed="true" aria-label="grille" data-icon="grid-3x3"></button>
+    <button class="cbtn" aria-pressed="false" aria-label="aimant" data-icon="magnet"></button>
+    <button class="cbtn" aria-pressed="false" aria-label="minimap" data-icon="map"></button>
+    <span class="cbtn-sep"></span>
+    <button class="cbtn" id="theme-btn" aria-label="thème clair" data-icon="sun"></button>
+  </div>
+
+  <div class="band glass" aria-hidden="true">
+    <button class="band-nav" data-icon="chevron-left" tabindex="-1"></button>
+    <span class="band-run"><span class="dot"></span>2026-01-05 02:00</span>
+    <span class="band-run compared"><span class="dot"></span>2026-01-12 02:00</span>
+    <span class="band-run" aria-current="true"><span class="dot"></span>2026-01-19 02:00</span>
+    <button class="band-nav" data-icon="chevron-right" tabindex="-1"></button>
+  </div>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <section class="proto" aria-label="Réglages du prototype">
+    <div class="proto-head">
+      <span class="proto-title">Prototype · lot 4 bis</span>
+      <button class="proto-help-btn" id="proto-help-btn" aria-expanded="false" aria-controls="proto-help" data-icon="keyboard" aria-label="ce qu'on peut essayer"></button>
+    </div>
+    <div class="proto-row">
+      <span class="proto-label">volets</span>
+      <div class="seg" role="radiogroup" aria-label="dessin des volets">
+        <button class="seg-item" role="radio" aria-checked="true" data-volets-pick="bis">lot 4 bis</button>
+        <button class="seg-item" role="radio" aria-checked="false" data-volets-pick="avant">lot 4</button>
+      </div>
+    </div>
+    <div class="proto-row">
+      <span class="proto-label">thème</span>
+      <div class="seg" role="radiogroup" aria-label="thème">
+        <button class="seg-item" role="radio" aria-checked="true" data-theme-pick="dark">sombre</button>
+        <button class="seg-item" role="radio" aria-checked="false" data-theme-pick="light">clair</button>
+      </div>
+    </div>
+    <label class="proto-check"><input type="checkbox" id="readonly"> sans nom (lecture seule)</label>
+    <div class="proto-help" id="proto-help" hidden>
+      <p><b>clic</b> sélectionne · <b>Maj + clic</b> ajoute</p>
+      <p><b>taille</b> : taper, <b>↑↓</b> (Maj ×10), glisser l'icône, <b>Ctrl+Maj+&gt; / &lt;</b></p>
+      <p><b>Ctrl+B / I / U</b>, <b>Ctrl+Maj+X</b> barré</p>
+      <p><b>double-clic</b> sur une note : écrire</p>
+      <p><b>Alt+T</b> : la barre · <b>← →</b> · <b>↓</b> ouvre · <b>Échap</b></p>
+      <p><b>Ctrl+Z / Ctrl+Y</b> annulent et rétablissent</p>
+    </div>
+  </section>
+</div>
+<script>
+/*ICONS*/
+/*JS*/
+</script>
+</body>
+</html>

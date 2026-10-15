@@ -3,7 +3,12 @@
 // dans l'adresse (une vue se partage par un lien). Une couche de plus = une ligne de `LAYERS`. « Changements » reste
 // dans la barre, à côté des comptes du diff qu'il accompagne. La barre contextuelle (lot 4 de docs/11) s'y affiche ou
 // s'y masque aussi, mais c'est une préférence du navigateur (prefs.ts), jamais dans l'adresse ; Ctrl+. fait de même.
-import { CircleDashed, Gauge, Network, PanelTop, Pin, SlidersHorizontal, StickyNote, Tag, Unplug } from "lucide-react";
+// La couleur des repères d'alignement (lot 8) aussi : une rangée de pastilles, le chartreuse et les teintes nommées qui
+// tiennent un contraste de 3:1 sur la toile dans les deux thèmes (`GUIDE_HUES`), et « défaut ».
+import { CircleDashed, Gauge, Network, PanelTop, Pin, RulerDimensionLine, SlidersHorizontal, StickyNote, Tag, Unplug } from "lucide-react";
+import { HUE_LABEL } from "../../canvas/hues";
+import type { HueName } from "../../canvas/hues";
+import { GUIDE_HUES } from "../canvas/guides";
 import type { ComponentType, SVGProps } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -78,9 +83,35 @@ function Panel({ onClose }: { onClose: () => void }) {
             <kbd className="kbd layer-sample" aria-hidden="true">Ctrl+.</kbd>
             <span className="switch" aria-hidden="true"><span className="knob" /></span>
           </button>
+          <GuideColors />
         </section>
       </div>
     </Dialog>
+  );
+}
+
+/** La couleur des repères d'alignement : une préférence du navigateur, jamais une intention (propre à chacun). */
+function GuideColors() {
+  const { state, commands } = useStore();
+  const { t } = useTranslation();
+  const chosen = state.prefs.guideHue;
+  const pick = (hue: HueName | null): void => commands.setPrefs({ guideHue: hue });
+  const swatch = (hue: HueName | null, label: string) => (
+    <button key={hue || "default"} type="button" role="radio" aria-checked={chosen === hue ? "true" : "false"} aria-label={label} title={label}
+      className={"guide-swatch " + (hue ? "guide-" + hue : "guide-default")} onClick={() => pick(hue)} />
+  );
+  return (
+    <div className="guide-colors">
+      <div className="guide-colors-head">
+        <RulerDimensionLine className="layer-icon" aria-hidden="true" />
+        <span className="layer-label" id="guide-colors-label">{t("display.guideColor")}</span>
+        <button type="button" className="guide-reset" disabled={!chosen} onClick={() => pick(null)}>{t("display.guideDefault")}</button>
+      </div>
+      <div className="guide-swatches" role="radiogroup" aria-labelledby="guide-colors-label">
+        {swatch(null, t("display.chartreuse"))}
+        {GUIDE_HUES.map((hue) => swatch(hue, HUE_LABEL[hue]))}
+      </div>
+    </div>
   );
 }
 

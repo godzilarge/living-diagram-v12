@@ -1,0 +1,85 @@
+/* Les repères d'alignement, l'aimant aux objets, « mettre en grille » (lot 8 de docs/11), d'après le prototype validé
+   le 2026-10-14 (`.impeccable/prototype-lot-8/`). Une seule couleur nouvelle, `--guide` (tokens.css), choisie par
+   chacun dans le panneau Affichage. Un trait plein de 1 px, net au demi-pixel (le tiret est déjà pris : câble
+   documenté, cadre de groupe, cluster HA). La couche est à l'écran, au-dessus de la toile, sous l'interface flottante. */
+/* une couche à elle (`will-change`) : un pas de glissé ne repeint que ses traits, jamais les cartes dessous (sans GPU, le
+   repeint d'une zone plein écran coûtait une image de plus de 100 ms à 500 équipements) */
+.guide-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 5; will-change: transform; }
+.guide-layer text { text-rendering: geometricPrecision; }
+.guide-line { stroke: var(--guide); stroke-width: 1; fill: none; }
+/* les croix aux coins alignés : où le repère touche chaque objet */
+.guide-mark { stroke: var(--guide); stroke-width: 1.25; stroke-linecap: round; fill: none; }
+/* un écart égal : le segment, ses deux butées, et la cote dans une capsule (une distance est un fait) */
+.guide-gap { stroke: var(--guide); stroke-width: 1; fill: none; }
+.guide-num rect { fill: var(--guide); }
+.guide-num text { fill: var(--guide-ink); font: 600 11px var(--mono); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+/* la boîte englobante d'une sélection glissée : c'est elle qui s'aligne ; quatre équerres à la couleur de la sélection
+   (un rectangle complet semblait enfermer les cartes non sélectionnées) */
+.guide-union { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linecap: square; }
+/* la pastille du geste : X, Y pendant un glissé ; « libre » quand Ctrl suspend l'aimantation */
+.guide-pill rect { fill: var(--bg-elev-2); stroke: var(--line-strong); }
+.guide-pill text { fill: var(--ink); font: 500 11px var(--mono); font-variant-numeric: tabular-nums; }
+.guide-pill .free { fill: var(--ink-3); font-family: var(--sans); font-weight: 500; }
+/* l'aperçu de « mettre en grille » : chaque place à venir, presque opaque, cache l'élément d'aujourd'hui ; son nom se lit seul */
+.grid-ghost { fill: color-mix(in srgb, var(--accent) 10%, var(--bg-elev)); fill-opacity: 0.94; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; }
+.grid-ghost-name { fill: var(--ink); font: 600 11px var(--mono); letter-spacing: 0.02em; }
+
+/* Pendant un glissé, l'estompage de la sélection s'allège (on vise des objets qu'il faut lire ; `guiding`, posée par la
+   toile jusqu'à 150 équipements dessinés : au-delà, le repeint de toutes les cartes coûtait une image), et ce qui
+   s'aligne repasse à pleine opacité (`guide-hit`, posée sur le nœud par la couche), toujours. */
+.flow-host.guiding .has-selection .node:not(.selected):not(.related):not(.match),
+.flow-host.guiding .has-selection .annotation:not(.selected):not(.related),
+.flow-host.guiding .has-selection .frame:not(.selected):not(.related),
+.flow-host.guiding .has-selection .cluster:not(.selected):not(.related) { opacity: 0.62; }
+.flow-host .has-selection .react-flow__node.guide-hit .node:not(.selected):not(.related):not(.match),
+.flow-host .has-selection .react-flow__node.guide-hit .annotation:not(.selected):not(.related):not(.match),
+.flow-host .has-selection .react-flow__node.guide-hit .frame:not(.selected):not(.related):not(.match),
+.flow-host .has-selection .react-flow__node.guide-hit .cluster:not(.selected):not(.related):not(.match) { opacity: 1; }
+/* pendant l'aperçu de la grille, les éléments s'effacent derrière leur place à venir */
+.flow-host.previewing .has-selection .node.selected,
+.flow-host.previewing .has-selection .annotation.selected { opacity: 0.3; }
+
+/* ---------- le volet « aligner et répartir », avec la grille ---------- */
+.fvolet.has-grid { min-width: 212px; }
+.volet-rule { height: 1px; margin: 10px -8px 8px; background: var(--line); }
+.order-row { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 6px; margin-top: 8px; }
+.volet-rule + .order-row { margin-top: 0; }
+.order-label { font: 400 12px/1 var(--sans); color: var(--ink-3); padding-left: 2px; }
+.order-row .stepper { justify-self: start; }
+.order-row .volet-seg { height: 28px; }
+.order-row .volet-seg .seg-item { height: 24px; min-width: 0; padding: 0 8px; font: 500 12px/1 var(--sans); }
+/* le nombre de colonnes : un pas à pas compact, la valeur en chiffres tabulaires */
+.stepper { display: inline-flex; align-items: center; height: 28px; padding: 1px; border-radius: 4px; border: 1px solid var(--ctl-line); background: var(--ctl-bg); flex: none; }
+.step { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 3px; color: var(--ink-2); }
+.step svg { width: 13px; height: 13px; }
+.step:hover:not(:disabled) { background: var(--ctl-bg-hover); color: var(--ink); }
+.step:disabled { opacity: 0.35; cursor: default; }
+.step-val { min-width: 18px; text-align: center; font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+.grid-go { display: flex; width: 100%; align-items: center; gap: 8px; height: 30px; margin-top: 10px; padding: 0 8px; border-radius: 4px; background: var(--ctl-bg); border: 1px solid var(--ctl-line);
+  font: 500 12px/1 var(--sans); color: var(--ink); white-space: nowrap; transition: background var(--t-fast); }
+.grid-go svg { width: 15px; height: 15px; color: var(--ink-2); }
+.grid-go:hover { background: var(--ctl-bg-hover); }
+.grid-go:hover svg { color: var(--ink); }
+.grid-go:focus-visible, .step:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.grid-go-label { flex: 1; text-align: left; }
+.grid-go-keys { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+
+/* ---------- la couleur des repères, dans le panneau Affichage ---------- */
+.guide-colors { display: flex; flex-direction: column; gap: 8px; padding: 6px 8px 4px; }
+.guide-colors-head { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 10px; color: var(--ink-2); font-size: var(--fs); }
+.guide-colors-head .layer-icon { color: var(--guide); }
+.guide-reset { height: 22px; padding: 0 6px; border-radius: var(--r-sm); font: 500 var(--fs-xs) var(--sans); color: var(--ink-3); }
+.guide-reset:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--ink); }
+.guide-reset:disabled { opacity: 0.4; cursor: default; }
+.guide-reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.guide-swatches { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 26px; }
+.guide-swatch { width: 16px; height: 16px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); }
+.guide-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 3px var(--ink); }
+.guide-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.guide-default { --swatch: var(--guide-default); }
+.guide-blue { --swatch: var(--hue-blue); } .guide-sky { --swatch: var(--hue-sky); } .guide-indigo { --swatch: var(--hue-indigo); }
+.guide-violet { --swatch: var(--hue-violet); } .guide-pink { --swatch: var(--hue-pink); } .guide-red { --swatch: var(--hue-red); }
+.guide-amber { --swatch: var(--hue-amber); } .guide-lime { --swatch: var(--hue-lime); } .guide-teal { --swatch: var(--hue-teal); }
+.guide-slate { --swatch: var(--hue-slate); }
+
+@media (prefers-reduced-motion: reduce) { .grid-go { transition: none; } }

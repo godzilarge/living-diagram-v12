@@ -3,7 +3,9 @@
 // fantôme de ce qui sera copié (la sélection si l'élément en fait partie, sinon l'élément seul) suit le pointeur, à
 // 60 % d'opacité, dans une couche à part (le pointeur qui bouge ne redessine qu'elle) ; à la relâche, la copie se crée
 // à la place du fantôme, l'original reste. Sans Alt au départ, glissé normal. Les poignées (taille, bouts, frontières
-// d'un tableau) et les champs gardent leur geste ; Espace + glissé et le bouton du milieu gardent la vue.
+// d'un tableau) et les champs gardent leur geste ; Espace + glissé et le bouton du milieu gardent la vue. La copie
+// s'aligne comme un glissé (lot 8 de docs/11) : les repères corrigent l'écart, l'aimant de la grille pose le reste par
+// pas de 20 sur l'axe qu'ils n'ont pas pris ; Ctrl tenu suspend les deux.
 import { ViewportPortal } from "@xyflow/react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { RefObject } from "react";
@@ -54,11 +56,13 @@ export interface CloneOptions {
   onDrop: (items: Item[], d: Point) => void;
   /** Un geste en cours (la bulle se tait). */
   hold: (on: boolean) => void;
+  /** Les repères d'alignement (lot 8) : la correction d'un écart `d` (plan, brut) et les axes pris ; `end` les efface. */
+  guide?: { move: (items: Item[], d: Point, free: boolean) => { dx: number; dy: number; took: { x: boolean; y: boolean } }; end: () => void };
 }
 
-export function useAltClone({ container, enabled, toile, ghost, planAt, snap, onDrop, hold }: CloneOptions): void {
-  const latest = useRef({ planAt, snap, onDrop, hold });
-  latest.current = { planAt, snap, onDrop, hold };
+export function useAltClone({ container, enabled, toile, ghost, planAt, snap, onDrop, hold, guide }: CloneOptions): void {
+  const latest = useRef({ planAt, snap, onDrop, hold, guide });
+  latest.current = { planAt, snap, onDrop, hold, guide };
   useEffect(() => {
     const el = container.current;
     if (!enabled || !el) return;
@@ -66,10 +70,12 @@ export function useAltClone({ container, enabled, toile, ghost, planAt, snap, on
     let swallow = false;
     const delta = (event: PointerEvent): Point => {
       const g = gesture as NonNullable<typeof gesture>, at = latest.current.planAt({ x: event.clientX, y: event.clientY });
-      const step = (v: number): number => (latest.current.snap ? Math.round(v / STEP) * STEP : Math.round(v));
-      return { x: step(at.x - g.from.x), y: step(at.y - g.from.y) };
+      const free = event.ctrlKey || event.metaKey, raw = { x: at.x - g.from.x, y: at.y - g.from.y };
+      const fix = latest.current.guide && g.moved ? latest.current.guide.move(g.items, raw, free) : { dx: 0, dy: 0, took: { x: false, y: false } };
+      const step = (v: number): number => (latest.current.snap && !free ? Math.round(v / STEP) * STEP : Math.round(v));
+      return { x: fix.took.x ? Math.round(raw.x + fix.dx) : step(raw.x), y: fix.took.y ? Math.round(raw.y + fix.dy) : step(raw.y) };
     };
-    const end = (): void => { gesture = null; ghost.set(null); latest.current.hold(false); };
+    const end = (): void => { gesture = null; ghost.set(null); latest.current.hold(false); if (latest.current.guide) latest.current.guide.end(); };
     const onDown = (event: PointerEvent): void => {
       swallow = false; // un clic avalé ne vaut que pour l'appui qui l'a pris
       if (event.button !== 0 || !event.altKey) return;

@@ -28,6 +28,7 @@ import { Toolbar } from "./Toolbar";
 import { TopBar } from "./TopBar";
 import { TypePalette } from "./TypePalette";
 import { WalkBar } from "./WalkBar";
+import { applyGuideColor } from "../state/prefs";
 
 const typing = (target: EventTarget | null): boolean => {
   const el = target as HTMLElement | null;
@@ -159,6 +160,8 @@ export function Shell() {
   useEffect(() => {
     document.documentElement.dataset.theme = state.prefs.theme;
   }, [state.prefs.theme]);
+  // La couleur des repères d'alignement (lot 8 de docs/11) : une préférence aussi, posée sur la racine.
+  useEffect(() => { applyGuideColor(state.prefs.guideHue); }, [state.prefs.guideHue]);
   // La langue : choisie ici, sinon celle du navigateur ; `lang` sur la racine pour le lecteur d'écran et la césure.
   useEffect(() => {
     applyLanguage(state.prefs.language); // déjà posée par `setPrefs` ; ici pour la langue du navigateur au démarrage
