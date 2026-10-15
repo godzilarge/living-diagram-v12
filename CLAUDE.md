@@ -1829,7 +1829,18 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   (7 mutations sur 7), `store.tsx` 609 → 453 lignes (`intent-commands.ts`), un seul `typing` / `isHost` / arrondi, zone
   visible en constantes (`chrome.ts`). **M3 / J4 dans `docs/a-juger-a-l-usage.md`** (Ctrl tenu avant d'appuyer ajoute à
   la sélection). Suite complète 622 verte trois fois de suite chez l'orchestrateur (l'agent avait vu deux passages
-  instables sous charge : à surveiller).
+  instables sous charge : à surveiller). Commité et poussé (3c07e23).
+- **Critique et audit Impeccable des lots 8, 16 et 4** (2026-10-15, deux évaluations isolées sur captures ; rapports et
+  mesures dans `.impeccable/critique-2026-10-15/{design,audit}/`). Design **30/40** : rendu fidèle aux prototypes ;
+  défauts purs : taille du code absente du bouton « AA » (le prototype disait « AA 13 »), volet du langage ouvert loin de
+  son bouton, focus de l'avertissement des secrets repris par le champ. Audit **13/20** : trois P1 purs (après un
+  collage, l'avertissement est inatteignable au clavier et Tab écrit dans le code ; l'avertissement passe sous la fiche
+  de 1024 à 1440 ; dans un volet à plusieurs groupes, Tab n'en parcourt qu'un : colonnes, ordre, « mettre en grille » et
+  les langages inatteignables au clavier) ; P2 : contrastes en clair des textes teintés (pastille de langage, cote d'écart
+  4,1 à 3,6:1), pouce de défilement sous 3:1, `role="listitem"` sur un bouton, fiche d'un bloc de 2 000 lignes en tâche
+  longue (~200 ms, à fenêtrer), pastilles de couleur des repères à 16 px. Tenu et mesuré : repères 0,16 ms par pas,
+  molette 56-60 i/s sur 2 000 lignes, sombre AA partout, aucun défilement horizontal. **Présenté à Orhan le même jour
+  avec avis** ; question de goût : palette des repères qui reprend des teintes déjà porteuses de sens sur la toile.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 

@@ -1,0 +1,41 @@
+{
+  "collage : focus": "textarea.code-edit.nodrag.nopan.nowheel [écriture : bloc de ",
+  "collage : Tab ×2 a modifié le texte": true,
+  "collage : début du texte après Tab ×2": "        hostname dc01-ac",
+  "collage : avertissement encore ouvert": true,
+  "collage : bouton « retirer » a-t-il jamais le focus (Tab ×6)": false,
+  "Ctrl+Entrée : focus initial de l'avertissement": "button.pbtn.primary «Retirer la valeur»",
+  "volet langage : ↓ ×3 depuis « appliquer »": [
+    "button.vbtn [appliquer FortiOS] «appliquer»",
+    "button.vbtn [appliquer FortiOS] «appliquer»",
+    "button.vbtn [appliquer FortiOS] «appliquer»"
+  ],
+  "1280 avertissement": {
+    "x": 752,
+    "r": 1200,
+    "vw": 1280,
+    "panelLeft": 920,
+    "hiddenUnderPanel": 280
+  },
+  "1440 avertissement": {
+    "x": 832,
+    "r": 1280,
+    "vw": 1440,
+    "panelLeft": 1080,
+    "hiddenUnderPanel": 200
+  },
+  "clair : nature (avertissement) / son fond, éléments réels": {
+    "hash (hash)": 5.42,
+    "en clair": 4.35,
+    "type 7 : réversible": 4.35
+  },
+  "clair : ligne d'aperçu (ink-2) / liste": 5.82,
+  "pastilles couleur des repères : cibles": {
+    "n": 11,
+    "w": 16,
+    "h": 16,
+    "pasEntreCentres": 22
+  },
+  "mouvement réduit : barre": "fbar-fade 0.12s",
+  "mouvement réduit : défilement du bloc": null
+}

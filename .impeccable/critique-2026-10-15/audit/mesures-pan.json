@@ -1,0 +1,26 @@
+{
+  "rien": {
+    "barre dans le DOM": false,
+    "p50": 33,
+    "p95": 42,
+    "max": 132
+  },
+  "équipement, barre montrée": {
+    "barre dans le DOM": true,
+    "p50": 47,
+    "p95": 67,
+    "max": 168
+  },
+  "équipement, barre masquée": {
+    "barre dans le DOM": false,
+    "p50": 44,
+    "p95": 63,
+    "max": 138
+  },
+  "équipement, barre montrée (bis)": {
+    "barre dans le DOM": true,
+    "p50": 44,
+    "p95": 60,
+    "max": 164
+  }
+}

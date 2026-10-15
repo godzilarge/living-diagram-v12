@@ -1,0 +1,101 @@
+{
+  "compute": {
+    "cards": 519,
+    "zone": 266,
+    "pick_ms": 0.12399999618530273,
+    "step_ms_400": 0.15620000076293944,
+    "n400": 400
+  },
+  "guides_on": [
+    {
+      "frames": 86,
+      "fps": 40.95495526385469,
+      "max": 83.30000000000018,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    },
+    {
+      "frames": 90,
+      "fps": 41.86245114884521,
+      "max": 50,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    },
+    {
+      "frames": 90,
+      "fps": 44.62886634745462,
+      "max": 66.70000000000073,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    }
+  ],
+  "guides_off": [
+    {
+      "frames": 64,
+      "fps": 33.39365061475625,
+      "max": 66.60000000000218,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    },
+    {
+      "frames": 62,
+      "fps": 33.21782103952491,
+      "max": 50,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    },
+    {
+      "frames": 62,
+      "fps": 33.21668206063439,
+      "max": 50,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    }
+  ],
+  "guides_on_again": [
+    {
+      "frames": 89,
+      "fps": 42.050555161823766,
+      "max": 50.099999999998545,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    },
+    {
+      "frames": 88,
+      "fps": 44.74727956879897,
+      "max": 50.099999999998545,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    },
+    {
+      "frames": 85,
+      "fps": 43.96782176169226,
+      "max": 66.69999999999709,
+      "over100": 0,
+      "toile_versions_during": 1,
+      "layer_on": true
+    }
+  ],
+  "summary": {
+    "guides_on": {
+      "fps_median": 41.9,
+      "max_ms": 83
+    },
+    "guides_off": {
+      "fps_median": 33.2,
+      "max_ms": 67
+    },
+    "guides_on_again": {
+      "fps_median": 44.0,
+      "max_ms": 67
+    }
+  }
+}
