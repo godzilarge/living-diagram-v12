@@ -7,6 +7,24 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Round 2 of the direction round: the shell, one direction, on the bench** (2026-10-16, Orhan's verdict on round 1
+  then "go": the UI he judges is the shell, the canvas is another surface for a later session and the v1 cards are
+  the better base there; base = the category standard improved with `netzgrafik`'s liveliness; floating, airy
+  surfaces that hide themselves; icons over words with one tooltip grammar white on black; Ctrl+K palette with a
+  scrim; the thin coloured rail for the view switch; logo only; rich but balanced motion; **a home page of widgets**,
+  added to `PRODUCT.md` (90c42d0); light by default, dark supported; the accent can never be red, which stays the
+  error colour). One Opus agent, `bac-a-sable/directions/BRIEF-2.md`: `shell/index.html` (diagram screen, canvas
+  neutralised, floating islands, panel of dc01-core-01 in plain words, run band, canvas controls, search palette as a
+  state, tooltips as `[role=tooltip]`) and `shell/home.html` (infrastructures, latest modifications, latest
+  collections, search, one free slot), Archivo (OFL), two accents switchable on the page (A cobalt `#2150E8`, B
+  signal green `#00804E`), a bench switcher in a corner. One code for "current / on": the 2-px accent rail,
+  everywhere; only problems carry colour. `scripts/measure.py` extended: `--theme`, `--accent`, `--state`,
+  `--page`; floating surfaces (`[data-float]`: ≥ 12 px from edges, ≥ 8 px apart, no overlap) and tooltip grammar
+  (every `[role=tooltip]` one computed style). Six states measured by the agent (three passes, one more than the
+  rule) and re-measured by the orchestrator: 12 bars on the diagram, 8 on the home, 8 floating surfaces, 23 / 9
+  tooltips in one style, nothing flagged. Agent's honest risks: the rail reads as an underline until animated; a table
+  row cut at the panel's bottom; 56 px empty under the home grid. Decision page updated with a round-2 section.
+  **Awaiting Orhan: accent A or B, and the verdict on the shell**, then `DESIGN.md`.
 - **Step 3 of the UI redesign: the direction round, four mockups on the bench** (2026-10-15 night, autonomous session on
   Orhan's go; order revised: directions before the `app/` skeleton, since the chosen direction decides the primitives).
   Orhan has no reference interface in mind and no creative process: the process shows him choices instead of asking him
