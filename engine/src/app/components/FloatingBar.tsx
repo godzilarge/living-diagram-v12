@@ -29,6 +29,7 @@ import type { BarAlign, BarButton, BarEntry, Geometry, Obstacle, Rect, Target, Z
 import { useEditable, useStore } from "../state/store";
 import { FaceOf } from "./floating-faces";
 import { VoletBody } from "./FloatingVolet";
+import { codeRun } from "../state/code-bar";
 
 /** Le retour après un geste ou Maj relâchée ; le délai avant la première infobulle (puis sans attendre d'une case à l'autre). */
 const RETURN_MS = 120, TIP_MS = 400;
@@ -123,6 +124,7 @@ function execute(button: BarButton, value: string | null, target: Target, model:
     else if (id === "delete") commands.annotationDelete(a.id);
     else if (id === "edit_label") commands.requestEdit(a.id, null);
     else if (id === "replace") pickFile();
+    else if (a.content.kind === "code") codeRun(id, value, a, a.content, commands); // lot 16 : langage, police, coloration, numéros, hauteur
     else if (a.content.kind === "table") {
       const c = a.content;
       if (id === "add_row" && c.rows.length < MAX_ROWS) commands.tableUpdate(a.id, insertRow(c, c.rows.length));
@@ -426,7 +428,7 @@ function Bar({ toile, gate }: { toile: Toile; gate: { busy: () => boolean; subsc
             const tab = b.id === stop ? 0 : -1;
             const tint = b.face.kind === "glyph" && b.face.glyph === "fill" && target.kind === "annotation" ? " hue-" + target.a.style.hue : "";
             return (
-              <button key={b.id} type="button" data-id={b.id} tabIndex={tab} className={"fb" + (b.volet ? " opens" : "") + (b.danger ? " danger" : "") + tint}
+              <button key={b.id} type="button" data-id={b.id} tabIndex={tab} className={"fb" + (b.volet ? " opens" : "") + (b.danger ? " danger" : "") + (b.face.kind === "text" ? " named" : "") + tint}
                 aria-label={b.label} aria-keyshortcuts={b.aria} aria-pressed={b.pressed === undefined ? undefined : b.pressed ? "true" : "false"}
                 aria-haspopup={b.volet ? (b.volet.kind === "groups" ? "menu" : "dialog") : undefined} aria-expanded={b.volet ? (open === b.id ? "true" : "false") : undefined}
                 onClick={() => { if (b.volet) toggle(b, false); else run(b); }}

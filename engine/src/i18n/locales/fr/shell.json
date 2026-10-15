@@ -126,7 +126,9 @@
     "groupDetail_one": "groupe · {{count}} membre",
     "groupDetail_many": "groupe · {{count}} membres",
     "groupDetail_other": "groupe · {{count}} membres",
-    "clusterDetail": "cluster HA · {{mode}}"
+    "clusterDetail": "cluster HA · {{mode}}",
+    "notes": "notes et code",
+    "codeLine": "l. {{line}} · {{text}}"
   },
   "toolbar": {
     "label": "actions sur la toile",
@@ -153,7 +155,8 @@
     "keys": "{{label}} ({{keys}})",
     "selectedItems_one": "{{count}} élément sélectionné",
     "selectedItems_many": "{{count}} éléments sélectionnés",
-    "selectedItems_other": "{{count}} éléments sélectionnés"
+    "selectedItems_other": "{{count}} éléments sélectionnés",
+    "insertCode": "insérer un bloc de code"
   },
   "keys": {
     "escape": "Échap"
@@ -315,7 +318,9 @@
       "cut": "Ctrl+X",
       "paste": "Ctrl+V",
       "duplicate": "Ctrl+D"
-    }
+    },
+    "insertCode": "insérer un bloc de code",
+    "editCode": "modifier le code"
   },
   "palette": {
     "label": "palette des types",
@@ -516,7 +521,8 @@
       "table": "tableau",
       "image": "image",
       "connector": "connecteur",
-      "group": "groupe"
+      "group": "groupe",
+      "code": "bloc de code"
     },
     "hue": "teinte",
     "hueMixed": "mixte",
@@ -623,6 +629,60 @@
     "hueOf": "teinte : {{value}}",
     "huedItems_one": "teinte {{hue}} sur {{count}} élément ({{author}})",
     "huedItems_many": "teinte {{hue}} sur {{count}} éléments ({{author}})",
-    "huedItems_other": "teinte {{hue}} sur {{count}} éléments ({{author}})"
+    "huedItems_other": "teinte {{hue}} sur {{count}} éléments ({{author}})",
+    "codeLanguageOf": "langage : {{value}}",
+    "codeLanguageHint": "langage : {{value}} (le contenu ressemble à {{detected}})",
+    "codeFontOf": "police : {{value}}",
+    "codeHighlightOn": "coloration syntaxique : activée",
+    "codeHighlightOff": "coloration syntaxique : désactivée (texte brut)",
+    "codeNumbersOn": "numéros de ligne : affichés",
+    "codeNumbersOff": "numéros de ligne : masqués",
+    "codeFit": "ajuster la hauteur au contenu",
+    "codeFitMax": "ajuster la hauteur au contenu ({{max}} lignes au plus)",
+    "codeSizeOf": "taille du code : {{value}} px",
+    "codeSize": "taille du code"
+  },
+  "code": {
+    "lines_one": "{{count}} ligne",
+    "lines_many": "{{count}} lignes",
+    "lines_other": "{{count}} lignes",
+    "copyCode": "copier le code",
+    "foot": "lignes {{from}}-{{to}} sur {{total}}",
+    "below_one": "{{count}} plus bas",
+    "below_many": "{{count}} plus bas",
+    "below_other": "{{count}} plus bas",
+    "end": "fin du code",
+    "blockLabel_one": "bloc de code {{language}}{{title}}, {{count}} ligne",
+    "blockLabel_many": "bloc de code {{language}}{{title}}, {{count}} lignes",
+    "blockLabel_other": "bloc de code {{language}}{{title}}, {{count}} lignes",
+    "editorLabel": "écriture : {{name}}",
+    "keySave": "Ctrl+Entrée",
+    "hintSave": "enregistrer",
+    "keyCancel": "Échap",
+    "hintCancel": "annuler",
+    "hintTab": "4 espaces",
+    "locked": "bloc verrouillé : déverrouillez-le pour écrire",
+    "removed_one": "1 valeur retirée du texte",
+    "removed_many": "{{count}} valeurs retirées du texte",
+    "removed_other": "{{count}} valeurs retirées du texte",
+    "kept": "enregistré tel quel : le bloc garde son alerte",
+    "tooLong": "bloc de code trop long : {{max}} caractères au plus",
+    "abandoned": "bloc abandonné : rien n'a été enregistré",
+    "created_one": "bloc de code créé : {{count}} ligne, {{language}}",
+    "created_many": "bloc de code créé : {{count}} lignes, {{language}}",
+    "created_other": "bloc de code créé : {{count}} lignes, {{language}}",
+    "createdSure_one": "bloc créé : {{count}} ligne, langage reconnu : {{language}} · modifiable dans la barre",
+    "createdSure_many": "bloc créé : {{count}} lignes, langage reconnu : {{language}} · modifiable dans la barre",
+    "createdSure_other": "bloc créé : {{count}} lignes, langage reconnu : {{language}} · modifiable dans la barre",
+    "createdGuess_one": "bloc créé : {{count}} ligne, langage proposé : {{language}} · modifiable dans la barre",
+    "createdGuess_many": "bloc créé : {{count}} lignes, langage proposé : {{language}} · modifiable dans la barre",
+    "createdGuess_other": "bloc créé : {{count}} lignes, langage proposé : {{language}} · modifiable dans la barre",
+    "copied_one": "copié : {{count}} ligne",
+    "copied_many": "copié : {{count}} lignes",
+    "copied_other": "copié : {{count}} lignes",
+    "copiedOf_one": "copié : {{count}} ligne de {{title}}",
+    "copiedOf_many": "copié : {{count}} lignes de {{title}}",
+    "copiedOf_other": "copié : {{count}} lignes de {{title}}",
+    "copyRefused": "copie refusée par le navigateur : sélectionnez le texte dans la fiche"
   }
 }

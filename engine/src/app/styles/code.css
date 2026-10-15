@@ -1,0 +1,177 @@
+/* Le bloc de code (lot 16 de docs/11), d'après le prototype validé (`.impeccable/prototype-lot-16/`) : une carte de la
+   même famille que celles des équipements (un rail de sa teinte à gauche, `--type`), un fond un cran plus creux que la
+   toile, un en-tête, une gouttière. Onze familles de jetons, une couleur chacune, dans les deux thèmes, tirées des
+   teintes de l'application et réglées pour le texte : chaque couleur tient 4,5:1 au moins sur le fond du bloc, de
+   l'en-tête et de la gouttière (testé). Aucune valeur libre écrite par la page : les dimensions passent par des
+   variables CSS posées par le CSSOM. */
+:root {
+  --code-bg: #0d1219; --code-head: #121922; --code-gutter: #0f151d; --code-line: #283445; --code-rule: #1e2834;
+  --code-ink: #dfe6ee; --code-num: #7b8ca2;
+  --tk-comment: #8a9bb1; --tk-keyword: #c79bff; --tk-string: #86dfa5; --tk-number: #f2b066; --tk-function: #82b6ff;
+  --tk-builtin: #55d6c2; --tk-property: #74c8f2; --tk-punct: #9fb0c3; --tk-variable: #f597c9; --tk-secret: #ff8f86;
+  --tk-masked: #8a9bb1;
+}
+:root[data-theme="light"] {
+  --code-bg: #f8fafc; --code-head: #eef2f6; --code-gutter: #f1f4f8; --code-line: #c8d1dc; --code-rule: #dde3ea;
+  --code-ink: #1b2430; --code-num: #5c6b7f;
+  --tk-comment: #5c6b7e; --tk-keyword: #6d28d9; --tk-string: #13703a; --tk-number: #a04a06; --tk-function: #1d4ed8;
+  --tk-builtin: #0f766e; --tk-property: #0369a1; --tk-punct: #4b5a6e; --tk-variable: #be185d; --tk-secret: #b91c1c;
+  --tk-masked: #5c6b7e;
+}
+
+/* les polices d'un bloc : une classe pose --code-font, le texte en hérite (chasse fixe seulement) */
+.cf-jetbrains_mono { --code-font: "JetBrains Mono Variable", ui-monospace, monospace; }
+.cf-ibm_plex_mono { --code-font: "IBM Plex Mono", "JetBrains Mono Variable", monospace; }
+.cf-source_code_pro { --code-font: "Source Code Pro", "JetBrains Mono Variable", monospace; }
+.cf-cascadia_mono { --code-font: "Cascadia Mono", "JetBrains Mono Variable", monospace; }
+
+/* ——— sur la toile ——— */
+.code-body { fill: var(--code-bg); stroke: var(--code-line); stroke-width: 1; }
+.code-head { fill: var(--code-head); }
+.code-rail { fill: var(--type); }
+.code-rule { stroke: var(--code-rule); stroke-width: 1; }
+.code-gutter { fill: var(--code-gutter); }
+.code-title { font: 600 13px var(--sans); fill: var(--ink); pointer-events: none; }
+.code-count { font: 400 12px var(--sans); fill: var(--ink-3); pointer-events: none; }
+.code-nums text { font-family: var(--code-font, var(--mono)); fill: var(--code-num); font-variant-numeric: tabular-nums; pointer-events: none; text-rendering: geometricPrecision; }
+.code-text text { font-family: var(--code-font, var(--mono)); font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; fill: var(--code-ink); white-space: pre; pointer-events: none; text-rendering: geometricPrecision; }
+.annotation.kind-code.selected .code-body { stroke: var(--accent); stroke-width: 1.5; filter: drop-shadow(0 0 6px var(--accent-soft)); }
+.annotation.kind-code .hover-ring { fill: none; }
+.code-active .code-text, .code-active .code-nums { cursor: text; }
+
+/* les jetons : une famille, une couleur ; seul le commentaire est en italique */
+.tk-comment { fill: var(--tk-comment); font-style: italic; }
+.tk-keyword { fill: var(--tk-keyword); }
+.tk-string { fill: var(--tk-string); }
+.tk-number { fill: var(--tk-number); }
+.tk-function { fill: var(--tk-function); }
+.tk-builtin { fill: var(--tk-builtin); }
+.tk-property { fill: var(--tk-property); }
+.tk-punct { fill: var(--tk-punct); }
+.tk-variable { fill: var(--tk-variable); }
+.tk-secret { fill: var(--tk-secret); text-decoration: underline dotted; }
+.tk-masked { fill: var(--tk-masked); font-style: italic; }
+.tk-clip { fill: var(--code-num); }
+
+/* l'en-tête : la pastille du langage (un fait), copier (une commande), l'alerte */
+.code-pill rect { fill: color-mix(in srgb, var(--type) 14%, var(--code-head)); stroke: color-mix(in srgb, var(--type) 45%, var(--code-head)); stroke-width: 1; }
+.code-pill text { font: 600 11px var(--mono); fill: color-mix(in srgb, var(--type) 70%, var(--ink)); letter-spacing: 0.02em; pointer-events: none; }
+.code-pill.off rect { fill: none; stroke: var(--code-line); stroke-dasharray: 3 2; }
+.code-pill.off text { fill: var(--ink-3); }
+.code-icon { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.code-warn { color: var(--warning); }
+.code-copy { cursor: pointer; color: var(--ink-3); }
+.code-copy rect { fill: transparent; }
+.code-copy:hover { color: var(--ink); }
+.code-copy:hover rect { fill: color-mix(in srgb, var(--ink) 9%, var(--code-head)); }
+.code-foot-hint, .code-foot-more { font: 400 11.5px var(--sans); fill: var(--ink-3); pointer-events: none; }
+
+/* le défilement dans la boîte : fine, visible au survol et sur le bloc sélectionné ; le pouce se glisse, la piste pagine */
+.code-scroll { opacity: 0; transition: opacity var(--t-fast); }
+.react-flow__node-annotation:hover .code-scroll, .annotation.selected .code-scroll { opacity: 1; }
+.code-track { fill: transparent; cursor: pointer; }
+.code-thumb { fill: color-mix(in srgb, var(--ink) 28%, transparent); cursor: grab; }
+.code-thumb:hover, .code-thumb:active { fill: color-mix(in srgb, var(--ink) 48%, transparent); }
+
+/* ——— l'écriture en place : un textarea en chasse fixe sur la zone du code, la gouttière gardée ——— */
+.react-flow__node:has(.code-editor) { z-index: 1000 !important; }
+.code-editor { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.code-edit { position: absolute; left: 0; top: var(--ce-top, 34px); width: 100%; height: var(--ce-h, 200px); box-sizing: border-box; margin: 0;
+  padding: var(--ce-py, 10px) 12px var(--ce-py, 10px) var(--ce-pl, 16px); resize: none; border: 1px solid var(--accent); border-radius: 0 0 8px 8px;
+  background: var(--code-bg); color: var(--code-ink); font: 400 var(--ce-fs, 13px)/var(--ce-lh, 20px) var(--code-font, var(--mono)); white-space: pre;
+  overflow: auto; tab-size: 4; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; box-shadow: 0 0 0 3px var(--accent-soft); caret-color: var(--accent);
+  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+.code-edit:focus { outline: none; }
+.code-edit::selection, .insp-code pre ::selection { background: color-mix(in srgb, var(--accent) 32%, transparent); color: inherit; }
+.code-edit-gutter { position: absolute; z-index: 1; left: var(--ce-gl, 4px); top: calc(var(--ce-top, 34px) + 1px); width: var(--ce-gw, 40px); height: calc(var(--ce-h, 200px) - 2px);
+  overflow: hidden; pointer-events: none; padding-top: var(--ce-py, 10px); box-sizing: border-box; background: var(--code-gutter); border-bottom-left-radius: 8px; }
+.code-edit-nums { transform: translateY(var(--gs, 0px)); padding-right: 12px; text-align: right; font: 400 var(--ce-fs, 13px)/var(--ce-lh, 20px) var(--code-font, var(--mono)); color: var(--code-num); font-variant-numeric: tabular-nums; }
+.code-edit-nums .flag { position: relative; color: var(--tk-secret); font-weight: 600; }
+.code-edit-nums .flag::before { content: ""; position: absolute; left: 6px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--tk-secret); }
+.code-edit-hint { position: absolute; left: 0; bottom: calc(100% + 8px); scale: var(--unzoom, 1); transform-origin: left bottom; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px;
+  border-radius: var(--ctl-r); background: var(--bg-elev-2); border: 1px solid var(--line-strong); box-shadow: var(--shadow-tip); font: 400 12px/1 var(--sans); color: var(--ink-3); white-space: nowrap; pointer-events: none; }
+.code-edit-hint kbd { font: 500 11px/1 var(--mono); color: var(--ink-2); }
+
+/* le brouillon (un collage, une insertion) : dans le plan, à sa place */
+.code-draft { position: absolute; left: 0; top: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)); width: var(--dw, 480px); height: var(--dh, 240px); pointer-events: all; }
+.code-draft > svg { position: absolute; left: 0; top: 0; overflow: visible; }
+
+/* ——— l'avertissement : la famille des volets, un filet d'avertissement ; à côté du bloc, jamais dessus ——— */
+.code-warn-panel { position: absolute; z-index: 2; left: var(--cw-x, 100%); top: var(--cw-y, 0px); scale: var(--unzoom, 1); transform-origin: left top; width: 448px; box-sizing: border-box; padding: 14px 16px;
+  background: var(--bg-elev-2); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: var(--shadow-fbar), inset 3px 0 0 var(--warning); color: var(--ink);
+  animation: fbar-fade var(--t-fast) linear both; cursor: default; }
+.code-warn-panel.left { left: auto; right: calc(100% + 12px); transform-origin: right top; }
+.code-warn-head { display: flex; align-items: center; gap: 8px; font: 600 13.5px/20px var(--sans); color: var(--ink); }
+.code-warn-head svg { width: 18px; height: 18px; color: var(--warning); flex: none; }
+.code-warn-why { margin: 6px 0 12px 26px; font: 400 12.5px/18px var(--sans); color: var(--ink-2); }
+.code-warn-list { display: flex; flex-direction: column; gap: 1px; margin: 0 0 14px; padding: 4px; border-radius: 8px; background: var(--ctl-bg); box-shadow: inset 0 0 0 1px var(--ctl-line); max-height: 272px; overflow: auto; }
+.code-warn-row { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 2px 8px; width: 100%; padding: 6px 8px; border-radius: 6px; text-align: left; cursor: pointer; }
+.code-warn-row:hover { background: var(--ctl-bg-hover); }
+.code-warn-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.code-warn-ln { grid-row: span 2; font: 500 11.5px/18px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.code-warn-kind { font: 500 12px/18px var(--sans); color: var(--ink); }
+.code-warn-nature { margin-left: 8px; padding: 0 6px; border-radius: 4px; font: 500 11px/16px var(--sans); color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.code-warn-nature.hash { color: var(--ink-2); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.code-warn-line { font: 400 12px/18px var(--mono); color: var(--ink-2); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.code-warn-note { margin: -4px 0 12px; font: 400 12px/17px var(--sans); color: var(--ink-3); }
+.code-warn-actions { display: flex; align-items: center; gap: 8px; }
+.code-warn-actions .spacer { flex: 1; }
+.pbtn.ghost { background: none; box-shadow: none; color: var(--ink-2); }
+.pbtn.ghost:hover { background: var(--ctl-bg-hover); color: var(--ink); }
+
+/* ——— la fiche : le code en entier, coloré par les mêmes jetons (spans) ——— */
+.insp-code { margin: 4px 0 4px; border-radius: 8px; background: var(--code-bg); box-shadow: inset 0 0 0 1px var(--code-line); overflow: hidden; }
+.insp-code-head { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 12px; background: var(--code-head); border-bottom: 1px solid var(--code-rule); font: 500 12px/1 var(--sans); color: var(--ink-3); }
+.insp-code-head .grow { flex: 1; }
+.insp-code pre { margin: 0; max-height: 300px; overflow: auto; padding: 8px 0; font: 400 12px/19px var(--code-font, var(--mono)); color: var(--code-ink); counter-reset: ln;
+  font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+.insp-code pre:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.insp-code .ln { display: block; padding: 0 14px 0 0; white-space: pre; }
+.insp-code .ln::before { counter-increment: ln; content: counter(ln); display: inline-block; width: 4ch; margin-right: 14px; padding-right: 10px; text-align: right; color: var(--code-num); border-right: 1px solid var(--code-rule); }
+.insp-code span.tk-comment { color: var(--tk-comment); font-style: italic; } .insp-code span.tk-keyword { color: var(--tk-keyword); }
+.insp-code span.tk-string { color: var(--tk-string); } .insp-code span.tk-number { color: var(--tk-number); }
+.insp-code span.tk-function { color: var(--tk-function); } .insp-code span.tk-builtin { color: var(--tk-builtin); }
+.insp-code span.tk-property { color: var(--tk-property); } .insp-code span.tk-punct { color: var(--tk-punct); }
+.insp-code span.tk-variable { color: var(--tk-variable); } .insp-code span.tk-secret { color: var(--tk-secret); text-decoration: underline dotted; }
+.insp-code span.tk-masked { color: var(--tk-masked); font-style: italic; }
+.insp-btn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--ctl-r); color: var(--ink-2); font: 500 12px/1 var(--sans); }
+.insp-btn:hover { background: var(--ctl-bg-hover); color: var(--ink); }
+.insp-btn svg { width: 14px; height: 14px; }
+.insp-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.insp-warn { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--warning) 10%, var(--bg-elev)); font: 400 12.5px/18px var(--sans); color: var(--ink); }
+.insp-warn > svg { width: 16px; height: 16px; flex: none; color: var(--warning); margin-top: 1px; }
+.insp-fit-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+.insp-fit-row .insp-fit { flex: none; }
+
+/* les choix d'un bloc (volet de la barre, fiche) : chaque police dans son propre rendu, la liste des langages */
+.font-list { display: flex; flex-direction: column; gap: 2px; }
+.font-item { display: grid; grid-template-columns: minmax(0, 1fr) 14px; grid-template-rows: auto auto; column-gap: 12px; row-gap: 3px; align-items: center; width: 100%; padding: 7px 8px; border-radius: var(--ctl-r); text-align: left; color: var(--ink); }
+.font-item:hover { background: var(--ctl-bg-hover); }
+.font-item:focus-visible, .lang-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.font-name { font: 400 13.5px/18px var(--code-font); font-variant-ligatures: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.font-sample { grid-column: 1; min-width: 0; overflow: hidden; font: 400 12px/16px var(--code-font); color: var(--ink-2); font-variant-ligatures: none; white-space: pre; }
+.font-item .vcheck, .lang-item .vcheck { width: 14px; height: 14px; visibility: hidden; color: var(--accent); }
+.font-item .vcheck { grid-row: 1 / span 2; grid-column: 2; }
+.font-item[aria-checked="true"] .vcheck, .lang-item[aria-checked="true"] .vcheck { visibility: visible; }
+.fvolet .font-list { width: 296px; }
+.insp-fontlist { width: 100%; padding: 2px; border-radius: var(--ctl-r); background: var(--ctl-bg); box-shadow: inset 0 0 0 1px var(--ctl-line); }
+.insp-fontlist .font-item[aria-checked="true"] { background: var(--ctl-on); box-shadow: var(--ctl-on-shadow); }
+.lang-list { display: flex; flex-direction: column; min-width: 220px; }
+.lang-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 30px; padding: 0 8px; border-radius: 4px; font: 400 13px/18px var(--sans); color: var(--ink); text-align: left; white-space: nowrap; }
+.lang-item:hover { background: var(--ctl-bg-hover); }
+.vgroup-label { height: 24px; padding: 8px 8px 0; font: 400 11.5px/1 var(--sans); color: var(--ink-3); }
+.vsuggest { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 8px; margin-bottom: 4px; border-radius: var(--ctl-r); background: var(--ctl-bg); box-shadow: inset 0 0 0 1px var(--ctl-line); font: 400 12px/1 var(--sans); color: var(--ink-2); white-space: nowrap; }
+.vsuggest b { font-weight: 600; color: var(--ink); }
+.vsuggest .grow { flex: 1; }
+.vbtn { height: 24px; padding: 0 8px; border-radius: 4px; font: 500 12px/1 var(--sans); color: var(--ink); background: var(--ctl-on); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.vbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* les boutons de la barre qui disent un nom (le langage, la police) */
+.fb.named { width: auto; gap: 4px; padding: 0 6px 0 8px; color: var(--ink); }
+.fb.named::after { display: none; }
+.fb.named .fname { position: relative; font: 500 12.5px/1 var(--sans); white-space: nowrap; }
+.fb.named .fname[class*="cf-"] { font-family: var(--code-font); }
+.fb.named .chev { width: 12px; height: 12px; color: var(--ink-3); }
+.lang-hint { position: absolute; right: -5px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) { .code-scroll { transition: none; } .code-warn-panel { animation: none; } }

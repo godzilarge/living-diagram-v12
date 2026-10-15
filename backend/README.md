@@ -455,6 +455,16 @@ jamais par `_`, un nom haché porte un suffixe). Une épingle dont l'équipement
 **orpheline** : la page la liste et la dit telle, jamais effacée en silence ; si l'équipement revient, elle s'applique à
 nouveau. Depuis le 2026-10-06, les équipements non épinglés sont stables aussi : voir le placement mémorisé ci-dessous.
 
+**Le bloc de code** (Intent 1.6.0, lot 16 de `docs/11`, 2026-10-14) : une cinquième sorte de contenu d'annotation,
+`{"kind": "code", "text", "language", "title", "highlight", "line_numbers", "font"}`, par les mêmes opérations
+(`annotation_create`, `annotation_update`, `annotation_delete`) ; défauts de la sorte à la création (ardoise, 13, mono,
+coins 8 ; boîte 480 × 240 si la page n'en donne pas), hauteur libre ; une tabulation, un retour chariot, un langage ou
+une police inconnus, un texte de plus de 20 000 caractères : 422 sans la valeur reçue. Le serveur ne juge pas les
+valeurs sensibles (la page avertit avant d'enregistrer) ; un texte enregistré entre au journal en entier (seule
+`ld journal prune` l'en retire). `ld intent` imprime un bloc par son langage, ses lignes et son titre, **jamais son
+texte**. Le journal nomme un bloc par son titre, sinon « bloc de code sans titre » ; « bloc de code » et « code block »
+le trouvent. Un document 1.5.x se relit en 1.6.0 sans changement.
+
 ### Le journal des modifications : `GET /api/intent/journal` (2026-10-09)
 
 En une phrase : **qui a modifié quoi dans l'intention, quand, sur quelle infrastructure, filtré et paginé.** Lecture
@@ -715,7 +725,9 @@ des données, sources, contrôles, comptabilité des intentions, « replacer »)
   la dernière run s'ouvre comparée à la précédente.
 - **CSP** (en-tête) : `default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self';
   base-uri 'none'; form-action 'none'` : aucun CDN, aucune ressource externe, aucun style en ligne. React, React Flow
-  (2026-10-07), Lucide et les polices (Inter, JetBrains Mono, OFL) sont dans le bundle et les assets.
+  (2026-10-07), Lucide, Prism (2026-10-14) et les polices (Inter, JetBrains Mono ; IBM Plex Mono, Source Code Pro,
+  Cascadia Mono pour les blocs de code, chargées seulement quand un bloc les affiche ; OFL) sont dans le bundle et les
+  assets.
 - **`GET /assets/app/{name}`** : `app.js`, `app.css`, `fonts/*.woff2`, **lus à la requête** dans les assets du paquet
   (`src/ld_backend/render/assets/app/`, versionnés, construits par `npm run build` dans `engine/`), servis avec un
   `ETag` (empreinte du contenu, 304 sur `If-None-Match`) et `Cache-Control: no-cache`. La liste des fichiers fait

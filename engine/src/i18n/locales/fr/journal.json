@@ -23,6 +23,7 @@
       "shape": "ajouté une forme {{ref}}",
       "table": "ajouté un tableau {{ref}}",
       "image": "ajouté une image {{ref}}",
+      "code": "ajouté un bloc de code {{ref}}",
       "other": "ajouté une annotation {{ref}}"
     },
     "annotation_update": {
@@ -30,6 +31,7 @@
       "shape": "modifié la forme {{ref}}",
       "table": "modifié le tableau {{ref}}",
       "image": "modifié l'image {{ref}}",
+      "code": "modifié le bloc de code {{ref}}",
       "other": "modifié l'annotation {{ref}}"
     },
     "annotation_delete": {
@@ -37,6 +39,7 @@
       "shape": "supprimé la forme {{ref}}",
       "table": "supprimé le tableau {{ref}}",
       "image": "supprimé l'image {{ref}}",
+      "code": "supprimé le bloc de code {{ref}}",
       "other": "supprimé l'annotation {{ref}}"
     },
     "connector_create": "tracé le connecteur {{ref}}",
@@ -114,6 +117,7 @@
     "shape": "sans titre",
     "table": "vide",
     "image": "sans titre",
+    "code": "sans titre",
     "annotation": "sans titre",
     "other": "sans nom"
   },
@@ -122,6 +126,7 @@
     "shape": "forme sans titre",
     "table": "tableau vide",
     "image": "image sans titre",
+    "code": "bloc de code sans titre",
     "annotation": "annotation sans titre",
     "group": "groupe sans nom",
     "connector": "connecteur sans nom",
@@ -168,7 +173,10 @@
     "point": "point ({{x}}, {{y}})",
     "side": ", côté {{side}}",
     "quoted": "« {{text}} »",
-    "table": "tableau {{rows}} × {{cols}}"
+    "table": "tableau {{rows}} × {{cols}}",
+    "code_one": "({{language}}, {{count}} ligne)",
+    "code_many": "({{language}}, {{count}} lignes)",
+    "code_other": "({{language}}, {{count}} lignes)"
   },
   "style": {
     "hue": "teinte",

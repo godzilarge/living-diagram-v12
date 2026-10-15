@@ -139,12 +139,12 @@ def test_a_document_written_before_1_1_is_read_with_empty_colours_and_rewritten_
     }
     (folder / "intent.json").write_text(json.dumps(old), encoding="utf-8")
     read = store.load(INFRA)
-    assert read.intent_version == "1.5.0" and read.type_colors == () and read.groups == () and read.pins[0].x == 1
+    assert read.intent_version == "1.6.0" and read.type_colors == () and read.groups == () and read.pins[0].x == 1
     assert json.loads((folder / "intent.json").read_text())["intent_version"] == "1.0.0", "lire ne réécrit rien"
     written = store.apply(
         INFRA, ops(ColorOp(op="color", hostname="sw-core-01", hue="red")), now=NOW + timedelta(days=1)
     )
-    assert written.revision == 2 and json.loads((folder / "intent.json").read_text())["intent_version"] == "1.5.0"
+    assert written.revision == 2 and json.loads((folder / "intent.json").read_text())["intent_version"] == "1.6.0"
 
 
 def test_groups_are_created_with_a_server_id_completed_style_then_updated_added_removed_deleted(store: IntentStore):
@@ -405,11 +405,11 @@ def test_a_document_written_in_1_3_is_read_with_its_arrows_as_connectors(store: 
     }
     (folder / "intent.json").write_text(json.dumps(old), encoding="utf-8")
     read = store.load(INFRA)
-    assert read.intent_version == "1.5.0" and [a.id for a in read.annotations] == ["a2-2"]
+    assert read.intent_version == "1.6.0" and [a.id for a in read.annotations] == ["a2-2"]
     assert read.annotations[0].content.widths is None and read.annotations[0].content.merges == ()
     assert [c.id for c in read.connectors] == ["c2-1"] and read.connectors[0].end.x == 110
     written = store.apply(INFRA, ops(pin("sw-core-01", 1, 2)), now=datetime(2026, 10, 9, tzinfo=UTC))
-    assert written.intent_version == "1.5.0" and len(written.connectors) == 1
+    assert written.intent_version == "1.6.0" and len(written.connectors) == 1
     assert Intent.model_validate_json((folder / "intent.json").read_text(encoding="utf-8")).revision == 3
 
 
@@ -427,7 +427,7 @@ def test_a_document_written_before_1_3_is_read_with_empty_annotations(store: Int
         "groups": [],
     }
     (folder / "intent.json").write_text(json.dumps(old), encoding="utf-8")
-    assert store.load(INFRA).annotations == () and store.load(INFRA).intent_version == "1.5.0"
+    assert store.load(INFRA).annotations == () and store.load(INFRA).intent_version == "1.6.0"
 
 
 def test_operations_apply_in_order_and_the_pins_come_out_sorted(store: IntentStore):

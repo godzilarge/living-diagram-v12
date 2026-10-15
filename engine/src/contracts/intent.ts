@@ -20,6 +20,14 @@ export type LabelColor = "hue" | "ink";
 export type AnchorKind = "free" | "device" | "group";
 export type ZOrder = "back" | "front";
 export type ShapeKind = "rectangle" | "ellipse";
+/**
+ * Les langages d'un bloc de code (1.6.0) : ce que la page sait colorer. Junos viendra dans une mineure.
+ */
+export type CodeLanguage = "plain" | "python" | "bash" | "json" | "yaml" | "cisco_ios" | "fortios";
+/**
+ * Les polices d'un bloc de code (1.6.0) : chasse fixe seulement, embarquées par l'application (OFL).
+ */
+export type CodeFont = "jetbrains_mono" | "ibm_plex_mono" | "source_code_pro" | "cascadia_mono";
 export type TextAlign = "left" | "center" | "right";
 export type TextValign = "top" | "middle" | "bottom";
 /**
@@ -89,7 +97,7 @@ export interface Intent {
    */
   groups: Group[];
   /**
-   * Les annotations (docs/10 §6 : notes, formes, tableaux, images), triées par `id`, uniques ; 2 000 au plus.
+   * Les annotations (docs/10 §6 : notes, formes, tableaux, images, blocs de code), triées par `id`, uniques ; 2 000 au plus.
    *
    * @maxItems 2000
    */
@@ -260,7 +268,7 @@ export interface Annotation {
    * Ligne de rappel vers l'ancre ; faux si libre (`leader_without_anchor`).
    */
   leader: boolean;
-  content: NoteContent | ShapeContent | TableContent | ImageContent;
+  content: NoteContent | ShapeContent | TableContent | ImageContent | CodeContent;
   style: AnnotationStyle;
   /**
    * Qui a créé ou modifié l'annotation en dernier.
@@ -370,6 +378,32 @@ export interface ImageContent {
    * Texte de remplacement, 120 caractères au plus (vide admis).
    */
   alt: string;
+}
+/**
+ * Un bloc de code (1.6.0, lot 16 de docs/11) : un extrait de configuration ou de script, lisible, coloré si on le
+ * veut. La boîte a une hauteur libre : le code défile dedans (la position de défilement est un état de vue, jamais
+ * dans ce document). Les valeurs sensibles ne sont pas jugées ici : la page avertit avant d'enregistrer.
+ */
+export interface CodeContent {
+  kind: "code";
+  /**
+   * 1 à 20 000 caractères ; retours à la ligne admis, ni tabulation ni retour chariot (la page les normalise), aucun autre caractère de contrôle.
+   */
+  text: string;
+  language: CodeLanguage;
+  /**
+   * Le titre du bloc (un nom de fichier, une commande), 80 caractères au plus.
+   */
+  title: string;
+  /**
+   * Coloration syntaxique allumée ; sans effet sur `plain`.
+   */
+  highlight: boolean;
+  /**
+   * Numéros de ligne affichés dans une gouttière.
+   */
+  line_numbers: boolean;
+  font: CodeFont;
 }
 /**
  * Le style d'une annotation (docs/10 §6) : toutes clés écrites ; le serveur complète avec les défauts de la sorte

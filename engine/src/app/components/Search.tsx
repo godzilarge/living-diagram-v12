@@ -13,9 +13,10 @@ import { complete, searchCached as search, suggest } from "../state/search";
 import type { Hit, Results } from "../state/search";
 import { useModel, useStore } from "../state/store";
 import { Button, Kbd } from "../ui";
+import { codeView } from "../code/view";
 
 const SHOWN = 8; // par sorte ; le compte dit le reste
-const SECTIONS = [{ key: "devices" }, { key: "ports" }, { key: "groups" }] as const;
+const SECTIONS = [{ key: "devices" }, { key: "ports" }, { key: "groups" }, { key: "notes" }] as const;
 
 function visible(results: Results): Hit[] {
   return SECTIONS.flatMap((s) => results[s.key].slice(0, SHOWN));
@@ -36,7 +37,8 @@ export function Search() {
   if (!results) return null;
   const setText = (next: string): void => dispatch({ type: "palette", text: next, open: true });
   const close = (): void => { dispatch({ type: "palette", open: false }); if (input.current) input.current.blur(); };
-  const openHit = (hit: Hit): void => { commands.reveal(hit.selection); close(); };
+  // un bloc de code trouvé s'ouvre à la ligne qui porte les mots (lot 16) : deux lignes au-dessus, pour le contexte
+  const openHit = (hit: Hit): void => { if (hit.line !== undefined && hit.selection.kind === "annotation") codeView.setFirst(hit.selection.id, Math.max(0, hit.line - 2)); commands.reveal(hit.selection); close(); };
   const selectAll = (): void => { if (results.deviceHosts.length) { commands.selectHosts(results.deviceHosts); close(); } };
   const rule = (): string => (results.deviceRule ? text.trim() : exactRule(results.deviceHosts));
   const keys = (event: KeyboardEvent): void => {
@@ -56,7 +58,7 @@ export function Search() {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) dispatch({ type: "palette", open: false });
   };
   const fields = open ? suggest(text) : [];
-  const total = results.devices.length + results.ports.length + results.groups.length;
+  const total = results.devices.length + results.ports.length + results.groups.length + results.notes.length;
   const listed = open && !!text && !results.error;
   const said = !text ? "" : results.error ? t("search.unreadable") : total ? t("search.results", { count: total }) : t("search.none");
   let index = -1;

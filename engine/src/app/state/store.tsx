@@ -36,6 +36,8 @@ import type { JournalCommands } from "./journal-commands";
 import { clipboardCommands } from "./clipboard-commands";
 import type { ClipboardCommands } from "./clipboard-commands";
 import { floatingCommands } from "./floating-commands";
+import { codeCommands } from "./code-commands";
+import type { CodeCommands } from "./code-commands";
 import type { FloatingCommands } from "./floating-commands";
 import { debug } from "./debug";
 import { readPrefs, writePrefs } from "./prefs";
@@ -48,7 +50,7 @@ import { said } from "./said";
 
 export interface CanvasHandle { toile: Toile; intents: IntentHost; placements: PlacementHost; writer: AppWriter; placer: Placer | null; undo: Undo }
 
-export interface Commands extends JournalCommands, ClipboardCommands, FloatingCommands {
+export interface Commands extends JournalCommands, ClipboardCommands, FloatingCommands, CodeCommands {
   connect: (fields: { token: string; infrastructure: string; author: string }) => void;
   listRuns: () => void;
   openRun: (runId: string, from: string) => void;
@@ -368,7 +370,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         if (!h || !sel || !h.intents.canWrite()) return false;
         if (sel.kind === "group" && h.toile.model.groupById.has(sel.id)) { commands.requestEdit(sel.id, null, "group"); return true; }
         const a = sel.kind === "annotation" ? h.toile.model.annotationById.get(sel.id) : undefined;
-        if (!a || a.locked || (a.content.kind !== "note" && a.content.kind !== "shape")) return false;
+        if (!a || a.locked || (a.content.kind !== "note" && a.content.kind !== "shape" && a.content.kind !== "code")) return false;
         commands.requestEdit(sel.id, null);
         return true;
       },
@@ -472,6 +474,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       closeContext: () => { if (current().context) dispatch({ type: "context", menu: null }); },
       requestEdit: (id, cell, kind) => dispatch({ type: "editRequest", request: { id, cell, at: Date.now(), ...(kind ? { kind } : {}) } }),
       insertAt: (kind, at) => {
+        if (kind === "code") { commands.codeInsert(at); return; } // un brouillon : rien n'existe avant le premier enregistrement (lot 16)
         if (kind === "connector") { commands.connectorCreate({ start: { kind: "free", x: Math.round(at.x - DEFAULT_LENGTH / 2), y: Math.round(at.y) }, end: { kind: "free", x: Math.round(at.x + DEFAULT_LENGTH / 2), y: Math.round(at.y) } }); return; }
         const content: Annotation["content"] | null = kind === "note" ? { kind: "note", text: t("shell:messages.defaultNote") } : kind === "rectangle" ? { kind: "shape", shape: "rectangle", label: "" } : kind === "ellipse" ? { kind: "shape", shape: "ellipse", label: "" } : kind === "table" ? freshTable([[t("shell:messages.column", { n: 1 }), t("shell:messages.column", { n: 2 })], ["", ""]]) : null;
         if (content) createAnnotation(content, at, {});
@@ -490,7 +493,9 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         if (!h || !h.intents.canWrite()) return false;
         const file = Array.from(data.files || []).find((f) => ["image/png", "image/jpeg", "image/webp"].includes(f.type));
         if (file) { commands.annotationImage(file); return true; }
-        const text = (data.getData("text/plain") || "").replace(/\r\n?/g, "\n").trim();
+        const raw = data.getData("text/plain") || "";
+        if (commands.codePaste(raw)) return true; // un texte de code devient un bloc de code avec son langage (lot 16)
+        const text = raw.replace(/\r\n?/g, "\n").trim();
         if (!text) return false;
         createAnnotation({ kind: "note", text: text.slice(0, 2000) }, null, {});
         return true;
@@ -499,6 +504,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         dispatch, current, session, handle: () => handleRef.current, pasteForeign: (data) => commands.paste(data),
       }),
       ...floatingCommands({ handle: () => handleRef.current }),
+      ...codeCommands({ dispatch, handle: () => handleRef.current }),
       selectedHosts: () => current().hosts,
       resetMoves: () => { const g = graph(); if (g) { g.resetPins(); dispatch({ type: "touched" }); } },
       undo: () => { if (handleRef.current) void handleRef.current.undo.undo(); },

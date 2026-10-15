@@ -2,7 +2,8 @@
 // partie pure : ce qu'un texte trouve dans la run affichée. Des équipements (les champs de query.ts), des ports (nom,
 // description), des groupes et des clusters HA (nom). Un mot par terme, tous doivent correspondre, insensibles à la
 // casse, non ancrés ; `champ:regex` vise un champ. Sans champ, un mot vise le nom d'un équipement, le nom ou la
-// description d'un port, le nom d'un groupe : « sw-core-01 eth1/1 » trouve ce port. Chercher n'est pas filtrer :
+// description d'un port, le nom d'un groupe : « sw-core-01 eth1/1 » trouve ce port ; et le texte d'une note ou d'un bloc
+// de code (lot 16 : « vlan 20 » trouve la configuration qui le porte, à la ligne qui le porte). Chercher n'est pas filtrer :
 // les résultats s'éclairent, rien ne disparaît (masquer et isoler restent des actions).
 import { haModeText, IFACE_TYPE_LABEL, KIND_LABEL } from "../../canvas/format";
 import { LABEL as TYPE_LABEL } from "../../canvas/icons";
@@ -19,7 +20,7 @@ export const SEARCH_FIELDS: readonly string[] = [...FIELDS, "port", "desc"];
 type SearchField = Field | "port" | "desc";
 interface Term { field: SearchField; regex: RegExp; explicit: boolean }
 
-export type HitKind = "device" | "port" | "group";
+export type HitKind = "device" | "port" | "group" | "note";
 export interface Hit {
   kind: HitKind; key: string; title: string; detail: string;
   /** Ce qu'ouvrir le résultat montre ; un port qui a un seul câble ouvre ce câble, sinon son équipement. */
@@ -27,10 +28,12 @@ export interface Hit {
   /** Les équipements que le résultat éclaire sur la toile. */
   hosts: string[];
   removed: boolean;
+  /** Un bloc de code trouvé : la ligne (depuis 0) qui porte tous les mots, pour l'ouvrir là. */
+  line?: number;
 }
 export interface Results {
   text: string; error: string | null; empty: boolean;
-  devices: Hit[]; ports: Hit[]; groups: Hit[];
+  devices: Hit[]; ports: Hit[]; groups: Hit[]; notes: Hit[];
   /** Les équipements que la toile éclaire : les équipements trouvés s'il y en a ; sinon les propriétaires des ports et
    *  les membres des groupes (« dc02 core » éclaire les deux cœurs, pas les cent ports dont la description les cite). */
   hosts: string[];
@@ -124,10 +127,32 @@ function groups(model: Model, terms: Term[]): Hit[] {
   return own.concat(ha);
 }
 
+// Une note ou un bloc de code : chaque mot (sans champ) dans son texte ou son titre ; un bloc s'ouvre à la première ligne
+// qui porte tous les mots (sinon à la première qui en porte un).
+function notes(model: Model, terms: Term[]): Hit[] {
+  if (!terms.every((t) => !t.explicit)) return [];
+  const out: Hit[] = [];
+  (model.annotationById || new Map()).forEach((a) => {
+    const c = a.content;
+    if (c.kind !== "note" && c.kind !== "code") return;
+    const title = c.kind === "code" ? c.title : "";
+    if (!terms.every((t) => t.regex.test(c.text) || t.regex.test(title))) return;
+    const lines = c.text.split("\n");
+    let at = lines.findIndex((l) => terms.every((t) => t.regex.test(l)));
+    if (at < 0) at = Math.max(0, lines.findIndex((l) => terms.some((t) => t.regex.test(l))));
+    const shown = lines[at].trim().slice(0, 60);
+    const name = c.kind === "code" ? title || t("common:annotationKind.code") : lines[0].trim().slice(0, 60) || t("common:annotationKind.note");
+    const anchor = a.anchor.kind === "device" && a.anchor.ref ? [a.anchor.ref] : [];
+    out.push({ kind: "note", key: "a:" + a.id, title: name, detail: c.kind === "code" ? t("search.codeLine", { line: at + 1, text: shown }) : shown, removed: false, hosts: anchor,
+      selection: { kind: "annotation", id: a.id }, ...(c.kind === "code" ? { line: at } : {}) });
+  });
+  return out.sort((x, y) => x.title.localeCompare(y.title));
+}
+
 export function search(model: Model, text: string): Results {
   const { terms, error } = parse(text);
-  const found = { devices: terms.length ? devices(model, terms) : [], ports: terms.length ? ports(model, terms) : [], groups: terms.length ? groups(model, terms) : [] };
-  const all = found.devices.concat(found.ports, found.groups);
+  const found = { devices: terms.length ? devices(model, terms) : [], ports: terms.length ? ports(model, terms) : [], groups: terms.length ? groups(model, terms) : [], notes: terms.length ? notes(model, terms) : [] };
+  const all = found.devices.concat(found.ports, found.groups, found.notes);
   const deviceHosts = found.devices.filter((h) => !h.removed).map((h) => h.hosts[0]);
   const lit = found.devices.length ? found.devices : all;
   return { text, error, empty: !terms.length, ...found, hosts: Array.from(new Set(lit.flatMap((h) => h.hosts))).sort(), deviceHosts,

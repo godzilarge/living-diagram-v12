@@ -29,7 +29,7 @@ export function menuItems(target: ContextTarget, model: Model, ctx: MenuContext)
   const out: MenuItem[] = [];
   const write = ctx.editable;
   if (target.kind === "pane") {
-    if (write) out.push(clip("paste", "pasteHere"), sep(), item("insert:note", "insertNote"), item("insert:rectangle", "insertRectangle"), item("insert:ellipse", "insertEllipse"), item("insert:connector", "insertConnector"), item("insert:table", "insertTable"), item("insert:image", "insertImage"), sep());
+    if (write) out.push(clip("paste", "pasteHere"), sep(), item("insert:note", "insertNote"), item("insert:rectangle", "insertRectangle"), item("insert:ellipse", "insertEllipse"), item("insert:connector", "insertConnector"), item("insert:table", "insertTable"), item("insert:code", "insertCode"), item("insert:image", "insertImage"), sep());
     out.push(item("fit", "fit"));
     if (ctx.hasSelection) out.push(item("clear", "clear"));
     return out;
@@ -86,6 +86,7 @@ export function menuItems(target: ContextTarget, model: Model, ctx: MenuContext)
     if (columns > 1) out.push(item("col:delete", "colDelete"));
     out.push(item("header", "header", { checked: a.content.header }), sep());
   } else if (write && a.content.kind === "note") out.push(item("text", "editText"), sep());
+  else if (write && a.content.kind === "code") out.push(item("text", "editCode"), sep());
   out.push(item("center", "center"), sep(), clip("copy", "copy"));
   if (!write) return out;
   out.push(clip("cut", "cut"), clip("paste", "pasteHere"), clip("duplicate", "duplicate"), sep(), item("lock", a.locked ? "unlock" : "lock"));

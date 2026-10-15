@@ -103,7 +103,7 @@ function isAnchor(v: unknown): v is Annotation["anchor"] {
 // un collage en deux requêtes dont la seconde est refusée est défait par la page (clipboard-commands.ts).
 function isClipAnnotation(v: unknown): v is ClipAnnotation {
   return isObject(v) && isText(v.id, MAX_ID) && isAnchor(v.anchor) && [v.x, v.y, v.w, v.h].every(isNumber) && isZ(v.z) && typeof v.leader === "boolean"
-    && isObject(v.content) && ["note", "shape", "table", "image"].includes(v.content.kind as string) && isObject(v.style) && isBox(v.frame)
+    && isObject(v.content) && ["note", "shape", "table", "image", "code"].includes(v.content.kind as string) && isObject(v.style) && isBox(v.frame)
     // une image se cite par son empreinte : elle part dans une adresse (lecture, renvoi), jamais n'importe quel texte
     && (v.content.kind !== "image" || (typeof v.content.asset === "string" && SHA256.test(v.content.asset) && typeof v.content.alt === "string"));
 }

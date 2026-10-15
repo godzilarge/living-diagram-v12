@@ -32,7 +32,8 @@ INTENT_ERROR_TYPES = {
     "too_long": (
         "trop d'épingles, de couleurs ou de membres (10 000 au plus), trop de groupes (1 000), trop d'annotations "
         "ou de connecteurs (2 000), un tableau de plus de 30 lignes ou 8 colonnes, ou un texte trop long (`hostname` "
-        "253, `author` et `label` 80, `description` 500, note 2 000, cellule et `alt` 120)"
+        "253, `author` et `label` 80, `description` 500, note 2 000, cellule et `alt` 120, bloc de code 20 000, "
+        "titre d'un bloc de code 80)"
     ),
     "too_short": (
         "un groupe sans membre (retirer le dernier membre, c'est supprimer le groupe), un tableau sans ligne ou sans "
@@ -46,17 +47,18 @@ INTENT_ERROR_TYPES = {
     "enum": (
         "une valeur hors de son énumération (`hue` : douze teintes nommées ; `type` : les types du contrat d'entrée ; "
         "les énumérations du style d'un groupe, d'une annotation ou d'un connecteur, l'ancrage, le plan, la sorte "
-        "d'une forme, le tracé et les pointes d'un connecteur)"
+        "d'une forme, le tracé et les pointes d'un connecteur, le langage et la police d'un bloc de code)"
     ),
     "union_tag_invalid": (
-        "le contenu d'une annotation porte une sorte inconnue (`note`, `shape`, `table`, `image`), ou un bout de "
-        "connecteur une sorte inconnue (`free`, `device`, `group`, `annotation`)"
+        "le contenu d'une annotation porte une sorte inconnue (`note`, `shape`, `table`, `image`, `code`), ou un "
+        "bout de connecteur une sorte inconnue (`free`, `device`, `group`, `annotation`)"
     ),
     "union_tag_not_found": "le contenu d'une annotation ou un bout de connecteur ne dit pas sa sorte (`kind`)",
     "string_pattern_mismatch": (
-        "un texte (`hostname`, `author`, `label`, `description`, note, cellule, `alt`) contient un caractère de "
-        "contrôle, un `id` de groupe, d'annotation ou de connecteur n'a pas la forme `g<revision>-<n>` / "
-        "`a<revision>-<n>` / `c<revision>-<n>`, ou l'empreinte d'une image n'est pas un SHA-256 hexadécimal"
+        "un texte (`hostname`, `author`, `label`, `description`, note, cellule, `alt`, bloc de code et son titre) "
+        "contient un caractère de contrôle (une tabulation ou un retour chariot dans un bloc de code), un `id` de "
+        "groupe, d'annotation ou de connecteur n'a pas la forme `g<revision>-<n>` / `a<revision>-<n>` / "
+        "`c<revision>-<n>`, ou l'empreinte d'une image n'est pas un SHA-256 hexadécimal"
     ),
     "intent_major_unsupported": "la version majeure d'`intent_version` n'est pas celle du validateur",
     "datetime_numeric": "une date est donnée en nombre (epoch) au lieu d'ISO 8601 avec fuseau",

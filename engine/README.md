@@ -85,6 +85,7 @@ engine/
     │   ├── timeline.ts               la bande des runs de la coquille servie : passer de run en run, le diff suit, l'état de vue reste (2026-10-06)
     │   └── apps.ts                   les applications démarrées (`LD.app`, `LD.shellApp`) et les types de l'écrivain
     └── app/                          l'application React (2026-10-07), servie à `/` : couches strictes api/ → state/ → components/
+                                      (`app/code/` : le bloc de code du lot 16, partie pure ; `vendor/obsidian-cisco-syntax/` à côté de `src/` : la grammaire Cisco recopiée, MIT)
         ├── main.tsx                  monte React sur `#app` (ou rien sous Node), expose `LDApp`, lit le catalogue des codes embarqué dans la page
         ├── App.tsx                   Store + Shell
         ├── api/                      client.ts (lire les runs, une run : snapshot, rapport, diff, intention, placement), writers.ts (les deux écrivains)
@@ -484,6 +485,43 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   du code exclus) ou la typographie française ; une exception se déclare dans `ALLOWED` avec sa raison ; l'onglet Intentions de `/view` vit dans
   `shell/intent-tab.ts`, que l'application n'embarque plus). **Glossaire anglais** (accepté par Orhan) : équipement = device, câble = cable, contrôle = check,
   épingle = pin, run = run, jeton = token ; vues Diagram / Checks / Log. `/view` et `ld render` restent en français.
+- **Le bloc de code** (lot 16 de `docs/11`, 2026-10-14 ; Intent 1.6.0, `docs/10` §6.7) : une cinquième sorte
+  d'annotation, `code`, pour coller sur le diagramme un bout de configuration ou de script, lisible, coloré si on le
+  veut, copiable, et ne jamais enregistrer un mot de passe sans l'avoir vu. **Insérer** : bouton du bloc Insérer de la
+  barre d'outils ou menu du fond ; un brouillon s'ouvre en écriture, rien n'existe avant Ctrl+Entrée. **Coller**
+  (Ctrl+V) : un texte de trois lignes au moins dont le langage se reconnaît devient un bloc avec son langage, sinon une
+  note comme avant ; Ctrl+Z défait le collage. **Valeurs sensibles** : avant tout enregistrement (création, écriture,
+  collage), la page repère les mots de passe, hashs, communautés SNMP, clés (Cisco, FortiOS, Junos, clés privées,
+  clé = valeur en YAML / JSON / Python / Bash) et avertit à côté du bloc : chaque valeur avec sa ligne, sa sorte et sa
+  nature (hash, type 7 réversible, chiffrée, en clair), la valeur en points, un point rouge dans la gouttière, un clic qui
+  la sélectionne dans le texte ; « Retirer ces valeurs » (`<removed>`), « Garder tel quel » (une alerte reste sur le bloc
+  et dans la fiche, qui propose encore de les retirer), « Modifier le texte ». Rien n'est envoyé ailleurs.
+  **Coloration** : Prism 1.30.0 (`prismjs`, MIT, `manual: true`, `Prism.tokenize` seulement, jamais de HTML ni de DOM),
+  grammaires Python, Bash, JSON, YAML de Prism, Cisco IOS / NX-OS recopiée de `blakebratcher/obsidian-cisco-syntax` 0.2.0
+  (MIT, `engine/vendor/obsidian-cisco-syntax/` avec sa licence), FortiOS écrite ici (`app/code/fortios.ts`) ; chaque jeton
+  rangé dans l'une de onze familles (`app/code/tokens.ts`), dessinées en `tspan` / `span` à classes `tk-…`, couleurs en
+  jetons dans les deux thèmes (≥ 4,5:1 sur le fond, l'en-tête et la gouttière, testé) ; un nom d'hôte n'est jamais
+  colorié à moitié, la variable d'une boucle Bash n'est pas un mot-clé ; coloration au choix par bloc. **Polices** :
+  JetBrains Mono, IBM Plex Mono, Source Code Pro, Cascadia Mono (OFL, `@fontsource` 5.3.0, regular, latin et latin
+  étendu, `unicode-range` : un fichier n'est téléchargé que si un bloc l'affiche), chasse mesurée par police (Cascadia
+  0,59 em) pour couper les lignes (`›`), jamais de retour à la ligne. **Hauteur libre, le code défile dans la boîte** :
+  seules les lignes visibles sont dessinées ; barre de défilement fine (survol, sélection), pouce glissable, piste qui
+  pagine ; pied « lignes 34-58 sur 120 » ; **sur un bloc sélectionné seul, la molette fait défiler le code** (en butée,
+  rien ne passe à la toile), ailleurs elle zoome (D2), Ctrl + molette zoome toujours ; Page préc. / Page suiv. / Origine /
+  Fin. La position de défilement est un état de vue (`app/code/view.ts`) : ni contrat, ni journal, ni historique.
+  **Écrire** : double-clic, F2 ou Entrée ; un `textarea` à chasse fixe sur la zone du code, la gouttière gardée, ouvert
+  là où l'on lisait ; Ctrl+Entrée enregistre, Échap annule, Tab = 4 espaces, un clic dehors enregistre. **Barre
+  contextuelle** : teinte | langage (volet, avec la détection qui propose), police (volet, chaque police dans son rendu),
+  coloration, numéros, ajuster la hauteur (60 lignes au plus, absent si inutile), taille | plan, verrou | dupliquer,
+  supprimer ; **copier** dans l'en-tête du bloc et dans la fiche. **Fiche** : titre, code entier coloré, « Affichage »
+  (mêmes réglages, plus la hauteur). **Recherche** : le texte d'un bloc (et d'une note) se cherche, section « notes et
+  code », un bloc s'ouvre à la ligne trouvée. Code : `app/code/` (`geometry.ts`, `languages.ts`, `tokens.ts`,
+  `secrets.ts`, `prism.ts`, `fortios.ts`, `view.ts` ; pur, `LDApp.code`, `backend/tests/js/code.test.js`),
+  `app/canvas/code.tsx` (dessin, défilement), `code-edit.tsx` (écriture), `code-warn.tsx` (avertissement),
+  `code-draft.tsx` (brouillon, `ViewportPortal`), `app/state/code-commands.ts`, `code-bar.ts`, `components/CodeVolets.tsx`,
+  `cards/CodeCard.tsx`, `styles/code.css` ; parcours Chromium `backend/tests/test_app_code.py`. Clavier : la barre et la
+  fiche portent tout ce que la souris fait ; la barre de défilement et la molette n'ont pas d'équivalent au clavier
+  autre que Page préc. / Page suiv. / Origine / Fin sur le bloc sélectionné.
 - **Pas de Tailwind, pas de bibliothèque d'état ni de routeur** (décisions du 2026-10-06) : composants maison dans
   `ui/`, CSS à jetons, `useReducer`.
 

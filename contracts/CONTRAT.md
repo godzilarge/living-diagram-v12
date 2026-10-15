@@ -2066,13 +2066,14 @@ câble `down`, un contrôle `link_down` apparu), en forme canonique :
 
 Le JSON Schema équivalent est `src/ld_contracts/schema/diff-v1.schema.json`.
 
-## Partie D — Intention : Intent v1.5.0
+## Partie D — Intention : Intent v1.6.0
 
 L'intention est ce que l'humain veut en plus de ce que la collecte montre : des patchs keyés par identité
 stable, qui survivent aux runs. Six sortes de patch : l'épingle (la place voulue d'un équipement sur le
 dessin, 1.0.0), la couleur d'un type et la couleur d'un équipement (1.1.0), le groupe (des membres et un
 style, 1.2.0 ; docs/10 §5), l'annotation (une note, une forme, un tableau ou une image, libre ou attachée,
-1.3.0 ; docs/10 §6), le connecteur (une ligne ou une flèche à deux bouts, 1.4.0 ; ancres 1.5.0). D'autres
+1.3.0 ; docs/10 §6 ; le bloc de code, 1.6.0), le connecteur (une ligne ou une flèche à deux bouts, 1.4.0 ;
+ancres 1.5.0). D'autres
 sortes viendront comme des listes à côté, sans rien changer à celles-ci.
 Ce document est écrit par l'API de Living Diagram (`POST /api/intent/patches`) et lu par la toile ; il ne
 concerne pas l'exportateur. Sa version suit son propre semver.
@@ -2097,7 +2098,7 @@ requête acceptée incrémente
 | `type_colors` | liste de [TypeColor](#typecolor) | oui | La palette des types : une couleur par type au plus, triées par `type`, uniques (docs/10). |
 | `device_colors` | liste de [DeviceColor](#devicecolor) | oui | Les couleurs par équipement, triées par `hostname`, uniques ; 10 000 au plus (`too_long`). |
 | `groups` | liste de [Group](#group) | oui | Les groupes (docs/10 §5), triés par `id`, uniques ; 1 000 au plus. |
-| `annotations` | liste de [Annotation](#annotation) | oui | Les annotations (docs/10 §6 : notes, formes, tableaux, images), triées par `id`, uniques ; 2 000 au plus. |
+| `annotations` | liste de [Annotation](#annotation) | oui | Les annotations (docs/10 §6 : notes, formes, tableaux, images, blocs de code), triées par `id`, uniques ; 2 000 au plus. |
 | `connectors` | liste de [Connector](#connector) | oui | Les connecteurs (docs/10 §6 : lignes et flèches à deux bouts), triés par `id`, uniques ; 2 000 au plus. |
 
 ### Documents
@@ -2186,7 +2187,7 @@ Une annotation (docs/10 §6) : un contenu, une boîte, un ancrage, un style ; si
 | `z` | [ZOrder](#zorder) | oui | `back` : sous les cadres et les cartes ; `front` : au-dessus de tout. |
 | `locked` | booléen | oui | Verrouillée : ni glissé ni redimensionnement sur la toile. |
 | `leader` | booléen | oui | Ligne de rappel vers l'ancre ; faux si libre (`leader_without_anchor`). |
-| `content` | [NoteContent](#notecontent) \| [ShapeContent](#shapecontent) \| [TableContent](#tablecontent) \| [ImageContent](#imagecontent) | oui |  |
+| `content` | [NoteContent](#notecontent) \| [ShapeContent](#shapecontent) \| [TableContent](#tablecontent) \| [ImageContent](#imagecontent) \| [CodeContent](#codecontent) | oui |  |
 | `style` | [AnnotationStyle](#annotationstyle) | oui |  |
 | `author` | texte, motif `^[^\x00-\x1f\x7f]+$` | oui | Qui a créé ou modifié l'annotation en dernier. |
 | `at` | date-time ISO 8601 avec fuseau | oui | Quand : date UTC écrite par le serveur à l'application de l'opération. |
@@ -2255,6 +2256,22 @@ Une image du magasin de fichiers de l'infrastructure, par son empreinte ; PNG, J
 | `kind` | `image` | oui |  |
 | `asset` | texte, motif `^[0-9a-f]{64}$` | oui | SHA-256 hexadécimal du fichier, tel que `POST /api/intent/assets` l'a rendu. |
 | `alt` | texte, motif `^[^\x00-\x1f\x7f]*$` | oui | Texte de remplacement, 120 caractères au plus (vide admis). |
+
+#### CodeContent
+
+Un bloc de code (1.6.0, lot 16 de docs/11) : un extrait de configuration ou de script, lisible, coloré si on le
+veut. La boîte a une hauteur libre : le code défile dedans (la position de défilement est un état de vue, jamais
+dans ce document). Les valeurs sensibles ne sont pas jugées ici : la page avertit avant d'enregistrer.
+
+| Champ | Type | Requis | Signification |
+|---|---|---|---|
+| `kind` | `code` | oui |  |
+| `text` | texte, motif `^[^\x00-\x09\x0b-\x1f\x7f]*$` | oui | 1 à 20 000 caractères ; retours à la ligne admis, ni tabulation ni retour chariot (la page les normalise), aucun autre caractère de contrôle. |
+| `language` | [CodeLanguage](#codelanguage) | oui | Le langage, pour la coloration (`plain` = texte brut). |
+| `title` | texte, motif `^[^\x00-\x1f\x7f]*$` | oui | Le titre du bloc (un nom de fichier, une commande), 80 caractères au plus. |
+| `highlight` | booléen | oui | Coloration syntaxique allumée ; sans effet sur `plain`. |
+| `line_numbers` | booléen | oui | Numéros de ligne affichés dans une gouttière. |
+| `font` | [CodeFont](#codefont) | oui | La police, à chasse fixe (`style.text_font` n'est pas lu pour un bloc). |
 
 #### AnnotationStyle
 
@@ -2345,6 +2362,14 @@ Le style d'un connecteur : toutes clés écrites ; le serveur complète avec les
 
 `free` \| `device` \| `group`
 
+#### CodeFont
+
+`jetbrains_mono` \| `ibm_plex_mono` \| `source_code_pro` \| `cascadia_mono`
+
+#### CodeLanguage
+
+`plain` \| `python` \| `bash` \| `json` \| `yaml` \| `cisco_ios` \| `fortios`
+
 #### GroupShape
 
 `rectangle` \| `ellipse`
@@ -2430,7 +2455,11 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
   si l'ancrage est `free` ; une ligne de rappel suppose une ancre ; les lignes d'un tableau ont la même
   longueur, ses largeurs et hauteurs relatives comptent autant d'entrées que de colonnes et de lignes, ses
   fusions restent dans le tableau sans se chevaucher ;
-  une image est une empreinte SHA-256 d'un fichier du magasin de l'infrastructure (PNG, JPEG, WebP ; jamais SVG).
+  une image est une empreinte SHA-256 d'un fichier du magasin de l'infrastructure (PNG, JPEG, WebP ;
+  jamais SVG) ;
+  un bloc de code (1.6.0) porte un texte de 20 000 caractères au plus, sans tabulation ni retour chariot, un
+  langage, un titre, la coloration, les numéros de ligne et une police à chasse fixe ; sa position de défilement
+  est un état de vue, jamais dans le document, et les valeurs sensibles ne sont pas jugées ici (la page avertit).
   Identité `a<revision>-<n>` attribuée par le serveur ; ancre absente de la run ⇒ annotation orpheline, listée.
 - **Un connecteur relie deux bouts** (docs/10 §6, 1.4.0) : une ligne ou une flèche, chaque bout libre (un point
   du plan) ou attaché à un équipement, un groupe ou une annotation, par une ancre (`side`, 1.5.0 : le milieu d'un
@@ -2472,15 +2501,15 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
 | `connector_same_ends` | les deux bouts d'un connecteur visent le même élément |
 | `revision_update_mismatch` | `revision` et `updated_at` ne vont pas ensemble (`updated_at` est null si et seulement si `revision` vaut 0) |
 | `patch_after_update` | un patch (épingle, couleur) est daté après `updated_at` : le document ne peut pas être plus ancien que ce qu'il porte |
-| `too_long` | trop d'épingles, de couleurs ou de membres (10 000 au plus), trop de groupes (1 000), trop d'annotations ou de connecteurs (2 000), un tableau de plus de 30 lignes ou 8 colonnes, ou un texte trop long (`hostname` 253, `author` et `label` 80, `description` 500, note 2 000, cellule et `alt` 120) |
+| `too_long` | trop d'épingles, de couleurs ou de membres (10 000 au plus), trop de groupes (1 000), trop d'annotations ou de connecteurs (2 000), un tableau de plus de 30 lignes ou 8 colonnes, ou un texte trop long (`hostname` 253, `author` et `label` 80, `description` 500, note 2 000, cellule et `alt` 120, bloc de code 20 000, titre d'un bloc de code 80) |
 | `too_short` | un groupe sans membre (retirer le dernier membre, c'est supprimer le groupe), un tableau sans ligne ou sans colonne |
 | `string_too_short` | une note vide, ou un nom vide (`author`, `label`) |
 | `greater_than_equal` | une valeur de style, une taille ou une courbure sous sa borne basse (docs/10 §5.2, §6.2) |
 | `less_than_equal` | une valeur de style, une taille ou une courbure au-dessus de sa borne haute (docs/10 §5.2, §6.2) |
-| `enum` | une valeur hors de son énumération (`hue` : douze teintes nommées ; `type` : les types du contrat d'entrée ; les énumérations du style d'un groupe, d'une annotation ou d'un connecteur, l'ancrage, le plan, la sorte d'une forme, le tracé et les pointes d'un connecteur) |
-| `union_tag_invalid` | le contenu d'une annotation porte une sorte inconnue (`note`, `shape`, `table`, `image`), ou un bout de connecteur une sorte inconnue (`free`, `device`, `group`, `annotation`) |
+| `enum` | une valeur hors de son énumération (`hue` : douze teintes nommées ; `type` : les types du contrat d'entrée ; les énumérations du style d'un groupe, d'une annotation ou d'un connecteur, l'ancrage, le plan, la sorte d'une forme, le tracé et les pointes d'un connecteur, le langage et la police d'un bloc de code) |
+| `union_tag_invalid` | le contenu d'une annotation porte une sorte inconnue (`note`, `shape`, `table`, `image`, `code`), ou un bout de connecteur une sorte inconnue (`free`, `device`, `group`, `annotation`) |
 | `union_tag_not_found` | le contenu d'une annotation ou un bout de connecteur ne dit pas sa sorte (`kind`) |
-| `string_pattern_mismatch` | un texte (`hostname`, `author`, `label`, `description`, note, cellule, `alt`) contient un caractère de contrôle, un `id` de groupe, d'annotation ou de connecteur n'a pas la forme `g<revision>-<n>` / `a<revision>-<n>` / `c<revision>-<n>`, ou l'empreinte d'une image n'est pas un SHA-256 hexadécimal |
+| `string_pattern_mismatch` | un texte (`hostname`, `author`, `label`, `description`, note, cellule, `alt`, bloc de code et son titre) contient un caractère de contrôle (une tabulation ou un retour chariot dans un bloc de code), un `id` de groupe, d'annotation ou de connecteur n'a pas la forme `g<revision>-<n>` / `a<revision>-<n>` / `c<revision>-<n>`, ou l'empreinte d'une image n'est pas un SHA-256 hexadécimal |
 | `intent_major_unsupported` | la version majeure d'`intent_version` n'est pas celle du validateur |
 | `datetime_numeric` | une date est donnée en nombre (epoch) au lieu d'ISO 8601 avec fuseau |
 | `extra_forbidden` | un champ inconnu est présent (aucun `extras` dans ce contrat) |
@@ -2601,7 +2630,7 @@ Vérifiées à la validation d'une intention, au-delà des types de chaque champ
     }
   ],
   "infrastructure": "infra-lab",
-  "intent_version": "1.5.0",
+  "intent_version": "1.6.0",
   "pins": [
     {
       "at": "2026-10-04T18:30:00Z",

@@ -305,6 +305,41 @@ def test_annotation_operations_create_update_delete_and_refuse_in_the_shape_of_t
     assert res.status_code == 200 and Intent.model_validate_json(res.content).annotations == ()
 
 
+def test_a_code_block_is_created_with_its_defaults_and_its_text_is_refused_with_a_tab_without_echo(
+    client: TestClient, auth, bundle_dict
+):
+    """Lot 16 (Intent 1.6.0) : la sorte `code` passe par les mêmes opérations ; défauts de la sorte (ardoise, 13, mono),
+    taille envoyée par la page gardée ; une tabulation, un retour chariot, un langage ou une police inconnus : 422 sans
+    la valeur reçue ; un bloc ne change pas de sorte."""
+    assert client.post(URL, json=bundle_dict, headers=auth).status_code == 201
+    code = {"kind": "code", "text": "vlan 20\n name voix", "language": "cisco_ios", "title": "vlans"}
+    code = {**code, "highlight": True, "line_numbers": False, "font": "source_code_pro"}
+    create = {"op": "annotation_create", "content": code, "w": 520, "h": 300}
+    res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": [create]}, headers=auth)
+    assert res.status_code == 200, res.text
+    a = Intent.model_validate_json(res.content).annotations[0]
+    assert (a.id, a.content.kind, a.content.font, a.w, a.h) == ("a1-1", "code", "source_code_pro", 520, 300)
+    assert (a.style.hue, a.style.text_size, a.style.text_font, a.style.radius) == ("slate", 13, "mono", 8)
+    res = client.post(
+        PATCHES_URL,
+        params=PARAMS,
+        json={"author": "orhan", "ops": [{"op": "annotation_update", "id": "a1-1", "h": 900}]},
+        headers=auth,
+    )
+    assert Intent.model_validate_json(res.content).annotations[0].h == 900, "hauteur libre, aucun repli"
+    for bad in (
+        {"op": "annotation_create", "content": {**code, "text": "if x:\n\tsecret-tab"}},
+        {"op": "annotation_create", "content": {**code, "text": "hostname a\r\nsecret-cr"}},
+        {"op": "annotation_create", "content": {**code, "language": "junos-secret"}},
+        {"op": "annotation_create", "content": {**code, "font": "fira-secret"}},
+        {"op": "annotation_create", "content": {**code, "text": "s" * 20_001}},
+        {"op": "annotation_update", "id": "a1-1", "content": {"kind": "note", "text": "secret"}},
+    ):
+        res = client.post(PATCHES_URL, params=PARAMS, json={"author": "orhan", "ops": [bad]}, headers=auth)
+        assert res.status_code == 422, bad
+        assert "secret" not in res.text, "aucune valeur reçue en écho"
+
+
 def test_connector_operations_create_update_delete_and_refuse_in_the_shape_of_the_api(
     client: TestClient, auth, bundle_dict
 ):

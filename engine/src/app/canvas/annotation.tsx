@@ -28,6 +28,11 @@ import type { EndKind, Pick } from "./snap";
 import { TableBody } from "./table";
 import { InlineInput, useFinish } from "./inline";
 import type { Cell } from "./table";
+import { CodeBody, CodeView, codeLabel, useCode } from "./code";
+import { CodeEditor } from "./code-edit";
+import { codeView } from "../code/view";
+import { CODE, boundedBox, minHeight } from "../code/geometry";
+import type { CodeOutcome } from "../state/code-commands";
 
 export interface AnnotationData extends Record<string, unknown> {
   a: Annotation; frame: Frame; leader: Segment | null; editable: boolean; classes: string; label: string;
@@ -141,6 +146,7 @@ export function Body({ a, frame, editing = false }: { a: Annotation; frame: Fram
   const box = c.kind === "shape" && c.shape === "ellipse"
     ? <ellipse className="annotation-shape" cx={frame.w / 2} cy={frame.h / 2} rx={frame.w / 2} ry={frame.h / 2} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={dash} />
     : <rect className="annotation-shape" x={0} y={0} width={frame.w} height={frame.h} rx={s.radius} fillOpacity={s.fill_opacity / 100} strokeWidth={stroke} strokeDasharray={dash} />;
+  if (c.kind === "code") return <CodeBody a={a} c={c} w={frame.w} h={frame.h} first={0} idSuffix="-ghost" />;
   if (c.kind === "note") return <>{box}{text(c.text)}</>;
   if (c.kind === "shape") return <>{box}{c.label && !editing ? text(c.label) : null}</>;
   return <>{box}<Picture a={a} frame={frame} /></>;
@@ -185,7 +191,7 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
   useEffect(() => {
     if (!request || request.id !== a.id || request.kind === "group" || !claim(request)) return;
     if (request.cell && a.content.kind === "table") { setPick({ r0: request.cell[0], c0: request.cell[1], r1: request.cell[0], c1: request.cell[1] }); setCell(request.cell); }
-    else if (a.content.kind === "note" || a.content.kind === "shape") setEditing(true);
+    else if (a.content.kind === "note" || a.content.kind === "shape" || a.content.kind === "code") setEditing(true);
   }, [request, a]);
   const frame = live || data.frame;
   // Pendant un geste ou une édition en place, la bulle se tait (lot 1 de docs/11).
@@ -198,14 +204,28 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
   // Glissée : la place qui sera écrite (celle de la fiche : relative à l'ancre d'une annotation attachée).
   const moved = dragging ? positionPill(a.x + Math.round(positionAbsoluteX - data.frame.x), a.y + Math.round(positionAbsoluteY - data.frame.y), rf.getZoom()) : null;
   // Relâché : la page écrit, sauf si rien n'a bougé (un clic sur une poignée n'écrit rien).
-  const onResize = useCallback((next: Frame, done: boolean): void => {
+  const onResize = useCallback((raw: Frame, done: boolean): void => {
+    // un bloc de code : jamais sous trois lignes ni sous 240 de large ; posé sur la grille de 20 à la relâche (lot 16)
+    const bounded = a.content.kind === "code" ? { ...raw, ...boundedBox(raw.w, raw.h, a.style.text_size) } : raw;
+    const g = (v: number): number => Math.round(v / CODE.GRID) * CODE.GRID;
+    const next = a.content.kind === "code" && done ? { x: g(bounded.x), y: g(bounded.y), w: Math.max(CODE.MIN_W, g(bounded.w)), h: Math.max(minHeight(a.style.text_size), g(bounded.h)) } : bounded;
     if (!done) { setLive(next); return; }
     setLive(null);
     const was = data.frame;
     if (next.x !== was.x || next.y !== was.y || next.w !== was.w || next.h !== was.h) actions.resize(a.id, next);
-  }, [a.id, data.frame, actions]);
+  }, [a, data.frame, actions]);
   const canEdit = editable && !a.locked;
-  const dbl = useCallback((): void => { if (canEdit && (a.content.kind === "note" || a.content.kind === "shape")) setEditing(true); }, [canEdit, a.content.kind]);
+  const code = useCode();
+  const dbl = useCallback((): void => {
+    if (canEdit && (a.content.kind === "note" || a.content.kind === "shape" || a.content.kind === "code")) setEditing(true);
+    else if (editable && a.locked && a.content.kind === "code" && code.commands) code.commands.codeSay(t("shell:code.locked"));
+  }, [canEdit, editable, a.locked, a.content.kind, code]);
+  // un bloc de code écrit : le texte vu (valeurs retirées ou gardées) part par les commandes du store (lot 16)
+  const codeDone = useCallback((text: string | null, outcome: CodeOutcome, removed: number): void => {
+    setEditing(false);
+    if (text === null || !code.commands) return;
+    code.commands.codeSave(a.id, text, outcome, removed);
+  }, [a.id, code]);
   const done = useCallback((text: string | null): void => {
     setEditing(false);
     if (text === null) return;
@@ -214,7 +234,7 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
   }, [a, actions]);
   const menu = useCallback((event: ReactMouseEvent): void => { event.preventDefault(); event.stopPropagation(); actions.menu({ kind: "annotation", id: a.id }, event); }, [actions, a.id]);
   const cellMenu = useCallback((target: { cell: Cell; range: Range }, event: ReactMouseEvent): void => { event.preventDefault(); event.stopPropagation(); actions.menu({ kind: "annotation", id: a.id, ...target }, event); }, [actions, a.id]);
-  const classes = `annotation kind-${a.content.kind} hue-${a.style.hue} plane-${a.z}${a.locked ? " locked" : ""}${a.anchor.kind !== "free" ? " anchored" : ""} ${data.classes}`;
+  const classes = `annotation kind-${a.content.kind} hue-${a.style.hue} plane-${a.z}${a.locked ? " locked" : ""}${a.anchor.kind !== "free" ? " anchored" : ""}${editing && a.content.kind === "code" ? " code-editing" : ""} ${data.classes}`;
   return (
     <>
       <svg className={classes} width={frame.w} height={frame.h} viewBox={`0 0 ${frame.w} ${frame.h}`} overflow="visible" data-annotation={a.id} onDoubleClick={dbl} onContextMenu={menu}>
@@ -223,7 +243,8 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
             {data.leader && !live ? <Leader seg={data.leader} frame={frame} /> : null}
             {a.content.kind === "table"
               ? <TableBody a={a} content={a.content} frame={frame} active={!!selected} editable={canEdit} onContent={(content) => actions.content(a.id, content)} onMenu={cellMenu} pick={pick} onPick={setPick} editing={cell} onEdit={setCell} />
-              : <Body a={a} frame={frame} editing={editing} />}
+              : a.content.kind === "code" ? <CodeView a={a} c={a.content} w={frame.w} h={frame.h} active={!!selected && !data.multi} editing={editing} />
+                : <Body a={a} frame={frame} editing={editing} />}
           </g>
           {a.content.kind === "shape" && a.content.shape === "ellipse"
             ? <ellipse className="hover-ring" cx={frame.w / 2} cy={frame.h / 2} rx={frame.w / 2} ry={frame.h / 2} />
@@ -234,6 +255,8 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
         </g>
       </svg>
       {editing && a.content.kind === "note" ? <NoteEditor initial={a.content.text} onDone={done} /> : null}
+      {editing && a.content.kind === "code" ? <CodeEditor w={frame.w} h={frame.h} size={a.style.text_size} font={a.content.font} numbers={a.content.line_numbers} initial={a.content.text}
+        first={codeView.first(a.id)} label={t("shell:code.editorLabel", { name: codeLabel(a.content) })} infrastructure={code.infrastructure} onDone={codeDone} /> : null}
     </>
   );
 }

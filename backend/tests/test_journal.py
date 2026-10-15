@@ -301,6 +301,28 @@ def test_search_finds_the_words_the_page_shows_without_case_or_accents(tmp_path:
     assert found("router amber") == [7]
 
 
+def test_a_code_block_is_named_by_its_title_never_by_its_text_and_found_by_its_kind(tmp_path: Path):
+    """Lot 16 : un bloc de code se nomme par son titre ; sans titre, par sa sorte (« bloc de code sans titre ») ; son
+    texte n'est jamais un nom (il peut porter une valeur sensible gardée) ; « bloc de code » et « code block » le
+    trouvent, comme la page l'écrit."""
+    store = IntentStore(tmp_path)
+    code = {"kind": "code", "text": "enable secret 5 $1$abc\n!", "language": "cisco_ios", "title": "running-config"}
+    code = {**code, "highlight": True, "line_numbers": True, "font": "jetbrains_mono"}
+    _write(store, LAB, "o", [{"op": "annotation_create", "content": code}], 0)
+    _write(store, LAB, "o", [{"op": "annotation_create", "content": {**code, "title": ""}}], 1)
+    _write(store, LAB, "o", [{"op": "annotation_update", "id": "a1-1", "y": 40}], 2)
+    entries = _read(tmp_path)["entries"]
+    assert [[(s["id"], s["label"], s["form"]) for s in e["subjects"]] for e in entries] == [
+        [("a1-1", "running-config", "code")],
+        [("a2-1", "", "code")],
+        [("a1-1", "running-config", "code")],
+    ]
+    found = [e["revision"] for e in _read(tmp_path, q="bloc de code")["entries"]]
+    assert found == [3, 2, 1] and [e["revision"] for e in _read(tmp_path, q="code block")["entries"]] == [3, 2, 1]
+    assert [e["revision"] for e in _read(tmp_path, q="bloc de code sans titre")["entries"]] == [2]
+    assert "secret" not in json.dumps([s for e in entries for s in e["subjects"]]), "jamais le texte dans un nom"
+
+
 def test_search_finds_an_unnamed_object_in_english_too(tmp_path: Path):
     """Le serveur nomme en français un objet sans nom (« forme sans titre → point libre ») ; la page anglaise affiche
     « untitled shape → free point » : la recherche trouve les deux."""
