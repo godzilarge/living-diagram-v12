@@ -24,9 +24,8 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   → 3 tour de directions Impeccable `new-work`, une direction verrouillée → 4 `DESIGN.md` + page vivante des
   primitives → 5 migration surface par surface (barre, toile et cartes, inspecteur, barre contextuelle, journal),
   chaque surface revue contre la maquette. **Aucune fonctionnalité nouvelle pendant la refonte.**
-- **Arbre non commité, interrompu** (session du 2026-10-15) : lots 16 bis (CodeMirror 6 pour l'écriture d'un bloc de
-  code) et 4 bis (mise en forme du texte, `Intent` 1.7.0) ; 47 fichiers modifiés, 12 nouveaux, suite complète non
-  relancée. À mettre sur une branche ou à finir avant la refonte ; ne pas mélanger avec le socle.
+- **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
+  fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.
 
 ## À faire (après la refonte, dans cet ordre)
 
