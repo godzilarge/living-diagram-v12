@@ -7,6 +7,29 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Step 3 of the UI redesign: the direction round, four mockups on the bench** (2026-10-15 night, autonomous session on
+  Orhan's go; order revised: directions before the `app/` skeleton, since the chosen direction decides the primitives).
+  Orhan has no reference interface in mind and no creative process: the process shows him choices instead of asking him
+  to describe a look (recorded in `PRODUCT.md` with his binding constraints: no violet, no pill buttons, nothing that
+  reads as AI-made, rich in functions and light to the eye, details measured in the DOM). Impeccable `new-work`,
+  Operate mode, code-led: seven grounded candidates derived from the audience's graphic world (`bac-a-sable/directions/
+  ROUND.md`), roll key `6aaf1387`, assigned index 6 (the dressed rack), pick = the Swiss network graphic timetable,
+  six catalog challengers fused and judged (star atlas competitive and built; emission-line rail, jet-age wallet,
+  acetate manual, terminal wayfinding declined with their disciplines raised into the assigned and the pick; Japanese
+  high-density competitive on clarity, not built), plus the standing exit (the category standard). **Four static
+  HTML mockups of the same first screen** (demo-dc, run of 19 Jan compared with 12 Jan, dc01-core-01 selected, 1440 ×
+  900, French UI, self-hosted OFL fonts, no runtime fetch) built by four isolated Opus agents from one brief
+  (`BRIEF.md`) and one dataset extracted from the archive with the real diff (`data/demo-dc.json`, `scripts/
+  extract.py`): `patch-cord` (cord colours by media, flag labels at cable ends, Barlow), `netzgrafik` (port names at
+  both ends set like timetable minutes, weight by speed, one red, Archivo), `star-atlas` (navy chart, importance as
+  size, sites as constellations, night-vision amber, Source Sans 3 + Source Serif 4 italic), `canon` (light neutral,
+  one working blue, Public Sans, 8 px grid). **Every page measured in the DOM** (`scripts/measure.py`, the project's
+  Chromium pilot: heights, centres, gaps of every control of every `[data-bar]`, icon sizes, external URLs): all four
+  regular everywhere after one fix pass each; re-measured by the orchestrator. Decision page `bac-a-sable/directions/
+  index.html`, served on port 8016. Agents' own honest risks: patch-cord turns aqua with 52 OM3 cords and its flags
+  crowd the cores; netzgrafik's port names crowd around the dc01 pair; star-atlas loses contrast on a washed-out
+  projector; canon is indistinguishable by design. Cost: four agents, ~1.1 M tokens in all. Nothing enters the
+  project; **Orhan chooses, steers (safer / bolder), combines, or re-rolls**; the choice is written into `DESIGN.md`.
 - **Step 1 of the UI redesign: product truth** (2026-10-15 evening, interview with Orhan, `PRODUCT.md` written in the
   Impeccable `init` format and validated). Facts recorded: reading is the dominant job (device → interfaces without
   SSH); two audiences on the same application (engineer in charge who places, annotates and checks discovery quality;

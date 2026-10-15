@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-15** (étape 0 de la refonte UI : gouvernance).
+**Dernière mise à jour : 2026-10-15, nuit** (refonte UI : étapes 0, 1 et 3 faites ; choix de direction attendu).
 
 ## Fait
 
@@ -21,9 +21,9 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
 - **Refonte UI v2** (décidée le 2026-10-15). Socle en étapes : **0 gouvernance (faite, 45d2a21)** → **1 entretien produit
   fait, `PRODUCT.md` validé (en anglais : tout ce que la v2 crée s'écrit en anglais)** ; références d'Orhan à
-  recueillir → 2 squelette `app/` (paquet séparé, Vite, moteur extrait de `engine/src/app/`)
-  → 3 tour de directions Impeccable `new-work`, une direction verrouillée → 4 `DESIGN.md` + page vivante des
-  primitives → 5 migration surface par surface (barre, toile et cartes, inspecteur, barre contextuelle, journal),
+  recueillir → **3 tour de directions fait, quatre maquettes au banc (`bac-a-sable/directions/`, port 8016), en attente du choix
+  d'Orhan** → 2 squelette `app/` (paquet séparé, Vite, moteur extrait de `engine/src/app/`, après le choix) → 4
+  `DESIGN.md` + page vivante des primitives → 5 migration surface par surface (barre, toile et cartes, inspecteur, barre contextuelle, journal),
   chaque surface revue contre la maquette. **Aucune fonctionnalité nouvelle pendant la refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
   fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.
