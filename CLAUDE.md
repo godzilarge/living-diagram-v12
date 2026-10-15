@@ -29,14 +29,17 @@ pas ici, on le référence. Toute décision nouvelle ou révisée se note ici av
   avant tout code en cours : s'arrêter, répondre avec un avis et des recommandations.
 - **UI : prototype jugé avant le code, avec les skills de design** (Orhan, 2026-10-14). Tout lot de design d'interface
   (barre contextuelle du lot 4, passe visuelle, nouveaux panneaux…) passe par les skills `frontend-design:frontend-design`
-  et `impeccable:impeccable`, et commence par un **prototype autonome hors du projet** (page HTML dans `.impeccable/`,
+  et `impeccable:impeccable`, et commence par un **prototype autonome hors du projet** (page HTML dans `bac-a-sable/<nom>/`, gitignoré,
+  servi par `python3 -m http.server 8016 --bind 0.0.0.0` depuis `bac-a-sable/` : Orhan est en SSH, 2026-10-15 ;
   données factices, aucun fichier de `engine/` ni de `backend/` touché) qu'Orhan ouvre et juge lui-même ; le code du
   projet ne s'écrit qu'après son accord sur le prototype. Prolonge « voir avant de trancher » et la règle « direction
   visuelle d'abord » du 2026-10-06, qui n'avait pas été tenue en session autonome.
 - **Être synthétique** (Orhan, 2026-10-03). Une réponse commence par ce que la chose fait, en une phrase qu'il peut
   répéter (« un générateur d'infrastructures pour faire des tests »), puis le strict nécessaire. Pas de roman : les
   détails vivent dans `docs/`, les README et ce journal, on les référence. Une brique qu'on ne peut pas nommer en une
-  phrase est suspecte d'« usine à gaz ».
+  phrase est suspecte d'« usine à gaz ». **Vaut aussi pour les documents** (2026-10-15 : « README et documentations
+  interminables, je referme tout de suite ») : lecteurs = ingénieurs et développeurs ; README = ce que c'est, lancer,
+  tester, sur un écran ; une décision = une ligne ; aucune justification de détail visuel ; prompts d'agents compris.
 - **Périmètre V1 : l'infrastructure, jamais les endpoints** (Orhan, 2026-10-03). Téléphones, serveurs, bornes et
   tout autre endpoint ne sont pas dessinés en V1 ; la V1 est la documentation de l'infrastructure, couche physique (L1).
   À garder en tête : L2 (VLAN, trunks, spanning-tree) puis L3 (routage, BGP, OSPF, routes statiques), vues du même graphe
@@ -1710,7 +1713,7 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   du magasin entre copie et collage (422), fantôme d'un tableau réduit à son cadre.
 - **Prototype du lot 4 (barre contextuelle) validé par Orhan** (2026-10-14 ; première application de la règle
   « prototype avant le code » : un agent avec les skills frontend-design et impeccable, page autonome dans
-  `.impeccable/prototype-lot-4/`, revue de design indépendante appliquée avant remise). Réponses : D10 = A (alignements
+  `bac-a-sable/lot-4/`, revue de design indépendante appliquée avant remise). Réponses : D10 = A (alignements
   seulement dans la barre contextuelle) ; **la barre et ses volets ne masquent jamais l'objet** ; coin des boutons à volet
   gardé ; barre aussi sur un équipement seul ; aucune barre en lecture seule ; barre loin d'une grosse sélection = à
   juger à l'usage. Ajout validé : barre masquable (préférence du navigateur, Ctrl + ., case dans Affichage, Alt+T la
@@ -1756,7 +1759,7 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   par l'orchestrateur, verte). Ajouté à `docs/a-juger-a-l-usage.md` : des câbles ou pastilles qui « apparaissent » au
   bord de l'écran au panoramique (sinon on garde la culture). Captures `.impeccable/planche-lot-13/`.
 - **Prototype du lot 8 (repères d'alignement, mettre en grille) validé par Orhan** (2026-10-14, « vraiment pas mal du
-  tout comme rendu et comme qualité » ; `.impeccable/prototype-lot-8/`). Ctrl (pas Alt, pris par le clonage) suspend
+  tout comme rendu et comme qualité » ; `bac-a-sable/lot-8/`). Ctrl (pas Alt, pris par le clonage) suspend
   l'aimantation ; repères en chartreuse par défaut et **couleur au choix** (préférence du navigateur dans Affichage, pas
   une intention) ; grille par nom et au moins de cases vides. Détail : `docs/11` § Lot 8 « Prototype validé ».
   Implémentation lancée (relancée après une interruption qui avait arrêté le premier agent ; lot 13 commité avant,
@@ -1853,6 +1856,14 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   au-delà de 200 lignes (2 000 lignes : 200 → 40 ms) ; « AA 13 » ; volet avec flèche ; plus de croix sur une poignée ou
   une épingle ; pastilles à cible de 24. 30 mutations sur 30, suite 622 verte chez l'orchestrateur. **À juger à
   l'usage** : avertissement posé sur le bloc et volet posé au bout de la barre quand la place manque.
+- **Lot 16 bis : l'écriture d'un bloc de code passe sur CodeMirror 6** (2026-10-15, retours d'Orhan à l'usage : pas de
+  retour à la ligne, taille en S / M / L « trop dirigiste », Ctrl+Z inopérant pendant l'écriture, pas de Ctrl+F ; « pourquoi
+  pas Monaco plutôt que du code maison ? » ; avis rendu, « Go »). Critique juste : l'écriture était un `textarea` maison.
+  **CodeMirror 6** (zoom CSS pris en charge depuis `@codemirror/view` 6.18.0, vérifié) ; **Monaco écarté** (curseur faux
+  sous la transformation de la toile, poids, workers et styles contre la CSP) ; Prism reste la grammaire (décorations) ;
+  affichage sur la toile toujours en SVG (export). Retour à la ligne par bloc, activé par défaut, sans saut entre lecture
+  et écriture ; taille libre 8 à 64 ; Ctrl + molette pendant l'écriture = taille. Un seul lot avec le lot 4 bis
+  (`Intent` 1.7.0) ; prototype `bac-a-sable/lot-16-bis/` d'abord. Détail : `docs/11` § Lot 16.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 

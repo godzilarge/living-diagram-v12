@@ -1,5 +1,5 @@
 /* Les repères d'alignement, l'aimant aux objets, « mettre en grille » (lot 8 de docs/11), d'après le prototype validé
-   le 2026-10-14 (`.impeccable/prototype-lot-8/`). Une seule couleur nouvelle, `--guide` (tokens.css), choisie par
+   le 2026-10-14 (`bac-a-sable/lot-8/`). Une seule couleur nouvelle, `--guide` (tokens.css), choisie par
    chacun dans le panneau Affichage. Un trait plein de 1 px, net au demi-pixel (le tiret est déjà pris : câble
    documenté, cadre de groupe, cluster HA). La couche est à l'écran, au-dessus de la toile, sous l'interface flottante. */
 /* une couche à elle (`will-change`) : un pas de glissé ne repeint que ses traits, jamais les cartes dessous (sans GPU, le

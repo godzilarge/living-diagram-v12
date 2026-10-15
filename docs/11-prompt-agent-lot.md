@@ -83,12 +83,13 @@ Pour un lot qui dessine de l'interface (lot 4 barre contextuelle, lot 14 passe v
 agents en séquence, jamais un seul :
 
 1. **Agent prototype** : charge les skills `frontend-design:frontend-design` et `impeccable:impeccable`, lit le lot et
-   les captures actuelles, et produit dans `.impeccable/prototype-lot-{N}/` une page HTML autonome (données factices,
+   les captures actuelles, et produit dans `bac-a-sable/lot-{N}/` une page HTML autonome (données factices,
    jetons de `engine/src/app/styles/tokens.css` recopiés, aucune ressource externe) qui montre le rendu et les états
    (repos, survol, sélection de chaque sorte, sombre et clair, 1440 et 1280), plus ses captures. **Il ne touche ni
-   `engine/` ni `backend/`.** L'orchestrateur remet le prototype à Orhan et attend son verdict.
+   `engine/` ni `backend/`.** `bac-a-sable/` est gitignoré ; l'orchestrateur sert le dossier
+   (`python3 -m http.server 8016 --bind 0.0.0.0` depuis `bac-a-sable/`), donne l'URL à Orhan et attend son verdict.
 2. **Agent d'implémentation**, après l'accord d'Orhan : le prompt du § 2, avec en plus « le prototype validé
-   `.impeccable/prototype-lot-{N}/` fait foi pour le rendu » et les skills `frontend-design` et `impeccable` chargés
+   `bac-a-sable/lot-{N}/` fait foi pour le rendu » et les skills `frontend-design` et `impeccable` chargés
    pour la finition et le détecteur.
 
 ## 3. Quand reprendre un modèle plus fort que l'implémenteur
@@ -108,12 +109,12 @@ du 2026-09-20).
 > - **Lot 8** (repères d'alignement, aimant aux objets, mettre en grille ; couleur des repères au choix) : codé par un
 >   agent dans l'**arbre principal**, non commité. S'il n'a pas rendu son rapport, son travail est peut-être incomplet :
 >   `git status`, `git diff --stat`, chercher le paragraphe « Fait » à la fin de `docs/11` § Lot 8 ; s'il manque, relancer
->   un agent Opus avec le prompt du § 2 (prototype `.impeccable/prototype-lot-8/` qui fait foi) en lui disant de **reprendre
+>   un agent Opus avec le prompt du § 2 (prototype `bac-a-sable/lot-8/` qui fait foi) en lui disant de **reprendre
 >   le travail en place** (lire le diff existant, finir, tester, documenter).
 > - **Lot 16** (bloc de code, `Intent` 1.6.0, Prism 1.30.0) : codé par un agent dans le **worktree**
 >   `.claude/worktrees/agent-a22f7fc3dd7c7866f` (branche `worktree-agent-a22f7fc3dd7c7866f`, partie de `23f1aa0`), non
 >   commité. Même vérification (paragraphe « Fait » de sa section Lot 16 dans `docs/11` du worktree) ; sinon relancer un
->   agent **dans ce worktree** pour finir. Prototype qui fait foi : `.impeccable/prototype-lot-16/` (arbre principal).
+>   agent **dans ce worktree** pour finir. Prototype qui fait foi : `bac-a-sable/lot-16/` (arbre principal).
 > - **Ordre de fin demandé par Orhan** : (1) relire le lot 8 (diff, suite complète `cd backend && uv run pytest`, captures
 >   `.impeccable/planche-lot-8/` comparées au prototype), journal, commit + push sur demande ; (2) fusionner le lot 16 sur
 >   `main` (commit sur la branche du worktree, puis merge ; conflits attendus : `docs/11` § Lot 16 existe des deux côtés,
@@ -123,7 +124,7 @@ du 2026-09-20).
 >   cohérence, dette) par un agent indépendant, rapport consigné dans `docs/revues/`, puis une passe **impeccable**
 >   (critique + audit sur captures, « pas d'AI slop ») ; chaque recommandation est une hypothèse à confronter à l'usage
 >   avant de la coder (règle du 2026-10-10) ; présenter à Orhan les constats avec avis, corriger ce qu'il retient.
-> - Ensuite : lot 4 bis (barre de texte complète, `Intent` 1.7.0, prototype `.impeccable/prototype-lot-4-bis/`, retirer
+> - Ensuite : lot 4 bis (barre de texte complète, `Intent` 1.7.0, prototype `bac-a-sable/lot-4-bis/`, retirer
 >   les graisses du volet police, cinq questions à la recommandation), puis lot 7. Lot 6 parqué.
 > - Piège : une interruption de la session par Orhan peut tuer les agents en arrière-plan ; vérifier après chaque
 >   interruption (transcription de l'agent sans « Request interrupted », fichier qui avance).

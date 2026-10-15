@@ -1,5 +1,5 @@
 /* La barre contextuelle flottante (lot 4 de docs/11), d'après le prototype validé le 2026-10-14
-   (`.impeccable/prototype-lot-4/`). Une commande, donc un rectangle aux coins de 10 comme la barre d'outils, jamais une
+   (`bac-a-sable/lot-4/`). Une commande, donc un rectangle aux coins de 10 comme la barre d'outils, jamais une
    capsule (la capsule est un fait, règle des pastilles). Plus relevée que la barre du haut (fond --bg-elev-2 et bordure
    forte en sombre, blanc opaque en clair, contre du verre en haut) : on ne confond pas « agir sur la toile » et « agir
    sur ceci ». Marge de 4 : 10 - 4 = 6, les coins des boutons sont concentriques. La place vient de variables posées par

@@ -1,5 +1,5 @@
 """Lot 16 (docs/11) : la scène des captures du bloc de code, sur demo-dc. Des textes factices (noms, adresses et secrets
-inventés, jamais réels), repris du prototype validé (`.impeccable/prototype-lot-16/src/samples.js`), posés par l'API
+inventés, jamais réels), repris du prototype validé (`bac-a-sable/lot-16/src/samples.js`), posés par l'API
 comme le ferait la page (Python attaché au routeur, Bash libre, la configuration Cisco de 120 lignes attachée à un
 switch d'accès, déjà masquée). Les aides de pilotage (clavier, souris, molette) servent aussi à l'exploration."""
 from __future__ import annotations

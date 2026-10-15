@@ -451,7 +451,7 @@ attaché à un équipement, un groupe ou une annotation ; il suit ce qui bouge e
 
 En une phrase : **coller sur le diagramme un bout de configuration ou de code, lisible, coloré si on le veut, copiable,
 et ne jamais enregistrer un mot de passe sans l'avoir vu.** Prototype validé par Orhan
-(`.impeccable/prototype-lot-16/`, « C'est très bon, on code ça maintenant ») ; décisions recopiées dans `docs/11`
+(`bac-a-sable/lot-16/`, « C'est très bon, on code ça maintenant ») ; décisions recopiées dans `docs/11`
 § Lot 16.
 
 - **Une cinquième sorte d'annotation, `code`**, mêmes règles que les autres (A0 à A9) : libre ou attachée (équipement,

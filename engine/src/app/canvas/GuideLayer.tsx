@@ -1,6 +1,6 @@
 // La couche des repères d'alignement (lot 8 de docs/11) : ce que guides.ts décide, dessiné par-dessus la toile en
 // coordonnées d'écran (comme la bulle), net au demi-pixel. Rendu repris du prototype validé le 2026-10-14
-// (`.impeccable/prototype-lot-8/`) : un trait plein de 1 px interrompu sur les boîtes qu'il traverse, une croix à chaque
+// (`bac-a-sable/lot-8/`) : un trait plein de 1 px interrompu sur les boîtes qu'il traverse, une croix à chaque
 // coin aligné d'un repère de bord, la cote d'un écart égal dans une capsule entre deux butées, quatre équerres autour
 // de la boîte d'une sélection glissée, la pastille du geste à la première place libre, et l'aperçu de « mettre en
 // grille » (chaque place à venir avec le nom de ce qui ira là). Un état à part (`GuideStore`) : un pas de glissé ne

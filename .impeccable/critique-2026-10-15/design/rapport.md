@@ -7,7 +7,7 @@ a tourné après le jugement visuel, pour ne pas l'orienter).
 volets avec ces deux nouveautés (lot 4). Sombre 1440 × 900, clair 1280 × 800, `demo-dc`, gestes réels.
 **Captures** : `.impeccable/critique-2026-10-15/design/captures/` (`lot8/1` à `8`, `lot16/1` à `7`, trois agrandissements
 `zoom-*`). Scripts : `design/scripts/` (copies adaptées des planches 8 et 16 ; seul `session.py` change, le chemin de la
-racine). Référence : prototypes validés `.impeccable/prototype-lot-8/`, `.impeccable/prototype-lot-16/`.
+racine). Référence : prototypes validés `bac-a-sable/lot-8/`, `bac-a-sable/lot-16/`.
 
 ## Score : 30 / 40 (bon ; les écarts sont de finition, pas de fond)
 

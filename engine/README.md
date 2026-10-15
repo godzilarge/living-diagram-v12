@@ -288,7 +288,7 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   natifs `copy`, `cut`, `paste` et Ctrl+D : `components/Shell.tsx` (dans un champ, ou avec du texte sélectionné dans
   la page, le navigateur garde la main). Ce que les nœuds de React Flow dessinent se calcule dans `app/canvas/flow-build.ts`
   (sorti de `Flow.tsx`).
-- **La barre contextuelle flottante** (lot 4 de `docs/11`, 2026-10-14 ; prototype validé `.impeccable/prototype-lot-4/`,
+- **La barre contextuelle flottante** (lot 4 de `docs/11`, 2026-10-14 ; prototype validé `bac-a-sable/lot-4/`,
   qui fait foi pour le rendu). Les réglages fréquents de l'élément sélectionné, à un clic, au-dessus de lui : une note
   (teinte | taille S / M / L · gras · alignement du texte | plan · verrou | dupliquer · supprimer), une forme (teinte ·
   remplissage · bordure · coins | étiquette | plan · verrou | dupliquer · supprimer), un tableau (ligne + · colonne + ·
@@ -331,7 +331,7 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   `styles/floating.css` ; `HueGrid` et `PositionGrid` (`ui/inspector.tsx`) sont les grilles de l'inspecteur, partagées ;
   `state/floating-commands.ts` (épingler ici, verrouiller une sélection).
 - **Les repères d'alignement et « mettre en grille »** (lot 8 de `docs/11`, 2026-10-14 ; prototype validé
-  `.impeccable/prototype-lot-8/`, qui fait foi pour le rendu). Pendant un glissé (une carte, un bloc, une annotation, un
+  `bac-a-sable/lot-8/`, qui fait foi pour le rendu). Pendant un glissé (une carte, un bloc, une annotation, un
   cadre), un Alt + glissé et le redimensionnement d'une annotation, un trait chartreuse de 1 px dit « aligné avec »
   (centre ↔ centre, bord ↔ bord, le centre d'abord, une ligne par axe ; l'écart égal se cote en capsule) et la boîte s'y
   colle à moins de 8 px d'écran ; l'aimant de la grille s'applique **après**, sur l'axe libre ; **Ctrl** tenu suspend les

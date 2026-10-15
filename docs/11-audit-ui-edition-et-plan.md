@@ -640,12 +640,12 @@ garde de la toile s'arrête avant tout envoi), attrapé avec elle.
 **Dépend de** : lot 1 (poignées), lot 2 (sélection mixte). **Pourquoi** : §4.1 point 4 ; décision D10.
 
 **Méthode imposée (Orhan, 2026-10-14)** : prototype d'abord. Un premier agent, avec les skills
-`frontend-design:frontend-design` et `impeccable:impeccable`, produit dans `.impeccable/prototype-lot-4/` une page HTML
+`frontend-design:frontend-design` et `impeccable:impeccable`, produit dans `bac-a-sable/lot-4/` une page HTML
 autonome (données factices, jetons recopiés, aucun fichier de `engine/` ni de `backend/`) qu'Orhan juge lui-même ; le
 code ne s'écrit qu'après son accord, le prototype validé faisant foi pour le rendu (`docs/11-prompt-agent-lot.md`
 § 2 bis). Même règle pour le lot 14 et tout nouveau panneau.
 
-**Prototype validé le 2026-10-14** (`.impeccable/prototype-lot-4/`, fait foi pour le rendu, revue de design appliquée :
+**Prototype validé le 2026-10-14** (`bac-a-sable/lot-4/`, fait foi pour le rendu, revue de design appliquée :
 bouton unique « aligner et répartir » à volet, barre ancrée au milieu d'un connecteur et qui évite les annotations,
 ergot vers l'ancre, fond relevé, rectangle aux coins de 10 et non capsule). **Réponses d'Orhan** : (1) D10 = A ;
 (2) **la barre et ses volets ne masquent jamais l'objet** (volet du côté opposé à la sélection, de l'autre côté s'il
@@ -767,7 +767,7 @@ position du texte bien trop limités ; (5) le style des volets (sous-menus) n'es
 le contrat admet déjà toute taille entière de 8 à 64 (`text_size`), la limite (1) est dans l'interface ; (2) et (3)
 demandent des champs additifs au contrat `Intent` (mineure à coordonner avec le lot 9, qui prévoit aussi 1.6.0) ; (4)
 est à préciser sur le prototype. Méthode : un prototype (skills frontend-design et impeccable,
-`.impeccable/prototype-lot-4-bis/`) jugé par Orhan, puis l'implémentation après le lot 8 (mêmes fichiers).
+`bac-a-sable/lot-4-bis/`) jugé par Orhan, puis l'implémentation après le lot 8 (mêmes fichiers).
 
 **Prototype du lot 4 bis jugé le 2026-10-14** (revue de design indépendante 30/40, P1 corrigés) : « vraiment beaucoup
 plus propre, c'est bien mieux ». Une correction : **retirer normal / demi-gras / gras du volet « police »**, redondant
@@ -958,7 +958,7 @@ la ligne se voit, Alt l'empêche, préférence rangée.
 
 **Acceptation** : capture `1-guide-centre`, `2-espacement-egal` prises **pendant** le glissé (le pilote tient le bouton).
 
-**Prototype validé le 2026-10-14** (`.impeccable/prototype-lot-8/`, skills frontend-design et impeccable, revue de design
+**Prototype validé le 2026-10-14** (`bac-a-sable/lot-8/`, skills frontend-design et impeccable, revue de design
 indépendante appliquée ; Orhan : « vraiment pas mal du tout comme rendu et comme qualité ») ; il fait foi pour le rendu
 (trait plein de 1 px interrompu sur les cartes, croix aux coins d'un repère de bord, cote d'écart en capsule, équerres de
 coin pour la boîte d'une sélection multiple, aperçu de la grille avec le nom de chaque place, pastille du geste à la
@@ -1311,7 +1311,7 @@ du parseur (pur), Chromium (gras rendu, lien cliquable, mutation : `<script>` re
 ### Lot 16 — Le bloc de code (Intent 1.6.0) — prototype validé le 2026-10-14
 
 **En une phrase** : coller sur le diagramme un bout de configuration ou de code, lisible, coloré si on le veut,
-copiable, et ne jamais enregistrer un mot de passe sans l'avoir vu. Prototype : `.impeccable/prototype-lot-16/` (README :
+copiable, et ne jamais enregistrer un mot de passe sans l'avoir vu. Prototype : `bac-a-sable/lot-16/` (README :
 décisions, contrat, règle de la molette, sources, licences), validé par Orhan (« C'est très bon, on code ça maintenant »). Passé avant le lot 4 bis, codé dans un
 worktree en parallèle du lot 8 et fusionné après lui ; versions du contrat : lot 16 = `Intent` 1.6.0, lot 4 bis = 1.7.0,
 lot 9 = 1.8.0 (une mineure par lot livré).
@@ -1469,6 +1469,23 @@ Node (`app.test.js` 54, `code.test.js` 22), Chromium (`test_app_code.py` : focus
 après). **Parqués** : à 1024 et 1280 la fiche ouverte, un bloc qui remplit la vue reçoit l'avertissement par-dessus
 (aucun côté ne tient : le code ne se lit pas pendant ce choix) ; un volet posé à côté de la barre reste à son bout, pas
 sous son bouton ; dans une fiche fenêtrée, Ctrl+A ne prend que la fenêtre (« copier » prend tout).
+
+**Retours d'Orhan à l'usage, 2026-10-15 : lot 16 bis, un vrai éditeur.** Quatre manques : pas de retour à la ligne quand
+on rétrécit le bloc (défilement latéral) ; la taille du texte en choix fixes S / M / L, « trop dirigiste » ; Ctrl+Z et
+les raccourcis ne marchent pas pendant l'écriture ; pas de Ctrl+F. Question de fond : « pourquoi pas Monaco, pour ne pas
+maintenir du code maison ? ». **Avis rendu, « Go » d'Orhan** : la critique est juste, l'écriture se faisait dans un
+`textarea` maison (seule la coloration venait d'une bibliothèque). **Décisions** : (1) l'écriture passe sur
+**CodeMirror 6** (zoom CSS pris en charge depuis `@codemirror/view` 6.18.0, vérifié dans son CHANGELOG ; modulaire,
+quelques centaines de Ko) ; **Monaco écarté** : position du curseur fausse sous la transformation de la toile, plusieurs
+Mo, conçu pour un éditeur par page, workers et styles injectés contre la CSP `'self'` ; Prism reste la grammaire unique
+(décorations dans CodeMirror : mêmes couleurs, Cisco et FortiOS gardés) ; (2) **retour à la ligne**, option par bloc,
+**activé par défaut**, la toile coupe les lignes comme l'éditeur (aucun saut en passant de la lecture à l'écriture) ;
+champ additif du contrat `Intent` 1.7.0 ; (3) **taille libre** 8 à 64 dans la barre (la commande du lot 4 bis, pour
+tous les textes), et **Ctrl + molette pendant l'écriture** change la taille (hors écriture, Ctrl + molette reste le zoom
+de la toile) ; (4) l'affichage sur la toile **reste en SVG** (export du lot 11, jauge, culture) : CodeMirror ne sert que
+pendant l'écriture. **Méthode** : un seul lot avec le lot 4 bis (même barre, même contrat 1.7.0) ; d'abord un
+**prototype** `bac-a-sable/lot-16-bis/` (CodeMirror dans une toile zoomée, sous la CSP de l'application), essayé
+par Orhan avant le code.
 
 ### Déjà planifiés, inchangés, après ces lots (docs/10 §8)
 
