@@ -37,6 +37,8 @@ import type { CardNodeType, ClusterNodeType, FrameNodeType, StubNodeType } from 
 import type { Toile } from "./toile";
 
 export type FlowNode = CardNodeType | StubNodeType | ClusterNodeType | FrameNodeType | AnnotationNodeType | ConnectorNodeType;
+/** Un nœud d'équipement (carte ou voisin inconnu) : une seule règle pour la toile et les repères (revue de session, D4). */
+export const isHost = (node: FlowNode): boolean => node.type === "card" || node.type === "stub";
 export type FlowEdge = CableEdgeType | BeamEdgeType | SpeedEdgeType;
 const Z_BACK = -40, Z_FRONT = 20;
 /** Le disque d'un voisin inconnu : la boîte que les câbles, les cadres et l'accrochage lisent. */
@@ -229,7 +231,7 @@ export function build(toile: Toile, local: AnnotationLocal, freshTags = true): B
     const parent = anchor ? (anchor.kind === "device" && slot ? { parentId: a.anchor.ref || "", position: { x: slot.w / 2 + a.x, y: slot.h / 2 + a.y } } : { parentId: "group:" + a.anchor.ref, position: { x: a.x, y: a.y } }) : { position: { x: frame.x, y: frame.y } };
     const leader = a.leader && anchor ? leaderOf(frame, anchorRect(anchor)) : null;
     notes.push({ id: "annotation:" + a.id, type: "annotation", ...parent, selected, draggable: local.editable && !a.locked, selectable: !local.control, focusable: !local.control, zIndex: a.z === "back" ? Z_BACK : Z_FRONT,
-      ariaLabel: t("shell:canvas.annotation", { summary: annotationSummary(a) }), data: { a, frame, leader, editable: local.editable, label: annotationSummary(a), multi, classes: flags(selected, related.annotations.has(a.id)).trim() } });
+      ariaLabel: t("shell:canvas.annotation", { summary: annotationSummary(a) }), data: { a, frame, leader, editable: local.editable, label: annotationSummary(a), multi: selected && multi, classes: flags(selected, related.annotations.has(a.id)).trim() } });
   });
   // Les connecteurs (docs/10 §6, 1.4.0) : un nœud posé au coin de leur boîte, qui dessine ses bouts depuis la place
   // vivante des éléments attachés (connector.tsx) ; ici, la place que la toile connaît (positions, cadres, boîtes).

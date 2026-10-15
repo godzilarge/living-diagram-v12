@@ -39,6 +39,8 @@ import { floatingCommands } from "./floating-commands";
 import { codeCommands } from "./code-commands";
 import type { CodeCommands } from "./code-commands";
 import type { FloatingCommands } from "./floating-commands";
+import { intentCommands } from "./intent-commands";
+import type { IntentCommands } from "./intent-commands";
 import { debug } from "./debug";
 import { readPrefs, writePrefs } from "./prefs";
 import type { Prefs } from "./prefs";
@@ -50,7 +52,7 @@ import { said } from "./said";
 
 export interface CanvasHandle { toile: Toile; intents: IntentHost; placements: PlacementHost; writer: AppWriter; placer: Placer | null; undo: Undo }
 
-export interface Commands extends JournalCommands, ClipboardCommands, FloatingCommands, CodeCommands {
+export interface Commands extends JournalCommands, ClipboardCommands, FloatingCommands, CodeCommands, IntentCommands {
   connect: (fields: { token: string; infrastructure: string; author: string }) => void;
   listRuns: () => void;
   openRun: (runId: string, from: string) => void;
@@ -80,10 +82,6 @@ export interface Commands extends JournalCommands, ClipboardCommands, FloatingCo
   /** Tab / Maj+Tab : l'élément suivant (précédent) dans l'ordre de lecture, sélectionné ; rendu pour que la page y
    *  mette le focus. */
   cycle: (direction: 1 | -1) => Item | null;
-  /** Suppr / Retour arrière : annotations, connecteurs et groupes de la sélection supprimés en une requête (une entrée
-   *  d'annulation) ; un équipement ne se supprime pas, la ligne d'état le dit et propose de le masquer (D5). Rend
-   *  faux s'il n'y avait rien à faire. */
-  deleteSelection: () => boolean;
   /** F2 ou Entrée : l'édition en place de l'élément sélectionné (texte d'une note, étiquette d'une forme, nom d'un
    *  groupe) ; faux si l'élément ne s'édite pas ainsi. */
   editSelection: () => boolean;
@@ -99,36 +97,12 @@ export interface Commands extends JournalCommands, ClipboardCommands, FloatingCo
   color: (hostname: string, hue: string | null) => void;
   colorType: (type: string, hue: string | null) => void;
   colorHosts: (hosts: string[], hue: string | null) => void;
-  /** Les groupes (docs/10 §5), par l'hôte d'intention ; créer sélectionne le groupe créé. */
-  groupCreate: (label: string, members: string[]) => void;
-  groupUpdate: (id: string, patch: { label?: string; description?: string; members?: string[]; style?: Partial<GroupStyle> }) => void;
-  groupAdd: (id: string, members: string[]) => void;
-  groupRemove: (id: string, members: string[]) => void;
-  groupDelete: (id: string) => void;
-  /** Les annotations (docs/10 §6) : créer au centre de la vue (puis la sélectionner), modifier, dupliquer, supprimer. */
-  annotationCreate: (content: Annotation["content"], extra?: AnnotationPatch) => void;
-  annotationUpdate: (id: string, patch: AnnotationPatch & { content?: Annotation["content"] }) => void;
-  annotationDuplicate: (id: string) => void;
-  /** Une image choisie (fichier) : envoyée au magasin, puis une annotation `image` à sa taille naturelle (600 de large au plus) ; `id` : remplacer celle d'une annotation. */
-  annotationImage: (file: Blob, id?: string) => void;
-  annotationDelete: (id: string) => void;
-  /** Le contenu d'un tableau remplacé ; une ligne ou une colonne de plus (ou de moins) agrandit (réduit) la boîte d'autant. */
-  tableUpdate: (id: string, content: TableContent) => void;
-  /** Détache une annotation : libre, là où elle est dessinée (ou au centre de la vue si son ancre est absente). */
-  annotationDetach: (id: string) => void;
-  /** Les connecteurs (docs/10 §6, 1.4.0) : créer (puis sélectionner), modifier, détacher les deux bouts, supprimer. */
-  connectorCreate: (fields: { start: Connector["start"]; end: Connector["end"] } & ConnectorPatch) => void;
-  connectorUpdate: (id: string, patch: ConnectorPatch) => void;
-  connectorDetach: (id: string) => void;
-  connectorDelete: (id: string) => void;
   /** Le menu contextuel (clic droit) : ouvrir pour une cible, fermer. */
   openContext: (menu: ContextMenuState) => void;
   closeContext: () => void;
   /** Une édition en place demandée au nœud (cellule d'un tableau, ou texte d'une note : `cell` null ; le nom d'un
    *  groupe : `kind` = « group »). */
   requestEdit: (id: string, cell: [number, number] | null, kind?: "annotation" | "group") => void;
-  /** Insérer une annotation ou un connecteur d'une sorte (note, rectangle, ellipse, table, connector) à un point du plan. */
-  insertAt: (kind: string, at: Point) => void;
   /** Armer ou ranger un outil de la toile (lot 1 de docs/11 : l'outil connecteur, bouton de la barre ou touche C). */
   setTool: (tool: Tool | null) => void;
   toggleTool: (tool: Tool) => void;
@@ -213,6 +187,8 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
 
     async function openRun(runId: string, from: string): Promise<void> {
       const turn = ++opening.current;
+      // une rafale de flèches en attente s'écrit avant que la run suivante se lise (revue de session, B4)
+      if (handleRef.current) handleRef.current.toile.flush();
       const infrastructure = session().infrastructure;
       dispatch({ type: "address", address: { infrastructure, runId, from } });
       dispatch({ type: "loading", infrastructure, runId });
@@ -267,21 +243,6 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       set: (stack) => { stackRef.current = stack; dispatch({ type: "history", ...labels(stack) }); },
     };
     const rules = (): ViewState => current().view;
-    // Une annotation créée à un point du plan (coin haut gauche aimanté à la grille), sinon au centre de la vue ;
-    // `extra` peut porter l'ancrage et la position relative (note attachée depuis le menu), et prime.
-    function createAnnotation(content: Annotation["content"], at: Point | null, extra: AnnotationPatch): void {
-      const h = handleRef.current;
-      if (!h) return;
-      const size = DEFAULT_SIZE[content.kind], w = extra.w || size.w, hh = extra.h || size.h;
-      const snap = (v: number): number => Math.round(v / GRID) * GRID;
-      const point = at ? { x: snap(at.x), y: snap(at.y) } : ((c) => ({ x: snap(c.x - w / 2), y: snap(c.y - hh / 2) }))(h.toile.viewCenter());
-      const op: Op = { op: "annotation_create", content, x: point.x, y: point.y, w, h: hh, ...extra };
-      void h.intents.onAnnotation([op], t("shell:messages.annotationCreated")).then((intent) => {
-        if (!intent) return;
-        const id = "a" + intent.revision + "-1"; // l'identité que le serveur attribue à la première création d'une requête
-        if (h.toile.model.annotationById.has(id)) h.toile.reveal({ kind: "annotation", id });
-      });
-    }
     const commands: Commands = {
       connect: ({ token, infrastructure, author }) => {
         writeToken(token); writeAuthor(author);
@@ -345,29 +306,6 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       clearSelection: () => { const g = graph(); if (g) g.select(null); else dispatch({ type: "select", selection: null, hosts: [], picked: empty() }); },
       selectAll: () => { const g = graph(); if (g) g.selectItems(g.allItems()); },
       cycle: (direction) => { const g = graph(); return g ? g.cycle(direction) : null; },
-      deleteSelection: () => {
-        const h = handleRef.current;
-        if (!h) return false;
-        const s = h.toile.state;
-        const multi: Multi = sizeOf(s.multi) ? s.multi : empty();
-        const ops = deleteOps(multi);
-        const devices = multi.hosts.filter((host) => { const node = h.toile.model.nodeByHost.get(host); return !!node && !node.ghost; });
-        if (!ops.length && !devices.length) return false;
-        const kept = devices.length ? { text: t(devices.length > 1 ? "shell:messages.devicesKept" : "shell:messages.deviceKept"), offer: { kind: "hide" as const, hosts: devices } } : null;
-        if (!ops.length || !h.intents.canWrite()) {
-          if (kept) dispatch({ type: "note", text: kept.text, offer: kept.offer, at: Date.now() });
-          else dispatch({ type: "note", text: t("shell:messages.giveName"), at: Date.now() });
-          return true;
-        }
-        void h.intents.apply(ops, t("shell:messages.itemsDeleted", { count: ops.length, author: h.writer.author })).then((intent) => {
-          if (!intent) return;
-          // ce qui reste sélectionné : les équipements (on peut encore les masquer), rien d'autre
-          if (devices.length) h.toile.selectHosts(devices); else h.toile.select(null);
-          const done = t("shell:messages.itemsDeleted", { count: ops.length, author: h.writer.author });
-          dispatch({ type: "note", text: kept ? done + " · " + kept.text : done, offer: kept ? kept.offer : undefined, at: Date.now() });
-        });
-        return true;
-      },
       editSelection: () => {
         const h = handleRef.current, sel = h ? h.toile.state.selection : null;
         if (!h || !sel || !h.intents.canWrite()) return false;
@@ -390,104 +328,9 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       color: (hostname, hue) => { if (handleRef.current) handleRef.current.intents.onColor(hostname, hue); },
       colorType: (type, hue) => { if (handleRef.current) handleRef.current.intents.onTypeColor(type, hue); },
       colorHosts: (hosts, hue) => { if (handleRef.current) handleRef.current.intents.onColors(hosts, hue); },
-      groupCreate: (label, members) => {
-        const h = handleRef.current;
-        if (!h) return;
-        void h.intents.onGroup([{ op: "group_create", label, members }], t("shell:messages.groupCreated", { name: label })).then((intent) => {
-          if (!intent) return;
-          const id = "g" + intent.revision + "-1"; // l'identité que le serveur attribue à la première création d'une requête
-          if (h.toile.model.groupById.has(id)) h.toile.reveal({ kind: "group", id });
-        });
-      },
-      groupUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_update", id, ...patch }], t("shell:messages.groupChanged")); },
-      groupAdd: (id, members) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_add", id, members }], t("shell:messages.membersAdded", { count: members.length })); },
-      groupRemove: (id, members) => { if (handleRef.current) void handleRef.current.intents.onGroup([{ op: "group_remove", id, members }], t("shell:messages.membersRemoved", { count: members.length })); },
-      groupDelete: (id) => {
-        const h = handleRef.current;
-        if (!h) return;
-        void h.intents.onGroup([{ op: "group_delete", id }], t("shell:messages.groupDeleted")).then(() => {
-          if (h.toile.state.selection && h.toile.state.selection.kind === "group") h.toile.select(null);
-          // supprimé pour de bon : la ligne d'état dit comment revenir en arrière
-          if (!h.toile.model.groupById.has(id)) dispatch({ type: "note", text: t("shell:messages.groupDeletedUndo", { author: h.writer.author }), at: Date.now() });
-        });
-      },
-      annotationCreate: (content, extra = {}) => createAnnotation(content, null, extra),
-      annotationUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onAnnotation([{ op: "annotation_update", id, ...patch }], t("shell:messages.annotationChanged")); },
-      annotationDuplicate: (id) => {
-        const h = handleRef.current, a = h ? h.toile.model.annotationById.get(id) : undefined;
-        if (!h || !a) return;
-        const op: Op = { op: "annotation_create", content: a.content, anchor: a.anchor, x: a.x + GRID, y: a.y + GRID, w: a.w, h: a.h, z: a.z, locked: false, leader: a.leader, style: a.style };
-        void h.intents.onAnnotation([op], t("shell:messages.annotationDuplicated")).then((intent) => {
-          if (!intent) return;
-          const made = "a" + intent.revision + "-1";
-          if (h.toile.model.annotationById.has(made)) h.toile.reveal({ kind: "annotation", id: made });
-        });
-      },
-      annotationImage: (file, id) => {
-        const h = handleRef.current;
-        if (!h) return;
-        dispatch({ type: "note", text: t("shell:messages.imageSending"), busy: true, at: Date.now() });
-        void uploadAsset(session(), file).then((result) => {
-          if (!result.ok) { dispatch({ type: "note", text: t("shell:messages.imageNotSaved", { reason: result.message }), at: Date.now() }); return; }
-          const r = result.receipt, k = Math.min(1, 600 / Math.max(1, r.width));
-          const content = { kind: "image" as const, asset: r.asset, alt: "" };
-          if (id) { commands.annotationUpdate(id, { content: { ...content, alt: ((h.toile.model.annotationById.get(id) || { content: { alt: "" } }).content as { alt?: string }).alt || "" } }); return; }
-          commands.annotationCreate(content, { w: Math.max(20, Math.round(r.width * k)), h: Math.max(20, Math.round(r.height * k)) });
-        });
-      },
-      annotationDelete: (id) => {
-        const h = handleRef.current;
-        if (!h) return;
-        void h.intents.onAnnotation([{ op: "annotation_delete", id }], t("shell:messages.annotationDeleted")).then(() => {
-          if (h.toile.state.selection && h.toile.state.selection.kind === "annotation") h.toile.select(null);
-          if (!h.toile.model.annotationById.has(id)) dispatch({ type: "note", text: t("shell:messages.annotationDeletedUndo", { author: h.writer.author }), at: Date.now() });
-        });
-      },
-      tableUpdate: (id, content) => {
-        const h = handleRef.current, a = h ? h.toile.model.annotationById.get(id) : undefined;
-        if (!h || !a || a.content.kind !== "table") return;
-        const box = grownBox(a.content, content, a);
-        commands.annotationUpdate(id, { content, ...(box.w !== a.w || box.h !== a.h ? box : {}) });
-      },
-      annotationDetach: (id) => {
-        const h = handleRef.current, a = h ? h.toile.model.annotationById.get(id) : undefined;
-        if (!h || !a) return;
-        const frame = h.toile.frames.get(id), center = h.toile.viewCenter();
-        commands.annotationUpdate(id, { anchor: { kind: "free", ref: null }, leader: false, x: frame ? frame.x : center.x - a.w / 2, y: frame ? frame.y : center.y - a.h / 2 });
-      },
-      connectorCreate: (fields) => {
-        const h = handleRef.current;
-        if (!h) return;
-        void h.intents.onConnector([{ op: "connector_create", ...fields }], t("shell:messages.connectorCreated")).then((intent) => {
-          if (!intent) return;
-          const id = "c" + intent.revision + "-1";
-          if (h.toile.model.connectorById.has(id)) h.toile.reveal({ kind: "connector", id });
-        });
-      },
-      connectorUpdate: (id, patch) => { if (handleRef.current) void handleRef.current.intents.onConnector([{ op: "connector_update", id, ...patch }], t("shell:messages.connectorChanged")); },
-      connectorDetach: (id) => {
-        const h = handleRef.current, c = h ? h.toile.model.connectorById.get(id) : undefined, ends = h ? h.toile.ends.get(id) : undefined;
-        if (!h || !c || !ends) return;
-        const free = (p: Point): Connector["start"] => ({ kind: "free", x: Math.round(p.x), y: Math.round(p.y) });
-        commands.connectorUpdate(id, { ...(c.start.kind === "free" ? {} : { start: free(ends.a) }), ...(c.end.kind === "free" ? {} : { end: free(ends.b) }) });
-      },
-      connectorDelete: (id) => {
-        const h = handleRef.current;
-        if (!h) return;
-        void h.intents.onConnector([{ op: "connector_delete", id }], t("shell:messages.connectorDeleted")).then(() => {
-          if (h.toile.state.selection && h.toile.state.selection.kind === "connector") h.toile.select(null);
-          if (!h.toile.model.connectorById.has(id)) dispatch({ type: "note", text: t("shell:messages.connectorDeletedUndo", { author: h.writer.author }), at: Date.now() });
-        });
-      },
       openContext: (menu) => dispatch({ type: "context", menu }),
       closeContext: () => { if (current().context) dispatch({ type: "context", menu: null }); },
       requestEdit: (id, cell, kind) => dispatch({ type: "editRequest", request: { id, cell, at: Date.now(), ...(kind ? { kind } : {}) } }),
-      insertAt: (kind, at) => {
-        if (kind === "code") { commands.codeInsert(at); return; } // un brouillon : rien n'existe avant le premier enregistrement (lot 16)
-        if (kind === "connector") { commands.connectorCreate({ start: { kind: "free", x: Math.round(at.x - DEFAULT_LENGTH / 2), y: Math.round(at.y) }, end: { kind: "free", x: Math.round(at.x + DEFAULT_LENGTH / 2), y: Math.round(at.y) } }); return; }
-        const content: Annotation["content"] | null = kind === "note" ? { kind: "note", text: t("shell:messages.defaultNote") } : kind === "rectangle" ? { kind: "shape", shape: "rectangle", label: "" } : kind === "ellipse" ? { kind: "shape", shape: "ellipse", label: "" } : kind === "table" ? freshTable([[t("shell:messages.column", { n: 1 }), t("shell:messages.column", { n: 2 })], ["", ""]]) : null;
-        if (content) createAnnotation(content, at, {});
-      },
       setTool: (tool) => {
         if (current().tool === tool) return;
         dispatch({ type: "tool", tool });
@@ -506,14 +349,15 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
         if (commands.codePaste(raw)) return true; // un texte de code devient un bloc de code avec son langage (lot 16)
         const text = raw.replace(/\r\n?/g, "\n").trim();
         if (!text) return false;
-        createAnnotation({ kind: "note", text: text.slice(0, 2000) }, null, {});
+        commands.annotationCreate({ kind: "note", text: text.slice(0, 2000) });
         return true;
       },
       ...clipboardCommands({
         dispatch, current, session, handle: () => handleRef.current, pasteForeign: (data) => commands.paste(data),
       }),
       ...floatingCommands({ handle: () => handleRef.current }),
-      ...codeCommands({ dispatch, handle: () => handleRef.current }),
+      ...codeCommands({ dispatch, current, handle: () => handleRef.current }),
+      ...intentCommands({ dispatch, current, session, handle: () => handleRef.current, codeInsert: (at) => commands.codeInsert(at) }),
       selectedHosts: () => current().hosts,
       resetMoves: () => { const g = graph(); if (g) { g.resetPins(); dispatch({ type: "touched" }); } },
       undo: () => { if (handleRef.current) void handleRef.current.undo.undo(); },

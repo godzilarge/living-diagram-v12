@@ -12,6 +12,7 @@ import { localDay, PERIOD_LABEL, PERIODS, rangeLabel } from "../../state/journal
 import type { Period } from "../../state/journal";
 import { useStore } from "../../state/store";
 import { radioKeys, useThumb } from "./shared";
+import { typing } from "../../canvas/keys";
 
 const SEARCH_DELAY = 250; // ms
 const SAID_MS = 6000; // un export réussi se dit, puis s'efface ; un échec reste jusqu'au geste suivant
@@ -88,10 +89,8 @@ export function Tools() {
   }, [text, f.q, commands]);
   useEffect(() => { // `/` ou Ctrl+K : la recherche du journal
     const onKey = (event: KeyboardEvent): void => {
-      const el = event.target as HTMLElement | null;
-      const typing = !!el && (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName) || el.isContentEditable);
       if (dialogs.current) return;
-      if ((event.key === "k" && (event.ctrlKey || event.metaKey)) || (event.key === "/" && !typing)) { event.preventDefault(); input.current?.focus(); }
+      if ((event.key === "k" && (event.ctrlKey || event.metaKey)) || (event.key === "/" && !typing(event.target))) { event.preventDefault(); input.current?.focus(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

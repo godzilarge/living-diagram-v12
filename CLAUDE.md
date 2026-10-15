@@ -1803,6 +1803,33 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   grille si l'aimant est mis) au lieu d'un arrondi à 20 imposé ; deux parcours comptaient dix outils (onze avec le
   bloc). Suite complète verte (617 + lot 16), contrats verts. Commité et poussé (324116a). Revue indépendante du lot et
   revue de la session lancées.
+- **Revue du lot 16 consignée et traitée** (2026-10-15, `docs/revues/2026-10-15-lot-16-bloc-de-code.md` : 0 critique,
+  2 hauts, 5 moyens, 5 bas ; sondes rejouables). Le point faible était la promesse « jamais un secret enregistré sans
+  l'avoir vu » : détection étendue (table `code/secret-rules.ts` ; RADIUS / TACACS, BGP, OSPF, HSRP, SNMPv3, communautés,
+  Bearer, `curl -u`, Ansible `*_pass`… : 26 cas sur 26 de la sonde contre 3, 31 lignes négatives), toutes les valeurs
+  d'une ligne, aucun fragment ne survit à « retirer » ; une écriture démontée (culture) ou trop longue attend au lieu
+  d'être perdue ; tout collage porteur d'un secret passe par l'avertissement, y compris un collage Living Diagram venu
+  d'une autre infrastructure ; le brouillon appartient à son infrastructure ; lignes de plus de 2 000 caractères sans
+  coloration (pire cas des grammaires Prism 1,2 s → 0,1 ms). **Comportements prudents, questions ouvertes pour Orhan** :
+  un collage ne devient un bloc que si le langage est « sûr » (M4) ; une valeur déjà gardée ne se redemande pas (M1) ;
+  Ctrl+Z ne rétablit jamais une valeur retirée (J2) ; « retirer » dit que le journal garde l'ancien texte, sans patch
+  partiel ni masquage du « Brut » / CSV (M5 b, c). Incident : l'agent a lancé un `git stash` puis l'a défait aussitôt
+  (stash vide, arbre intact, vérifié). Commité et poussé (dc11488).
+- **Revue de la session (lots 2, 3, 4, 13, 8, 16) consignée** (2026-10-15,
+  `docs/revues/2026-10-15-revue-session-lots-2-3-4-13-8-16.md`, sondes dans `…-sondes/` : 0 critique, 1 haut, 3 moyens,
+  7 bas, 4 à juger, 5 de dette). Haut : une note attachée sélectionnée avec son ancre bougeait deux fois (flèches,
+  aligner, grille). Moyens : Suppr dans la rafale des flèches (exception, épingles perdues) ; un geste de plus de 500
+  opérations faisait deux entrées d'annulation ; Ctrl tenu avant le glissé ajoute à la sélection (à juger). Faiblesse
+  structurelle : `toile.ts` sans test Node. **Traitée le même jour** (suivi dans le rapport) : une annotation attachée
+  avance de ce que son ancre n'a pas déjà fait (flèches, aligner, grille, et le glissé des membres d'un groupe, trouvé en
+  plus) ; `flush()` de la rafale avant toute suppression, coupe et changement de run ; un geste de plus de 500 opérations
+  = une entrée d'annulation (`IntentHooks.parts`, morceaux chaînés, défaits si l'un est refusé) ; rectangle interrompu
+  (outil armé, `pointercancel`) rendu proprement ; Maj+C n'arme plus l'outil ; **J1 tranché par cohérence avec le
+  lot 8** : une insertion ne s'aimante que si l'aimant est mis. Dette : `createToile` dans `LDApp` avec tests Node
+  (7 mutations sur 7), `store.tsx` 609 → 453 lignes (`intent-commands.ts`), un seul `typing` / `isHost` / arrondi, zone
+  visible en constantes (`chrome.ts`). **M3 / J4 dans `docs/a-juger-a-l-usage.md`** (Ctrl tenu avant d'appuyer ajoute à
+  la sélection). Suite complète 622 verte trois fois de suite chez l'orchestrateur (l'agent avait vu deux passages
+  instables sous charge : à surveiller).
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 

@@ -27,6 +27,8 @@ export interface Undo {
    *  inverses, sans entrée d'annulation ; réussi, l'entrée de `first` sort de la pile ; refusé, elle reste (Ctrl+Z
    *  défait ce qui reste) et la raison est rendue. */
   revert: (first: Op[]) => Promise<{ ok: true } | { ok: false; message: string }>;
+  /** Ces opérations sont-elles celles d'une annulation (elles n'entrent pas dans la pile) ? */
+  replays: (ops: Op[]) => boolean;
 }
 
 export function createUndo(model: Model, writer: AppWriter | null, intents: IntentHost, toile: () => Toile, holder: StackHolder, note: (text: string) => void): Undo {
@@ -112,5 +114,5 @@ export function createUndo(model: Model, writer: AppWriter | null, intents: Inte
     } finally { busy = false; }
   }
 
-  return { undo: () => step("undo"), redo: () => step("redo"), onMoved, chain, revert };
+  return { undo: () => step("undo"), redo: () => step("redo"), onMoved, chain, revert, replays: (ops) => ops.length > 0 && ops.every((op) => replayed.has(op)) };
 }

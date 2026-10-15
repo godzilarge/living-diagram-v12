@@ -20,7 +20,8 @@ import { findSecrets, maskSecrets } from "../code/secrets";
 import { codeView } from "../code/view";
 import type { CodeDraft } from "../code/view";
 import type { CanvasHandle } from "./store";
-import type { Action } from "./types";
+import type { Action, AppState } from "./types";
+import { snapped } from "./clipboard";
 
 export const CODE_MAX = 20_000;
 /** Un texte collé plus long que ceci est refusé avant d'être lu (la normalisation et la détection coûtent ~0,7 s sur
@@ -54,14 +55,16 @@ export interface CodeCommands {
   codeSay: (text: string) => void;
 }
 
-export interface CodeDeps { dispatch: (action: Action) => void; handle: () => CanvasHandle | null }
+export interface CodeDeps { dispatch: (action: Action) => void; current: () => AppState; handle: () => CanvasHandle | null }
 
 const contentOf = (h: CanvasHandle, id: string): { a: Annotation; c: CodeContent } | null => {
   const a = h.toile.model.annotationById.get(id);
   return a && a.content.kind === "code" ? { a, c: a.content } : null;
 };
 
-export function codeCommands({ dispatch, handle }: CodeDeps): CodeCommands {
+export function codeCommands({ dispatch, current, handle }: CodeDeps): CodeCommands {
+  // sur la grille si l'aimant est mis, comme toute insertion (revue de session, J1)
+  const snap = (v: number): number => snapped(v, current().prefs.snap);
   const say = (text: string): void => dispatch({ type: "note", text, at: Date.now() });
   const outcomeText = (outcome: CodeOutcome, removed: number): string => (outcome === "removed" ? t("shell:code.removed", { count: removed }) : outcome === "kept" ? t("shell:code.kept") : "");
   const ready = (text: string): boolean => {
@@ -75,7 +78,6 @@ export function codeCommands({ dispatch, handle }: CodeDeps): CodeCommands {
       if (!h || !h.intents.canWrite()) return;
       const w = DEFAULT_SIZE.code.w, hh = fitHeight(INSERT_LINES, DEFAULT_STYLE.code.text_size);
       const c = at || ((p) => ({ x: p.x - w / 2, y: p.y - hh / 2 }))(h.toile.viewCenter());
-      const snap = (v: number): number => Math.round(v / CODE.GRID) * CODE.GRID;
       codeView.setDraft({ key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text: "", language: "plain", sure: false, x: snap(c.x), y: snap(c.y), w, h: hh, pasted: false });
     },
     codePaste: (raw) => {
@@ -94,7 +96,6 @@ export function codeCommands({ dispatch, handle }: CodeDeps): CodeCommands {
       // au pointeur s'il est sur la toile ; sinon au centre de la vue, décalé à gauche pour que l'avertissement tienne à droite
       const center = h.toile.viewCenter(), p = h.toile.pointer;
       const at = p ? { x: p.x, y: p.y } : { x: center.x - w / 2 - 240, y: center.y - hh / 2 };
-      const snap = (v: number): number => Math.round(v / CODE.GRID) * CODE.GRID;
       const draft: CodeDraft = { key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text, language: found.id, sure: found.sure, x: snap(at.x), y: snap(at.y), w, h: hh, pasted: true };
       // sans valeur sensible, le bloc s'enregistre aussitôt ; sinon le brouillon s'ouvre avec l'avertissement (la toile)
       if (secret) codeView.setDraft(draft); else commands.codeCreate(draft, text, "plain", 0);

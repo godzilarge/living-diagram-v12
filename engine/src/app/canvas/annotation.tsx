@@ -36,7 +36,9 @@ import type { CodeOutcome } from "../state/code-commands";
 
 export interface AnnotationData extends Record<string, unknown> {
   a: Annotation; frame: Frame; leader: Segment | null; editable: boolean; classes: string; label: string;
-  /** Dans une sélection de plusieurs éléments : pas de poignées (on ne redimensionne qu'une boîte à la fois). */
+  /** Sélectionnée dans une sélection de plusieurs éléments : pas de poignées (on ne redimensionne qu'une boîte à la
+   *  fois), le code ne défile pas. Posé sur les seules annotations sélectionnées : passer d'un à deux éléments ne
+   *  redessine pas toutes les autres (revue de session, B5). */
   multi?: boolean;
 }
 export type AnnotationNodeType = Node<AnnotationData, "annotation">;
@@ -93,6 +95,11 @@ function Handles({ frame, onResize, adjust, release }: { frame: Frame; onResize:
   const zoom = useZoom();
   const drag = useRef<{ id: HandleId; start: Frame; sx: number; sy: number } | null>(null);
   const [grabbed, setGrabbed] = useState<HandleId | null>(null);
+  // démontées en plein geste (Échap vide la sélection, l'annotation est retirée) : le geste se termine, les repères et
+  // l'estompage partent avec lui (revue de session, B1)
+  const releaseRef = useRef(release);
+  releaseRef.current = release;
+  useEffect(() => () => { if (drag.current) { drag.current = null; releaseRef.current(); } }, []);
   const next = (event: ReactPointerEvent): Frame | null => {
     const d = drag.current;
     if (!d) return null;

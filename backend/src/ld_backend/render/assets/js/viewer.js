@@ -2456,6 +2456,8 @@
     host: {
       saving: "enregistrement…",
       notSaved: "non enregistré : {{reason}}",
+      partsUndone: "non enregistré : {{reason}} ; ce qui avait déjà été écrit de ce geste est défait",
+      partsKept: "enregistré en partie : {{reason}} ; le défaire a échoué aussi ({{undo}}) · Ctrl+Z pour défaire ce qui reste",
       pinLocalNoServer: "déplacement local de {{host}}, non enregistré (page sans serveur)",
       pinLocalNoName: "déplacement local de {{host}} : donnez votre nom pour l'enregistrer",
       pinSaving: "enregistrement de l'épingle de {{host}}…",
@@ -6965,10 +6967,19 @@
       if (!writer) return false;
       hooks.note(t2("common:host.saving"));
       let failure = null;
-      for (const part of chunks(ops, OPS_PER_REQUEST)) {
-        const outcome = await writer.save(part);
+      const parts = chunks(ops, OPS_PER_REQUEST);
+      const joined = parts.length > 1 && hooks.parts ? hooks.parts(ops) : null;
+      if (joined) parts.slice(1).forEach((part) => joined.chain(part, parts[0]));
+      for (let i = 0; i < parts.length; i += 1) {
+        const outcome = await writer.save(parts[i]);
         if (!outcome.ok) {
           failure = outcome.message;
+          if (i > 0 && joined) {
+            const back = await joined.revert(parts[0]);
+            hooks.note(back.ok ? t2("common:host.partsUndone", { reason: failure }) : t2("common:host.partsKept", { reason: failure, undo: back.message }));
+            refresh();
+            return false;
+          }
           break;
         }
         accept(outcome.intent);

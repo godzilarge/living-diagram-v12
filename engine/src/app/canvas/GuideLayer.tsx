@@ -12,6 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { t } from "../../i18n";
 import { LINE_OVER_PX, fitName, pillSpot, runs } from "./guides";
 import type { Box, Gaps, Line, Rect, Zone } from "./guides";
+import { CHROME, CHROME_MARGIN } from "./chrome";
 
 /** Ce que la couche montre : les repères et écarts d'un geste, les boîtes qui coupent les repères, la boîte englobante
  *  d'une sélection glissée, la pastille du geste, ou l'aperçu d'une grille. */
@@ -145,7 +146,7 @@ export function GuideLayer({ store }: { store: GuideStore }) {
   // la fenêtre, pas la boîte de la couche : lire une boîte forcerait une mise en page à chaque pas du glissé (la toile
   // couvre la fenêtre ; la pastille reste sous la barre du haut et au-dessus de la bande)
   const width = typeof window === "undefined" ? 1200 : window.innerWidth, height = typeof window === "undefined" ? 800 : window.innerHeight;
-  const zone: Zone = { left: 8, top: 64, right: width - 8, bottom: height - 92 };
+  const m = CHROME_MARGIN, zone: Zone = { left: m, top: CHROME.top + m, right: width - m, bottom: height - CHROME.bottom - m };
   const union = view.union ? s.rect(view.union) : null;
   return (
     <svg ref={ref} className="guide-layer" aria-hidden="true" data-guides={on ? "on" : "off"}>

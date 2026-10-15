@@ -90,10 +90,12 @@ engine/
         ├── App.tsx                   Store + Shell
         ├── api/                      client.ts (lire les runs, une run : snapshot, rapport, diff, intention, placement), writers.ts (les deux écrivains)
         ├── state/                    types.ts (état, actions), reducer.ts (pur), address.ts (état de vue ↔ URL, pur), store.tsx (commandes, effets,
-        │                             poignée de la toile), debug.ts (regard pour Chromium)
+        │                             poignée de la toile), intent-commands.ts (groupes, annotations, connecteurs, supprimer, insérer),
+        │                             debug.ts (regard pour Chromium)
         ├── canvas/                   la toile de l'application (2026-10-07, React Flow) : toile.ts (l'état et les commandes, sans DOM ni React),
         │                             Flow.tsx (React Flow : nœuds et arêtes depuis la toile, vue, appuis, bulle, grille, aimant, minimap), nodes.tsx
-        │                             (carte, voisin inconnu, cadre de cluster), edges.tsx (câble, bande et étiquette de faisceau)
+        │                             (carte, voisin inconnu, cadre de cluster), edges.tsx (câble, bande et étiquette de faisceau),
+        │                             keys.ts (une frappe dans un champ lui appartient), chrome.ts (barre et bande posées sur la toile)
         ├── components/               Shell (clavier, thème), TopBar (comptes, règles, changements, nom), Display (panneau Affichage : couches `LAYERS`), Timeline (bande), Palette (règle, actions),
         │                             FloatingBar + FloatingVolet + floating-faces (la barre contextuelle, lot 4 ; état pur dans state/floating.ts), Panel +
         │                             cards/ (équipement, câble, faisceau, cluster, agrégat, sélection multiple), Canvas (seul à monter la toile),
@@ -232,13 +234,18 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   verrouillés ; jamais les cadres) ; Suppr ou Retour arrière supprime annotations, connecteurs et groupes de la
   sélection en une requête (un Ctrl+Z les rend, et ce qui tenait à un élément recréé le reprend : `relinkOps`) ; sur un
   équipement, rien ne part et la ligne d'état dit qu'il vient de la donnée, avec « masquer » (D5) ; les flèches
-  déplacent toute la sélection, annotations et bouts libres compris, une rafale = une écriture ; F2 ou Entrée ouvre
+  déplacent toute la sélection, annotations et bouts libres compris, une rafale = une écriture (une suppression, un
+  couper, un changement de run ou une annulation terminent d'abord la rafale en attente : `toile.flush()`) ; F2 ou Entrée ouvre
   l'édition en place d'une note, de l'étiquette d'une forme ou du nom d'un groupe (double-clic de même ; un champ
   d'une ligne, `app/canvas/inline.tsx`) ; Tab / Maj+Tab passent à l'élément suivant dans l'ordre de lecture (haut
   gauche → bas droite) quand une sélection existe et que le focus est sur la toile, le focus suit le nœud (Échap vide
   la sélection : Tab rend alors la main à la page). **Alignement** (dans la barre contextuelle depuis le lot 4) : des cartes seules gardent
   la règle des centres (« centrer » = même x, « milieu » = même y) ; dès qu'une annotation est dans la sélection, gauche, centre, droite, haut, milieu,
-  bas et les deux répartitions se font par les boîtes (`canvas/align.ts`, `alignBoxes`, que `/view` n'embarque pas). La fiche
+  bas et les deux répartitions se font par les boîtes (`canvas/align.ts`, `alignBoxes`, que `/view` n'embarque pas).
+  **Une annotation attachée ne bouge jamais deux fois** (revue de session du 2026-10-15, H1) : flèches, alignement,
+  grille et glissé calculent sa boîte visée dans le plan, puis son écart depuis le point de référence de son ancre
+  **après** le geste (`toile.anchorAt`, la règle que le collage partage) ; une carte ou un cadre de groupe qui bouge
+  avec elle ne la décale pas une seconde fois. La fiche
   d'une sélection mixte (`MultiCard`) compte par sorte ; dans un bloc, une note n'a pas ses poignées de taille.
 - **Le presse-papiers** (lot 3 de `docs/11`, 2026-10-14). **Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+D**, **Alt + glissé**, et
   dans le menu contextuel « copier », « couper », « coller ici », « dupliquer » avec leur raccourci écrit. Ce qui se
@@ -544,6 +551,11 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
 ## Règles
 
 - **Rien d'inventé** : le modèle indexe, il ne déduit pas ; ce qui est dessiné est dans le snapshot.
+- **Un geste = une entrée d'annulation, même au-delà de 500 opérations** (revue de session, M2) : l'hôte d'intention
+  découpe par 500 (la borne de l'API) ; dans l'application, la pile relie les morceaux (`IntentHooks.parts`,
+  `undo.chain`), et si un morceau est refusé, ceux déjà écrits sont défaits (`undo.revert`) et la page le dit.
+- **Insérer se pose sur la grille si l'aimant est mis**, sinon au point arrondi (revue de session, J1) : annotation,
+  connecteur, bloc de code, comme le collage et Alt + glissé ; une seule règle, `snapped` (`app/state/clipboard.ts`).
 - **Jamais de HTML écrit depuis une donnée** (`innerHTML`, `insertAdjacentHTML`… interdits, testé sur les sources et
   sur le fichier construit) ; jamais de style en ligne (la CSP par empreinte n'en admet aucun).
 - **Déterministe** : même snapshot ⇒ même placement ; même snapshot et même placement mémorisé ⇒ même dessin ; même source ⇒ même `viewer.js` à l'octet.

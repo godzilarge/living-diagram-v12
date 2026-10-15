@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { RefObject } from "react";
 import type { ReactFlowInstance } from "@xyflow/react";
 import { wheelZoom, zoomAround } from "./wheel";
+import { typing } from "./keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useViewGestures(container: RefObject<HTMLDivElement | null>, rf: ReactFlowInstance<any, any>, MIN_ZOOM: number, MAX_ZOOM: number): void {
@@ -46,11 +47,7 @@ export function useViewGestures(container: RefObject<HTMLDivElement | null>, rf:
 export function useSpaceHeld(): boolean {
   const [held, setHeld] = useState(false);
   useEffect(() => {
-    const typing = (target: EventTarget | null): boolean => {
-      const el = target as HTMLElement | null;
-      return !!el && !!el.tagName && (["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(el.tagName) || el.isContentEditable);
-    };
-    const down = (event: KeyboardEvent): void => { if (event.key === " " && !typing(event.target)) setHeld(true); };
+    const down = (event: KeyboardEvent): void => { if (event.key === " " && !typing(event.target, true)) setHeld(true); };
     const up = (event: KeyboardEvent): void => { if (event.key === " ") setHeld(false); };
     const lost = (): void => setHeld(false);
     window.addEventListener("keydown", down);

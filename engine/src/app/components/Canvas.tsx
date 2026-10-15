@@ -21,7 +21,9 @@ import type { ConnectorPatch } from "../../shell/apps";
 import type { End } from "../../canvas/connectors";
 import type { TableContent } from "../../contracts/intent";
 import { createToile } from "../canvas/toile";
+import { CHROME, PANEL_W } from "../canvas/chrome";
 import { createUndo } from "../canvas/undo";
+import type { Undo } from "../canvas/undo";
 import { dropLocal } from "../state/history";
 import type { MoveCause, Toile } from "../canvas/toile";
 import { useEditable, useStore } from "../state/store";
@@ -33,8 +35,7 @@ import type { Point } from "../../canvas/layout";
 
 // Ce que la page pose sur la toile : la barre en haut, la bande des runs en bas, le panneau à droite quand une fiche
 // est ouverte (`fit` et le centrage cadrent dans ce qui reste visible).
-const INSETS = { top: 56, right: 0, bottom: 84, left: 0 };
-const PANEL_W = 400;
+const INSETS = { top: CHROME.top, right: 0, bottom: CHROME.bottom, left: 0 };
 const sameSelection = (a: Selection | null, b: Selection | null): boolean => a === b || (!!a && !!b && a.kind === b.kind && a.id === b.id);
 const sameHosts = (a: Iterable<string>, b: string[]): boolean => { const x = Array.from(a).sort().join("\n"); return x === b.slice().sort().join("\n"); };
 
@@ -85,12 +86,15 @@ export function Canvas() {
     };
     const onSelect = (selection: Selection | null, multi: Multi): void => { dispatch({ type: "select", selection, hosts: multi.hosts, picked: multi }); syncView(); };
     const note = (text: string): void => dispatch({ type: "note", text, busy: /…$/.test(text), at: Date.now() });
+    // un geste de plus de 500 opérations part en plusieurs requêtes : une entrée d'annulation, et défait en entier si une
+    // suite est refusée (la pile d'annulation relie les morceaux : revue de session, M2)
+    let undo: Undo | null = null;
     const intents = createIntentHost(model, writer, {
       graph: g, openInGraph: (selection) => g().reveal(selection), refreshPage: () => dispatch({ type: "touched" }), note,
-      mounted: () => false, container: () => document.createElement("div"),
+      mounted: () => false, container: () => document.createElement("div"), parts: (ops) => (undo && !undo.replays(ops) ? undo : null),
     });
     const placements = createPlacementHost(model, placer, { graph: g, note });
-    const undo = createUndo(model, writer, intents, g, history, note);
+    undo = createUndo(model, writer, intents, g, history, note);
     // Un geste sur une sélection mixte (lot 2 de docs/11) : épingles et opérations des annotations et connecteurs en une
     // seule écriture, donc une seule entrée d'annulation.
     // Mettre en grille (lot 8) passe toujours par ici : sans nom, les équipements restent placés localement et la page le dit.
@@ -113,7 +117,8 @@ export function Canvas() {
     if (first) created.reveal(first); else created.select(null);
     commands.setHandle({ toile: created, intents, placements, writer, placer, undo });
     setToile(created);
-    return () => commands.setHandle(null);
+    // la toile quittée termine sa rafale de flèches en attente (son écrivain est figé sur sa run : revue de session, B4)
+    return () => { if (created) created.flush(); commands.setHandle(null); };
   }, [model, commands, dispatch]);
 
   // La vue (bascules, règles, statuts masqués) : un nouveau placement, cadrage gardé ; les noms des ports : un repeint.

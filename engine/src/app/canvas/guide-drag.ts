@@ -11,6 +11,7 @@ import type { Item } from "../state/selection";
 import type { AnnotationNodeType } from "./annotation";
 import type { CardData, ClusterNodeType, FrameNodeType } from "./nodes";
 import { STUB_SLOT } from "./nodes";
+import { isHost } from "./flow-build";
 import type { FlowNode } from "./flow-build";
 import { GRID_STEP, TOLERANCE_PX, edgesOf, pickCandidates, placeMove, placeResize, snapMove, union, viewZone } from "./guides";
 import type { Box, Candidate } from "./guides";
@@ -49,7 +50,6 @@ export interface GuideDrag {
 }
 
 const MIN_SIZE = 20;
-const isHost = (n: FlowNode): boolean => n.type === "card" || n.type === "stub";
 /** La taille d'un nœud dans le plan, telle que la toile la calcule (jamais mesurée) ; `null` : pas une boîte (un
  *  connecteur bouge avec un bloc mais ne compte pas). */
 function sizeOf(n: FlowNode): { w: number; h: number } | null {

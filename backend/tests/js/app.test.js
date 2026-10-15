@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "code", "context", "debug", "floating", "gridding", "guides", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipToile", "clipboard", "code", "context", "debug", "floating", "gridding", "guides", "handles", "history", "hover", "http", "i18n", "initialState", "intentHost", "journal", "journalCsv", "model", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "toile", "tool", "undoing", "walking", "wheel"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -1436,4 +1436,146 @@ test("mettre en grille : le volet « aligner et répartir » la propose à parti
   assert.equal(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, rw)).includes("grid"), false, "sans trois éléments qui se rangent : non");
   assert.equal(ids(c.menuItems({ kind: "annotation", id: "a1-1" }, model, { ...rw, grid: true })).includes("grid"), true, "depuis une annotation de la sélection aussi");
   assert.equal(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, editable: false, grid: true })).includes("grid"), false, "en lecture seule : jamais");
+});
+
+// ——— La toile, sans DOM ni React (revue de session du 2026-10-15, D2) : ses gestes sur la fixture et l'intention de
+// démonstration (`intent-skeleton.json` : a6-1 attachée à sw-core-01, groupe g5-1 = les deux cœurs).
+const FIXTURES = path.resolve(__dirname, "../../../contracts/fixtures");
+const readFixture = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURES, name), "utf8"));
+const NOTE_STYLE = () => clone(readFixture("intent-skeleton.json").annotations[0].style);
+const noteOf = (id, anchor, x, y, extra = {}) => ({ id, anchor, x, y, w: 160, h: 60, z: "front", locked: false, leader: false, at: "2026-10-15T08:00:00Z", author: "orhan", content: { kind: "note", text: id }, style: NOTE_STYLE(), ...extra });
+
+function toileOf(LDApp, change = (intent) => intent, hooks = {}) {
+  const intent = change(readFixture("intent-skeleton.json"));
+  const model = LDApp.model.build({ snapshot: readFixture("snapshot-minimal.json"), ingest: null, origin: "file", catalogue: {}, intent });
+  const blocks = [];
+  const toile = LDApp.toile.createToile(model, { onSelect() {}, canWrite: () => true, onPin() {}, onPins() {},
+    onBlock: (pins, ops, cause) => blocks.push({ pins: Object.fromEntries(pins), ops: clone(ops), cause }), ...hooks });
+  toile.render(true);
+  // ce que Flow.tsx pose à chaque dessin : les boîtes des cartes, les boîtes des annotations dans le plan
+  model.nodes.forEach((n) => toile.boxes.set(n.hostname, { w: 200, h: 80 }));
+  const frame = (id) => {
+    const a = model.annotationById.get(id), p = toile.pending.get(id) || {};
+    const x = p.x === undefined ? a.x : p.x, y = p.y === undefined ? a.y : p.y;
+    const ref = a.anchor.kind === "free" ? { x: 0, y: 0 } : toile.anchorAt(a.anchor.kind, a.anchor.ref);
+    return { x: ref.x + x, y: ref.y + y, w: a.w, h: a.h };
+  };
+  const draw = () => model.annotationById.forEach((a, id) => toile.frames.set(id, frame(id)));
+  draw();
+  return { model, toile, blocks, frame, draw };
+}
+const opOf = (block, id) => block.ops.find((op) => op.id === id);
+
+test("la toile : une annotation dont l'ancre bouge dans le même geste ne bouge pas deux fois (flèches, revue H1)", () => {
+  const LDApp = loadApp();
+  const { toile, blocks, frame } = toileOf(LDApp, (intent) => ({ ...intent, annotations: intent.annotations.concat([noteOf("a7-1", { kind: "group", ref: "g5-1" }, 10, -90), noteOf("a7-2", { kind: "free", ref: null }, 500, 500)]) }));
+  const card = clone(toile.state.positions.get("sw-core-01")), before = frame("a6-1");
+  toile.selectItems([{ kind: "node", id: "sw-core-01" }, { kind: "annotation", id: "a6-1" }, { kind: "annotation", id: "a7-2" }]);
+  assert.equal(toile.nudge(20, 0), true);
+  const block = blocks.pop();
+  assert.deepEqual(clone(block.pins["sw-core-01"]), { x: card.x + 20, y: card.y });
+  assert.deepEqual([opOf(block, "a6-1").x, opOf(block, "a6-1").y], [-110, -150], "attachée à la carte poussée : son écart ne change pas");
+  assert.deepEqual(clone(frame("a6-1")), { ...before, x: before.x + 20 }, "dans le plan, elle avance d'un carreau, pas de deux");
+  assert.deepEqual([opOf(block, "a7-2").x, opOf(block, "a7-2").y], [520, 500], "une note libre avance d'un carreau");
+  // le cadre d'un groupe sélectionné entraîne ses membres : une note attachée au groupe garde son écart
+  const group = frame("a7-1");
+  toile.selectItems([{ kind: "group", id: "g5-1" }, { kind: "annotation", id: "a7-1" }]);
+  toile.nudge(0, 20);
+  const second = blocks.pop();
+  assert.deepEqual(Object.keys(second.pins).sort(), ["sw-core-01", "sw-core-02"]);
+  assert.deepEqual([opOf(second, "a7-1").x, opOf(second, "a7-1").y], [10, -90]);
+  assert.deepEqual(clone(frame("a7-1")), { ...group, y: group.y + 20 });
+});
+
+test("la toile : aligner et mettre en grille posent une annotation attachée là où le geste la vise (revue H1)", () => {
+  const LDApp = loadApp();
+  const code = { kind: "code", text: "hostname x", language: "plain", title: "Config cœur", highlight: false, line_numbers: false, font: "jetbrains_mono" };
+  const { toile, blocks, frame, draw } = toileOf(LDApp, (intent) => ({ ...intent, annotations: intent.annotations.concat([noteOf("a7-3", { kind: "free", ref: null }, 900, 900, { content: code })]) }));
+  const items = [{ kind: "node", id: "fw-edge-01" }, { kind: "node", id: "sw-core-01" }, { kind: "node", id: "sw-core-02" }, { kind: "annotation", id: "a6-1" }];
+  toile.selectItems(items);
+  const lefts = ["fw-edge-01", "sw-core-01", "sw-core-02"].map((h) => toile.state.positions.get(h).x - 100).concat(frame("a6-1").x);
+  toile.alignSelected("left");
+  const target = Math.min(...lefts);
+  assert.equal(frame("a6-1").x, target, "le bord gauche de la note sur le bord commun");
+  ["fw-edge-01", "sw-core-01", "sw-core-02"].forEach((h) => assert.equal(toile.state.positions.get(h).x - 100, target));
+  assert.equal(blocks.pop().cause, "aligned");
+  draw();
+  toile.selectItems(items.concat([{ kind: "annotation", id: "a7-3" }]));
+  const shape = toile.gridSelected({ cols: 2, order: "name", snap: null });
+  const place = shape.places.find((p) => p.key === "annotation\u0000a6-1");
+  assert.deepEqual(clone(frame("a6-1")), clone(place.box), "dans sa case de la grille, pas décalée du déplacement de sa carte");
+  const grid = blocks.pop();
+  assert.equal(grid.cause, "gridded");
+  const note = opOf(grid, "a6-1"), center = toile.state.positions.get("sw-core-01");
+  assert.deepEqual([note.x + center.x, note.y + center.y], [place.box.x, place.box.y], "l'écart écrit part de la carte à sa nouvelle place");
+  // le nom d'une annotation dans la grille : son résumé (un bloc de code par son titre, revue B7)
+  assert.equal(place.name, "Baie 12, rangée B");
+  assert.equal(shape.places.find((p) => p.key === "annotation\u0000a7-3").name, "Config cœur");
+});
+
+test("la toile : une rafale de flèches interrompue par une suppression n'écrit rien sur l'identité morte (revue M1)", () => {
+  const LDApp = loadApp();
+  let timer = null;
+  const pins = [];
+  const { model, toile, blocks } = toileOf(LDApp, (intent) => intent, { later: (run) => { timer = run; return () => { timer = null; }; }, onPin: (host, point) => pins.push([host, clone(point)]) });
+  const line = model.connectorById.keys().next().value;
+  toile.ends.set(line, { a: { x: 0, y: 0 }, b: { x: 100, y: 0 } });
+  toile.pendingEnds.set(line, { start: { kind: "free", x: 0, y: 0 } });
+  const card = clone(toile.state.positions.get("fw-edge-02"));
+  toile.selectItems([{ kind: "node", id: "fw-edge-02" }, { kind: "annotation", id: "a6-1" }, { kind: "connector", id: line }]);
+  toile.nudge(20, 0);
+  assert.equal(typeof timer, "function", "la rafale attend");
+  model.annotationById.delete("a6-1"); // la réponse du Suppr
+  model.connectorById.delete(line);
+  assert.doesNotThrow(() => timer());
+  assert.equal(blocks.length, 0, "aucune mise à jour d'une annotation ou d'un connecteur supprimés");
+  assert.deepEqual(pins, [["fw-edge-02", { x: card.x + 20, y: card.y }]], "l'épingle de la rafale part seule");
+});
+
+test("un geste de plus de 500 opérations : une entrée d'annulation, défait en entier si une suite est refusée (revue M2)", async () => {
+  const LDApp = loadApp();
+  const hosts = Array.from({ length: 520 }, (_, i) => "sw-" + String(i).padStart(3, "0"));
+  const model = { nodeByHost: new Map(hosts.map((h) => [h, { hostname: h, kind: "device", ghost: false }])), intent: null };
+  const doc = (revision, pins) => ({ intent_version: "1.6.0", infrastructure: "lab", revision, updated_at: "2026-10-15T08:00:00Z", pins, type_colors: [], device_colors: [], groups: [], annotations: [], connectors: [] });
+  let current = doc(1, []), refuse = null;
+  const outcomes = new WeakMap(), requests = [];
+  const writer = {
+    author: "orhan", locked: false, observer: null, setAuthor() {}, outcomeOf: (op) => outcomes.get(op),
+    save: async (ops) => {
+      requests.push(ops.length);
+      if (refuse && refuse(requests.length)) { const r = { ok: false, message: "refusé" }; outcomes.set(ops[0], r); return r; }
+      const before = writer.observer ? writer.observer.before() : null;
+      const pins = new Map(current.pins.map((p) => [p.hostname, p]));
+      ops.forEach((op) => { if (op.op === "pin") pins.set(op.hostname, { hostname: op.hostname, x: op.x, y: op.y, author: "orhan", at: "2026-10-15T08:00:00Z" }); else if (op.op === "unpin") pins.delete(op.hostname); });
+      current = doc(current.revision + 1, Array.from(pins.values()).sort((a, b) => (a.hostname < b.hostname ? -1 : 1)));
+      if (writer.observer) writer.observer.after(ops, before, current);
+      const r = { ok: true, intent: current };
+      outcomes.set(ops[0], r);
+      return r;
+    },
+  };
+  const notes = [];
+  let stack = LDApp.history.emptyStack(), undo = null;
+  const graph = { state: { pinned: new Map() }, unpin() {}, syncPins() {}, resetPins() {}, recolor() {} };
+  const intents = LDApp.intentHost.createIntentHost(model, writer, { graph: () => graph, openInGraph() {}, refreshPage() {}, note: (text) => notes.push(text), mounted: () => false, container: () => null,
+    parts: (ops) => (undo && !undo.replays(ops) ? undo : null) });
+  undo = LDApp.undoing.createUndo(model, writer, intents, () => ({ flush() {}, restore() {} }), { get: () => stack, set: (next) => { stack = next; } }, (text) => notes.push(text));
+  const moves = new Map(hosts.map((h, i) => [h, { x: i, y: 0 }]));
+  intents.onPins(moves, "dragged");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(requests, [500, 20], "deux requêtes");
+  assert.equal(stack.undo.length, 1, "une seule entrée d'annulation pour le geste");
+  assert.equal(current.pins.length, 520);
+  await undo.undo();
+  assert.equal(current.pins.length, 0, "Ctrl+Z défait les deux morceaux");
+  // une suite refusée : le premier morceau est défait, la pile ne garde rien, la page le dit
+  stack = LDApp.history.emptyStack(); requests.length = 0;
+  refuse = (n) => n === 2;
+  intents.onPins(moves, "dragged");
+  for (let i = 0; i < 5; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+  refuse = null;
+  assert.equal(current.pins.length, 0, "rien du geste ne reste écrit");
+  assert.equal(stack.undo.length, 0);
+  assert.match(notes[notes.length - 1], /refusé/);
+  assert.match(notes[notes.length - 1], /défait/);
 });

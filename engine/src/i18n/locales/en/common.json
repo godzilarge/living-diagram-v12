@@ -173,6 +173,8 @@
   "host": {
     "saving": "saving…",
     "notSaved": "not saved: {{reason}}",
+    "partsUndone": "not saved: {{reason}}; what this gesture had already written is undone",
+    "partsKept": "partly saved: {{reason}}; undoing it failed too ({{undo}}) · Ctrl+Z to undo what remains",
     "pinLocalNoServer": "local move of {{host}}, not saved (page without a server)",
     "pinLocalNoName": "local move of {{host}}: give your name to save it",
     "pinSaving": "saving the pin of {{host}}…",

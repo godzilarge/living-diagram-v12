@@ -29,11 +29,8 @@ import { TopBar } from "./TopBar";
 import { TypePalette } from "./TypePalette";
 import { WalkBar } from "./WalkBar";
 import { applyGuideColor } from "../state/prefs";
+import { typing } from "../canvas/keys";
 
-const typing = (target: EventTarget | null): boolean => {
-  const el = target as HTMLElement | null;
-  return !!el && !!el.tagName && (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName) || el.isContentEditable);
-};
 /** Le pas des flèches : un carreau de grille, cinq avec Maj. */
 export const NUDGE_STEP = GRID, NUDGE_FAST = GRID * 5;
 /** Les images attendues au plus pour qu'un élément choisi par Tab hors champ arrive dans le DOM (la vue va à lui). */
@@ -64,7 +61,8 @@ export function Shell() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       const plain = !event.ctrlKey && !event.metaKey && !event.altKey;
-      if (plain && event.key.toLowerCase() === "c" && !event.repeat && !elsewhere(event.target) && ready && editable && state.view.mode === "diagram") {
+      // C seul (Maj+C n'arme rien : Maj tient peut-être un rectangle, revue de session B3)
+      if (plain && !event.shiftKey && event.key.toLowerCase() === "c" && !event.repeat && !elsewhere(event.target) && ready && editable && state.view.mode === "diagram") {
         event.preventDefault();
         commands.toggleTool("connector");
         return;

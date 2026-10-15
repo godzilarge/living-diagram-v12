@@ -6,7 +6,8 @@
 // de React Flow, que la toile lit et pose par `attach`.
 import { align as alignPositions, alignBoxes, gridBoxes } from "../../canvas/align";
 import type { AlignMode, Box, BoxMode, GridItem, GridOrder } from "../../canvas/align";
-import { KIND_LABEL } from "../../canvas/annotations";
+import { KIND_LABEL, summary } from "../../canvas/annotations";
+import { frameOf as groupFrameOf } from "../../canvas/groups";
 import type { End } from "../../canvas/connectors";
 import type { Op } from "../../shell/apps";
 import { empty, has, itemOf, itemsOf, multiOf, primaryOf, readingOrder, cycle as cycleOrder, selectionOf, single, size } from "../state/selection";
@@ -146,6 +147,10 @@ export interface Toile {
   /** Le point du plan sous le pointeur quand il est sur la toile, sinon `null` : où un Ctrl+V colle (lot 3 de docs/11) ;
    *  posé par la toile React Flow (Flow.tsx). */
   pointer: Point | null;
+  /** Le point de référence d'une ancre dessinée, d'après les positions courantes (A0 : le centre de la carte d'un
+   *  équipement, le coin haut gauche du cadre d'un groupe, calculé comme flow-build.ts le dessine) ; `null` si elle
+   *  n'est pas dessinée. L'écart d'une annotation attachée s'écrit depuis ce point (gestes, collage). */
+  anchorAt: (kind: "device" | "group", ref: string) => Point | null;
 }
 
 /** Le délai après la dernière flèche avant d'enregistrer le déplacement : une rafale = un paquet d'épingles. */
@@ -171,6 +176,22 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
   let current: Visible | null = null;
   let unplaced = new Set<string>();
   const at = (hostname: string): Point | undefined => state.positions.get(hostname);
+  function anchorAt(kind: "device" | "group", ref: string): Point | null {
+    if (kind === "device") { const c = at(ref); return c ? { x: c.x, y: c.y } : null; }
+    const group = model.groupById.get(ref);
+    if (!group) return null;
+    const shown = toile.scene().shown;
+    const present = group.members.filter((host) => shown.has(host) && state.positions.has(host));
+    const frame = groupFrameOf(present.map((host) => at(host) as Point), present.map((host) => toile.boxes.get(host) || { w: 0, h: 0 }), group.style);
+    return frame ? { x: frame.x, y: frame.y } : null;
+  }
+  // Le point dont l'écart (x, y) d'une annotation part : l'origine du plan si elle est libre, sinon son ancre ; `null`
+  // pour une annotation inconnue ou dont l'ancre n'est pas dessinée.
+  function refOf(id: string): Point | null {
+    const a = model.annotationById.get(id);
+    if (!a) return null;
+    return a.anchor.kind === "free" ? { x: 0, y: 0 } : anchorAt(a.anchor.kind as "device" | "group", a.anchor.ref || "");
+  }
 
   function render(keepView: boolean, replace = false): void {
     state.filters.showNotes = state.layers.notes;
@@ -349,24 +370,53 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     const c = model.connectorById.get(id);
     return !!c && !c.locked && toile.ends.has(id) && (endOf(id, "start").kind === "free" || endOf(id, "end").kind === "free");
   }) : []);
-  // La place courante d'une annotation (écart à son ancre) et d'un bout de connecteur : posée localement, sinon celle du document.
-  const noteAt = (id: string): Point => { const a = model.annotationById.get(id) as { x: number; y: number }, p = toile.pending.get(id) || {}; return { x: p.x === undefined ? a.x : p.x, y: p.y === undefined ? a.y : p.y }; };
+  // La place courante d'une annotation (écart à son ancre) et d'un bout de connecteur : posée localement, sinon celle du
+  // document ; une annotation retirée entre-temps (Suppr pendant une rafale de flèches : revue de session, M1) n'en a pas.
+  const noteAt = (id: string): Point | null => {
+    const a = model.annotationById.get(id), p = toile.pending.get(id) || {};
+    return a ? { x: p.x === undefined ? a.x : p.x, y: p.y === undefined ? a.y : p.y } : null;
+  };
   function endOf(id: string, which: "start" | "end"): End {
     const local = toile.pendingEnds.get(id), c = model.connectorById.get(id);
     return (local && local[which]) || (c ? c[which] : { kind: "free", x: 0, y: 0 });
   }
-  const shiftNote = (id: string, dx: number, dy: number): void => { const now = noteAt(id); toile.pending.set(id, { ...(toile.pending.get(id) || {}), x: now.x + dx, y: now.y + dy }); };
+  const shiftNote = (id: string, dx: number, dy: number): void => { const now = noteAt(id); if (now) toile.pending.set(id, { ...(toile.pending.get(id) || {}), x: now.x + dx, y: now.y + dy }); };
+  // Une annotation posée à un coin du plan : son écart s'écrit depuis le point de référence de son ancre **après** le
+  // geste (revue de session, H1 : une ancre déplacée dans le même geste ne décale pas l'annotation une seconde fois).
+  function placeNote(id: string, corner: Point): void {
+    const ref = refOf(id);
+    if (ref) toile.pending.set(id, { ...(toile.pending.get(id) || {}), x: Math.round(corner.x - ref.x), y: Math.round(corner.y - ref.y) });
+  }
   function shiftLine(id: string, dx: number, dy: number): void {
     const next: { start?: End; end?: End } = { ...(toile.pendingEnds.get(id) || {}) };
     (["start", "end"] as const).forEach((which) => { const e = endOf(id, which); if (e.kind === "free") next[which] = { kind: "free", x: e.x + dx, y: e.y + dy }; });
     toile.pendingEnds.set(id, next);
   }
-  // Les opérations qui écrivent ce qui a été posé localement.
-  const noteOps = (ids: Iterable<string>): Op[] => Array.from(ids).sort().map((id): Op => { const p = noteAt(id); return { op: "annotation_update", id, x: p.x, y: p.y }; });
-  const lineOps = (ids: Iterable<string>): Op[] => Array.from(ids).sort().map((id): Op => {
+  // Les opérations qui écrivent ce qui a été posé localement ; une identité qui n'est plus dans le modèle (supprimée
+  // pendant la rafale) n'en a aucune : sa mise à jour ferait refuser tout le paquet (revue de session, M1).
+  const noteOps = (ids: Iterable<string>): Op[] => Array.from(ids).sort().flatMap((id): Op[] => { const p = noteAt(id); return p ? [{ op: "annotation_update", id, x: p.x, y: p.y }] : []; });
+  const lineOps = (ids: Iterable<string>): Op[] => Array.from(ids).sort().filter((id) => model.connectorById.has(id)).map((id): Op => {
     const s0 = endOf(id, "start"), e0 = endOf(id, "end");
     return { op: "connector_update", id, ...(s0.kind === "free" ? { start: s0 } : {}), ...(e0.kind === "free" ? { end: e0 } : {}) };
   });
+  // Les coins visés d'un alignement ou d'une grille (clés « node\0hôte », « annotation\0id ») : les équipements d'abord,
+  // puis les annotations, dont l'écart se calcule depuis leur ancre à sa nouvelle place (H1). Un élément déjà à sa place
+  // ne bouge pas.
+  function placeBoxes(corners: Map<string, Point>, boxes: Map<string, Box>): { hostMoves: Map<string, Point>; shifted: string[] } {
+    const hostMoves = new Map<string, Point>(), notes: [string, Point][] = [];
+    corners.forEach((corner, key) => {
+      const [kind, id] = key.split("\u0000"), box = boxes.get(key) as Box;
+      if (corner.x === box.x && corner.y === box.y) return;
+      if (kind === "node") { const point = { x: Math.round(corner.x + box.w / 2), y: Math.round(corner.y + box.h / 2) }; moveTo(id, point); hostMoves.set(id, point); }
+      else notes.push([id, corner]);
+    });
+    // une annotation que rien ne déplace mais dont l'ancre a bougé garde sa place dans le plan, comme au collage
+    const anchoredHere = (id: string): boolean => { const a = model.annotationById.get(id); return !!a && a.anchor.kind !== "free"; };
+    const still = Array.from(boxes.keys()).filter((key) => key.startsWith("annotation\u0000") && !notes.some(([id]) => "annotation\u0000" + id === key) && anchoredHere(key.slice(11)));
+    still.forEach((key) => { const box = boxes.get(key) as Box; notes.push([key.slice(11), { x: box.x, y: box.y }]); });
+    notes.forEach(([id, corner]) => placeNote(id, corner));
+    return { hostMoves, shifted: notes.map(([id]) => id).filter((id) => { const p = toile.pending.get(id), a = model.annotationById.get(id); return !!p && !!a && (p.x !== a.x || p.y !== a.y); }) };
+  }
   // Une sélection de cartes seules s'aligne par les centres (règle d'avant, captures inchangées) ; dès qu'une annotation
   // en fait partie, ou pour un bord (gauche, haut…), par les boîtes (align.ts).
   const CENTER_MODES: Record<AlignMode, BoxMode> = { horizontal: "middle", vertical: "center", "distribute-horizontal": "distribute-horizontal", "distribute-vertical": "distribute-vertical" };
@@ -386,12 +436,7 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     hosts.forEach((host) => { const c = at(host) as Point, b = toile.boxes.get(host) || { w: 0, h: 0 }; boxes.set("node\u0000" + host, { x: c.x - b.w / 2, y: c.y - b.h / 2, w: b.w, h: b.h }); });
     notes.forEach((id) => boxes.set("annotation\u0000" + id, { ...(toile.frames.get(id) as Box) }));
     const moved = alignBoxes(boxes, Array.from(boxes.keys()), mode in CENTER_MODES ? CENTER_MODES[mode as AlignMode] : mode as BoxMode);
-    const hostMoves = new Map<string, Point>(), shifted: string[] = [];
-    moved.forEach((corner, key) => {
-      const [kind, id] = key.split("\u0000"), box = boxes.get(key) as Box;
-      if (kind === "node") { const point = { x: Math.round(corner.x + box.w / 2), y: Math.round(corner.y + box.h / 2) }; moveTo(id, point); hostMoves.set(id, point); }
-      else { shiftNote(id, corner.x - box.x, corner.y - box.y); shifted.push(id); }
-    });
+    const { hostMoves, shifted } = placeBoxes(moved, boxes);
     bump();
     save(Array.from(hostMoves.keys()).sort(), "aligned", noteOps(shifted));
     settle(Array.from(hostMoves.keys()));
@@ -399,11 +444,9 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
   }
   // Mettre en grille (lot 8 de docs/11) : les mêmes éléments qu'un alignement par les boîtes (équipements de la run,
   // annotations non verrouillées si l'on peut écrire), rangés par `gridBoxes` (align.ts) ; trois au moins.
-  const noteName = (id: string): string => {
-    const a = model.annotationById.get(id), c = a ? a.content : null;
-    const text = !c ? "" : c.kind === "note" ? c.text.split("\n")[0] : c.kind === "shape" ? c.label : c.kind === "image" ? c.alt || "" : "";
-    return text.trim() || (c ? KIND_LABEL[c.kind] || c.kind : id);
-  };
+  // le nom d'une annotation dans l'aperçu et l'ordre « par nom » : son résumé (titre d'un bloc de code compris, revue de
+  // session B7), sa sorte s'il est vide
+  const noteName = (id: string): string => { const a = model.annotationById.get(id); return a ? summary(a).trim() || KIND_LABEL[a.content.kind] || a.content.kind : id; };
   function gridItems(): GridItem[] {
     const hosts = Array.from(state.selected).filter((host) => at(host) && !(model.nodeByHost.get(host) || { ghost: true }).ghost).sort();
     const items = hosts.map((host): GridItem => { const c = at(host) as Point, b = toile.boxes.get(host) || { w: 0, h: 0 }; return { id: "node\u0000" + host, name: host, box: { x: c.x - b.w / 2, y: c.y - b.h / 2, w: b.w, h: b.h } }; });
@@ -421,13 +464,7 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     flush();
     const got = gridOf(options);
     if (!got) return null;
-    const hostMoves = new Map<string, Point>(), shifted: string[] = [];
-    got.items.forEach((g) => {
-      const corner = got.places.get(g.id) as Point, [kind, id] = g.id.split("\u0000");
-      if (corner.x === g.box.x && corner.y === g.box.y) return;
-      if (kind === "node") { const point = { x: Math.round(corner.x + g.box.w / 2), y: Math.round(corner.y + g.box.h / 2) }; moveTo(id, point); hostMoves.set(id, point); }
-      else { shiftNote(id, corner.x - g.box.x, corner.y - g.box.y); shifted.push(id); }
-    });
+    const { hostMoves, shifted } = placeBoxes(got.places, new Map(got.items.map((g) => [g.id, g.box])));
     bump();
     if (hostMoves.size || shifted.length) save(Array.from(hostMoves.keys()).sort(), "gridded", noteOps(shifted));
     settle(Array.from(hostMoves.keys()));
@@ -454,8 +491,13 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
   function nudge(dx: number, dy: number): boolean {
     const hosts = movable(), notes = movableNotes(), lines = movableLines();
     if (!hosts.length && !notes.length && !lines.length) return false;
+    // une annotation dont l'ancre bouge dans le même geste n'avance que de ce qui manque à l'écart (H1)
+    const refs = new Map(notes.map((id) => [id, refOf(id)] as const));
     hosts.forEach((host) => { const now = at(host) as Point; moveTo(host, { x: now.x + dx, y: now.y + dy }); });
-    notes.forEach((id) => shiftNote(id, dx, dy));
+    notes.forEach((id) => {
+      const was = refs.get(id), now = refOf(id);
+      shiftNote(id, dx - (was && now ? now.x - was.x : 0), dy - (was && now ? now.y - was.y : 0));
+    });
     lines.forEach((id) => shiftLine(id, dx, dy));
     bump();
     const merge = (was: Set<string> | undefined, now: string[]): Set<string> => new Set([...(was || []), ...now]);
@@ -498,7 +540,7 @@ export function createToile(model: Model, hooks: ToileHooks): Toile {
     return { x: Math.round((area.x + area.width / 2 - v.x) / v.zoom), y: Math.round((area.y + area.height / 2 - v.y) / v.zoom) };
   };
   const toile: Toile = {
-    model, state, version: () => version, frames: new Map(), ends: new Map(), boxes: new Map(), groupFrames: new Map(), pending: new Map(), pendingEnds: new Map(), viewCenter, pointer: null,
+    model, state, version: () => version, frames: new Map(), ends: new Map(), boxes: new Map(), groupFrames: new Map(), pending: new Map(), pendingEnds: new Map(), viewCenter, pointer: null, anchorAt,
     subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     attach: (next) => { view = next; },
     scene: () => current || (current = visible(model, state.filters)),

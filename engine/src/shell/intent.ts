@@ -32,6 +32,12 @@ export interface IntentHooks {
   /** L'onglet Intentions est-il monté ? (il se redessine alors après chaque écriture) */
   mounted: () => boolean;
   container: () => HTMLElement;
+  /** Un envoi découpé en plusieurs requêtes (plus de `OPS_PER_REQUEST` opérations) : `chain` relie les suivantes à la
+   *  première (une seule entrée d'annulation pour le geste), `revert` défait ce que les premières ont écrit quand une
+   *  suivante est refusée (le geste ne reste jamais à moitié écrit). L'application les prend dans sa pile d'annulation
+   *  (revue de session, M2) ; `/view`, sans pile, ne les donne pas, ni une annulation (rien de ce qu'elle écrit
+   *  n'entre dans la pile). */
+  parts?: (ops: Op[]) => { chain: (next: Op[], first: Op[]) => void; revert: (first: Op[]) => Promise<{ ok: true } | { ok: false; message: string }> } | null;
 }
 
 export interface IntentHost {
@@ -105,9 +111,21 @@ export function createIntentHost(model: Model, writer: Writer | null, hooks: Int
     if (!writer) return false;
     hooks.note(t("common:host.saving"));
     let failure: string | null = null;
-    for (const part of chunks(ops, OPS_PER_REQUEST)) {
-      const outcome = await writer.save(part);
-      if (!outcome.ok) { failure = outcome.message; break; }
+    const parts = chunks(ops, OPS_PER_REQUEST);
+    const joined = parts.length > 1 && hooks.parts ? hooks.parts(ops) : null;
+    if (joined) parts.slice(1).forEach((part) => joined.chain(part, parts[0]));
+    for (let i = 0; i < parts.length; i += 1) {
+      const outcome = await writer.save(parts[i]);
+      if (!outcome.ok) {
+        failure = outcome.message;
+        if (i > 0 && joined) { // une suite refusée : le geste entier est défait, ou la page dit ce qui reste
+          const back = await joined.revert(parts[0]);
+          hooks.note(back.ok ? t("common:host.partsUndone", { reason: failure }) : t("common:host.partsKept", { reason: failure, undo: back.message }));
+          refresh();
+          return false;
+        }
+        break;
+      }
       accept(outcome.intent);
     }
     const graph = hooks.graph();

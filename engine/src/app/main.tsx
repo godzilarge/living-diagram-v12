@@ -1,5 +1,6 @@
 // Le point d'entrée de l'application (`/`) : monte React sur `#app` quand la page en a un ; expose les modules purs
-// (`LDApp`) pour les tests sous Node, qui chargent ce fichier construit sans aucun DOM, et un regard sur l'état
+// (`LDApp`) pour les tests sous Node, qui chargent ce fichier construit sans aucun DOM (la toile, sans DOM ni React,
+// en fait partie : ses gestes se testent à part ; revue de session, D2), et un regard sur l'état
 // pour le pilote Chromium. Le catalogue des codes (sens, règle) est lu une fois dans le bloc JSON de la page. La langue
 // (i18n) est fixée avant le premier rendu, comme le thème : rien ne s'affiche dans une langue puis dans l'autre.
 import { createRoot } from "react-dom/client";
@@ -30,13 +31,18 @@ import { tool } from "./canvas/tool";
 import { reusing } from "./canvas/reuse";
 import { initialState, reducer } from "./state/reducer";
 import { debug } from "./state/debug";
+import { NUDGE_MS, createToile } from "./canvas/toile";
+import { build as buildModel } from "../canvas/model";
+import { payloadFromToile, targetOf } from "./canvas/clip-toile";
+import { createUndo } from "./canvas/undo";
+import { OPS_PER_REQUEST, createIntentHost } from "../shell/intent";
 import { applyGuideColor, defaultPrefs, parsePrefs, readPrefs } from "./state/prefs";
 import { LANGUAGES, applyLanguage, detectLanguage, effectiveLanguage, i18n, setLanguage, t } from "../i18n";
 import "@xyflow/react/dist/base.css";
 import "./styles/index.css";
 import "./styles/flow.css";
 
-export const LDApp = { address, clipboard, code, floating, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reusing, reducer, initialState, query, alignment, boxAlignment, gridding, guides, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
+export const LDApp = { address, clipboard, code, floating, history, journal, journalCsv: { cell, csvName, csvOf }, checkMeaning, http: { explain, problemText }, searching, walking, context, opening: { READ_ZOOM, openingView }, snap, handles, hover, tool, reusing, reducer, initialState, model: { build: buildModel }, toile: { createToile, NUDGE_MS }, clipToile: { payloadFromToile, targetOf }, undoing: { createUndo }, intentHost: { createIntentHost, OPS_PER_REQUEST }, query, alignment, boxAlignment, gridding, guides, selecting, wheel, debug, prefs: { parsePrefs, defaultPrefs },
   i18n: { LANGUAGES, detectLanguage, effectiveLanguage, setLanguage, language: () => i18n.language, t } };
 (globalThis as unknown as { LDApp: typeof LDApp }).LDApp = LDApp;
 

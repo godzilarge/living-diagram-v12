@@ -457,3 +457,233 @@ def test_the_application_mixed_selection_and_keyboard_in_a_browser(settings, bun
     finally:
         server.should_exit = True
         thread.join(timeout=10)
+
+
+def _post_ops(base: str, auth: dict, ops: list[dict]) -> dict:
+    import httpx
+
+    done = httpx.post(
+        f"{base}/api/intent/patches",
+        params={"infrastructure": "infra-lab"},
+        headers=auth,
+        json={"author": "orhan", "ops": ops},
+        timeout=30,
+    )
+    assert done.status_code == 200, done.text
+    return done.json()
+
+
+def _plan_box(tab, aid: str) -> dict:
+    return json.loads(tab.js(f"JSON.stringify(LDApp.debug.handle().toile.frames.get({json.dumps(aid)}))"))
+
+
+def _node_center(tab, node_id: str) -> tuple[float, float]:
+    r = tab.js(
+        f"JSON.parse(JSON.stringify(document.querySelector('.react-flow__node[data-id={json.dumps(node_id)}]')"
+        ".getBoundingClientRect()))"
+    )
+    return r["left"] + r["width"] / 2, r["top"] + r["height"] / 2
+
+
+@pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
+def test_the_application_session_review_fixes_in_a_browser(settings, bundle_dict):
+    """La revue de session du 2026-10-15, rejouée en vrai (sondes S1, S3, S4, S5) : une note attachée poussée avec sa
+    carte n'avance qu'une fois (H1), comme une note attachée à un groupe dont les membres sont glissés à la souris ;
+    flèche puis Suppr avant la fin de la rafale : aucune exception, l'épingle s'écrit (M1) ; Échap pendant un
+    redimensionnement efface les repères (B1) ; Maj+C pendant un rectangle n'arme rien et la sélection suit les clics
+    (B3)."""
+    import httpx
+
+    from tests.browser import Chrome
+    from tests.conftest import TOKEN
+    from tests.test_app_guides import _drag
+    from tests.test_view import _serve, _wait
+
+    server, thread, base = _serve(settings)
+    try:
+        auth = {"Authorization": f"Bearer {TOKEN}"}
+        assert httpx.post(f"{base}/api/ingest/bundles", json=bundle_dict, headers=auth, timeout=60).status_code == 201
+        attached = {
+            "op": "annotation_create",
+            "content": {"kind": "note", "text": "attachée"},
+            "anchor": {"kind": "device", "ref": "fw-edge-02"},
+            "x": 60,
+            "y": -120,
+            "w": 160,
+            "h": 60,
+            "leader": True,
+        }
+        free = {
+            "op": "annotation_create",
+            "content": {"kind": "note", "text": "Baie 12"},
+            "x": 0,
+            "y": -400,
+            "w": 200,
+            "h": 80,
+        }
+        revision = _post_ops(base, auth, [attached, free])["revision"]
+        aid, fid = f"a{revision}-1", f"a{revision}-2"
+        group = _post_ops(
+            base, auth, [{"op": "group_create", "label": "Cœurs", "members": ["sw-core-01", "sw-core-02"]}]
+        )
+        gid = f"g{group['revision']}-1"
+        on_group = {
+            **attached,
+            "anchor": {"kind": "group", "ref": gid},
+            "x": 10,
+            "y": -100,
+            "content": {"kind": "note", "text": "groupe"},
+        }
+        gnote = f"a{_post_ops(base, auth, [on_group])['revision']}-1"
+        with Chrome(CHROMIUM) as chrome:
+            tab = chrome.open(f"{base}/")
+            _wait(tab, "!!document.querySelector('.sheet input[type=password]')")
+            tab.js(f"sessionStorage.setItem('ld-api-token', {json.dumps(TOKEN)})")
+            tab.js("localStorage.setItem('ld-author', 'orhan')")
+            tab.navigate(f"{base}/?infrastructure=infra-lab")
+            _wait(tab, READY)
+            threading.Event().wait(0.5)
+            toile = "LDApp.debug.handle().toile"
+            revision = f"{toile}.model.intent.revision"
+            # les erreurs de la page (le « ResizeObserver loop » du navigateur n'en est pas une : notification reportée)
+            tab.js(
+                "window.__errors = []; window.addEventListener('error', (e) => {"
+                " if (!/ResizeObserver/.test(String(e.message))) window.__errors.push(String(e.message)); })"
+            )
+
+            # H1 (S4) : la carte et sa note attachée poussées d'un carreau ; la note avance de 20, son écart reste
+            card0, box0 = tab.js(f"{toile}.state.positions.get('fw-edge-02')"), _plan_box(tab, aid)
+            tab.js(f"{toile}.selectItems([{{kind:'annotation', id:'{aid}'}}, {{kind:'node', id:'fw-edge-02'}}])")
+            tab.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()")
+            threading.Event().wait(0.2)
+            before = tab.js(revision)
+            _press(tab, "ArrowRight", 39)
+            _wait(tab, f"{revision} > {before}")
+            threading.Event().wait(0.3)
+            card1, box1 = tab.js(f"{toile}.state.positions.get('fw-edge-02')"), _plan_box(tab, aid)
+            assert card1["x"] - card0["x"] == 20
+            assert box1["x"] - box0["x"] == 20, "la note n'avance qu'une fois"
+            assert _annotation(_intent_doc(base, auth), aid)["x"] == 60, "son écart à la carte est inchangé"
+
+            # H1, à la souris : les deux cœurs et la note attachée à leur groupe glissés d'un bloc ; le cadre suit ses
+            # membres, la note ne se décale pas une seconde fois
+            gbox0, core0 = _plan_box(tab, gnote), tab.js(f"{toile}.state.positions.get('sw-core-01')")
+            tab.js(
+                f"{toile}.selectItems([{{kind:'node', id:'sw-core-01'}}, {{kind:'node', id:'sw-core-02'}},"
+                f" {{kind:'annotation', id:'{gnote}'}}])"
+            )
+            threading.Event().wait(0.4)
+            start = _node_center(tab, "sw-core-01")
+            before = tab.js(revision)
+            _drag(tab, start, (start[0] + 80, start[1] + 40))
+            _wait(tab, f"{revision} > {before}")
+            threading.Event().wait(0.4)
+            gbox1, core1 = _plan_box(tab, gnote), tab.js(f"{toile}.state.positions.get('sw-core-01')")
+            moved = (core1["x"] - core0["x"], core1["y"] - core0["y"])
+            assert moved != (0, 0)
+            assert (gbox1["x"] - gbox0["x"], gbox1["y"] - gbox0["y"]) == moved, "la note suit le bloc, une fois"
+            kept = _annotation(_intent_doc(base, auth), gnote)
+            assert (kept["x"], kept["y"]) == (10, -100), "l'écart au cadre du groupe est inchangé"
+
+            # M1 (S1) : une flèche puis Suppr avant la fin de la rafale ; aucune exception, l'épingle s'écrit
+            card0 = tab.js(f"{toile}.state.positions.get('fw-edge-02')")
+            tab.js(f"{toile}.selectItems([{{kind:'annotation', id:'{fid}'}}, {{kind:'node', id:'fw-edge-02'}}])")
+            tab.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()")
+            threading.Event().wait(0.2)
+            _press(tab, "ArrowRight", 39)
+            _press(tab, "Delete", 46)
+            _wait(tab, f"!{toile}.model.annotationById.has('{fid}')")
+            threading.Event().wait(0.8)
+            assert tab.js("window.__errors") == []
+            pin = next(p for p in _intent_doc(base, auth)["pins"] if p["hostname"] == "fw-edge-02")
+            assert (pin["x"], pin["y"]) == (card0["x"] + 20, card0["y"]), "la rafale s'écrit avant la suppression"
+
+            # B1 (S3) : Échap pendant le redimensionnement d'une note (Ctrl tenu) ; les repères et l'estompage partent
+            tab.js(f"{toile}.reveal({{kind:'annotation', id:'{aid}'}})")
+            threading.Event().wait(0.6)
+            hit = (
+                f'document.querySelector(\'.react-flow__node[data-id="annotation:{aid}"]'
+                " .handle-se .annotation-handle-hit')"
+            )
+            r = tab.js(f"JSON.parse(JSON.stringify({hit}.getBoundingClientRect()))")
+            x, y = r["left"] + r["width"] / 2, r["top"] + r["height"] / 2
+            mouse = {"button": "left", "clickCount": 1, "modifiers": CTRL}
+            tab.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y, "buttons": 0, **mouse})
+            tab.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "buttons": 1, **mouse})
+            for i in range(1, 6):
+                tab.call(
+                    "Input.dispatchMouseEvent",
+                    {"type": "mouseMoved", "x": x + 8 * i, "y": y + 5 * i, "buttons": 1, **mouse},
+                )
+            threading.Event().wait(0.15)
+            assert tab.js("document.querySelector('.flow-host').classList.contains('guiding')")
+            _press(tab, "Escape", 27)
+            threading.Event().wait(0.2)
+            tab.call(
+                "Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x + 40, "y": y + 25, "buttons": 0, **mouse}
+            )
+            threading.Event().wait(0.5)
+            after = (
+                "[!!document.querySelector('.guide-layer .guide-pill'),"
+                " document.querySelector('.flow-host').classList.contains('guiding'),"
+                " document.querySelector('.guide-layer').dataset.guides]"
+            )
+            assert tab.js(after) == [False, False, "off"]
+
+            # B3 (S5) : Maj + rectangle, Maj+C au milieu ; rien ne s'arme, et un clic sur une carte la sélectionne
+            pane = tab.js(
+                "JSON.parse(JSON.stringify(document.querySelector('.react-flow__pane').getBoundingClientRect()))"
+            )
+            start, end = (pane["left"] + 40, pane["top"] + 120), (pane["left"] + 160, pane["top"] + 220)
+            tab.call("Input.dispatchKeyEvent", {"type": "keyDown", **SHIFT_KEY, "modifiers": SHIFT})
+            mouse = {"button": "left", "clickCount": 1, "modifiers": SHIFT}
+            tab.call(
+                "Input.dispatchMouseEvent",
+                {"type": "mousePressed", "x": start[0], "y": start[1], "buttons": 1, **mouse},
+            )
+            for step in range(1, 6):
+                at = (start[0] + (end[0] - start[0]) * step / 5, start[1] + (end[1] - start[1]) * step / 5)
+                tab.call(
+                    "Input.dispatchMouseEvent", {"type": "mouseMoved", "x": at[0], "y": at[1], "buttons": 1, **mouse}
+                )
+            c = {"key": "C", "code": "KeyC", "windowsVirtualKeyCode": 67, "modifiers": SHIFT, "text": "C"}
+            tab.call("Input.dispatchKeyEvent", {"type": "keyDown", **c})
+            tab.call("Input.dispatchKeyEvent", {"type": "keyUp", **c})
+            threading.Event().wait(0.2)
+            assert tab.js("LDApp.debug.state().tool") is None, "Maj+C n'arme pas l'outil connecteur"
+            tab.call(
+                "Input.dispatchMouseEvent", {"type": "mouseReleased", "x": end[0], "y": end[1], "buttons": 0, **mouse}
+            )
+            tab.call("Input.dispatchKeyEvent", {"type": "keyUp", **SHIFT_KEY})
+            threading.Event().wait(0.4)
+            _click(tab, *_node_center(tab, "sw-core-01"))
+            _wait(tab, f"JSON.stringify({toile}.state.selection) === JSON.stringify({{kind:'node', id:'sw-core-01'}})")
+            # l'outil armé pendant un rectangle (bouton de la barre) : le rectangle est abandonné, la sélection suit
+            tab.call("Input.dispatchKeyEvent", {"type": "keyDown", **SHIFT_KEY, "modifiers": SHIFT})
+            tab.call(
+                "Input.dispatchMouseEvent",
+                {"type": "mousePressed", "x": start[0], "y": start[1], "buttons": 1, **mouse},
+            )
+            for step in range(1, 6):
+                at = (start[0] + (end[0] - start[0]) * step / 5, start[1] + (end[1] - start[1]) * step / 5)
+                tab.call(
+                    "Input.dispatchMouseEvent", {"type": "mouseMoved", "x": at[0], "y": at[1], "buttons": 1, **mouse}
+                )
+            tab.js("LDApp.debug.state() && document.querySelector('.toolbar [aria-keyshortcuts=C]').click()")
+            threading.Event().wait(0.3)
+            tab.call(
+                "Input.dispatchMouseEvent", {"type": "mouseReleased", "x": end[0], "y": end[1], "buttons": 0, **mouse}
+            )
+            tab.call("Input.dispatchKeyEvent", {"type": "keyUp", **SHIFT_KEY})
+            _press(tab, "Escape", 27)
+            threading.Event().wait(0.4)
+            _click(tab, *_node_center(tab, "sw-core-02"))
+            _wait(tab, f"JSON.stringify({toile}.state.selection) === JSON.stringify({{kind:'node', id:'sw-core-02'}})")
+            _wait(
+                tab,
+                "!!document.querySelector('.fbar') && !document.querySelector('.fbar').classList.contains('suspended')",
+            )
+            assert tab.js("window.__errors") == []
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)

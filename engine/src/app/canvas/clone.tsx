@@ -12,7 +12,8 @@ import type { RefObject } from "react";
 import type { Point } from "../../canvas/layout";
 import { pathOf } from "../../canvas/connectors";
 import type { Annotation } from "../../canvas/types";
-import { STEP, ghostOf } from "../state/clipboard";
+import { ghostOf, snapped } from "../state/clipboard";
+import { typing } from "./keys";
 import type { Ghost } from "../state/clipboard";
 import { payloadFromToile, targetOf } from "./clip-toile";
 import { has, itemsOf, selectionOf } from "../state/selection";
@@ -72,7 +73,7 @@ export function useAltClone({ container, enabled, toile, ghost, planAt, snap, on
       const g = gesture as NonNullable<typeof gesture>, at = latest.current.planAt({ x: event.clientX, y: event.clientY });
       const free = event.ctrlKey || event.metaKey, raw = { x: at.x - g.from.x, y: at.y - g.from.y };
       const fix = latest.current.guide && g.moved ? latest.current.guide.move(g.items, raw, free) : { dx: 0, dy: 0, took: { x: false, y: false } };
-      const step = (v: number): number => (latest.current.snap && !free ? Math.round(v / STEP) * STEP : Math.round(v));
+      const step = (v: number): number => snapped(v, latest.current.snap && !free);
       return { x: fix.took.x ? Math.round(raw.x + fix.dx) : step(raw.x), y: fix.took.y ? Math.round(raw.y + fix.dy) : step(raw.y) };
     };
     const end = (): void => { gesture = null; ghost.set(null); latest.current.hold(false); if (latest.current.guide) latest.current.guide.end(); };
@@ -169,8 +170,7 @@ export function usePointerPlan(container: RefObject<HTMLDivElement | null>, toil
     };
     const onLeave = (): void => { toile.pointer = null; };
     const onDown = (event: PointerEvent): void => {
-      const target = event.target as HTMLElement | null;
-      if (target && (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable)) return;
+      if (typing(event.target)) return;
       const text = typeof window.getSelection === "function" ? window.getSelection() : null;
       if (text && !text.isCollapsed) text.removeAllRanges();
     };

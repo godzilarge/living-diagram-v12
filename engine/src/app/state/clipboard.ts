@@ -143,7 +143,9 @@ export function boundsOf(p: Payload): Box | null {
   const x = Math.min(...xs), y = Math.min(...ys);
   return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
 }
-const snapped = (v: number, snap: boolean): number => (snap ? Math.round(v / STEP) * STEP : Math.round(v));
+/** Une coordonnée posée par la page (collage, insertion, Alt + glissé) : sur la grille si l'aimant est mis, sinon
+ *  arrondie (une seule règle : revue de session, J1, D4). */
+export const snapped = (v: number, snap: boolean): number => (snap ? Math.round(v / STEP) * STEP : Math.round(v));
 /** L'écart à appliquer : au pointeur (le coin haut gauche du collage sous lui, aimanté à la grille si l'aimant est
  *  actif), sinon à la place d'origine ; le `repeat`-ième collage de suite au même endroit décale encore de +20 / +20
  *  (le premier au pointeur ne décale pas, le premier sans pointeur décale d'un pas). */

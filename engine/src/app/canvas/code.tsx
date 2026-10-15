@@ -19,6 +19,7 @@ import { LANGUAGE_LABEL, LANGUAGE_SHORT } from "../code/languages";
 import { findSecrets, withSecrets } from "../code/secrets";
 import { clipLine, linesOf } from "../code/tokens";
 import { codeView } from "../code/view";
+import { typing } from "./keys";
 import type { Commands } from "../state/store";
 
 /** Ce que la toile demande à la page pour un bloc de code : les commandes du store et le nom de l'infrastructure
@@ -173,7 +174,7 @@ function useCodeScrolling(ref: RefObject<SVGGElement | null>, a: Annotation, c: 
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       // hors d'un champ, et hors de la fiche (elle défile d'elle-même), d'un volet ou d'une barre d'outils (la barre
       // contextuelle parcourt ses boutons par Origine / Fin : revue du lot 16, B1) : la page de la toile
-      if (target && (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable)) return;
+      if (typing(target)) return;
       if (target && target.closest && target.closest(".panel, .fvolet, .fbar, .band, .search, .journal, [role=dialog], [role=menu], [role=toolbar]")) return;
       const l = now();
       if (!l.scrolls) return; // tout tient : la touche garde son rôle ailleurs

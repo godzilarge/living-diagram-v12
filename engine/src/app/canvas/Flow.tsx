@@ -7,10 +7,10 @@
 // un glissé, un redimensionnement ou un Alt + glissé, les repères d'alignement (lot 8 : guides.ts, guide-drag.ts,
 // GuideLayer.tsx) corrigent la place proposée et se dessinent par-dessus, sans reconstruire la toile.
 import { Background, BackgroundVariant, MiniMap, ReactFlow, ReactFlowProvider, SelectionMode, applyEdgeChanges, applyNodeChanges, useReactFlow } from "@xyflow/react";
-import type { EdgeChange, NodeChange, Viewport } from "@xyflow/react";
+import type { EdgeChange, NodeChange, ReactFlowInstance, Viewport } from "@xyflow/react";
 import { createContext, memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStoreApi } from "@xyflow/react";
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent, MutableRefObject, ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { t } from "../../i18n";
 import type { TableContent } from "../../contracts/intent";
@@ -43,7 +43,7 @@ import { CloneLayer, createGhost, useAltClone, usePointerPlan } from "./clone";
 import type { Op } from "../../shell/apps";
 import type { CardData, ClusterNodeType, FrameNodeType } from "./nodes";
 import type { Toile } from "./toile";
-import { STUB_BOX, build, selectionKey } from "./flow-build";
+import { STUB_BOX, build, isHost, selectionKey } from "./flow-build";
 import { createGate } from "./gate";
 import { reuse } from "./reuse";
 import { GuideLayer, createGuideStore } from "./GuideLayer";
@@ -83,7 +83,6 @@ const ariaLabels = () => ({
 });
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const minimapClass = (node: FlowNode): string => (node.type === "card" ? "mm-" + (node.data as CardData).hue : "mm-" + node.type);
-const isHost = (node: FlowNode): boolean => node.type === "card" || node.type === "stub";
 /** Ce qu'un nœud React Flow est dans une sélection mixte (lot 2 de docs/11) ; un cluster n'en est pas. */
 function itemOfNode(node: FlowNode): Item | null {
   if (isHost(node)) return { kind: "node", id: node.id };
@@ -151,7 +150,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   const dragging = useRef(false);
   // Un rectangle en cours (glissé nu, ou Maj + glissé qui ajoute) : la sélection d'avant et son point de départ dans le
   // plan (voir plus bas).
-  const selecting = useRef<{ before: Item[]; add: boolean; from: Point } | null>(null);
+  const selecting = useRef<{ before: Item[]; add: boolean; from: Point; ending?: boolean } | null>(null);
   const armed = toolArmed && editable;
   const armedRef = useRef(armed);
   armedRef.current = armed;
@@ -316,26 +315,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       toile.select(edge.type === "cable" ? { kind: "link", id: (edge.data as CableData).link.id } : { kind: "beam", id: (edge.data as BeamData).beam.id });
     } else toile.select(null);
   }, [toile]);
-  // Le rectangle (Maj + glissé, D1) : React Flow sélectionne au fil du geste, et une toile reconstruite au milieu lui
-  // faisait mêler les sélections ; on attend la fin, puis la toile prend ce que le rectangle couvre (selection.ts : en
-  // mode « touche », ou « englobe » avec Ctrl tenu à la relâche) et l'ajoute à la sélection d'avant (Maj). En vue
-  // Contrôle, des équipements seulement (le reste y est inerte).
-  const onSelectionStart = useCallback((event: ReactMouseEvent): void => {
-    const rect = store.getState().userSelectionRect; // son départ, déjà dans le plan
-    selecting.current = { before: itemsOf(toile.state.multi), add: event.shiftKey, from: rect ? { x: rect.startX, y: rect.startY } : rf.screenToFlowPosition({ x: event.clientX, y: event.clientY }) };
-    gate.set("rectangle", true);
-  }, [toile, rf, store, gate]);
-  const onSelectionEnd = useCallback((event: ReactMouseEvent): void => {
-    const g = selecting.current;
-    if (!g) return;
-    const to = rf.screenToFlowPosition({ x: event.clientX, y: event.clientY }), mode = event.ctrlKey || event.metaKey ? "inside" : "touch";
-    setTimeout(() => { // après les derniers changements `select` du geste
-      selecting.current = null;
-      const got = covered(rectOf(g.from, to), toile.shapes(), mode).filter((item) => !toile.state.control || item.kind === "node");
-      toile.selectItems(itemsOf(afterRectangle(multiOfItems(g.before), got, g.add)));
-      gate.set("rectangle", false);
-    }, 0);
-  }, [toile, rf, gate]);
+  const { onSelectionStart, onSelectionEnd } = useRectangle({ toile, rf, store, gate, armed, container, selecting });
   // Un cadre de groupe glissé (G2) : ses membres présents suivent dans le même passage que le cadre (followers, plus
   // bas), un changement de position chacun, plutôt qu'un second passage sur tous les nœuds (lot 13 de docs/11).
   const followers = useRef<{ id: string; start: Point; members: Map<string, Point>; boxes: Map<string, Box> } | null>(null);
@@ -408,18 +388,10 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
     const dragged = proposed.map((n) => shown.get(n.id) || n), node = shown.get(lead.id) || lead;
     const drag = followers.current;
     followers.current = null;
-    const hosts: string[] = [], ops: Op[] = [];
+    const hosts: string[] = [], ops: Op[] = [], notes: AnnotationNodeType[] = [];
     let lone: { id: string; patch: { x: number; y: number } } | null = null;
     dragged.forEach((n) => {
-      if (n.type === "annotation") {
-        // relâchée : sa position React Flow (libre : le plan ; enfant : relative au coin de son parent) redevient l'écart enregistré (A0, A3)
-        const a = (n as AnnotationNodeType).data.a;
-        const parent = n.parentId ? nodesRef.current.find((p) => p.id === n.parentId) : undefined;
-        const box = parent && isHost(parent) ? slotOf(parent) : null;
-        const patch = a.anchor.kind === "device" && box ? { x: Math.round(n.position.x - box.w / 2), y: Math.round(n.position.y - box.h / 2) } : { x: Math.round(n.position.x), y: Math.round(n.position.y) };
-        if (patch.x !== a.x || patch.y !== a.y) { toile.pending.set(a.id, patch); ops.push({ op: "annotation_update", id: a.id, ...patch }); lone = { id: a.id, patch }; }
-        return;
-      }
+      if (n.type === "annotation") { notes.push(n as AnnotationNodeType); return; }
       if (n.type === "connector") {
         const data = (n as ConnectorNodeType).data;
         ops.push(...toile.moveLines([data.c.id], Math.round(n.position.x - data.origin.x), Math.round(n.position.y - data.origin.y)));
@@ -434,10 +406,22 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       const dx = Math.round(node.position.x - drag.start.x), dy = Math.round(node.position.y - drag.start.y);
       if (dx || dy) drag.members.forEach((start, host) => { toile.moveTo(host, { x: start.x + dx, y: start.y + dy }); hosts.push(host); });
     }
+    // relâchée : sa place dans le plan (libre : sa position React Flow ; enfant : relative au coin de son parent, immobile
+    // pendant le geste) redevient l'écart enregistré (A0, A3), calculé depuis son ancre **après** le geste : un cadre de
+    // groupe dont les membres ont bougé avec elle ne la décale pas une seconde fois (revue de session, H1)
+    notes.forEach((n) => {
+      const a = n.data.a;
+      const parent = n.parentId ? rf.getInternalNode(n.parentId) : undefined;
+      const origin = n.parentId ? (parent ? parent.internals.positionAbsolute : null) : { x: 0, y: 0 };
+      const ref = a.anchor.kind === "free" ? { x: 0, y: 0 } : toile.anchorAt(a.anchor.kind as "device" | "group", a.anchor.ref || "");
+      if (!origin || !ref) return;
+      const patch = { x: Math.round(origin.x + n.position.x - ref.x), y: Math.round(origin.y + n.position.y - ref.y) };
+      if (patch.x !== a.x || patch.y !== a.y) { toile.pending.set(a.id, patch); ops.push({ op: "annotation_update", id: a.id, ...patch }); lone = { id: a.id, patch }; }
+    });
     const single = lone as { id: string; patch: { x: number; y: number } } | null;
     if (!hosts.length && ops.length === 1 && single) { onAnnotation(single.id, single.patch); toile.repaint(); return; }
     if (hosts.length || ops.length) toile.dropped(hosts, ops);
-  }, [toile, onAnnotation, gate, guide]);
+  }, [toile, rf, onAnnotation, gate, guide]);
   const onNodeMouseMove = useCallback((event: ReactMouseEvent, node: FlowNode): void => {
     const model = toile.model;
     if (node.type === "cluster") {
@@ -520,4 +504,54 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       <FloatingHost.Provider value={floating}>{children}</FloatingHost.Provider>
     </div>
   );
+}
+
+/** Le rectangle de sélection (Maj + glissé, D1) : son départ, sa fin, et son abandon quand React Flow ne le finira pas.
+ *  `selecting` reste à la toile (la synchronisation de la sélection et la bulle le lisent). */
+interface RectangleDeps {
+  toile: Toile; rf: ReactFlowInstance<FlowNode, FlowEdge>; store: ReturnType<typeof useStoreApi<FlowNode, FlowEdge>>; gate: Gate; armed: boolean;
+  container: RefObject<HTMLDivElement | null>; selecting: MutableRefObject<{ before: Item[]; add: boolean; from: Point; ending?: boolean } | null>;
+}
+function useRectangle({ toile, rf, store, gate, armed, container, selecting }: RectangleDeps): { onSelectionStart: (event: ReactMouseEvent) => void; onSelectionEnd: (event: ReactMouseEvent) => void } {
+  // Le rectangle (Maj + glissé, D1) : React Flow sélectionne au fil du geste, et une toile reconstruite au milieu lui
+  // faisait mêler les sélections ; on attend la fin, puis la toile prend ce que le rectangle couvre (selection.ts : en
+  // mode « touche », ou « englobe » avec Ctrl tenu à la relâche) et l'ajoute à la sélection d'avant (Maj). En vue
+  // Contrôle, des équipements seulement (le reste y est inerte).
+  const onSelectionStart = useCallback((event: ReactMouseEvent): void => {
+    const rect = store.getState().userSelectionRect; // son départ, déjà dans le plan
+    selecting.current = { before: itemsOf(toile.state.multi), add: event.shiftKey, from: rect ? { x: rect.startX, y: rect.startY } : rf.screenToFlowPosition({ x: event.clientX, y: event.clientY }) };
+    gate.set("rectangle", true);
+  }, [toile, rf, store, gate]);
+  const onSelectionEnd = useCallback((event: ReactMouseEvent): void => {
+    const g = selecting.current;
+    if (!g) return;
+    const to = rf.screenToFlowPosition({ x: event.clientX, y: event.clientY }), mode = event.ctrlKey || event.metaKey ? "inside" : "touch";
+    g.ending = true;
+    setTimeout(() => { // après les derniers changements `select` du geste
+      selecting.current = null;
+      const got = covered(rectOf(g.from, to), toile.shapes(), mode).filter((item) => !toile.state.control || item.kind === "node");
+      toile.selectItems(itemsOf(afterRectangle(multiOfItems(g.before), got, g.add)));
+      gate.set("rectangle", false);
+    }, 0);
+  }, [toile, rf, gate]);
+  // Un rectangle que React Flow ne finira pas (revue de session, B3) : l'outil connecteur armé pendant le geste (React
+  // Flow ignore alors la relâche) ou un appui annulé (stylet, tactile). La toile reprend la sélection d'avant, la porte
+  // de la barre se relâche, et React Flow oublie son rectangle ; sans quoi les clics suivants ne sélectionnaient plus
+  // rien dans la toile.
+  const abortRectangle = useCallback((): void => {
+    const g = selecting.current;
+    if (!g || g.ending) return;
+    selecting.current = null;
+    store.setState({ userSelectionActive: false, userSelectionRect: null });
+    gate.set("rectangle", false);
+    toile.selectItems(g.before);
+  }, [toile, store, gate]);
+  useEffect(() => { if (armed) abortRectangle(); }, [armed, abortRectangle]);
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return undefined;
+    el.addEventListener("pointercancel", abortRectangle, true);
+    return () => el.removeEventListener("pointercancel", abortRectangle, true);
+  }, [abortRectangle]);
+  return { onSelectionStart, onSelectionEnd };
 }

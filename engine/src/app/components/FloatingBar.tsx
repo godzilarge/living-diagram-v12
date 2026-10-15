@@ -35,6 +35,8 @@ import { FaceOf } from "./floating-faces";
 import { VoletBody } from "./FloatingVolet";
 import type { GridControls } from "./FloatingVolet";
 import { codeRun } from "../state/code-bar";
+import { typing } from "../canvas/keys";
+import { CHROME } from "../canvas/chrome";
 
 /** Le retour après un geste ou Maj relâchée ; le délai avant la première infobulle (puis sans attendre d'une case à l'autre). */
 const RETURN_MS = 120, TIP_MS = 400;
@@ -46,7 +48,7 @@ function zoneOf(host: DOMRect): Zone {
   const rect = (selector: string): DOMRect | null => { const el = document.querySelector(selector); return el ? el.getBoundingClientRect() : null; };
   const tops = [".search", ".toolbar"].map(rect).filter((r): r is DOMRect => !!r && r.height > 0);
   const band = rect(".band"), panel = rect(".panel");
-  const top = (tops.length ? Math.max(...tops.map((r) => r.bottom)) : host.top + 56) - host.top + GAP;
+  const top = (tops.length ? Math.max(...tops.map((r) => r.bottom)) : host.top + CHROME.top) - host.top + GAP;
   const bottom = (band && band.height ? band.top : host.bottom - GAP) - host.top - GAP;
   const right = (panel && panel.width ? panel.left : host.right) - host.left - GAP;
   return { left: GAP, top, right, bottom };
@@ -185,10 +187,6 @@ function execute(button: BarButton, value: string | null, target: Target, model:
   else if (id === "lock") commands.lockItems(multi.annotations, multi.connectors, !button.pressed);
 }
 
-const typing = (target: EventTarget | null): boolean => {
-  const el = target as HTMLElement | null;
-  return !!el && !!el.tagName && (["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName) || el.isContentEditable);
-};
 
 export function FloatingBar() {
   const host = useContext(FloatingHost);

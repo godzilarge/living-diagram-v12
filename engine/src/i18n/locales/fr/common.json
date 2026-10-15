@@ -176,6 +176,8 @@
   "host": {
     "saving": "enregistrement…",
     "notSaved": "non enregistré : {{reason}}",
+    "partsUndone": "non enregistré : {{reason}} ; ce qui avait déjà été écrit de ce geste est défait",
+    "partsKept": "enregistré en partie : {{reason}} ; le défaire a échoué aussi ({{undo}}) · Ctrl+Z pour défaire ce qui reste",
     "pinLocalNoServer": "déplacement local de {{host}}, non enregistré (page sans serveur)",
     "pinLocalNoName": "déplacement local de {{host}} : donnez votre nom pour l'enregistrer",
     "pinSaving": "enregistrement de l'épingle de {{host}}…",

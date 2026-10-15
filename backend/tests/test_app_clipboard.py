@@ -370,7 +370,10 @@ def _menu_and_read_only(tab, base: str, auth: dict) -> None:
         " (b.querySelector('.context-keys') || {}).textContent"
         " || '', b.getAttribute('aria-keyshortcuts') || ''])"
     )
-    _right_click(tab, *_note_center(tab, "a1-1"))
+    # le quart droit de la note : la note « Baie externe » collée plus haut, posée au centre de la vue sans aimant
+    # (revue de session, J1 : une insertion ne s'aimante qu'avec l'aimant), en recouvre le bord gauche
+    x, y = _note_center(tab, "a1-1")
+    _right_click(tab, x + 50, y)
     _wait(tab, "!!document.querySelector('.context-menu')")
     got = [entry for entry in tab.js(items) if entry[1]]
     assert got == [
