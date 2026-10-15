@@ -1,3 +1,7 @@
+> **Remplacé le 2026-10-15** par les skills de projet `.claude/skills/{brique-ui,revue,livraison}` et les agents
+> `.claude/agents/{ui,relecteur-ui,relecteur-backend}` : une session lit `docs/etat.md`, charge le skill, lance l'agent.
+> Gardé pour l'histoire des lots de `docs/11`.
+
 # Gabarit : lancer un agent sur un lot de `docs/11` (2026-10-13)
 
 Deux textes à copier. Le premier ouvre la session qui orchestre (Opus suffit). Le second est le prompt qu'elle donne

@@ -67,3 +67,6 @@ docs/revues/sondes-*/**/*.png
 # --- Bac à sable : prototypes et essais, servis par un petit serveur web ------
 # Jamais versionné. `python3 -m http.server 8016 --bind 0.0.0.0` depuis ce dossier.
 bac-a-sable/
+
+# Worktrees du client Claude Desktop (jamais versionnés)
+.claude/worktrees/
