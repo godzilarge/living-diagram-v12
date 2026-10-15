@@ -1434,6 +1434,42 @@ Chromium (`test_app_code.py`) et un (`test_app_clipboard.py`) ; 25 mutations att
 Orhan** (comportement prudent en attendant) : collage = bloc seulement si « sûr » ; réglage partiel du bloc et `text`
 masqué dans « Brut » / CSV (M5 b, c) ; ne pas redemander une valeur gardée ; ne pas rétablir une valeur retirée par Ctrl+Z.
 
+**Passe de finition (2026-10-15).** Critique (30/40) et audit (13/20) Impeccable des lots 8, 16 et 4
+(`.impeccable/critique-2026-10-15/`, une section « Suivi » à la fin de chaque rapport) ; décisions d'Orhan : tous les
+défauts purs, la palette des repères inchangée (onze teintes, aucun avertissement), deux ajouts. **Ajouts** : (1)
+**coller comme bloc de code**, Ctrl+Maj+V et « coller comme bloc de code » au clic droit du fond : toujours un bloc, au
+langage détecté même non sûr, sinon « Texte brut » (`pasteChoice`, `app/code/languages.ts` ; mêmes règles que Ctrl+V :
+normalisation, borne, avertissement, Ctrl+Z) ; la touche arme le `paste` du navigateur, sinon la page lit le
+presse-papiers (300 ms, `Shell.tsx`) ; (2) **le rappel d'une valeur gardée** : au survol de la valeur (zones `data-secret`
+sous le texte) ou du bouclier, la bulle de la toile dit sa nature, sa sorte, sa ligne et « lisible par tous ceux qui
+ouvrent {infrastructure} », jamais la valeur (`app/code/secret-tip.ts`) ; la fiche dit la même chose en `title`.
+**Lot 16** : l'avertissement est un dialogue modal (focus sur « Retirer » après un collage, l'effet du champ ne le
+reprend plus ; Tab et Maj+Tab y tournent ; depuis le champ, Tab y va sans rien écrire ; `ul` / `li` / `button`) ; sa
+place vient de `placeWarn` (`code/geometry.ts` : droite, gauche, dessous, dessus, sinon sur le bloc, toujours dans la
+zone, jamais sous la fiche ; vérifié à 1024, 1280, 1440) ; la gouttière s'élargit du point rouge (`editorGutter`) ; la
+fiche fenêtre au-delà de 200 lignes (`lineWindow`, numéros par `data-n`) ; pastille du langage à l'encre de sa teinte
+(`--hue-*-ink`, une par teinte et par thème), nature et pouce en jetons (`--code-nature`, `--code-thumb`, pouce de 8) ;
+« AA 13 » dans la barre (`Face` `value`) ; « ajuster » en bouton fantôme avec icône ; « copier » de l'en-tête retiré de
+l'arbre d'accessibilité. **Lot 4** : Tab et Maj+Tab font le tour des groupes d'un volet (`nextGroup`, `startGroup` dans
+`state/floating.ts`), le focus entre sur l'élément coché du premier groupe de choix ; un volet qui ne tient pas au-dessus
+se raccourcit (liste qui défile, `VOLET_MIN_H` 160) ou se pose à côté de la barre, le long de sa rangée (vers le bas si
+vers le haut couvrirait l'objet), toujours avec une flèche ; z-index sur l'échelle `--z-*`, couleurs du clair en jetons
+(`--fbar-*`, `--tip-inv-*`). **Lot 8** : pas de croix sur une poignée ni une épingle (`crossPoints`, `bare`) ; la
+pastille du geste à 8 px d'un repère (`lineBands`), la pastille « X, Y » d'une annotation aussi (`positionPill` lit les
+repères par `GuideContext`) ; la cote d'un écart égal sur l'encre de la teinte (`--guide-fill`) ; « rétablir » en bouton
+fantôme ; pastilles de couleur à cible de 24 px ; compteur de colonnes lu en entier. **Mesures** (Chromium sans GPU,
+`.impeccable/planche-finition/mesures-perf-apres.json`, le script de l'audit rejoué) : fiche d'un bloc de 2 000 lignes,
+demo-dc 183-217 → 31-51 ms, jauge 225-267 → 51-71 ms, plus longue tâche 162-243 → 0-59 ms, 2 000 → 36 lignes rendues ;
+contrastes du clair : pastille du langage 4,11-4,48 → 4,81-4,88 (douze teintes), cote 3,64-4,10 → ≥ 6,2, nature
+4,06 → 5,21, pouce 1,79 → 3,61 (sombre 2,28 → 4,03) ; panoramique barre montrée inchangé (p50 43-48 ms). **Tests** :
+Node (`app.test.js` 54, `code.test.js` 22), Chromium (`test_app_code.py` : focus et Tab après un collage, avertissement
+à 1280 la fiche ouverte, Ctrl+Maj+V et le menu, bulle d'une valeur gardée, volet du langage au clavier ;
+`test_app_guides.py` : Tab jusqu'à « mettre en grille ») ; mutations : 30 attrapées sur 30 (une survivante au premier passage, « langage non sûr écarté », a donné un test de plus)
+(`.impeccable/planche-finition/scripts/mutations_finition.py`). Captures `.impeccable/planche-finition/` (avant /
+après). **Parqués** : à 1024 et 1280 la fiche ouverte, un bloc qui remplit la vue reçoit l'avertissement par-dessus
+(aucun côté ne tient : le code ne se lit pas pendant ce choix) ; un volet posé à côté de la barre reste à son bout, pas
+sous son bouton ; dans une fiche fenêtrée, Ctrl+A ne prend que la fenêtre (« copier » prend tout).
+
 ### Déjà planifiés, inchangés, après ces lots (docs/10 §8)
 
 Épingles d'étiquettes et styles de câbles ; masque par règle enregistré ; câbles déclarés. Puis la revue indépendante de

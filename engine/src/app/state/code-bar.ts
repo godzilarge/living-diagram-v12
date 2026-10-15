@@ -31,7 +31,7 @@ export function codeEntries(a: Annotation, c: CodeContent, shared: Shared): BarE
   const total = lineCount(c.text);
   const fit = a.h === fitHeight(total, a.style.text_size) ? []
     : [{ id: "code_fit", label: total > CODE.FIT_MAX ? L("codeFitMax", { max: CODE.FIT_MAX }) : L("codeFit"), face: { kind: "icon", icon: "fitHeight" } } as BarButton];
-  const size: BarButton = { id: "text_size", label: L("codeSizeOf", { value: a.style.text_size }), face: { kind: "icon", icon: "textSize" },
+  const size: BarButton = { id: "text_size", label: L("codeSizeOf", { value: a.style.text_size }), face: { kind: "value", icon: "textSize", text: String(a.style.text_size) },
     volet: { kind: "choice", title: L("codeSize"), value: String(a.style.text_size), options: CODE_SIZES.map((px) => ({ value: String(px), label: px + " px", num: String(px) })) } };
   return [shared.hue, shared.sep, lang, font, ...colored, numbers, ...fit, size, shared.sep, ...shared.plane, shared.lock, shared.sep, shared.dup, shared.del];
 }

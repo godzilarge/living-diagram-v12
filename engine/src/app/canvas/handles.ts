@@ -76,10 +76,17 @@ export function sizePill(size: { w: number; h: number }, id: HandleId, zoom: num
 }
 
 /** La pastille « X, Y » pendant le glissé d'une annotation : au-dessus de son coin haut gauche, à sa taille d'écran ;
- *  `x`, `y` sont les valeurs qui seront écrites (celles de la fiche : relatives à l'ancre d'une annotation attachée). */
-export function positionPill(x: number, y: number, zoom: number): PillPlace {
-  const k = unzoom(zoom);
-  return { text: x + ", " + y, x: 0, y: -(PILL_H + PILL_GAP_PX) * k, scale: k };
+ *  `x`, `y` sont les valeurs qui seront écrites (celles de la fiche : relatives à l'ancre d'une annotation attachée).
+ *  Critique du 2026-10-15 : elle se tient à `PILL_GAP_PX` au moins d'un repère d'alignement (`lines`, à l'abscisse ou
+ *  l'ordonnée locale de la boîte `box`) : au-dessus à gauche, au-dessus à droite, dessous à gauche, dessous à droite,
+ *  la première place libre ; sinon au-dessus à gauche. */
+export function positionPill(x: number, y: number, zoom: number, lines: { axis: "x" | "y"; at: number }[] = [], box: { w: number; h: number } = { w: 0, h: 0 }): PillPlace {
+  const k = unzoom(zoom), text = x + ", " + y, pw = pillWidth(text) * k, ph = PILL_H * k, gap = PILL_GAP_PX * k;
+  const above = -(PILL_H + PILL_GAP_PX) * k, below = box.h + gap, right = box.w - pw;
+  const spots: [number, number][] = [[0, above], [right, above], [0, below], [right, below]];
+  const clear = ([sx, sy]: [number, number]): boolean => lines.every((l) => (l.axis === "x" ? l.at <= sx - gap || l.at >= sx + pw + gap : l.at <= sy - gap || l.at >= sy + ph + gap));
+  const [px, py] = spots.find(clear) || spots[0];
+  return { text, x: px, y: py, scale: k };
 }
 
 export const handles = { HANDLE_IDS, CORNER_PX, BAR_LONG_PX, BAR_SHORT_PX, BAR_MIN_SIDE_PX, MIN_SIZE, MAX_SIZE, handleShapes, handlePoint, resized, sizePill, positionPill, isCorner };

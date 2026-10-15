@@ -1841,6 +1841,18 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   longue (~200 ms, à fenêtrer), pastilles de couleur des repères à 16 px. Tenu et mesuré : repères 0,16 ms par pas,
   molette 56-60 i/s sur 2 000 lignes, sombre AA partout, aucun défilement horizontal. **Présenté à Orhan le même jour
   avec avis** ; question de goût : palette des repères qui reprend des teintes déjà porteuses de sens sur la toile.
+- **Passe de finition faite** (2026-10-15, « Go » d'Orhan ; détail dans `docs/11` § Lot 16 « Passe de finition » et le
+  suivi des deux rapports `.impeccable/critique-2026-10-15/`). **Palette des repères inchangée** (Orhan : « ne retire
+  rien, il ne faut pas trop prendre l'utilisateur par la main ») . **Deux ajouts d'Orhan** : **Ctrl+Maj+V** et « coller
+  comme bloc de code » au clic droit : toujours un bloc (langage détecté même non sûr, sinon « Texte brut ») ; Ctrl+V
+  garde la règle « sûr » ; **rappel permanent d'une valeur sensible gardée** : surbrillance (déjà là) et bulle au survol
+  de la valeur et du bouclier (nature, ligne, « lisible par tous ceux qui ouvrent … », jamais la valeur), `title` dans
+  la fiche ; rien n'est redemandé. Défauts purs corrigés : avertissement des secrets modal avec le focus sur « Retirer »,
+  Tab confiné, jamais sous la fiche (sur le bloc si aucun côté ne tient) ; Tab fait le tour des groupes d'un volet ;
+  encre par teinte en clair (pastille de langage 4,8:1, cote 6,2:1) ; pouce 3,6 / 4,0:1 ; fiche d'un bloc fenêtrée
+  au-delà de 200 lignes (2 000 lignes : 200 → 40 ms) ; « AA 13 » ; volet avec flèche ; plus de croix sur une poignée ou
+  une épingle ; pastilles à cible de 24. 30 mutations sur 30, suite 622 verte chez l'orchestrateur. **À juger à
+  l'usage** : avertissement posé sur le bloc et volet posé au bout de la barre quand la place manque.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 

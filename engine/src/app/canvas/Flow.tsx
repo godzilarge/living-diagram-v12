@@ -30,6 +30,8 @@ import { SketchLayer, createSketch, useConnectorTool } from "./drawing";
 import { marksOf, selectedTipKeys } from "./hover";
 import { pickEnd } from "./snap";
 import { useTips } from "./tips";
+import { secretsIn } from "./code";
+import { secretLines, shieldLines } from "../code/secret-tip";
 import type { Candidate } from "./snap";
 import { edgeTypes } from "./edges";
 import type { BeamData, CableData } from "./edges";
@@ -46,7 +48,7 @@ import type { Toile } from "./toile";
 import { STUB_BOX, build, isHost, selectionKey } from "./flow-build";
 import { createGate } from "./gate";
 import { reuse } from "./reuse";
-import { GuideLayer, createGuideStore } from "./GuideLayer";
+import { GuideContext, GuideLayer, createGuideStore } from "./GuideLayer";
 import type { GuideStore } from "./GuideLayer";
 import { createGuideDrag } from "./guide-drag";
 import type { Gate } from "./gate";
@@ -434,7 +436,19 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
       if (group) showTip("group:" + group.id, () => groupLines(group, data.present), event);
       return;
     }
-    if (node.type === "annotation") { const a = (node as AnnotationNodeType).data.a; showTip("annotation:" + a.id, () => annotationLines(a), event); return; }
+    if (node.type === "annotation") {
+      const a = (node as AnnotationNodeType).data.a;
+      // une valeur sensible gardée, ou le bouclier d'un bloc de code : le rappel (nature, qui la lit), jamais la valeur
+      const hit = a.content.kind === "code" ? (event.target as Element).closest("[data-secret], [data-shield]") : null;
+      if (hit && a.content.kind === "code") {
+        const found = secretsIn(a.content.text), infrastructure = model.source.infrastructure;
+        const at = hit.getAttribute("data-secret"), one = at === null ? null : found[Number(at)];
+        if (one) { showTip("secret:" + a.id + ":" + at, () => secretLines(one, infrastructure), event); return; }
+        if (at === null) { showTip("shield:" + a.id, () => shieldLines(found, infrastructure), event); return; }
+      }
+      showTip("annotation:" + a.id, () => annotationLines(a), event);
+      return;
+    }
     if (node.type === "connector") { const c = (node as ConnectorNodeType).data.c; showTip("connector:" + c.id, () => connectorLines(c), event); return; }
     const found = model.nodeByHost.get(node.id);
     if (found) showTip("node:" + node.id, () => nodeLines(model, found, { control: toile.state.control }), event);
@@ -481,6 +495,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
     <div ref={container} className="flow-host">
       <AnnotationContext.Provider value={annotationActions}>
       <EditRequest.Provider value={editRequest}>
+      <GuideContext.Provider value={guideStore}>
       <ReactFlow<FlowNode, FlowEdge> className={rootClass} nodes={nodes} edges={edges} nodeTypes={allNodeTypes} edgeTypes={edgeTypes}
         onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
         onNodeContextMenu={onNodeContextMenu} onPaneContextMenu={onPaneContextMenu} onSelectionContextMenu={onSelectionContextMenu}
@@ -497,6 +512,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
         <SketchLayer sketch={sketch} />
         <CloneLayer ghost={ghost} />
       </ReactFlow>
+      </GuideContext.Provider>
       </EditRequest.Provider>
       </AnnotationContext.Provider>
       <GuideLayer store={guideStore} />

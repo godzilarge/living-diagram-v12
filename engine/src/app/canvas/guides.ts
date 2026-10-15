@@ -39,6 +39,9 @@ export const GUIDE_HUES: readonly HueName[] = HUES.filter((hue) => hue !== "oran
 export const isGuideHue = (value: unknown): value is HueName => typeof value === "string" && (GUIDE_HUES as readonly string[]).includes(value);
 /** La valeur de `--guide` pour une teinte choisie (posée par le CSSOM sur la racine), `null` = le chartreuse des jetons. */
 export const guideColor = (hue: HueName | null): string | null => (hue && isGuideHue(hue) ? "var(--hue-" + hue + ")" : null);
+/** Le fond de la cote d'un écart égal pour une teinte choisie (`--guide-fill`) : son encre (`--hue-*-ink`), sur laquelle
+ *  le texte de la cote (`--guide-ink`) tient 4,5:1 dans les deux thèmes (testé) ; `null` = la teinte par défaut. */
+export const guideFill = (hue: HueName | null): string | null => (hue && isGuideHue(hue) ? "var(--hue-" + hue + "-ink)" : null);
 
 // ——— Géométrie ———
 
@@ -239,6 +242,25 @@ export function pillSpot(box: Rect, w: number, h: number, zone: Zone, obstacles:
     .map(([x, y]) => ({ x: Math.round(clampTo(x, zone.left, zone.right - w)), y: Math.round(clampTo(y, zone.top, zone.bottom - h)), w, h }));
   return spots.find((r) => !obstacles.some((o) => area(r, o) > 0)) || spots[0];
 }
+/** La pastille du geste se tient à `PILL_CLEAR` pixels au moins de tout repère (critique du 2026-10-15). */
+export const PILL_CLEAR = 8;
+/** Les bandes d'écran qu'une pastille évite : une par repère (`at` à l'écran), larges de deux fois le dégagement. */
+export function lineBands(lines: { axis: Axis; at: number }[], clear = PILL_CLEAR): Rect[] {
+  return lines.map((l) => (l.axis === "x" ? { x: l.at - clear, y: -1e5, w: 2 * clear, h: 2e5 } : { x: -1e5, y: l.at - clear, w: 2e5, h: 2 * clear }));
+}
+
+/** Les coins qu'un repère de bord marque d'une croix (plan) : chaque coin aligné des boîtes qu'il aligne, sauf ceux qui
+ *  portent déjà une marque (`bare` : les poignées de la sélection, une épingle), à `tol` près ; un repère de centre n'en
+ *  porte aucune. Trois symboles au même pixel ne se lisent plus (critique du 2026-10-15). */
+export function crossPoints(line: Line, bare: { x: number; y: number }[], tol: number): { x: number; y: number }[] {
+  if (line.kind !== "edge") return [];
+  const vertical = line.axis === "x";
+  return line.boxes.flatMap((b) => (vertical ? [b.y, b.y + b.h] : [b.x, b.x + b.w]).map((v) => (vertical ? { x: line.at, y: v } : { x: v, y: line.at })))
+    .filter((p) => !bare.some((q) => Math.abs(q.x - p.x) <= tol && Math.abs(q.y - p.y) <= tol));
+}
+/** Les quatre coins d'une boîte. */
+export const cornersOf = (b: Box): { x: number; y: number }[] => [{ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y }, { x: b.x, y: b.y + b.h }, { x: b.x + b.w, y: b.y + b.h }];
+
 /** Un nom qui tient dans `width` pixels à la taille `size` (chasse fixe, 0,62 em par caractère), raccourci d'un « … ». */
 export function fitName(name: string, width: number, size: number): string {
   const room = Math.floor(width / (size * 0.62));
@@ -246,4 +268,4 @@ export function fitName(name: string, width: number, size: number): string {
   return room <= 1 ? name.slice(0, 1) : name.slice(0, room - 1) + "…";
 }
 
-export const guides = { TOLERANCE_PX, MAX_CANDIDATES, GRID_STEP, GUIDE_HUES, isGuideHue, guideColor, union, snapMove, placeMove, placeResize, edgesOf, viewZone, pickCandidates, runs, pillSpot, fitName };
+export const guides = { TOLERANCE_PX, MAX_CANDIDATES, GRID_STEP, GUIDE_HUES, isGuideHue, guideColor, guideFill, union, snapMove, placeMove, placeResize, edgesOf, viewZone, pickCandidates, runs, pillSpot, fitName, PILL_CLEAR, lineBands, crossPoints, cornersOf };

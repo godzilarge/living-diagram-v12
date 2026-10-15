@@ -63,6 +63,7 @@ export function FaceOf({ face }: { face: Face }) {
   if (face.kind === "icon") return <>{ICONS[face.icon]}</>;
   if (face.kind === "glyph") return <Glyph name={face.glyph} value={face.value} />;
   // un nom (langage, police d'un bloc de code) : écrit dans sa police quand c'en est une, un point quand la détection propose autre chose
+  if (face.kind === "value") return <>{ICONS[face.icon]}<span className="fval">{face.text}</span><ChevronDown className="chev" aria-hidden="true" /></>;
   if (face.kind === "text") return <><span className={"fname" + (face.font ? " cf-" + face.font : "")}>{face.text}{face.hint ? <span className="lang-hint" aria-hidden="true" /> : null}</span><ChevronDown className="chev" aria-hidden="true" /></>;
   if (face.hues.length < 2) return <span className={"fb-hue hue-" + (face.hues[0] || "slate")} aria-hidden="true" />;
   return (

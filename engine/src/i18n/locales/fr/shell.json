@@ -183,7 +183,8 @@
     "editing": "édition",
     "showFbar": "barre contextuelle",
     "guideColor": "couleur des repères",
-    "guideDefault": "défaut",
+    "guideDefault": "rétablir",
+    "guideDefaultTitle": "rétablir le chartreuse, la couleur par défaut",
     "chartreuse": "chartreuse"
   },
   "band": {
@@ -317,6 +318,7 @@
     "copy": "copier",
     "cut": "couper",
     "pasteHere": "coller ici",
+    "pasteCodeHere": "coller comme bloc de code",
     "copyName": "copier le nom",
     "copyNames": "copier les noms",
     "copySelection": "copier la sélection",
@@ -324,6 +326,7 @@
       "copy": "Ctrl+C",
       "cut": "Ctrl+X",
       "paste": "Ctrl+V",
+      "pasteCode": "Ctrl+Maj+V",
       "duplicate": "Ctrl+D"
     },
     "grid": "mettre en grille",
@@ -705,6 +708,7 @@
     "removed_other": "{{count}} valeurs retirées du texte",
     "kept": "enregistré tel quel : le bloc garde son alerte",
     "tooLong": "bloc de code trop long : {{max}} caractères au plus",
+    "noText": "rien à coller : le presse-papiers ne contient pas de texte",
     "abandoned": "bloc abandonné : rien n'a été enregistré",
     "created_one": "bloc de code créé : {{count}} ligne, {{language}}",
     "created_many": "bloc de code créé : {{count}} lignes, {{language}}",

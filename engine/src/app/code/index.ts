@@ -4,6 +4,7 @@
 import { geometry } from "./geometry";
 import { languages } from "./languages";
 import { secrets } from "./secrets";
+import { secretTip } from "./secret-tip";
 import { tokens } from "./tokens";
 
-export const code = { ...geometry, ...languages, ...tokens, ...secrets };
+export const code = { ...geometry, ...languages, ...tokens, ...secrets, ...secretTip };

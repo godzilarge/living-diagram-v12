@@ -354,6 +354,7 @@ export function Store({ catalogue, children }: { catalogue: Record<string, Catal
       },
       ...clipboardCommands({
         dispatch, current, session, handle: () => handleRef.current, pasteForeign: (data) => commands.paste(data),
+        pasteCode: (text, at) => commands.codePaste(text, { force: true, at }),
       }),
       ...floatingCommands({ handle: () => handleRef.current }),
       ...codeCommands({ dispatch, current, handle: () => handleRef.current }),

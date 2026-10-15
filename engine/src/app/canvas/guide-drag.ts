@@ -13,7 +13,7 @@ import type { CardData, ClusterNodeType, FrameNodeType } from "./nodes";
 import { STUB_SLOT } from "./nodes";
 import { isHost } from "./flow-build";
 import type { FlowNode } from "./flow-build";
-import { GRID_STEP, TOLERANCE_PX, edgesOf, pickCandidates, placeMove, placeResize, snapMove, union, viewZone } from "./guides";
+import { GRID_STEP, TOLERANCE_PX, cornersOf, edgesOf, pickCandidates, placeMove, placeResize, snapMove, union, viewZone } from "./guides";
 import type { Box, Candidate } from "./guides";
 import type { GuideStore } from "./GuideLayer";
 import type { Toile } from "./toile";
@@ -64,14 +64,14 @@ function sizeOf(n: FlowNode): { w: number; h: number } | null {
 export function createGuideDrag(deps: GuideDeps): GuideDrag {
   // Un glissé en cours : les nœuds qu'il déplace avec l'écart entre leur place absolue et leur position React Flow (un
   // enfant est relatif à son parent), leur taille, les candidates, les dernières positions proposées.
-  let drag: { moving: Map<string, { ox: number; oy: number; size: { w: number; h: number } | null }>; lone: boolean; cands: Candidate[]; obstacles: Box[]; raw: Map<string, Point> } | null = null;
-  let resizing: { id: string; cands: Candidate[]; obstacles: Box[] } | null = null;
-  let cloning: { start: Box; cands: Candidate[]; obstacles: Box[] } | null = null;
+  let drag: { moving: Map<string, { ox: number; oy: number; size: { w: number; h: number } | null }>; lone: boolean; cands: Candidate[]; obstacles: Box[]; pins: Point[]; raw: Map<string, Point> } | null = null;
+  let resizing: { id: string; cands: Candidate[]; obstacles: Box[]; pins: Point[] } | null = null;
+  let cloning: { start: Box; cands: Candidate[]; obstacles: Box[]; pins: Point[] } | null = null;
   const tolerance = (): number => TOLERANCE_PX / Math.max(deps.view().zoom, 0.05);
 
   // Les candidates : tout ce qui se dessine en boîte, hors de ce qui bouge (`skip`) ; un cadre dont un membre bouge, un
   // cluster dont un membre bouge, une annotation attachée à ce qui bouge bougent aussi, et ne comptent pas.
-  function candidates(skip: Set<string>, near: Box): { cands: Candidate[]; obstacles: Box[] } {
+  function candidates(skip: Set<string>, near: Box): { cands: Candidate[]; obstacles: Box[]; pins: Point[] } {
     const toile = deps.toile, nodes = deps.nodes();
     const movedHosts = new Set<string>();
     nodes.forEach((n) => { if (skip.has(n.id) && isHost(n)) movedHosts.add(n.id); });
@@ -87,7 +87,9 @@ export function createGuideDrag(deps: GuideDeps): GuideDrag {
       all.push({ id: n.id, box: { x: at.x, y: at.y, w: size.w, h: size.h }, spaced: n.type === "card" || n.type === "stub" || n.type === "annotation" });
     });
     const cands = pickCandidates(all, viewZone(deps.view(), deps.size()), near);
-    return { cands, obstacles: cands.filter((c) => c.spaced).map((c) => c.box) };
+    // l'épingle d'une carte est dessinée sur son coin haut gauche (nodes.tsx) : pas de croix par-dessus
+    const pinned = toile.state.pinned;
+    return { cands, obstacles: cands.filter((c) => c.spaced).map((c) => c.box), pins: cands.filter((c) => pinned.has(c.id)).map((c) => ({ x: c.box.x, y: c.box.y })) };
   }
 
   function begin(moving: FlowNode[]): void {
@@ -115,6 +117,8 @@ export function createGuideDrag(deps: GuideDeps): GuideDrag {
       lines: placed.lines, gaps: placed.gaps, hits: placed.hits, obstacles: d.obstacles.concat([placed.box]), union: many ? placed.box : null,
       // une annotation seule a déjà sa pastille « X, Y » (celle de sa fiche) : ici, « libre » seulement
       pill: d.lone ? (free ? { box: placed.box, text: "", free } : null) : { box: placed.box, text: placed.box.x + ", " + placed.box.y, free },
+      // une annotation seule porte ses poignées aux coins : la poignée marque le coin, pas de croix dessus
+      bare: d.lone ? d.pins.concat(cornersOf(placed.box)) : d.pins,
     });
     return { dx: placed.box.x - box.x, dy: placed.box.y - box.y };
   }
@@ -142,7 +146,8 @@ export function createGuideDrag(deps: GuideDeps): GuideDrag {
     // Maj (rapport) ou Alt (depuis le centre) font bouger deux bords : les repères se taisent, rien ne s'aimante
     if (mods.ratio || mods.center) { deps.store.set({ lines: [], gaps: [], hits: [], pill: mods.free ? { box: raw, text: "", free: true } : null }); return raw; }
     const placed = placeResize(start, raw, edgesOf(handle), resizing.cands, { guides: prefs.guides, free: mods.free, grid: prefs.snap ? GRID_STEP : null, tol: tolerance(), min: MIN_SIZE });
-    deps.store.set({ lines: placed.lines, gaps: [], hits: placed.hits, obstacles: resizing.obstacles, union: null, pill: mods.free ? { box: placed.box, text: "", free: true } : null });
+    deps.store.set({ lines: placed.lines, gaps: [], hits: placed.hits, obstacles: resizing.obstacles, union: null, pill: mods.free ? { box: placed.box, text: "", free: true } : null,
+      bare: resizing.pins.concat(cornersOf(placed.box)) });
     return placed.box;
   }
   function resizeEnd(): void { resizing = null; deps.store.clear(); deps.guiding(false); }
@@ -162,7 +167,7 @@ export function createGuideDrag(deps: GuideDeps): GuideDrag {
     const g = !free && prefs.guides ? snapMove(box, cloning.cands, tolerance()) : { dx: 0, dy: 0, lines: [], gaps: [], took: { x: false, y: false } };
     const placed = { ...box, x: Math.round(box.x + g.dx), y: Math.round(box.y + g.dy) };
     deps.store.set({ lines: g.lines, gaps: g.gaps, hits: Array.from(new Set(g.lines.flatMap((l) => l.hits).concat(g.gaps.flatMap((x) => x.hits)))).sort(),
-      obstacles: cloning.obstacles.concat([placed]), union: null, pill: free ? { box: placed, text: "", free: true } : null });
+      obstacles: cloning.obstacles.concat([placed]), union: null, pill: free ? { box: placed, text: "", free: true } : null, bare: cloning.pins });
     return { dx: g.dx, dy: g.dy, took: g.took };
   }
   function cloneEnd(): void { if (cloning) deps.guiding(false); cloning = null; deps.store.clear(); }

@@ -129,4 +129,40 @@ export function offsetOfLine(text: string, line: number): number {
   return at;
 }
 
-export const geometry = { CODE, CODE_FONTS, CODE_SIZE, CODE_SIZES, FONT_SAMPLE, charWidth, lineHeight, lineCount, layout, clampFirst, baseline, fitHeight, minHeight, pasteWidth, scrollbar, thumbDrag, trackClick, keyScroll, wheelLines, footer, boundedBox, offsetOfLine };
+/** La gouttière du champ d'écriture : les chiffres et leurs marges, plus la place du point rouge (`FLAG_W`) dès qu'une
+ *  ligne est marquée d'une valeur sensible (le point ne touche plus un numéro à deux chiffres : critique du 2026-10-15). */
+export const FLAG_W = 10;
+export function editorGutter(total: number, size: number, font: string, flagged: boolean): number {
+  return Math.ceil(String(Math.max(total, 1)).length * charWidth(size, font) + 2 * CODE.GUTTER + (flagged ? FLAG_W : 0));
+}
+
+/** La fenêtre de lignes d'une liste à hauteur de ligne fixe (la fiche d'un bloc : seules les lignes visibles sont
+ *  rendues, audit du 2026-10-15) : de `from` (inclus) à `to` (exclu), avec `overscan` lignes de marge de chaque côté, et
+ *  la hauteur de ce qui n'est pas rendu avant et après (en pixels). */
+export function lineWindow(total: number, scrollTop: number, viewH: number, lineH: number, overscan = 20): { from: number; to: number; before: number; after: number } {
+  const n = Math.max(0, total), lh = Math.max(1, lineH);
+  const top = Math.max(0, Math.floor(Math.max(0, scrollTop) / lh) - overscan);
+  const to = Math.min(n, Math.ceil((Math.max(0, scrollTop) + Math.max(0, viewH)) / lh) + overscan);
+  const from = Math.min(top, to);
+  return { from, to, before: from * lh, after: (n - to) * lh };
+}
+
+/** Une zone de l'écran (pixels) et une boîte qui s'y pose. */
+export interface WarnZone { left: number; top: number; right: number; bottom: number }
+export interface WarnRect { x: number; y: number; w: number; h: number }
+/** Où poser l'avertissement des valeurs sensibles (`w` × `h`, pixels d'écran) à côté du bloc qu'on écrit (`block`),
+ *  dans la zone visible (sous la barre du haut, au-dessus de la bande, à gauche de la fiche) : à droite s'il y tient,
+ *  sinon à gauche, sinon dessous, sinon dessus ; s'il ne tient nulle part, sur le bloc, borné à la zone (le code ne se
+ *  lit pas pendant ce choix). À côté, aligné sur le haut du bloc et remonté s'il dépasse ; dessus ou dessous, aligné sur
+ *  son bord gauche. Jamais sous la fiche (audit du 2026-10-15, P1). */
+export function placeWarn(block: WarnRect, w: number, h: number, zone: WarnZone, gap = 12): { x: number; y: number; side: "right" | "left" | "below" | "above" | "over" } {
+  const clampX = (x: number): number => Math.round(Math.max(zone.left, Math.min(x, zone.right - w)));
+  const clampY = (y: number): number => Math.round(Math.max(zone.top, Math.min(y, zone.bottom - h)));
+  if (block.x + block.w + gap + w <= zone.right) return { x: Math.round(block.x + block.w + gap), y: clampY(block.y), side: "right" };
+  if (block.x - gap - w >= zone.left) return { x: Math.round(block.x - gap - w), y: clampY(block.y), side: "left" };
+  if (block.y + block.h + gap + h <= zone.bottom) return { x: clampX(block.x), y: Math.round(block.y + block.h + gap), side: "below" };
+  if (block.y - gap - h >= zone.top) return { x: clampX(block.x), y: Math.round(block.y - gap - h), side: "above" };
+  return { x: clampX(block.x + block.w - w), y: clampY(block.y), side: "over" };
+}
+
+export const geometry = { CODE, CODE_FONTS, CODE_SIZE, CODE_SIZES, FONT_SAMPLE, charWidth, lineHeight, lineCount, layout, clampFirst, baseline, fitHeight, minHeight, pasteWidth, scrollbar, thumbDrag, trackClick, keyScroll, wheelLines, footer, boundedBox, offsetOfLine, FLAG_W, editorGutter, lineWindow, placeWarn };

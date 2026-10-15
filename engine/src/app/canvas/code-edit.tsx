@@ -11,7 +11,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ClipboardEvent as ReactClipboardEvent, KeyboardEvent } from "react";
 import { t } from "../../i18n";
-import { CODE, charWidth, lineHeight, offsetOfLine } from "../code/geometry";
+import { CODE, editorGutter, lineHeight, offsetOfLine } from "../code/geometry";
 import { cleanTyped, normalizeCode } from "../code/languages";
 import { maskSecrets, newSecrets } from "../code/secrets";
 import type { Secret } from "../code/secrets";
@@ -51,7 +51,9 @@ export function CodeEditor({ w, h, size, font, numbers, initial, saved = "", fir
   latest.current = onDone;
   leave.current = onLeave;
   const lh = lineHeight(size), total = Math.max(lines, 1);
-  const gutterW = numbers ? Math.ceil(String(total).length * charWidth(size, font) + 2 * CODE.GUTTER) : 0;
+  const flagged = new Set(warn ? warn.found.map((f) => f.line) : []);
+  // la gouttière s'élargit du point rouge quand une ligne est marquée (il ne touche plus un numéro à deux chiffres)
+  const gutterW = numbers ? editorGutter(total, size, font, flagged.size > 0) : 0;
   const finish = (text: string | null, outcome: CodeOutcome = "plain", removed = 0): void => {
     if (finished.current) return;
     finished.current = true;
@@ -76,7 +78,9 @@ export function CodeEditor({ w, h, size, font, numbers, initial, saved = "", fir
   useEffect(() => {
     const el = area.current;
     if (!el) return;
-    if (warn) { el.focus({ preventScroll: true }); return; }
+    // ouvert avec l'avertissement (un collage) : le focus est à lui (il l'a pris en se montant), pas au champ (audit du
+    // 2026-10-15, P1 : l'effet du parent passait après celui de l'enfant et le reprenait)
+    if (warn) return;
     const at = offsetOfLine(el.value, first);
     el.focus({ preventScroll: true });
     el.setSelectionRange(at, at);
@@ -122,10 +126,17 @@ export function CodeEditor({ w, h, size, font, numbers, initial, saved = "", fir
     el.scrollTop = Math.max(0, f.line * lh - el.clientHeight / 3);
     sync();
   };
+  const toWarn = (last: boolean): void => {
+    const all = box.current ? Array.from(box.current.querySelectorAll<HTMLElement>(".code-warn-panel button")) : [];
+    const target = last ? all[all.length - 1] : box.current ? box.current.querySelector<HTMLElement>(".code-warn-panel .pbtn.primary") : null;
+    if (target) target.focus({ preventScroll: true });
+  };
   const keys = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     event.stopPropagation();
     if (event.key === "Escape") { event.preventDefault(); if (warn) setWarn(null); else finish(null); return; }
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); commit(); return; }
+    // l'avertissement ouvert, Tab n'écrit rien dans le texte : il va à l'avertissement (son choix d'abord)
+    if (event.key === "Tab" && warn) { event.preventDefault(); toWarn(event.shiftKey); return; }
     if (event.key === "Tab" && !event.shiftKey) { event.preventDefault(); event.currentTarget.setRangeText("    ", event.currentTarget.selectionStart, event.currentTarget.selectionEnd, "end"); value.current = event.currentTarget.value; }
   };
   const paste = (event: ReactClipboardEvent<HTMLTextAreaElement>): void => {
@@ -149,7 +160,6 @@ export function CodeEditor({ w, h, size, font, numbers, initial, saved = "", fir
     if (n !== lines) setLines(n);
     if (warn) setWarn(null);
   };
-  const flagged = new Set(warn ? warn.found.map((f) => f.line) : []);
   return (
     <div ref={box} className={"code-editor cf-" + font} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onContextMenu={(event) => event.stopPropagation()}>
       <div className="code-edit-hint" aria-hidden="true">

@@ -83,7 +83,21 @@ export function pastedAsCode(text: string): Detection | null {
   return found.id === "plain" || !found.sure ? null : found;
 }
 
+/** Ce que devient un texte collé. Ctrl+V : un bloc de code si `pastedAsCode` le dit (langage sûr) ou s'il porte une
+ *  valeur sensible (l'avertissement doit passer, une note n'en a pas), avec le langage détecté ; sinon une note.
+ *  « Coller comme bloc de code » (Ctrl+Maj+V, menu du fond ; Orhan, 2026-10-15) : toujours un bloc, avec le langage
+ *  détecté même non sûr, sinon texte brut. Un texte vide n'est rien. */
+export function pasteChoice(text: string, options: { secret: boolean; force: boolean }): { as: "code"; language: LanguageId; sure: boolean } | { as: "note" } | { as: "nothing" } {
+  const normal = normalizeCode(text);
+  if (!normal.trim()) return { as: "nothing" };
+  const code = pastedAsCode(normal);
+  if (code) return { as: "code", language: code.id, sure: true };
+  if (!options.force && !options.secret) return { as: "note" };
+  const found = detectLanguage(normal);
+  return { as: "code", language: found.id, sure: found.id !== "plain" && found.sure };
+}
+
 /** Le contenu d'un bloc neuf : texte brut, coloré, numéroté, JetBrains Mono, sans titre (contrat : tout s'écrit). */
 export const DEFAULT_CODE_CONTENT: CodeContent = { kind: "code", text: "", language: "plain", title: "", highlight: true, line_numbers: true, font: "jetbrains_mono" };
 
-export const languages = { LANGUAGES, LANGUAGE_IDS, DEFAULT_CODE_CONTENT, cleanTyped, normalizeCode, detectLanguage, pastedAsCode, prismNameOf };
+export const languages = { LANGUAGES, LANGUAGE_IDS, DEFAULT_CODE_CONTENT, cleanTyped, normalizeCode, detectLanguage, pastedAsCode, pasteChoice, prismNameOf };

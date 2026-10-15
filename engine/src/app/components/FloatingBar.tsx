@@ -28,7 +28,7 @@ import type { GuideStore } from "../canvas/GuideLayer";
 import { t } from "../../i18n";
 import { FloatingHost, GRID } from "../canvas/Flow";
 import type { Toile } from "../canvas/toile";
-import { alignCommand, alignFromKey, isGridKey, anchorOf, barLabel, entriesOf, movableCount, nextHeads, nextTextAlign, placeBar, placeVolet, selectionKey, shows, targetOf, toScreen, BAR_H, GAP } from "../state/floating";
+import { alignCommand, alignFromKey, isGridKey, anchorOf, barLabel, entriesOf, movableCount, nextGroup, nextHeads, nextTextAlign, placeBar, placeVolet, selectionKey, shows, startGroup, targetOf, toScreen, BAR_H, GAP } from "../state/floating";
 import type { BarAlign, BarButton, BarEntry, Geometry, Obstacle, Rect, Target, Zone } from "../state/floating";
 import { useEditable, useStore } from "../state/store";
 import { FaceOf } from "./floating-faces";
@@ -187,6 +187,22 @@ function execute(button: BarButton, value: string | null, target: Target, model:
   else if (id === "lock") commands.lockItems(multi.annotations, multi.connectors, !button.pressed);
 }
 
+
+
+/** Les groupes d'un volet, dans l'ordre du document : une liste, une grille, un menu ou un pas à pas (`role` radiogroup,
+ *  group, menu), ou un bouton seul ; un groupe sans bouton actif ne compte pas. */
+const UNIT = "[role=radiogroup], [role=group], [role=menu]";
+function unitsOf(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(UNIT + ", button")).filter((el) => {
+    const host = el.parentElement ? el.parentElement.closest(UNIT) : null;
+    return !(host && root.contains(host)) && !!stopOf(el);
+  });
+}
+/** Là où le focus entre dans un groupe : l'élément coché, sinon l'arrêt de tabulation du groupe, sinon son premier bouton. */
+function stopOf(unit: HTMLElement): HTMLElement | null {
+  if (unit.matches("button")) return (unit as HTMLButtonElement).disabled ? null : unit;
+  return unit.querySelector<HTMLElement>("[aria-checked='true']:not(:disabled)") || unit.querySelector<HTMLElement>("[tabindex='0']:not(:disabled)") || unit.querySelector<HTMLElement>("button:not(:disabled)");
+}
 
 export function FloatingBar() {
   const host = useContext(FloatingHost);
@@ -369,10 +385,16 @@ function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolea
     const host = bar.current.parentElement;
     if (!opener || !host) return;
     const h = host.getBoundingClientRect(), r = opener.getBoundingClientRect();
-    const at = placeVolet(placed.bar, placed.below, { x: r.left - h.left, y: r.top - h.top, w: r.width, h: r.height }, el.offsetWidth, el.offsetHeight, placed.zone, placed.anchor);
+    // sa hauteur entière (un volet raccourci défile : `scrollHeight` garde la mesure de tout son contenu, plus ses bords)
+    const full = Math.max(el.offsetHeight, el.scrollHeight + 2);
+    const at = placeVolet(placed.bar, placed.below, { x: r.left - h.left, y: r.top - h.top, w: r.width, h: r.height }, el.offsetWidth, full, placed.zone, placed.anchor);
     el.style.setProperty("--vx", at.x + "px");
     el.style.setProperty("--vy", at.y + "px");
+    if (at.maxH === null) el.style.removeProperty("--vmax"); else el.style.setProperty("--vmax", at.maxH + "px");
+    el.style.setProperty("--vc", at.caret + "px");
     el.classList.toggle("up", at.up);
+    el.classList.toggle("short", at.maxH !== null);
+    for (const side of ["above", "below", "left", "right"]) el.classList.toggle("at-" + side, at.side === side);
   });
   // L'infobulle : « libellé · raccourci », contre la barre (ou le volet), du côté opposé à la sélection.
   useLayoutEffect(() => {
@@ -421,7 +443,8 @@ function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolea
     if (open === button.id) { setOpen(null); return; }
     setOpen(button.id);
     if (focusInside) window.requestAnimationFrame(() => {
-      const first = volet.current ? volet.current.querySelector<HTMLElement>("[aria-checked='true'], [tabindex='0'], button") : null;
+      const units = volet.current ? unitsOf(volet.current) : [];
+      const first = units.length ? stopOf(units[startGroup(units.map((u) => ({ grouped: !u.matches("button") })))]) : null;
       if (first) first.focus({ preventScroll: true });
     });
   };
@@ -443,6 +466,15 @@ function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolea
     if (event.key !== "Tab") return; // Échap : à la capture, plus haut
     event.preventDefault();
     event.stopPropagation();
+    // un volet à choisir garde le focus : Tab fait le tour de ses groupes (audit du 2026-10-15, P1) ; un menu (nouveau
+    // groupe, ajouter à) se referme et rend le focus à son bouton, comme un menu
+    const el = volet.current;
+    if (el && el.getAttribute("role") === "dialog") {
+      const units = unitsOf(el), at = units.findIndex((u) => u.contains(document.activeElement));
+      const next = units[nextGroup(units.length, at, event.shiftKey)], stop = next ? stopOf(next) : null;
+      if (stop) stop.focus({ preventScroll: true });
+      return;
+    }
     const id = open;
     setOpen(null);
     setTip(null);
@@ -460,7 +492,7 @@ function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolea
             const tab = b.id === stop ? 0 : -1;
             const tint = b.face.kind === "glyph" && b.face.glyph === "fill" && target.kind === "annotation" ? " hue-" + target.a.style.hue : "";
             return (
-              <button key={b.id} type="button" data-id={b.id} tabIndex={tab} className={"fb" + (b.volet ? " opens" : "") + (b.danger ? " danger" : "") + (b.face.kind === "text" ? " named" : "") + tint}
+              <button key={b.id} type="button" data-id={b.id} tabIndex={tab} className={"fb" + (b.volet ? " opens" : "") + (b.danger ? " danger" : "") + (b.face.kind === "text" || b.face.kind === "value" ? " named" : "") + tint}
                 aria-label={b.label} aria-keyshortcuts={b.aria} aria-pressed={b.pressed === undefined ? undefined : b.pressed ? "true" : "false"}
                 aria-haspopup={b.volet ? (b.volet.kind === "groups" ? "menu" : "dialog") : undefined} aria-expanded={b.volet ? (open === b.id ? "true" : "false") : undefined}
                 onClick={() => { if (b.volet) toggle(b, false); else run(b); }}
@@ -479,7 +511,8 @@ function Bar({ toile, gate, guides }: { toile: Toile; gate: { busy: () => boolea
       {openButton ? (
         <div ref={volet} className={"fvolet nopan nodrag nowheel" + (target.kind === "annotation" ? " hue-" + target.a.style.hue : "") + (openButton.volet && openButton.volet.kind === "align" && openButton.volet.grid ? " has-grid" : "")} role={openButton.volet && openButton.volet.kind === "groups" ? undefined : "dialog"}
           aria-label={openButton.volet && openButton.volet.kind === "groups" ? undefined : openButton.label} onKeyDown={voletKeys}>
-          <VoletBody button={openButton} onPick={(value) => run(openButton, value)} onTip={(el, label, keys) => showTip(el, label, keys, true, true)} grid={grid} />
+          <div className="fvolet-body"><VoletBody button={openButton} onPick={(value) => run(openButton, value)} onTip={(el, label, keys) => showTip(el, label, keys, true, true)} grid={grid} /></div>
+          <span className="fvolet-caret" aria-hidden="true" />
         </div>
       ) : null}
       {tip ? <div ref={tipEl} className="ftip" aria-hidden="true"><span className="ftip-label">{tip.label}</span>{tip.keys ? <span className="ftip-keys">{tip.keys}</span> : null}</div> : null}

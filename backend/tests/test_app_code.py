@@ -5,7 +5,11 @@ changée (son fichier n'est chargé qu'à ce moment), redimensionner (sur la gri
 seul fait défiler le code sans zoomer, sur un bloc non sélectionné elle zoome ; Page suiv. ; double-clic = écriture
 ouverte là où on lisait, Échap n'écrit rien, Ctrl+Entrée enregistre ; copier. Revue du 2026-10-15 : un texte trop long
 garde le brouillon ouvert avec ce qui a été écrit (M2) ; un collage de deux lignes qui porte des valeurs sensibles passe
-par l'avertissement au lieu de devenir une note (M3). Les textes sont factices (secrets inventés)."""
+par l'avertissement au lieu de devenir une note (M3). Passe de finition du 2026-10-15 : après un collage, le focus est
+dans l'avertissement et Tab n'écrit rien dans le texte (il tourne dans l'avertissement, modal) ; à 1280 la fiche
+ouverte, l'avertissement ne passe pas sous elle ; Ctrl+Maj+V et « coller comme bloc de code » font un bloc d'un texte
+non reconnu (texte brut) ; une valeur gardée telle quelle dit au survol sa nature et qui la lit, jamais la valeur. Les
+textes sont factices (secrets inventés)."""
 
 import json
 import os
@@ -15,7 +19,7 @@ import threading
 
 import pytest
 
-from tests.test_app import ASSETS, CTRL, JS_TESTS, NOTE, READY, _fbar, _intent_doc, _press
+from tests.test_app import ASSETS, CTRL, JS_TESTS, NOTE, READY, SHIFT, _fbar, _intent_doc, _press
 from tests.test_render import CHROMIUM
 
 PYTHON = "\n".join(
@@ -346,6 +350,199 @@ def _edit_and_copy(tab, base: str, auth: dict, ident: str) -> None:
     assert tab.js(f"!!{block}.querySelector('.code-copy .lucide-check')"), "l'icône passe à la coche"
 
 
+ACTIVE = "(document.activeElement && (document.activeElement.className || '').toString())"
+TIP_TEXT = "(document.querySelector('.tip-layer .tip') || { textContent: '' }).textContent"
+TIP_ON = "document.querySelector('.tip-layer .tip')?.getAttribute('visibility') === 'visible'"
+
+
+def _paste_keeps_focus_in_the_warning(tab, base: str, auth: dict) -> None:
+    """Audit du 2026-10-15, P1 : après un collage qui porte des valeurs sensibles, le focus est sur « Retirer » (pas
+    dans le champ) ; Tab et Maj+Tab tournent dans l'avertissement (modal, une vraie liste) et n'écrivent rien dans le
+    texte ; depuis le champ, Tab va à l'avertissement ; Échap revient au texte, puis abandonne le brouillon."""
+    from tests.test_view import _wait
+
+    before = len(_codes(base, auth))
+    tab.js("LDApp.debug.handle().toile.select(null)")
+    tab.mouse_move(5, 5)
+    _paste(tab, PASTE_CISCO)
+    _wait(tab, "!!document.querySelector('.code-warn-panel')")
+    _wait(tab, f"/pbtn primary/.test({ACTIVE})")
+    panel = "document.querySelector('.code-warn-panel')"
+    assert tab.js(f"{panel}.getAttribute('aria-modal')") == "true"
+    rows = f"{panel}.querySelectorAll('ul.code-warn-list > li > button.code-warn-row').length"
+    assert tab.js(rows) == 5, "ul / li / button"
+    text = tab.js(f"{EDITOR}.value")
+    for _ in range(6):
+        _press(tab, "Tab", 9)
+        assert tab.js(f"{panel}.contains(document.activeElement)"), "Tab reste dans l'avertissement"
+    _press(tab, "Tab", 9, SHIFT)
+    assert tab.js(f"{panel}.contains(document.activeElement)"), "Maj+Tab aussi"
+    assert tab.js(f"{EDITOR}.value") == text, "rien n'est écrit dans le texte collé"
+    tab.js(f"{EDITOR}.focus()")
+    _press(tab, "Tab", 9)
+    assert tab.js(f"{panel}.contains(document.activeElement)"), "du champ, Tab va à l'avertissement"
+    assert tab.js(f"{EDITOR}.value") == text, "sans rien écrire"
+    _press(tab, "Escape", 27)
+    _wait(tab, f"!document.querySelector('.code-warn-panel') && {EDITING}")
+    _press(tab, "Escape", 27)
+    _wait(tab, "!document.querySelector('.code-draft')")
+    assert len(_codes(base, auth)) == before, "rien n'a été enregistré"
+
+
+def _warning_beside_the_sheet(tab, base: str, auth: dict, ident: str) -> None:
+    """Audit du 2026-10-15, P1 : à 1280 × 800, la fiche ouverte, l'avertissement d'une écriture ne passe pas sous elle ;
+    il reste dans la fenêtre. Échap le referme, puis abandonne l'écriture (rien n'est enregistré)."""
+    from tests.test_view import _wait
+
+    metrics = {"width": 1280, "height": 800, "deviceScaleFactor": 1, "mobile": False}
+    tab.call("Emulation.setDeviceMetricsOverride", metrics)
+    try:
+        _reveal(tab, ident)
+        tab.js(f"LDApp.debug.handle().toile.select({{ kind: 'annotation', id: {json.dumps(ident)} }})")
+        _wait(tab, "!!document.querySelector('.panel')")
+        wait(0.4)
+        x, y = _middle(tab, BLOCK.format(ident))
+        _dblclick(tab, x, y)
+        _wait(tab, EDITING)
+        before = _code(base, auth, ident)["content"]["text"]
+        tab.call("Input.insertText", {"text": "enable password 0 Fini-S3cret\n"})
+        _press(tab, "Enter", 13, CTRL)
+        _wait(tab, "!!document.querySelector('.code-warn-panel')")
+        wait(0.3)
+        got = tab.js(
+            "(() => { const e = document.querySelector('.code-warn-panel'), w = e.getBoundingClientRect(),"
+            " p = document.querySelector('.panel').getBoundingClientRect();"
+            " return { right: w.right, left: w.left, top: w.top, bottom: w.bottom, panel: p.left,"
+            " height: innerHeight, side: e.dataset.side }; })()"
+        )
+        assert got["right"] <= got["panel"] and got["left"] >= 0, got
+        assert got["top"] >= 0 and got["bottom"] <= got["height"], got
+        _press(tab, "Escape", 27)
+        _wait(tab, f"!document.querySelector('.code-warn-panel') && {EDITING}")
+        _press(tab, "Escape", 27)
+        _wait(tab, "!document.querySelector('.code-edit')")
+        assert _code(base, auth, ident)["content"]["text"] == before
+    finally:
+        tab.call("Emulation.clearDeviceMetricsOverride")
+        wait(0.3)
+
+
+def _paste_as_code(tab, base: str, auth: dict) -> None:
+    """Ctrl+Maj+V (Orhan, 2026-10-15) : un texte qui n'est pas reconnu comme du code (Ctrl+V en ferait une note) devient
+    un bloc « Texte brut » ; « coller comme bloc de code » du menu du fond fait de même ; Ctrl+Z défait."""
+    from tests.test_app import _right_click
+    from tests.test_view import _wait
+
+    plain = "liste des vlans\n- 10 users\n- 20 voix"
+    tab.js(f"navigator.clipboard.writeText({json.dumps(plain)})")
+    before = len(_codes(base, auth))
+    tab.js("LDApp.debug.handle().toile.select(null)")
+    tab.js("document.querySelector('.app').focus()")
+    tab.mouse_move(300, 500)
+    _press(tab, "V", 86, CTRL | SHIFT)
+    _until(lambda: len(_codes(base, auth)) == before + 1, "Ctrl+Maj+V : un bloc")
+    made = _codes(base, auth)[-1]["content"]
+    assert made["language"] == "plain" and made["text"] == plain, made
+    _wait(tab, f"/bloc de code créé : 3 lignes, Texte brut/.test({NOTE})")
+    annotations = _intent_doc(base, auth)["annotations"]
+    notes = [a for a in annotations if a["content"]["kind"] == "note" and "vlans" in a["content"]["text"]]
+    assert not notes, "pas une note"
+    _right_click(tab, 300, 520)
+    item = (
+        "Array.from(document.querySelectorAll('.context-menu .context-item'))"
+        ".find((b) => /coller comme bloc de code/.test(b.textContent))"
+    )
+    _wait(tab, f"!!{item}")
+    assert tab.js(f"{item}.getAttribute('aria-keyshortcuts')") == "Control+Shift+V"
+    assert tab.js(f"{item}.querySelector('.context-keys').textContent") == "Ctrl+Maj+V"
+    tab.js(f"{item}.click()")
+    _until(lambda: len(_codes(base, auth)) == before + 2, "le menu : un bloc")
+    assert _codes(base, auth)[-1]["content"]["language"] == "plain"
+    for count in (before + 1, before):
+        tab.js("document.querySelector('.app').focus()")
+        _press(tab, "z", 90, CTRL)
+        _until(lambda c=count: len(_codes(base, auth)) == c, "Ctrl+Z")
+        _wait(tab, f"/annul/.test({NOTE})")
+        wait(0.3)
+
+
+def _kept_value_reminder(tab, base: str, auth: dict) -> None:
+    """Une valeur gardée telle quelle (Orhan, 2026-10-15) : au survol, la bulle dit sa nature et qui la lit, jamais la
+    valeur ; le bouclier de l'en-tête les dit toutes ; la fiche dit la même chose au survol (`title`)."""
+    from tests.test_view import _wait
+
+    tab.js("LDApp.debug.handle().toile.select(null)")
+    tab.mouse_move(5, 5)
+    _paste(tab, PASTE_CISCO)
+    _wait(tab, "!!document.querySelector('.code-warn-panel')")
+    tab.js(
+        "Array.from(document.querySelectorAll('.code-warn-panel .pbtn')).find((b) => /Garder/.test(b.textContent))"
+        ".click()"
+    )
+    _wait(tab, "!document.querySelector('.code-draft')")
+    kept = _codes(base, auth)[-1]
+    assert "Dc01-RoCommunity!" in kept["content"]["text"]
+    ident = kept["id"]
+    _reveal(tab, ident)
+    tab.js("LDApp.debug.handle().toile.select(null)")
+    block = BLOCK.format(ident)
+    _wait(tab, f"{block} && {block}.querySelectorAll('[data-secret]').length === 5")
+    hit = f"{block}.querySelectorAll('[data-secret]')[2]"
+    x, y = _middle(tab, hit)
+    tab.mouse_move(x - 3, y)
+    tab.mouse_move(x, y)
+    _wait(tab, TIP_ON)
+    said = tab.js(TIP_TEXT)
+    assert "communauté SNMP" in said and "EN CLAIR" in said, said  # la nature en pastille
+    assert "lisible par tous ceux qui ouvrent infra-lab" in said, said
+    assert "Dc01-RoCommunity" not in said, "jamais la valeur"
+    x, y = _middle(tab, f"{block}.querySelector('[data-shield]')")
+    tab.mouse_move(x, y)
+    _wait(tab, f"/5 valeurs sensibles gardées/.test({TIP_TEXT})")
+    tab.mouse_move(5, 5)
+    tab.js(f"LDApp.debug.handle().toile.select({{ kind: 'annotation', id: {json.dumps(ident)} }})")
+    _wait(tab, "document.querySelectorAll('.insp-code span.tk-secret[title]').length === 5")
+    title = tab.js("document.querySelectorAll('.insp-code span.tk-secret[title]')[2].title")
+    assert title == "communauté SNMP, en clair, ligne 9 ; lisible par tous ceux qui ouvrent infra-lab", title
+    assert "valeurs sensibles gardées telles quelles" in tab.js("document.querySelector('.insp-warn-icon').title")
+    tab.js("LDApp.debug.handle().toile.select(null)")
+
+
+def _language_volet_keyboard(tab, base: str, auth: dict, url: str) -> None:
+    """Audit du 2026-10-15, P1 : le volet du langage avec une suggestion s'ouvre au clavier sur le langage coché (pas
+    sur « appliquer ») ; ↓ parcourt les langages ; Tab va à « appliquer » et revient à la liste ; le volet reste
+    ouvert."""
+    import httpx
+
+    from tests.test_view import _wait
+
+    content = {"kind": "code", "text": PYTHON, "language": "plain", "title": "brut"}
+    content |= {"highlight": True, "line_numbers": True, "font": "jetbrains_mono"}
+    op = {"op": "annotation_create", "x": 900, "y": 600, "w": 520, "h": 260, "content": content}
+    params, body = {"infrastructure": "infra-lab"}, {"author": "orhan", "ops": [op]}
+    done = httpx.post(f"{base}/api/intent/patches", params=params, headers=auth, json=body)
+    ident = done.json()["annotations"][-1]["id"]
+    tab.navigate(url)
+    _wait(tab, READY)
+    _reveal(tab, ident)
+    tab.js(f"LDApp.debug.handle().toile.select({{ kind: 'annotation', id: {json.dumps(ident)} }})")
+    _wait(tab, "!!document.querySelector('.fbar:not(.suspended):not(.offscreen) .fb[data-id=code_language]')")
+    tab.js("document.querySelector('.fbar .fb[data-id=code_language]').focus()")
+    _press(tab, "ArrowDown", 40)
+    _wait(tab, "!!document.querySelector('.fvolet .vsuggest')")
+    _wait(tab, "document.activeElement && document.activeElement.getAttribute('aria-checked') === 'true'")
+    assert tab.js("document.activeElement.textContent") == "Texte brut"
+    _press(tab, "ArrowDown", 40)
+    assert tab.js("document.activeElement.textContent") == "Python", "↓ : les langages"
+    _press(tab, "Tab", 9)
+    assert tab.js("document.activeElement.classList.contains('vbtn')"), "Tab : « appliquer »"
+    _press(tab, "Tab", 9)
+    checked = tab.js("document.activeElement.getAttribute('aria-checked')")
+    assert checked == "true", "Tab : retour à la liste, sur le coché"
+    _press(tab, "Escape", 27)
+    _wait(tab, "!document.querySelector('.fvolet')")
+
+
 @pytest.mark.skipif(CHROMIUM is None, reason="Chromium headless absent : pas de test dans un vrai navigateur")
 def test_the_code_block_in_a_browser(settings, bundle_dict):
     import httpx
@@ -372,10 +569,15 @@ def test_the_code_block_in_a_browser(settings, bundle_dict):
             _paste_with_secrets(tab, base, auth)
             _too_long_keeps_the_draft(tab, base, auth)
             _short_paste_with_secrets(tab, base, auth)
+            _paste_keeps_focus_in_the_warning(tab, base, auth)
+            _paste_as_code(tab, base, auth)
+            _kept_value_reminder(tab, base, auth)
             ident = _seed_long(tab, base, auth, url)
+            _warning_beside_the_sheet(tab, base, auth, ident)
             _scroll_and_settings(tab, base, auth, ident)
             _resize_and_zoom(tab, base, auth, ident)
             _edit_and_copy(tab, base, auth, ident)
+            _language_volet_keyboard(tab, base, auth, url)
             errors = [c for c in chrome.console if c.get("level") == "error"]
             assert not errors, errors[:3]
     finally:

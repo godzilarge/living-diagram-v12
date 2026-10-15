@@ -149,3 +149,28 @@ tranches après la première image. (`/impeccable optimize`)
 4. [P2] `/impeccable optimize` : fenêtrer le code dans la fiche.
 5. [P2, puis P3] `/impeccable polish` : le pouce de défilement (P2), puis les z-index en jetons, les couleurs du clair de la barre, `copier`,
    le compteur.
+
+## Suivi (passe de finition du 2026-10-15)
+
+Décisions d'Orhan : tous les défauts purs ; rien d'autre. Captures avant / après dans `.impeccable/planche-finition/`,
+mesures dans `mesures-perf-apres.json` et `mesures-pan-apres.json` (les scripts de cet audit, rejoués). Détail :
+`docs/11` § Lot 16, « Passe de finition (2026-10-15) ».
+
+| Constat | Fait |
+|---|---|
+| P1 focus et Tab après un collage | Le champ ne reprend plus le focus quand l'avertissement est ouvert ; Tab depuis le champ va à l'avertissement sans rien écrire ; Tab / Maj+Tab tournent dans l'avertissement (`aria-modal="true"`). Chromium : focus sur « Retirer », six Tab et un Maj+Tab sans sortir, texte collé inchangé. |
+| P1 avertissement sous la fiche | `placeWarn` (`code/geometry.ts`, pur) : droite, gauche, dessous, dessus, sinon sur le bloc borné à la zone ; la zone s'arrête au bord de la fiche. Chromium à 1280 la fiche ouverte ; captures à 1024 et 1280 (« sur le bloc » : aucun côté ne tient), 1440 sur le côté. |
+| P1 volets à plusieurs groupes | Tab / Maj+Tab font le tour des groupes du volet (`nextGroup`, `startGroup`), le volet reste ouvert ; focus d'ouverture sur l'élément coché du premier groupe de choix ; un menu se ferme à Tab. `engine/README.md` corrigé. Chromium : grille → colonnes → ordre → « mettre en grille » → grille ; volet du langage : le coché, ↓, « appliquer », retour. |
+| P2 contrastes du clair | Une encre par teinte et par thème (`--hue-*-ink`, tokens.css) : pastille du langage 4,11-4,48 → 4,81-4,88 ; cote d'un écart égal sur `--guide-fill` (l'encre de la teinte) : 3,64-4,10 → ≥ 6,2 ; nature `--code-nature` 4,06 → 5,21 (mesurés sur les valeurs des jetons, comme le test). Tests Node sur le texte (4,5), pas seulement le trait. |
+| P2 pouce de défilement | `--code-thumb` (sombre 4,03:1, clair 3,61:1), survol plus marqué ; 8 unités de large au lieu de 5. |
+| P2 `<button role="listitem">` | `ul` / `li` / `button`. |
+| P2 fiche de 2 000 lignes | Fenêtrée au-delà de 200 lignes (`lineWindow`) : 2 000 → 36 lignes rendues ; ouverture demo-dc 183-217 → 31-51 ms, jauge 225-267 → 51-71 ms, plus longue tâche 162-243 → 0-59 ms. |
+| P2 pastilles de couleur | Cible de 24 × 24, disque de 16 dedans, grille de six. |
+| P3 « copier » non focalisable | Retiré de l'arbre d'accessibilité (`aria-hidden`), la fiche le porte au clavier. |
+| P3 compteur de colonnes | « 4 colonnes » en texte `sr-only` dans la région live. |
+| P3 `aria-modal` | Fait (avec le confinement). |
+| P3 z-index | `--z-guides`, `--z-fbar`, `--z-fvolet`, `--z-ftip` sur l'échelle. |
+| P3 couleurs en dur du clair | `--fbar-*` et `--tip-inv-*` (tokens.css), plus aucune valeur dans floating.css. |
+
+Choix discutables laissés tels quels. Mesure de non-régression : panoramique barre montrée p50 43-48 ms (audit : 44-47).
+Détecteur Impeccable sur les fichiers touchés : aucun constat.

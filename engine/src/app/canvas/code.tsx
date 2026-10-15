@@ -13,7 +13,7 @@ import { useReactFlow } from "@xyflow/react";
 import { t } from "../../i18n";
 import type { Annotation } from "../../canvas/types";
 import type { CodeContent } from "../../contracts/intent";
-import { CODE, baseline, footer, keyScroll, layout, lineCount, scrollbar, thumbDrag, trackClick, wheelLines } from "../code/geometry";
+import { CODE, baseline, charWidth, footer, keyScroll, layout, lineCount, scrollbar, thumbDrag, trackClick, wheelLines } from "../code/geometry";
 import type { CodeLayout } from "../code/geometry";
 import { LANGUAGE_LABEL, LANGUAGE_SHORT } from "../code/languages";
 import { findSecrets, withSecrets } from "../code/secrets";
@@ -84,9 +84,17 @@ export function CodeBody({ a, c, w, h, first, editing = false, idSuffix = "", on
         ? <text className="code-title" x={CODE.RAIL + 12} y={cy + 4.5}>{title}</text>
         : <text className="code-count" x={CODE.RAIL + 12} y={cy + 4}>{t("shell:code.lines", { count: l.total })}</text>}
       <Pill text={pill} right={pillRight} cy={cy} off={!colored} />
-      {secrets.length ? <ShieldAlert className="code-icon code-warn" x={warnRight - 16} y={cy - 8} width={16} height={16} aria-hidden="true" /> : null}
+      {secrets.length ? (
+        // le bouclier : au survol, la bulle rappelle chaque valeur gardée et qui la lit (secret-tip.ts ; Flow la montre)
+        <g className="code-shield" data-shield="">
+          <rect className="code-hit" x={warnRight - 20} y={cy - 12} width={24} height={24} rx={6} />
+          <ShieldAlert className="code-icon code-warn" x={warnRight - 16} y={cy - 8} width={16} height={16} aria-hidden="true" />
+        </g>
+      ) : null}
       {onCopy ? (
-        <g className="code-copy nodrag nopan" role="button" aria-label={t("shell:code.copyCode")} transform={`translate(${copyX} ${cy - 12})`}
+        // copier, à la souris ; au clavier et au lecteur d'écran, celui de la fiche (le nœud porte déjà le focus et le
+        // nom du bloc : un bouton non focalisable dedans n'était qu'un rôle sans chemin, audit du 2026-10-15)
+        <g className="code-copy nodrag nopan" aria-hidden="true" transform={`translate(${copyX} ${cy - 12})`}
           onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onCopy(); }}>
           <rect width={24} height={24} rx={6} />
           {copied ? <Check className="code-icon" x={5} y={5} width={14} height={14} aria-hidden="true" /> : <Copy className="code-icon" x={5} y={5} width={14} height={14} aria-hidden="true" />}
@@ -97,6 +105,7 @@ export function CodeBody({ a, c, w, h, first, editing = false, idSuffix = "", on
           {shown.map((_, i) => <text key={i} x={CODE.RAIL + l.gutter - CODE.GUTTER} y={baseline(i, l.lh, size)} textAnchor="end">{String(l.first + i + 1)}</text>)}
         </g>
       ) : null}
+      {editing || !secrets.length ? null : <SecretHits secrets={secrets} l={l} size={size} font={c.font} />}
       {editing ? null : (
         <g className="code-text" fontSize={size}>
           {shown.map((segs, i) => {
@@ -117,6 +126,21 @@ export function CodeBody({ a, c, w, h, first, editing = false, idSuffix = "", on
           {foot.from > 1 || foot.below > 0 ? <text className="code-foot-more" x={CODE.RAIL + 12} y={h - l.foot / 2 + 4}>{foot.below > 0 ? t("shell:code.below", { count: foot.below }) : t("shell:code.end")}</text> : null}
         </>
       ) : null}
+    </g>
+  );
+}
+
+/** Sous chaque valeur sensible gardée et visible, une zone de survol (le texte du code ne prend pas le pointeur) :
+ *  la bulle dit sa nature et qui la lit (secret-tip.ts), jamais la valeur ; le clic passe au bloc. */
+function SecretHits({ secrets, l, size, font }: { secrets: ReturnType<typeof findSecrets>; l: CodeLayout; size: number; font: string }) {
+  const cw = charWidth(size, font);
+  return (
+    <g className="code-secrets">
+      {secrets.map((f, i) => {
+        const row = f.line - l.first, end = Math.min(f.end, l.cols);
+        if (row < 0 || row >= l.visible || f.start >= end) return null;
+        return <rect key={i} className="code-hit" data-secret={i} x={l.textX + f.start * cw} y={CODE.HEAD + CODE.PAD + row * l.lh} width={(end - f.start) * cw} height={l.lh} />;
+      })}
     </g>
   );
 }
@@ -144,7 +168,7 @@ function ScrollBar({ id, l, bar }: { id: string; l: CodeLayout; bar: NonNullable
   return (
     <g className="code-scroll nodrag nopan">
       <rect className="code-track" x={bar.x} y={bar.trackY} width={CODE.SCROLL} height={bar.trackH} onPointerDown={(event) => down(event, false)} />
-      <rect className="code-thumb" x={bar.x + 3.5} y={bar.thumbY} width={5} height={bar.thumbH} rx={2.5} onPointerDown={(event) => down(event, true)} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
+      <rect className="code-thumb" x={bar.x + 2} y={bar.thumbY} width={8} height={bar.thumbH} rx={4} onPointerDown={(event) => down(event, true)} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
     </g>
   );
 }

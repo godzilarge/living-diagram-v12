@@ -28,6 +28,10 @@
   --node: #19222e; --node-line: #3b4b61; --node-ink: #e7edf3;
   --hue-blue: #5b9cf6; --hue-sky: #38bdf8; --hue-indigo: #818cf8; --hue-violet: #c084fc; --hue-pink: #f472b6; --hue-red: #f87171;
   --hue-orange: #f2a541; --hue-amber: #fbbf24; --hue-lime: #a3e635; --hue-green: #4ade80; --hue-teal: #2dd4bf; --hue-slate: #94a3b8;
+  /* l'encre d'une teinte, pour un texte à sa couleur (la pastille du langage d'un bloc de code, la cote des repères) :
+     ≥ 4,5:1 sur sa pastille teintée et, en clair, sous le blanc (testé sous Node, audit du 2026-10-15) */
+  --hue-blue-ink: #85b4f5; --hue-sky-ink: #6ccbf6; --hue-indigo-ink: #a0a9f6; --hue-violet-ink: #cca4f9; --hue-pink-ink: #f097c8; --hue-red-ink: #f39698;
+  --hue-orange-ink: #efbb76; --hue-amber-ink: #f5cd62; --hue-lime-ink: #b7e86e; --hue-green-ink: #79e2a2; --hue-teal-ink: #65dccf; --hue-slate-ink: #adb9ca;
   --pill-tint: 16%; /* le fond d'une pastille : sa teinte mêlée au fond relevé (app.css, .pill) */
   --icon-mark: #0b0f14; /* le symbole en réserve dans l'icône de type : le fond, sur les teintes claires du sombre */
   --grid: #1f2a38;
@@ -35,6 +39,9 @@
      (rouge = erreur, rose = changé, cyan = sélection, ambre et orange = avertissement) ; 14:1 sur le fond. La couleur
      se choisit (préférence du navigateur) : `--guide` est alors posé sur la racine par le CSSOM (prefs.ts). */
   --guide-default: #c6f03a; --guide: var(--guide-default); --guide-ink: #0b0f14;
+  /* le fond de la cote d'un écart égal : la teinte des repères, ou son encre (`--hue-*-ink`) quand elle est choisie, pour
+     que le texte (`--guide-ink`) y tienne 4,5:1 (prefs.ts le pose avec --guide) */
+  --guide-fill: var(--guide-default);
   --scrim: rgba(5, 8, 12, 0.35);
   --sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
@@ -46,9 +53,16 @@
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
   --shadow-tip: 0 8px 18px rgba(0, 0, 0, 0.5);
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35); /* un relief à peine : le curseur d'un choix exclusif */
+  /* la barre contextuelle (floating.css) : plus relevée que la barre du haut ; son infobulle est en surface inversée en
+     clair (sombre sur la toile claire), comme en sombre */
+  --fbar-bg: var(--bg-elev-2); --fbar-on-line: color-mix(in srgb, var(--ink) 30%, var(--bg-elev-2));
+  --fbar-hover: color-mix(in srgb, var(--ink) 9%, var(--bg-elev-2)); --fbar-on: color-mix(in srgb, var(--ink) 18%, var(--bg-elev-2)); --fbar-on-shadow: var(--ctl-on-shadow);
+  --tip-inv-bg: var(--bg-elev-2); --tip-inv-line: var(--line-strong); --tip-inv-ink: var(--ink); --tip-inv-ink-3: var(--ink-3); --tip-inv-ink-4: var(--ink-4);
   --bar-h: 44px;
   --panel-w: 348px;
-  --z-bar: 20; --z-band: 25; --z-panel: 30; --z-palette: 40; --z-toast: 50; --z-sheet: 60;
+  /* l'échelle des plans : la couche des repères au-dessus de la toile, la barre contextuelle, ses volets et son infobulle
+     sous le panneau (audit du 2026-10-15 : plus de valeur en dur dans guides.css et floating.css) */
+  --z-guides: 5; --z-bar: 20; --z-band: 25; --z-fbar: 28; --z-fvolet: 29; --z-panel: 30; --z-ftip: 31; --z-palette: 40; --z-toast: 50; --z-sheet: 60;
 }
 /* Le thème clair : mêmes rôles, teintes de statut assombries pour tenir le contraste sur le blanc. */
 :root[data-theme="light"] {
@@ -73,14 +87,19 @@
   --node: #ffffff; --node-line: #c7d0dc; --node-ink: #141b24;
   --hue-blue: #2563eb; --hue-sky: #0284c7; --hue-indigo: #4f46e5; --hue-violet: #7c3aed; --hue-pink: #db2777; --hue-red: #dc2626;
   --hue-orange: #d97706; --hue-amber: #b7791f; --hue-lime: #4d7c0f; --hue-green: #16a34a; --hue-teal: #0d9488; --hue-slate: #64748b;
+  --hue-blue-ink: #2256c7; --hue-sky-ink: #076496; --hue-indigo-ink: #4c44db; --hue-violet-ink: #6e36d3; --hue-pink-ink: #ab2463; --hue-red-ink: #b02426;
+  --hue-orange-ink: #8c5312; --hue-amber-ink: #7e5821; --hue-lime-ink: #416813; --hue-green-ink: #156e3b; --hue-teal-ink: #0f6b66; --hue-slate-ink: #526074;
   --pill-tint: 10%;
   --icon-mark: #ffffff; /* blanc sur les teintes profondes du clair */
   --grid: #d6dde7;
   --guide-default: #4f7a00; --guide: var(--guide-default); --guide-ink: #ffffff; /* 4,5:1 sur le fond clair */
+  --guide-fill: var(--guide-default);
   --scrim: rgba(20, 27, 36, 0.25);
   --shadow: 0 14px 40px rgba(20, 27, 36, 0.16), 0 0 0 1px rgba(20, 27, 36, 0.05);
   --shadow-tip: 0 8px 18px rgba(20, 27, 36, 0.18);
   --shadow-xs: 0 1px 2px rgba(20, 27, 36, 0.14);
+  --fbar-bg: #ffffff; --fbar-on-line: #8f9cae; --fbar-hover: #edf0f4; --fbar-on: #e3e8ef; --fbar-on-shadow: inset 0 0 0 1px #c9d2dd;
+  --tip-inv-bg: #1a2330; --tip-inv-line: #1a2330; --tip-inv-ink: #e7edf3; --tip-inv-ink-3: #a3b2c4; --tip-inv-ink-4: #68798f;
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --t-fast: 0ms; --t: 0ms; }

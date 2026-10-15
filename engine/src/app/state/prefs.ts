@@ -10,7 +10,7 @@ import { isLanguage } from "../../i18n";
 import type { Language } from "../../i18n";
 import type { HueName } from "../../canvas/hues";
 import type { GridOrder } from "../../canvas/align";
-import { guideColor, isGuideHue } from "../canvas/guides";
+import { guideColor, guideFill, isGuideHue } from "../canvas/guides";
 
 export type Theme = "dark" | "light";
 /** `language` : celle choisie dans l'application, `null` = celle du navigateur (i18n `effectiveLanguage`). */
@@ -47,8 +47,10 @@ export function parsePrefs(text: string | null): Prefs {
 export function applyGuideColor(hue: HueName | null): void {
   const root = globalThis.document ? globalThis.document.documentElement : null;
   if (!root) return;
-  const value = guideColor(hue);
+  const value = guideColor(hue), fill = guideFill(hue);
   if (value) root.style.setProperty("--guide", value); else root.style.removeProperty("--guide");
+  // le fond de la cote d'un écart égal : l'encre de la teinte, où le texte tient 4,5:1 (audit du 2026-10-15)
+  if (fill) root.style.setProperty("--guide-fill", fill); else root.style.removeProperty("--guide-fill");
 }
 
 export function readPrefs(): Prefs {

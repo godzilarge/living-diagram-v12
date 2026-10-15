@@ -9,8 +9,9 @@
 // focus est sur la toile (Échap la vide : Tab rend alors la main à la page). Lot 3 : Ctrl+C / Ctrl+X copient (coupent)
 // la sélection, Ctrl+V colle une copie de Living Diagram au pointeur (sinon à côté de l'original), Ctrl+D duplique
 // (state/clipboard-commands.ts) ; dans un champ, ou avec du texte sélectionné dans la page, le navigateur garde la main.
+// Ctrl+Maj+V (Orhan, 2026-10-15) : coller comme bloc de code, toujours (langage détecté, sinon texte brut).
 import { ArrowLeft } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { applyLanguage, t } from "../../i18n";
 import { describe } from "../state/describe";
 import { GRID } from "../canvas/Flow";
@@ -35,6 +36,9 @@ import { typing } from "../canvas/keys";
 export const NUDGE_STEP = GRID, NUDGE_FAST = GRID * 5;
 /** Les images attendues au plus pour qu'un élément choisi par Tab hors champ arrive dans le DOM (la vue va à lui). */
 const FOCUS_TRIES = 30;
+/** Ctrl+Maj+V : le `paste` du navigateur arrive dans la même tâche ; sans lui après ce délai, la page lit le
+ *  presse-papiers ; armé, le collage reste « comme bloc de code » ce temps-là au plus. */
+const AS_CODE_WAIT_MS = 300, AS_CODE_MS = 1000;
 const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 // Les flèches appartiennent à la bande des runs quand elle a le focus, à la barre contextuelle et à ses volets (lot 4),
 // et à aucun dialogue ouvert.
@@ -91,9 +95,15 @@ export function Shell() {
   // texte sélectionné (une fiche, une description) : ce texte-là se copie.
   const control = state.view.mode === "control"; // la vue Contrôle se lit : rien ne s'y colle, la page le dit (2026-10-09)
   const journal = state.view.mode === "journal"; // la vue Journal remplace la toile : ni toile, ni outils, ni clavier de la toile
+  // Ctrl+Maj+V arme le collage suivant « comme bloc de code » : le navigateur émet ensuite `paste` avec son presse-papiers
+  // (rien n'est empêché) ; s'il ne l'émet pas, la page lit le presse-papiers elle-même après un court délai.
+  const asCode = useRef<{ at: number; timer: number | null }>({ at: 0, timer: null });
+  const disarm = (): void => { const a = asCode.current; if (a.timer !== null) window.clearTimeout(a.timer); a.at = 0; a.timer = null; };
+  useEffect(() => () => disarm(), []);
   useEffect(() => {
     const onPaste = (event: ClipboardEvent): void => {
       if (!ready || journal || typing(event.target) || !event.clipboardData) return;
+      if (asCode.current.at && performance.now() - asCode.current.at < AS_CODE_MS) { disarm(); event.preventDefault(); commands.pasteCodeEvent(event.clipboardData); return; }
       if (commands.pasteEvent(event.clipboardData)) event.preventDefault();
     };
     const onCopy = (cut: boolean) => (event: ClipboardEvent): void => {
@@ -116,6 +126,14 @@ export function Shell() {
       if (mod && !event.altKey && (key === "y" || (key === "z" && event.shiftKey))) { if (!control) { event.preventDefault(); commands.redo(); } return; }
       if (mod && !event.altKey && key === "z") { if (!control) { event.preventDefault(); commands.undo(); } return; }
       const dialog = state.palette.open || state.menuOpen || state.connectOpen || state.colorsOpen;
+      // Ctrl+Maj+V : le collage qui suit devient un bloc de code (en Contrôle ou sans nom, la page dit pourquoi rien)
+      if (mod && event.shiftKey && !event.altKey && key === "v" && !dialog && !elsewhere(event.target)) {
+        disarm();
+        const a = asCode.current;
+        a.at = performance.now();
+        a.timer = window.setTimeout(() => { a.timer = null; if (a.at) { a.at = 0; commands.pasteCodeFromMenu(null); } }, AS_CODE_WAIT_MS);
+        return;
+      }
       // Ctrl+D : dupliquer (lot 3) ; en Contrôle ou sans nom, rien ne se crée et la page le dit
       if (mod && !event.altKey && !event.shiftKey && key === "d" && !dialog && !elsewhere(event.target)) { if (commands.duplicate()) { event.preventDefault(); event.stopPropagation(); } return; }
       if (!control && !dialog && !elsewhere(event.target)) {

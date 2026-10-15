@@ -267,6 +267,23 @@ def test_the_application_alignment_guides_in_a_browser(settings, bundle_dict):
             hosts = ["sw-core-01", "sw-core-02", "fw-edge-01", "fw-edge-02", "rt-wan-01"]
             tab.js(f"LDApp.debug.handle().toile.selectHosts({json.dumps(hosts)})")
             before = _positions(tab)
+            # 6 bis. Au clavier (audit du 2026-10-15, P1) : ↓ ouvre le volet, le focus sur la grille d'alignement ; Tab
+            # fait le tour des groupes (colonnes, ordre, « mettre en grille ») sans fermer le volet ; Échap le ferme
+            _wait(tab, "!!document.querySelector('.fbar:not(.suspended):not(.offscreen) .fb[data-id=align]')")
+            tab.js("document.querySelector('.fbar .fb[data-id=align]').focus()")
+            _press(tab, "ArrowDown", 40)
+            _wait(tab, "!!document.activeElement && document.activeElement.classList.contains('vgrid-item')")
+            stops = []
+            for _ in range(4):
+                _press(tab, "Tab", 9)
+                said = "document.activeElement.getAttribute('aria-label') || document.activeElement.textContent"
+                stops.append(tab.js(said))
+            assert stops == ["une colonne de moins", "par nom", "mettre en grilleAlt+G", "aligner à gauche"], stops
+            _press(tab, "Tab", 9, 8)
+            assert tab.js("document.activeElement.classList.contains('grid-go')"), "Maj+Tab : en arrière, en boucle"
+            assert tab.js("!!document.querySelector('.fvolet')"), "le volet reste ouvert"
+            _press(tab, "Escape", 27)
+            _wait(tab, "!document.querySelector('.fvolet') && document.activeElement.dataset.id === 'align'")
             _fbar(tab, "align")
             _wait(tab, "!!document.querySelector('.fvolet .grid-go')")
             assert tab.js("document.querySelector('.fvolet .volet-cap b').textContent") == "5 → 3 × 2"

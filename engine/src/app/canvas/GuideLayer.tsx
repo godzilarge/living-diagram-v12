@@ -8,9 +8,9 @@
 // alignés repassent à pleine opacité (classe `guide-hit` posée sur leur nœud, que React ne réécrit pas).
 import { useStore as useFlowStore } from "@xyflow/react";
 import type { ReactFlowState } from "@xyflow/react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { t } from "../../i18n";
-import { LINE_OVER_PX, fitName, pillSpot, runs } from "./guides";
+import { LINE_OVER_PX, crossPoints, fitName, lineBands, pillSpot, runs } from "./guides";
 import type { Box, Gaps, Line, Rect, Zone } from "./guides";
 import { CHROME, CHROME_MARGIN } from "./chrome";
 
@@ -22,8 +22,12 @@ export interface GuideView {
   /** La pastille : la boîte qu'elle accompagne, son texte (« X, Y ») ; `free` : Ctrl tenu, « libre ». Texte vide : « libre » seul. */
   pill: { box: Box; text: string; free: boolean } | null;
   preview: { key: string; name: string; box: Box }[] | null;
+  /** Les coins (plan) qui portent déjà une marque : pas de croix dessus (les poignées de la sélection, une épingle). */
+  bare: { x: number; y: number }[];
 }
-export const EMPTY_GUIDES: GuideView = { lines: [], gaps: [], hits: [], obstacles: [], union: null, pill: null, preview: null };
+export const EMPTY_GUIDES: GuideView = { lines: [], gaps: [], hits: [], obstacles: [], union: null, pill: null, preview: null, bare: [] };
+/** Le magasin des repères, pour les nœuds de la toile (la pastille « X, Y » d'une annotation glissée s'en écarte). */
+export const GuideContext = createContext<GuideStore | null>(null);
 export interface GuideStore { get: () => GuideView; set: (patch: Partial<GuideView>) => void; clear: () => void; subscribe: (listener: () => void) => () => void }
 export function createGuideStore(): GuideStore {
   let current = EMPTY_GUIDES;
@@ -40,20 +44,23 @@ const shown = (v: GuideView): boolean => !!(v.lines.length || v.gaps.length || v
 
 /** Une marque en coin (croix), l'épaisseur d'une cote, sa hauteur, la largeur d'un chiffre (JetBrains Mono 600 11). */
 const MARK = 3.5, NUM_H = 16, CHAR_W = 6.82, PILL_H = 20, NAME_SIZE = 11;
+/** À cette distance d'écran d'une poignée ou d'une épingle, un coin ne porte pas de croix. */
+const BARE_PX = 6;
 const crisp = (v: number): number => Math.round(v) + 0.5;
 const NO_VIEW: [number, number, number] = [0, 0, 1];
 
-function GuideLine({ line, obstacles, s }: { line: Line; obstacles: Box[]; s: Screen }) {
+function GuideLine({ line, obstacles, bare, s }: { line: Line; obstacles: Box[]; bare: { x: number; y: number }[]; s: Screen }) {
   const vertical = line.axis === "x", c = crisp(vertical ? s.x(line.at) : s.y(line.at));
   const parts = runs(line, obstacles, LINE_OVER_PX / s.k).map(([p, q]) => {
     const a = Math.round(vertical ? s.y(p) : s.x(p)), b = Math.round(vertical ? s.y(q) : s.x(q));
     return vertical ? `M${c} ${a}V${b}` : `M${a} ${c}H${b}`;
   });
-  // un repère de bord porte une croix à chaque coin qu'il aligne ; un repère de centre s'arrête au bord des objets
-  const marks = line.kind !== "edge" ? [] : line.boxes.flatMap((b) => (vertical ? [b.y, b.y + b.h] : [b.x, b.x + b.w]).map((v) => {
-    const p = vertical ? s.y(v) : s.x(v), [x, y] = vertical ? [c, p] : [p, c];
+  // un repère de bord porte une croix à chaque coin qu'il aligne, sauf sur une poignée ou une épingle ; un repère de
+  // centre s'arrête au bord des objets
+  const marks = crossPoints(line, bare, BARE_PX / s.k).map((p) => {
+    const [x, y] = vertical ? [c, s.y(p.y)] : [s.x(p.x), c];
     return `M${x - MARK} ${y - MARK}L${x + MARK} ${y + MARK}M${x - MARK} ${y + MARK}L${x + MARK} ${y - MARK}`;
-  }));
+  });
   return (
     <g data-guide={line.kind}>
       <path className="guide-line" d={parts.join("")} />
@@ -95,7 +102,7 @@ function GesturePill({ pill, s, zone, obstacles, lines }: { pill: NonNullable<Gu
   const w = Math.round(pill.text.length * CHAR_W + (pill.free ? free.length * 6.4 + (pill.text ? 8 : 0) : 0) + 16);
   const box = s.rect(pill.box);
   const avoid: Rect[] = obstacles.map(s.rect).filter((r) => !(Math.abs(r.x - box.x) < 1 && Math.abs(r.y - box.y) < 1))
-    .concat(lines.map((l) => (l.axis === "x" ? { x: s.x(l.at) - 2, y: -1e5, w: 4, h: 2e5 } : { x: -1e5, y: s.y(l.at) - 2, w: 2e5, h: 4 })));
+    .concat(lineBands(lines.map((l) => ({ axis: l.axis, at: l.axis === "x" ? s.x(l.at) : s.y(l.at) }))));
   const spot = pillSpot(box, w, PILL_H, zone, avoid);
   return (
     <g className="guide-pill" transform={`translate(${spot.x} ${spot.y})`}>
@@ -163,7 +170,7 @@ export function GuideLayer({ store }: { store: GuideStore }) {
         const x0 = crisp(union.x - 4), y0 = crisp(union.y - 4), x1 = crisp(union.x + union.w + 3), y1 = crisp(union.y + union.h + 3), k = 12;
         return <path className="guide-union" d={`M${x0} ${y0 + k}V${y0}H${x0 + k}M${x1 - k} ${y0}H${x1}V${y0 + k}M${x1} ${y1 - k}V${y1}H${x1 - k}M${x0 + k} ${y1}H${x0}V${y1 - k}`} />;
       })() : null}
-      {view.lines.map((line, i) => <GuideLine key={"l" + i} line={line} obstacles={view.obstacles} s={s} />)}
+      {view.lines.map((line, i) => <GuideLine key={"l" + i} line={line} obstacles={view.obstacles} bare={view.bare} s={s} />)}
       {view.gaps.map((g, i) => <GuideGaps key={"g" + i} gaps={g} s={s} />)}
       {view.pill ? <GesturePill pill={view.pill} s={s} zone={zone} obstacles={view.obstacles} lines={view.lines} /> : null}
     </svg>

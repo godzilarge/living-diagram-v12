@@ -60,7 +60,8 @@ function GridSection({ grid }: { grid: GridControls }) {
         <span className="order-label" id="grid-cols-label">{t("fbar.gridColumns")}</span>
         <div className="stepper" role="group" aria-labelledby="grid-cols-label">
           <button type="button" className="step" aria-label={t("fbar.gridFewer")} disabled={grid.cols <= 1} onClick={() => grid.setCols(grid.cols - 1)} {...hover}><Minus aria-hidden="true" /></button>
-          <span className="step-val" aria-live="polite" aria-label={t("fbar.gridColumnsCount", { count: grid.cols })}>{grid.cols}</span>
+          {/* la région live lit « 4 colonnes » en entier (un `aria-label` sur un span générique n'est pas lu : audit du 2026-10-15) */}
+          <span className="step-val" aria-live="polite"><span aria-hidden="true">{grid.cols}</span><span className="sr-only">{t("fbar.gridColumnsCount", { count: grid.cols })}</span></span>
           <button type="button" className="step" aria-label={t("fbar.gridMore")} disabled={grid.cols >= grid.count} onClick={() => grid.setCols(grid.cols + 1)} {...hover}><Plus aria-hidden="true" /></button>
         </div>
       </div>

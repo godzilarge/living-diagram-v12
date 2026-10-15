@@ -187,6 +187,8 @@ test("la barre contextuelle d'un bloc : teinte | langage, police, coloration, nu
   assert.deepEqual(clone([lang.face, lang.volet.kind]), [{ kind: "text", text: "Cisco IOS / NX-OS", hint: false }, "codeLanguage"]);
   assert.equal(bar.find((e) => e.id === "code_font").face.text, "Plex Mono");
   assert.equal(bar.find((e) => e.id === "code_highlight").pressed, true);
+  // la taille se lit dans la barre (« AA 13 », critique du 2026-10-15, comme le prototype)
+  assert.deepEqual(clone(bar.find((e) => e.id === "text_size").face), { kind: "value", icon: "textSize", text: "13" });
   const plain = floating.entriesOf({}, { kind: "annotation", a: { ...a, h: 400, content: { ...content, language: "plain", text: "a\nb\nc" } } });
   assert.ok(!ids(plain).includes("code_highlight"), "pas de coloration sur un texte brut");
   const fitted = floating.entriesOf({}, { kind: "annotation", a: { ...a, h: 300, content: { ...content, text: "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl" } } });
@@ -439,5 +441,106 @@ test("B3 : la recherche des valeurs sensibles reste linéaire sur une ligne dém
   for (const text of ["password: x" + " ".repeat(20000) + "y", "snmpwalk" + " -c".repeat(6600), "PASSWORD=$(" + "(".repeat(20000), "a-".repeat(10000)]) {
     const t0 = Date.now(); code.findSecrets(text); const ms = Date.now() - t0;
     assert.ok(ms < 150, `${ms} ms sur ${JSON.stringify(text.slice(0, 20))}…`);
+  }
+});
+
+// ---------------------------------------------------------------- passe de finition (critique et audit du 2026-10-15)
+
+test("finition : les textes à la couleur d'une teinte tiennent 4,5:1 (pastille du langage, nature d'une valeur), le pouce 3:1, dans les deux thèmes", () => {
+  const read = (file) => fs.readFileSync(path.resolve(__dirname, "../../../engine/src/app/styles/" + file), "utf8");
+  const block = (css, selector) => { const at = css.indexOf(selector + " {"); return css.slice(at, css.indexOf("}", at)); };
+  const vars = (text) => Object.fromEntries(Array.from(text.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6})/gi), (m) => [m[1], m[2]]));
+  const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const mix = (a, b, p) => "#" + rgb(a).map((v, i) => Math.round(v * p + rgb(b)[i] * (1 - p)).toString(16).padStart(2, "0")).join("");
+  const lum = (hex) => { const c = rgb(hex).map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const tokens = read("tokens.css"), code = read("code.css"), canvas = read("canvas.css");
+  // la feuille dit bien que la pastille écrit à l'encre de sa teinte, et chaque teinte la pose
+  assert.match(code, /\.code-pill text \{[^}]*fill: var\(--type-ink/);
+  const hues = ["blue", "sky", "indigo", "violet", "pink", "red", "orange", "amber", "lime", "green", "teal", "slate"];
+  for (const h of hues) assert.ok(canvas.includes(`.hue-${h} { --type: var(--hue-${h}); --type-ink: var(--hue-${h}-ink); }`), h);
+  for (const selector of [":root", ':root[data-theme="light"]']) {
+    const t = { ...vars(block(tokens, selector)), ...vars(block(code, selector)) };
+    for (const h of hues) {
+      const pill = mix(t["hue-" + h], t["code-head"], 0.14); // le fond de la pastille (code.css : 14 % de la teinte)
+      assert.ok(ratio(t["hue-" + h + "-ink"], pill) >= 4.5, `${selector} pastille ${h} : ${ratio(t["hue-" + h + "-ink"], pill).toFixed(2)}`);
+    }
+    const chip = mix(t.warning, t["bg-elev-2"], 0.12); // la nature d'une valeur sur sa pastille, dans l'avertissement
+    assert.ok(ratio(t["code-nature"], chip) >= 4.5, `${selector} nature : ${ratio(t["code-nature"], chip).toFixed(2)}`);
+    for (const bg of ["code-bg", "code-head"]) assert.ok(ratio(t["code-thumb"], t[bg]) >= 3, `${selector} pouce sur ${bg} : ${ratio(t["code-thumb"], t[bg]).toFixed(2)}`);
+    assert.ok(ratio(t["code-thumb-hover"], t["code-bg"]) > ratio(t["code-thumb"], t["code-bg"]), "le pouce survolé ressort davantage");
+  }
+});
+
+test("finition : l'avertissement se pose à droite, à gauche, dessous, dessus, sinon sur le bloc, toujours dans la zone (jamais sous la fiche)", () => {
+  const { code } = loadApp();
+  const zone = { left: 12, top: 56, right: 900, bottom: 800 }; // la fiche commence à 916
+  const at = (block, h = 300) => clone(code.placeWarn(block, 448, h, zone, 12));
+  assert.deepEqual(at({ x: 100, y: 200, w: 300, h: 200 }), { x: 412, y: 200, side: "right" });
+  assert.deepEqual(at({ x: 500, y: 200, w: 300, h: 200 }), { x: 40, y: 200, side: "left" });
+  assert.deepEqual(at({ x: 300, y: 100, w: 400, h: 200 }), { x: 300, y: 312, side: "below" }, "ni à droite ni à gauche : dessous, aligné sur son bord gauche");
+  assert.deepEqual(at({ x: 300, y: 450, w: 400, h: 340 }), { x: 300, y: 138, side: "above" });
+  assert.deepEqual(at({ x: 300, y: 150, w: 580, h: 600 }), { x: 432, y: 150, side: "over" }, "nulle part : sur le bloc, borné à la zone");
+  const low = at({ x: 100, y: 700, w: 300, h: 80 });
+  assert.deepEqual([low.side, low.y], ["right", 500], "à côté, remonté pour ne pas passer sous la bande");
+  for (const block of [{ x: 600, y: 300, w: 300, h: 300 }, { x: 10, y: 60, w: 880, h: 700 }, { x: 450, y: 60, w: 450, h: 300 }]) {
+    const p = code.placeWarn(block, 448, 300, zone, 12);
+    assert.ok(p.x >= zone.left && p.x + 448 <= zone.right && p.y >= zone.top && p.y + 300 <= zone.bottom, JSON.stringify([block, p]));
+  }
+});
+
+test("finition : la fiche d'un long bloc ne rend que sa fenêtre ; la gouttière du champ s'élargit du point rouge", () => {
+  const { code } = loadApp();
+  assert.deepEqual(clone(code.lineWindow(2000, 0, 300, 19)), { from: 0, to: 36, before: 0, after: (2000 - 36) * 19 });
+  assert.deepEqual(clone(code.lineWindow(2000, 19 * 1000, 300, 19)), { from: 980, to: 1036, before: 980 * 19, after: 964 * 19 });
+  assert.deepEqual(clone(code.lineWindow(2000, 19 * 1990, 300, 19)), { from: 1970, to: 2000, before: 1970 * 19, after: 0 }, "en bas : jusqu'à la dernière");
+  assert.deepEqual(clone(code.lineWindow(10, 0, 300, 19)), { from: 0, to: 10, before: 0, after: 0 });
+  const w = code.lineWindow(2000, 777, 300, 19, 0);
+  assert.equal(w.before + (w.to - w.from) * 19 + w.after, 2000 * 19, "les cales et la fenêtre font la hauteur du tout");
+  const plain = code.editorGutter(12, 13, "jetbrains_mono", false), flagged = code.editorGutter(12, 13, "jetbrains_mono", true);
+  assert.equal(flagged - plain, code.FLAG_W, "dès qu'une ligne est marquée");
+  assert.equal(plain, Math.ceil(2 * 13 * 0.6 + 2 * code.CODE.GUTTER), "la même que celle du dessin sans marque");
+  assert.equal(code.editorGutter(1200, 13, "jetbrains_mono", false) > plain, true);
+});
+
+test("finition : coller comme bloc de code (Ctrl+Maj+V) fait toujours un bloc, au langage détecté même non sûr, sinon texte brut", () => {
+  const { code } = loadApp();
+  const short = "liste des vlans\n- 10 users\n- 20 voix";
+  assert.deepEqual(clone(code.pasteChoice(short, { secret: false, force: false })), { as: "note" }, "Ctrl+V : une note");
+  assert.deepEqual(clone(code.pasteChoice(short, { secret: false, force: true })), { as: "code", language: "plain", sure: false }, "comme bloc : texte brut");
+  assert.deepEqual(clone(code.pasteChoice(PYTHON, { secret: false, force: false })), { as: "code", language: "python", sure: true });
+  assert.deepEqual(clone(code.pasteChoice(PYTHON, { secret: false, force: true })), { as: "code", language: "python", sure: true });
+  const guessed = code.pasteChoice("interface Vlan10\n ip address 10.0.0.1 255.255.255.0", { secret: false, force: true });
+  assert.deepEqual([guessed.as, guessed.language, guessed.sure], ["code", "cisco_ios", true], "deux lignes : trop court pour Ctrl+V (une note), un bloc Cisco avec Ctrl+Maj+V");
+  const unsure = "Notes du jour\nrien à signaler\ncd /tmp\nfin"; // une ligne de Bash sur quatre : proposé, pas sûr
+  assert.deepEqual(clone(code.detectLanguage(unsure)), { id: "bash", sure: false, score: 0.28 });
+  assert.deepEqual(clone(code.pasteChoice(unsure, { secret: false, force: false })), { as: "note" });
+  assert.deepEqual(clone(code.pasteChoice(unsure, { secret: false, force: true })), { as: "code", language: "bash", sure: false }, "le langage détecté, même non sûr");
+  assert.deepEqual(clone(code.pasteChoice("interface Vlan10\n ip address 10.0.0.1 255.255.255.0", { secret: false, force: false })), { as: "note" });
+  assert.equal(code.pasteChoice("enable secret 0 x", { secret: true, force: false }).as, "code", "une valeur sensible passe toujours par l'avertissement");
+  assert.deepEqual(clone(code.pasteChoice("   \n  ", { secret: false, force: true })), { as: "nothing" });
+});
+
+test("finition : une valeur gardée et le bouclier disent au survol leur nature et qui les lit, jamais la valeur", () => {
+  const { code } = loadApp();
+  const found = code.findSecrets(CISCO);
+  const text = (blocks) => JSON.stringify(blocks);
+  const one = code.secretLines(found[4], "demo-dc");
+  assert.deepEqual(clone(one[0]), { kind: "head", title: "Valeur sensible gardée", icon: null, pills: [{ text: "type 7 : réversible", tone: "warning" }], sub: "ligne 13 · mot de passe" });
+  assert.match(text(one), /lisible par tous ceux qui ouvrent demo-dc/);
+  assert.equal(code.secretLines(found[0], "demo-dc")[0].pills[0].tone, "muted", "un hash ne se lit pas : sans alarme");
+  const shield = code.shieldLines(found, "demo-dc");
+  assert.equal(shield[0].title, "5 valeurs sensibles gardées");
+  assert.deepEqual(clone(shield.filter((b) => b.kind === "row").map((b) => [b.label, b.values[0].text, b.values[1].text])), [
+    ["l. 3", "mot de passe", "hash"], ["l. 4", "mot de passe d'un compte", "hash"], ["l. 10", "communauté SNMP", "en clair"], ["l. 11", "clé RADIUS / TACACS", "type 7 : réversible"], ["l. 13", "mot de passe", "type 7 : réversible"]]);
+  const many = code.shieldLines(Array.from({ length: 9 }, () => found[2]), "lab");
+  assert.equal(many.filter((b) => b.kind === "row").length, code.SECRET_TIP_ROWS);
+  assert.match(text(many), /et 3 de plus, dans le code/);
+  assert.equal(code.secretTitle(found[2], "demo-dc"), "communauté SNMP, en clair, ligne 10 ; lisible par tous ceux qui ouvrent demo-dc");
+  assert.equal(code.shieldTitle(found, "demo-dc"), "5 valeurs sensibles gardées telles quelles, lisibles par tous ceux qui ouvrent demo-dc");
+  const lines = CISCO.split("\n");
+  for (const f of found) {
+    const value = lines[f.line].slice(f.start, f.end);
+    for (const said of [text(code.secretLines(f, "demo-dc")), text(shield), code.secretTitle(f, "demo-dc")]) assert.ok(!said.includes(value), "la valeur n'est jamais dite : " + value);
   }
 });

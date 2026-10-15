@@ -44,7 +44,9 @@ export function useTips(container: RefObject<HTMLDivElement | null>, toile: Toil
   }, [container, toile]); // eslint-disable-line react-hooks/exhaustive-deps
   const show = useCallback((key: string, lines: () => Block[], event: ReactMouseEvent): void => {
     if (!tip.current) return;
-    if (!allowed(key)) { if (shown.current === key || waiting.current) hide(); return; }
+    // un élément qui n'a pas de bulle (sélectionné) fait partir celle d'à côté : la valeur sensible d'un bloc sélectionné
+    // a la sienne, le reste du bloc non (audit du 2026-10-15)
+    if (!allowed(key)) { if (shown.current || waiting.current) hide(); return; }
     const visible = tip.current.group.getAttribute("visibility") === "visible";
     if (visible || performance.now() - hiddenAt.current < TIP_REARM_MS) { place(key, lines, event.clientX, event.clientY); return; }
     waiting.current = { key, lines, x: event.clientX, y: event.clientY };

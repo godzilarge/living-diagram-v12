@@ -4,14 +4,14 @@
    documenté, cadre de groupe, cluster HA). La couche est à l'écran, au-dessus de la toile, sous l'interface flottante. */
 /* une couche à elle (`will-change`) : un pas de glissé ne repeint que ses traits, jamais les cartes dessous (sans GPU, le
    repeint d'une zone plein écran coûtait une image de plus de 100 ms à 500 équipements) */
-.guide-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 5; will-change: transform; }
+.guide-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: var(--z-guides); will-change: transform; }
 .guide-layer text { text-rendering: geometricPrecision; }
 .guide-line { stroke: var(--guide); stroke-width: 1; fill: none; }
 /* les croix aux coins alignés : où le repère touche chaque objet */
 .guide-mark { stroke: var(--guide); stroke-width: 1.25; stroke-linecap: round; fill: none; }
 /* un écart égal : le segment, ses deux butées, et la cote dans une capsule (une distance est un fait) */
 .guide-gap { stroke: var(--guide); stroke-width: 1; fill: none; }
-.guide-num rect { fill: var(--guide); }
+.guide-num rect { fill: var(--guide-fill); } /* l'encre de la teinte : la cote tient 4,5:1 (audit du 2026-10-15) */
 .guide-num text { fill: var(--guide-ink); font: 600 11px var(--mono); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
 /* la boîte englobante d'une sélection glissée : c'est elle qui s'aligne ; quatre équerres à la couleur de la sélection
    (un rectangle complet semblait enfermer les cartes non sélectionnées) */
@@ -68,14 +68,16 @@
 .guide-colors { display: flex; flex-direction: column; gap: 8px; padding: 6px 8px 4px; }
 .guide-colors-head { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 10px; color: var(--ink-2); font-size: var(--fs); }
 .guide-colors-head .layer-icon { color: var(--guide); }
-.guide-reset { height: 22px; padding: 0 6px; border-radius: var(--r-sm); font: 500 var(--fs-xs) var(--sans); color: var(--ink-3); }
-.guide-reset:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--ink); }
-.guide-reset:disabled { opacity: 0.4; cursor: default; }
+.guide-reset { height: 24px; padding: 0 8px; gap: 5px; font: 500 var(--fs-sm) var(--sans); }
+.guide-reset svg { width: 13px; height: 13px; }
 .guide-reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.guide-swatches { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 26px; }
-.guide-swatch { width: 16px; height: 16px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); }
-.guide-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 3px var(--ink); }
-.guide-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* chaque pastille : une cible de 24 × 24 (WCAG 2.5.8), le disque de 16 dessiné dedans (audit du 2026-10-15) */
+.guide-swatches { display: grid; grid-template-columns: repeat(6, 24px); gap: 4px 6px; padding-left: 22px; }
+.guide-swatch { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; }
+.guide-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); }
+.guide-swatch:hover .guide-dot { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 40%, transparent); }
+.guide-swatch[aria-checked="true"] .guide-dot { box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 3px var(--ink); }
+.guide-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
 .guide-default { --swatch: var(--guide-default); }
 .guide-blue { --swatch: var(--hue-blue); } .guide-sky { --swatch: var(--hue-sky); } .guide-indigo { --swatch: var(--hue-indigo); }
 .guide-violet { --swatch: var(--hue-violet); } .guide-pink { --swatch: var(--hue-pink); } .guide-red { --swatch: var(--hue-red); }

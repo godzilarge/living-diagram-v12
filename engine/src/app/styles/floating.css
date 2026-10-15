@@ -10,13 +10,12 @@
 }
 :root[data-theme="light"] { --shadow-fbar: 0 6px 16px rgba(20, 27, 36, 0.13), 0 1px 2px rgba(20, 27, 36, 0.1); }
 
-.fbar { position: absolute; left: 0; top: 0; z-index: 28; transform: translate(var(--fx, 0px), var(--fy, 0px)); --fbar-bg: var(--bg-elev-2); --fbar-line: var(--line-strong); user-select: none; -webkit-user-select: none;
-  --fbar-on-line: color-mix(in srgb, var(--ink) 30%, var(--fbar-bg)); /* le filet d'un bouton allumé : l'état se lit sans le fond seul (critique B, P2) */ }
-:root[data-theme="light"] .fbar { --fbar-bg: #ffffff; --fbar-on-line: #8f9cae; }
+/* --fbar-bg, --fbar-on-line (le filet d'un bouton allumé : l'état se lit sans le fond seul, critique B, P2), --fbar-hover,
+   --fbar-on : des jetons des deux thèmes (tokens.css) */
+.fbar { position: absolute; left: 0; top: 0; z-index: var(--z-fbar); transform: translate(var(--fx, 0px), var(--fy, 0px)); --fbar-line: var(--line-strong); user-select: none; -webkit-user-select: none; }
 .fbar-body { position: relative; display: flex; align-items: center; gap: 2px; height: 36px; padding: 0 4px; border-radius: var(--r); background: var(--fbar-bg); border: 1px solid var(--fbar-line);
   box-shadow: var(--shadow-fbar); white-space: nowrap;
-  --ctl-bg-hover: color-mix(in srgb, var(--ink) 9%, var(--fbar-bg)); --ctl-on: color-mix(in srgb, var(--ink) 18%, var(--fbar-bg)); }
-:root[data-theme="light"] .fbar-body { --ctl-bg-hover: #edf0f4; --ctl-on: #e3e8ef; --ctl-on-shadow: inset 0 0 0 1px #c9d2dd; }
+  --ctl-bg-hover: var(--fbar-hover); --ctl-on: var(--fbar-on); --ctl-on-shadow: var(--fbar-on-shadow); }
 /* l'ergot : il pointe l'ancre (--cx), au bas de la barre quand elle est au-dessus, en haut quand elle est dessous */
 .fbar-caret { position: absolute; left: calc(var(--cx, 50%) - 4px); bottom: -5px; width: 8px; height: 8px; background: var(--fbar-bg);
   border-right: 1px solid var(--fbar-line); border-bottom: 1px solid var(--fbar-line); transform: rotate(45deg); border-bottom-right-radius: 2px; pointer-events: none; }
@@ -55,8 +54,18 @@
 .glyph .g-tint { fill: var(--type, currentColor); }
 
 /* ---------- les volets ---------- */
-.fvolet { position: absolute; left: 0; top: 0; z-index: 29; transform: translate(var(--vx, 0px), var(--vy, 0px)); min-width: 168px; padding: 8px; border-radius: var(--r); background: var(--bg-elev); border: 1px solid var(--line);
+.fvolet { position: absolute; left: 0; top: 0; z-index: var(--z-fvolet); transform: translate(var(--vx, 0px), var(--vy, 0px)); min-width: 168px; padding: 8px; border-radius: var(--r); background: var(--bg-elev); border: 1px solid var(--line);
   box-shadow: var(--shadow); animation: fbar-fade var(--t-fast) linear both; user-select: none; -webkit-user-select: none; }
+/* raccourci quand la place manque (placeVolet) : sa liste défile, le volet reste sur son bouton ; une flèche le désigne
+   quand il est au-dessus ou dessous (critique du 2026-10-15) */
+.fvolet.short .fvolet-body { max-height: calc(var(--vmax, 400px) - 18px); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+/* sa flèche (8 px, la famille de l'ergot de la barre) : au-dessus ou dessous, vers son bouton (--vc, abscisse) ; à côté
+   de la barre, vers sa rangée (--vc, ordonnée) */
+.fvolet-caret { position: absolute; width: 8px; height: 8px; background: var(--bg-elev); transform: rotate(45deg); pointer-events: none; }
+.fvolet.at-above .fvolet-caret { left: calc(var(--vc, 24px) - 4px); bottom: -5px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); border-bottom-right-radius: 2px; }
+.fvolet.at-below .fvolet-caret { left: calc(var(--vc, 24px) - 4px); top: -5px; border-left: 1px solid var(--line); border-top: 1px solid var(--line); border-top-left-radius: 2px; }
+.fvolet.at-right .fvolet-caret { top: calc(var(--vc, 18px) - 4px); left: -5px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); border-bottom-left-radius: 2px; }
+.fvolet.at-left .fvolet-caret { top: calc(var(--vc, 18px) - 4px); right: -5px; border-right: 1px solid var(--line); border-top: 1px solid var(--line); border-top-right-radius: 2px; }
 .volet-cap { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; height: 20px; margin: 0 2px 6px; font: 400 12px/20px var(--sans); color: var(--ink-3); white-space: nowrap; }
 .volet-cap b { font-weight: 500; color: var(--ink); }
 .fvolet .hue-volet { gap: 8px; }
@@ -85,14 +94,12 @@
 .vmenu-label { padding: 2px 10px 4px; font: 400 11px/16px var(--sans); color: var(--ink-3); }
 
 /* ---------- l'infobulle : libellé · raccourci ---------- */
-.ftip { position: absolute; left: 0; top: 0; z-index: 31; transform: translate(var(--tx, 0px), var(--ty, 0px)); display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 9px;
-  border-radius: var(--ctl-r); background: var(--bg-elev-2); border: 1px solid var(--line-strong); box-shadow: var(--shadow-tip); white-space: nowrap; pointer-events: none;
-  font: 500 12px/1 var(--sans); color: var(--ink); animation: fbar-fade 90ms linear both; }
-:root[data-theme="light"] .ftip { background: #1a2330; border-color: #1a2330; color: #e7edf3; }
-.ftip-keys { font: 500 11px/1 var(--mono); color: var(--ink-3); }
-.ftip-keys::before { content: "·"; margin-right: 8px; font-family: var(--sans); color: var(--ink-4); }
-:root[data-theme="light"] .ftip-keys { color: #a3b2c4; }
-:root[data-theme="light"] .ftip-keys::before { color: #68798f; }
+/* en surface inversée en clair (jetons --tip-inv-*, tokens.css) */
+.ftip { position: absolute; left: 0; top: 0; z-index: var(--z-ftip); transform: translate(var(--tx, 0px), var(--ty, 0px)); display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 9px;
+  border-radius: var(--ctl-r); background: var(--tip-inv-bg); border: 1px solid var(--tip-inv-line); box-shadow: var(--shadow-tip); white-space: nowrap; pointer-events: none;
+  font: 500 12px/1 var(--sans); color: var(--tip-inv-ink); animation: fbar-fade 90ms linear both; }
+.ftip-keys { font: 500 11px/1 var(--mono); color: var(--tip-inv-ink-3); }
+.ftip-keys::before { content: "·"; margin-right: 8px; font-family: var(--sans); color: var(--tip-inv-ink-4); }
 
 @media (prefers-reduced-motion: reduce) {
   .fbar.enter .fbar-body, .fbar.below.enter .fbar-body { animation: fbar-fade 120ms linear both; }

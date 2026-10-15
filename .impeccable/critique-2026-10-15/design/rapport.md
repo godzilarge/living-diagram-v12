@@ -127,3 +127,21 @@ la palette des repères ; corriger les trois P2 dans la foulée (défauts purs, 
 lot 4 bis.
 
 Snapshot `.impeccable/critique/` non écrit : le rapport vit dans le dossier demandé.
+
+## Suivi (passe de finition du 2026-10-15)
+
+Décisions d'Orhan : tous les défauts purs ; **palette des repères : rien de retiré** (onze teintes, lime compris), pas
+d'avertissement sur les teintes « déjà porteuses de sens » ; deux ajouts (coller comme bloc de code, Ctrl+Maj+V ; rappel
+au survol d'une valeur gardée). Captures avant / après : `.impeccable/planche-finition/`. Détail : `docs/11` § Lot 16,
+« Passe de finition (2026-10-15) ».
+
+| Constat | Fait |
+|---|---|
+| P2 taille du code muette dans la barre | « AA 13 ⌄ » (`Face` `value`, `code-bar.ts`) comme le prototype ; la même commande servira la taille libre du lot 4 bis. |
+| P2 volet du langage loin de son bouton | Au-dessus ou dessous : aligné sur son bouton, avec sa flèche ; s'il manque la place, raccourci (sa liste défile) ; sinon à côté de la barre, le long de sa rangée, du côté libre du bloc, sa flèche vers la rangée. Écart : posé à côté, il reste au bout de la barre, pas sous le bouton (le bloc occupe la place dessous). |
+| P2 l'avertissement sans focus | Focus sur « Retirer » (anneau visible), voir le suivi de l'audit. |
+| P3 marques superposées | Pas de croix sur une poignée de la sélection ni sur une épingle ; pastille du geste et pastille « X, Y » à 8 px au moins d'un repère (capture `apres/lot8/3-guide-bord.png`). |
+| P3 actions en texte gris nu | « rétablir » (couleur des repères) et « ajuster » (hauteur du bloc) en bouton fantôme avec icône, l'intitulé long en infobulle. |
+| P3 pastilles de couleur sous 24 px | Cible de 24 × 24, disque de 16. |
+| P3 point rouge collé aux numéros | La gouttière du champ s'élargit de la place du point dès qu'une ligne est marquée (`editorGutter`). |
+| Choix de goût : palette | Option (a), laissée telle quelle (décision d'Orhan). |

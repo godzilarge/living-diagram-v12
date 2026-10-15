@@ -414,7 +414,8 @@
     "numbersOff": "hidden",
     "height": "height",
     "heightLabel": "box height, in pixels",
-    "fit": "fit to content",
+    "fit": "fit",
+    "fitTitle": "fit the height to the content",
     "size": "size",
     "sizeLabel": "code size, in pixels",
     "looksLike": "The content looks like",
@@ -455,6 +456,16 @@
     "warnGo": "line {{line}}, {{kind}}, {{nature}}: go to the value",
     "warnNote": "Remove: each value is replaced by {{mask}} in the saved text; the command stays readable.",
     "keep": "Keep as is",
-    "editText": "Edit the text"
+    "editText": "Edit the text",
+    "tipKept": "Sensitive value kept",
+    "tipWhere": "line {{line}} · {{kind}}",
+    "tipReadable": "readable by everyone who opens {{infrastructure}}",
+    "tipKeptCount_one": "1 sensitive value kept",
+    "tipKeptCount_other": "{{count}} sensitive values kept",
+    "tipMore_one": "and 1 more, in the code",
+    "tipMore_other": "and {{count}} more, in the code",
+    "tipTitle": "{{kind}}, {{nature}}, line {{line}}; readable by everyone who opens {{infrastructure}}",
+    "tipShieldTitle_one": "1 sensitive value kept as is, readable by everyone who opens {{infrastructure}}",
+    "tipShieldTitle_other": "{{count}} sensitive values kept as is, readable by everyone who opens {{infrastructure}}"
   }
 }

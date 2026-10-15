@@ -373,7 +373,7 @@ test("le menu contextuel (context.ts) : ce qu'un clic droit propose selon la cib
   const ids = (items) => clone(items.filter((i) => !i.sep).map((i) => i.id));
   const rw = { editable: true, selectedHosts: [], hasSelection: false, pinned: () => false };
   const ro = { ...rw, editable: false };
-  assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, rw)), ["clip:paste", "insert:note", "insert:rectangle", "insert:ellipse", "insert:connector", "insert:table", "insert:code", "insert:image", "fit"]);
+  assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, rw)), ["clip:paste", "clip:pasteCode", "insert:note", "insert:rectangle", "insert:ellipse", "insert:connector", "insert:table", "insert:code", "insert:image", "fit"]);
   assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, { ...ro, hasSelection: true })), ["fit", "clear"], "en lecture seule, rien à insérer");
   assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, pinned: () => true })), ["center", "hide", "isolate", "clip:copy", "clip:paste", "note", "connect", "unpin"]);
   assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, selectedHosts: ["sw-core-01", "sw-core-02"] })), ["center", "hide", "isolate", "clip:copy", "clip:paste", "align:horizontal", "align:vertical", "group"], "dans une sélection multiple : aligner, grouper");
@@ -934,7 +934,8 @@ test("le menu contextuel porte copier, couper, coller, dupliquer avec leurs racc
     ["clip:copy", "copier", "Ctrl+C", "Control+C"], ["clip:cut", "couper", "Ctrl+X", "Control+X"],
     ["clip:paste", "coller ici", "Ctrl+V", "Control+V"], ["clip:duplicate", "dupliquer", "Ctrl+D", "Control+D"]]);
   assert.deepEqual(clone(clip(context.menuItems({ kind: "annotation", id: "a1" }, model, { ...ctx, editable: false })).map((i) => i[0])), ["clip:copy"]);
-  assert.deepEqual(clone(clip(context.menuItems({ kind: "pane" }, model, ctx)).map((i) => i[0])), ["clip:paste"]);
+  // le fond : coller, et coller comme bloc de code (Ctrl+Maj+V, Orhan, 2026-10-15)
+  assert.deepEqual(clone(clip(context.menuItems({ kind: "pane" }, model, ctx))), [["clip:paste", "coller ici", "Ctrl+V", "Control+V"], ["clip:pasteCode", "coller comme bloc de code", "Ctrl+Maj+V", "Control+Shift+V"]]);
   assert.deepEqual(clone(clip(context.menuItems({ kind: "pane" }, model, { ...ctx, editable: false }))), [], "lecture seule : rien ne se colle");
   assert.equal(clip(context.menuItems({ kind: "node", id: "sw-01" }, model, ctx))[0][1], "copier le nom");
   assert.equal(clip(context.menuItems({ kind: "node", id: "sw-01" }, model, { ...ctx, selectedHosts: ["sw-01", "sw-02"], items: 2 }))[0][1], "copier les noms");
@@ -1142,19 +1143,19 @@ test("la barre contextuelle, où : au-dessus, sinon dessous, jamais hors de la z
   // le volet : du côté opposé à la sélection, sinon au-delà de la sélection ; jamais sur l'objet
   const bar = { x: 360, y: 356, w: 280, h: 36 };
   const opener = { x: 380, y: 360, w: 28, h: 28 };
-  assert.deepEqual(clone(f.placeVolet(bar, false, opener, 200, 100, zone, anchor)), { x: 372, y: 250, up: true }, "au-dessus de la barre");
+  assert.deepEqual(clone(f.placeVolet(bar, false, opener, 200, 100, zone, anchor)), { x: 372, y: 250, up: true, maxH: null, side: "above", caret: 22 }, "au-dessus de la barre, sa flèche sur son bouton");
   const cramped = { ...zone, top: 300 };
   const flipped = f.placeVolet(bar, false, opener, 200, 100, cramped, anchor);
-  assert.deepEqual(clone(flipped), { x: 372, y: 486, up: false }, "pas de place au-dessus : sous la sélection, pas dessus");
+  assert.deepEqual(clone(flipped), { x: 372, y: 486, up: false, maxH: null, side: "below", caret: 22 }, "pas de place au-dessus : sous la sélection, pas dessus");
   // une barre dans la sélection (une grande sélection, la barre en haut de la zone) : au-dessus, le volet couvrirait
   // l'objet ; il passe au-delà de la sélection
   const inside = f.placeVolet({ ...bar, y: 300 }, false, opener, 200, 100, { ...zone, top: 0 }, { x: 300, y: 150, w: 400, h: 300 });
-  assert.deepEqual(clone(inside), { x: 372, y: 456, up: false }, "jamais sur l'objet");
+  assert.deepEqual(clone(inside), { x: 372, y: 456, up: false, maxH: null, side: "below", caret: 22 }, "jamais sur l'objet");
   // une grande sélection qui sort par le haut, la barre dessous près de la bande : ni dessous, ni au-delà de la
   // sélection ; le volet se pose à côté de la barre, sur sa rangée, sans couvrir ni la barre ni la sélection
   const tallSel = { x: 300, y: -900, w: 400, h: 1620 };
   const nearBottom = { x: 360, y: 728, w: 280, h: 36 };
-  assert.deepEqual(clone(f.placeVolet(nearBottom, true, opener, 200, 70, zone, tallSel)), { x: 646, y: 728, up: false }, "à droite de la barre");
+  assert.deepEqual(clone(f.placeVolet(nearBottom, true, opener, 200, 70, zone, tallSel)), { x: 646, y: 728, up: false, maxH: null, side: "right", caret: 18 }, "à droite de la barre, vers le bas (vers le haut, il couvrait la sélection), sa flèche vers la rangée");
   const below = f.placeVolet({ ...bar, y: 488 }, true, opener, 200, 100, zone, anchor);
   assert.deepEqual([below.y, below.up], [530, false], "barre dessous : volet dessous");
   // l'ancre : un connecteur seul au milieu de son tracé ; une sélection, la boîte de tout
@@ -1578,4 +1579,96 @@ test("un geste de plus de 500 opérations : une entrée d'annulation, défait en
   assert.equal(stack.undo.length, 0);
   assert.match(notes[notes.length - 1], /refusé/);
   assert.match(notes[notes.length - 1], /défait/);
+});
+
+// ---------------------------------------------------------------- passe de finition (critique et audit du 2026-10-15)
+
+test("finition : un volet sans place entière au-dessus reste sur son bouton, raccourci, avec sa flèche ; à côté de la barre, sans flèche", () => {
+  const { floating: f } = loadApp();
+  const bar = { x: 360, y: 356, w: 280, h: 36 }, opener = { x: 380, y: 360, w: 28, h: 28 }, anchor = { x: 400, y: 400, w: 200, h: 80 };
+  const zone = { left: 8, top: 100, right: 1000, bottom: 700 };
+  // 300 de haut : ni au-dessus (250 de place) ni sous la sélection (la zone s'arrête à 700) ; raccourci au-dessus
+  assert.deepEqual(clone(f.placeVolet(bar, false, opener, 200, 300, zone, anchor)), { x: 372, y: 100, up: true, maxH: 250, side: "above", caret: 22 });
+  // dessous, de même
+  const under = f.placeVolet({ ...bar, y: 300 }, true, opener, 200, 400, { ...zone, top: 0 }, { x: 400, y: 0, w: 200, h: 290 });
+  assert.deepEqual([under.up, under.maxH, under.y], [false, 700 - 342, 342], "dessous, jusqu'au bas de la zone");
+  // moins de VOLET_MIN_H : pas de volet raccourci, il se pose ailleurs
+  const cramped = f.placeVolet(bar, false, opener, 200, 300, { ...zone, top: 250 }, anchor);
+  assert.equal(cramped.maxH, null);
+  assert.deepEqual([cramped.side, cramped.x, cramped.caret], ["right", 646, 18], "à côté de la barre, sur la rangée (le bloc dessous reste libre), sa flèche vers la rangée");
+  assert.equal(f.VOLET_MIN_H, 160);
+  // la flèche reste sur le bouton quand le volet est poussé par le bord de la zone
+  const pushed = f.placeVolet(bar, false, { x: 950, y: 360, w: 28, h: 28 }, 200, 100, zone, anchor);
+  assert.deepEqual([pushed.x, pushed.caret], [800, 164], "le volet contre le bord droit, la flèche sous le bouton");
+});
+
+test("finition : le clavier d'un volet fait le tour de ses groupes ; le focus entre par le premier groupe de choix", () => {
+  const { floating: f } = loadApp();
+  assert.deepEqual([0, 1, 2, 3].map((at) => f.nextGroup(4, at, false)), [1, 2, 3, 0], "Tab : le suivant, en boucle");
+  assert.deepEqual([0, 1, 2, 3].map((at) => f.nextGroup(4, at, true)), [3, 0, 1, 2], "Maj+Tab : le précédent, en boucle");
+  assert.equal(f.nextGroup(4, -1, false), 0, "hors du volet : le premier");
+  assert.equal(f.nextGroup(4, -1, true), 3, "hors du volet, en arrière : le dernier");
+  assert.equal(f.nextGroup(1, 0, false), 0, "un seul groupe : il garde le focus");
+  assert.equal(f.nextGroup(0, -1, false), -1);
+  // le volet du langage avec une suggestion : « appliquer » (une action seule) puis la liste ; on entre par la liste
+  assert.equal(f.startGroup([{ grouped: false }, { grouped: true }]), 1);
+  assert.equal(f.startGroup([{ grouped: true }, { grouped: true }, { grouped: false }]), 0, "aligner : la grille d'abord");
+  assert.equal(f.startGroup([{ grouped: false }]), 0, "rien de groupé : le premier");
+});
+
+test("finition : les repères ne posent pas de croix sur une poignée ni une épingle ; la pastille du geste se tient à 8 px d'un repère", () => {
+  const { guides: g } = loadApp();
+  const line = { axis: "x", kind: "edge", at: 100, from: 0, to: 300, boxes: [{ x: 100, y: 0, w: 50, h: 40 }, { x: 100, y: 200, w: 80, h: 60 }], hits: [] };
+  assert.deepEqual(clone(g.crossPoints(line, [], 1)), [{ x: 100, y: 0 }, { x: 100, y: 40 }, { x: 100, y: 200 }, { x: 100, y: 260 }]);
+  const handled = g.cornersOf({ x: 100, y: 0, w: 50, h: 40 });
+  assert.deepEqual(clone(g.crossPoints(line, handled, 1)), [{ x: 100, y: 200 }, { x: 100, y: 260 }], "la boîte qui porte ses poignées : pas de croix");
+  assert.deepEqual(clone(g.crossPoints(line, [{ x: 101, y: 199 }], 2)), [{ x: 100, y: 0 }, { x: 100, y: 40 }, { x: 100, y: 260 }], "une épingle au coin : pas de croix");
+  assert.deepEqual(clone(g.crossPoints({ ...line, kind: "center" }, [], 1)), [], "un repère de centre n'en porte aucune");
+  const horizontal = { ...line, axis: "y", at: 40, boxes: [{ x: 10, y: 0, w: 30, h: 40 }] };
+  assert.deepEqual(clone(g.crossPoints(horizontal, [], 1)), [{ x: 10, y: 40 }, { x: 40, y: 40 }]);
+  assert.equal(g.PILL_CLEAR, 8);
+  assert.deepEqual(clone(g.lineBands([{ axis: "x", at: 300 }])[0]).x, 292);
+  // la pastille sous la boîte touchait un repère horizontal à 2 px ; à 8 px, elle passe dessus
+  const box = { x: 100, y: 100, w: 200, h: 80 }, zone = { left: 0, top: 0, right: 1000, bottom: 800 };
+  const spot = g.pillSpot(box, 60, 20, zone, g.lineBands([{ axis: "y", at: 214 }]));
+  assert.equal(spot.y, 72, "au-dessus : le dessous est à moins de 8 px du repère");
+  assert.ok(Math.min(Math.abs(spot.y - 214), Math.abs(spot.y + 20 - 214)) >= 8);
+});
+
+test("finition : la cote d'un écart égal tient 4,5:1 sur son fond, pour chaque teinte proposée, dans les deux thèmes", () => {
+  const { guides: g } = loadApp();
+  const css = fs.readFileSync(path.resolve(__dirname, "../../../engine/src/app/styles/tokens.css"), "utf8");
+  const block = (selector) => { const at = css.indexOf(selector); const open = css.indexOf("{", at); return css.slice(open, css.indexOf("}", open)); };
+  const tokens = (text) => Object.fromEntries(Array.from(text.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})/g), (m) => [m[1], m[2]]));
+  const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  for (const theme of [tokens(block(":root {")), tokens(block(':root[data-theme="light"] {'))]) {
+    assert.ok(ratio(theme["guide-ink"], theme["guide-default"]) >= 4.5, "le chartreuse");
+    for (const hue of g.GUIDE_HUES) {
+      const fill = theme["hue-" + hue + "-ink"];
+      assert.ok(fill, "l'encre de " + hue);
+      assert.ok(ratio(theme["guide-ink"], fill) >= 4.5, `cote sur ${hue} : ${ratio(theme["guide-ink"], fill).toFixed(2)}`);
+    }
+  }
+  assert.equal(g.guideFill("teal"), "var(--hue-teal-ink)");
+  assert.equal(g.guideFill(null), null);
+  assert.equal(g.guideFill("orange"), null, "une teinte non proposée ne se pose pas");
+});
+
+test("finition : la pastille « X, Y » d'une annotation glissée se tient à 8 px au moins d'un repère (critique du 2026-10-15)", () => {
+  const { handles: h } = loadApp();
+  const box = { w: 160, h: 90 };
+  const plain = h.positionPill(2360, -640, 1, [], box);
+  assert.deepEqual([plain.x, plain.y], [0, -28], "sans repère : au-dessus, à gauche");
+  const w = Math.round((plain.text.length * 6.82 + 14) * 1); // la largeur d'une pastille (canvas/pill.ts)
+  const left = h.positionPill(2360, -640, 1, [{ axis: "x", at: 0 }], box);
+  assert.ok(left.x > 0 && left.y === -28, "le bord gauche aligné : au-dessus, à droite");
+  assert.ok(left.x - 8 >= 0, "à 8 px du repère au moins");
+  const both = h.positionPill(2360, -640, 1, [{ axis: "x", at: 0 }, { axis: "x", at: 160 }], box);
+  assert.deepEqual([both.y > 90, both.x], [false, 0], "rien de libre (deux repères verticaux encadrent) : la place d'origine");
+  const top = h.positionPill(2360, -640, 1, [{ axis: "y", at: -10 }], box);
+  assert.equal(top.y, 98, "un repère horizontal juste au-dessus : dessous");
+  const zoomed = h.positionPill(1, 2, 0.5, [{ axis: "x", at: 0 }], box);
+  assert.equal(zoomed.scale, 2);
+  assert.ok(w > 0);
 });

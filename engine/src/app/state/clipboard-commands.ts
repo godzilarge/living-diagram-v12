@@ -39,6 +39,8 @@ export interface ClipboardDeps {
   handle: () => CanvasHandle | null;
   /** Le comportement d'avant pour ce qui ne vient pas de nous : image → annotation image, texte → note. */
   pasteForeign: (data: DataTransfer) => boolean;
+  /** « Coller comme bloc de code » : un texte devient toujours un bloc (code-commands.ts, `force`). */
+  pasteCode: (text: string, at: Point | null) => boolean;
 }
 export interface ClipboardCommands {
   /** Ctrl+C / Ctrl+X (événement natif) : rend faux s'il n'y avait rien à copier (le navigateur garde la main). */
@@ -49,6 +51,11 @@ export interface ClipboardCommands {
   pasteEvent: (data: DataTransfer) => boolean;
   /** « coller » du menu contextuel, au point du plan visé. */
   pasteFromMenu: (at: Point) => void;
+  /** Ctrl+Maj+V (l'événement natif qui suit la touche) : le texte du presse-papiers, toujours en bloc de code. */
+  pasteCodeEvent: (data: DataTransfer) => void;
+  /** « coller comme bloc de code » du menu du fond (ou Ctrl+Maj+V sans événement natif) : lu par l'API du
+   *  presse-papiers, au point du plan visé (`null` : le pointeur). */
+  pasteCodeFromMenu: (at: Point | null) => void;
   /** Ctrl+D (ou « dupliquer » du menu, sur `what`) : rend faux s'il n'y avait rien à dupliquer ni à dire. */
   duplicate: (what?: Item | null) => boolean;
   /** Alt + glissé relâché : les éléments clonés, à l'écart `d` (unités du plan). */
@@ -255,6 +262,14 @@ export function clipboardCommands(deps: ClipboardDeps): ClipboardCommands {
     deps.pasteForeign(transfer);
   }
 
+  // Coller comme bloc de code : le texte tel quel, toujours un bloc (même non reconnu : texte brut) ; dans une page qui
+  // ne s'écrit pas, rien, et la page dit pourquoi ; un presse-papiers sans texte le dit aussi.
+  function pasteAsCode(text: string, at: Point | null): void {
+    if (!editable()) { note(whyReadOnly()); return; }
+    if (!text.trim()) { note(t("shell:code.noText")); return; }
+    deps.pasteCode(text, at);
+  }
+
   return {
     copyEvent: (data, cutting) => {
       const taken = take();
@@ -293,6 +308,15 @@ export function clipboardCommands(deps: ClipboardDeps): ClipboardCommands {
       if (!clip || typeof clip.read !== "function") { refused(); return; }
       // un refus de lecture n'est pas un échec de collage : deux messages (revue, B6)
       void clip.read().then((items) => pasteRead(items, at).catch(() => note(t("shell:clipboard.pasteFailed"))), refused);
+    },
+    pasteCodeEvent: (data) => pasteAsCode(data.getData("text/plain") || "", pointerNow()),
+    pasteCodeFromMenu: (at) => {
+      if (!editable()) { note(whyReadOnly()); return; }
+      const clip = typeof navigator === "undefined" ? undefined : navigator.clipboard;
+      // notre propre copie, si le navigateur refuse la lecture : son texte (des noms, des notes) devient le bloc
+      const refused = (): void => { if (internal && internal.text) pasteAsCode(internal.text, at); else note(t("shell:clipboard.readRefused")); };
+      if (!clip || typeof clip.readText !== "function") { refused(); return; }
+      void clip.readText().then((text) => pasteAsCode(text, at), refused);
     },
     duplicate: (what) => {
       aim(what);

@@ -25,7 +25,9 @@ export type Face =
   /** La teinte : une pastille, ou un disque coupé quand la sélection en mêle plusieurs (les deux premières). */
   | { kind: "hue"; hues: string[] }
   /** Un nom écrit sur le bouton (le langage, la police d'un bloc de code, lot 16) ; `hint` : la détection propose autre chose. */
-  | { kind: "text"; text: string; font?: string; hint?: boolean };
+  | { kind: "text"; text: string; font?: string; hint?: boolean }
+  /** Une icône et la valeur posée (« AA 13 », la taille d'un bloc de code : critique du 2026-10-15, comme le prototype). */
+  | { kind: "value"; icon: IconName; text: string };
 export interface Choice { value: string; label: string; num?: string; glyph?: GlyphName; icon?: IconName }
 export type Volet =
   | { kind: "hue"; value: string | null; inherited: string | null; allowDefault: boolean }
@@ -372,27 +374,59 @@ export function placeBar(anchor: Rect, width: number, zone: Zone, obstacles: Obs
   return { x, y, below: found.below, side: found.side, covers: Math.round(found.covers), caret: caretOf(x), caretY: Math.round(clamp(cy - y, 10, BAR_H - 10)) };
 }
 
-export interface VoletPlace { x: number; y: number; up: boolean }
+/** La place d'un volet : son coin haut gauche, `up` (au-dessus de ce qu'il ouvre), `maxH` (raccourci : sa liste défile ;
+ *  `null` : sa hauteur), `side` (où il est par rapport à la barre) et `caret` (sa flèche : au-dessus ou dessous, l'abscisse
+ *  du bouton depuis son bord gauche ; à côté, l'ordonnée de la rangée de la barre depuis son haut). */
+export interface VoletPlace { x: number; y: number; up: boolean; maxH: number | null; side: "above" | "below" | "left" | "right"; caret: number }
+/** Un volet raccourci garde au moins cette hauteur (sinon il se pose à côté de la barre). */
+export const VOLET_MIN_H = 160;
 /** Où ouvrir un volet (taille `w` × `h`) : du côté de la barre opposé à la sélection (l'objet reste visible pendant
- *  qu'on choisit) ; s'il manque la place, de l'autre côté de la sélection ; sinon à côté de la barre, à droite puis à
- *  gauche, sur sa rangée ; jamais sur l'objet ni sur la barre. Aligné sur son bouton, dans la zone. Si rien ne tient,
- *  la place qui couvre le moins la sélection et la barre. */
+ *  qu'on choisit) ; s'il manque la place, de l'autre côté de la sélection ; sinon du premier côté, raccourci (sa liste
+ *  défile) s'il garde `VOLET_MIN_H` ; sinon à côté de la barre, à droite puis à gauche, le long de sa rangée (vers le
+ *  haut, puis vers le bas) ; jamais sur l'objet ni sur la barre. Toujours avec sa flèche : au-dessus ou dessous, aligné
+ *  sur son bouton ; à côté, vers la rangée de la barre (critique du 2026-10-15 : le volet du langage s'ouvrait loin de
+ *  son bouton, sans rien qui l'y relie). Dans la zone. Si rien ne tient, la place qui couvre le moins. */
 export function placeVolet(bar: Rect, below: boolean, opener: Rect, w: number, h: number, zone: Zone, selection: Rect): VoletPlace {
   const x = Math.round(clamp(opener.x - GAP, zone.left, Math.max(zone.left, zone.right - w)));
-  // à côté de la barre : son haut sur celui de la barre quand elle est dessous, son bas sur le sien quand elle est dessus
-  const beside = below ? bar.y : bar.y + bar.h - h;
-  const candidates: VoletPlace[] = (below
-    ? [{ x, y: bar.y + bar.h + VOLET_GAP, up: false }, { x, y: selection.y - VOLET_GAP - h, up: true }]
-    : [{ x, y: bar.y - VOLET_GAP - h, up: true }, { x, y: selection.y + selection.h + VOLET_GAP, up: false }])
-    .concat([{ x: bar.x + bar.w + VOLET_GAP, y: beside, up: !below }, { x: bar.x - VOLET_GAP - w, y: beside, up: !below }]
-      .filter((c) => c.x >= zone.left && c.x + w <= zone.right));
-  const fits = (c: VoletPlace): boolean => c.y >= zone.top && c.y + h <= zone.bottom;
-  const covers = (c: VoletPlace): number => overlap({ x: c.x, y: c.y, w, h }, selection) + overlap({ x: c.x, y: c.y, w, h }, bar);
+  const caret = Math.round(clamp(opener.x + opener.w / 2 - x, CARET_MIN, Math.max(CARET_MIN, w - CARET_MIN)));
+  const vertical = (y: number, up: boolean, maxH: number | null = null): VoletPlace => ({ x, y, up, maxH, side: up ? "above" : "below", caret });
+  const near = below ? vertical(bar.y + bar.h + VOLET_GAP, false) : vertical(bar.y - VOLET_GAP - h, true);
+  const far = below ? vertical(selection.y - VOLET_GAP - h, true) : vertical(selection.y + selection.h + VOLET_GAP, false);
+  // raccourci du premier côté : du bord de la zone jusqu'à la barre
+  const room = below ? zone.bottom - (bar.y + bar.h + VOLET_GAP) : bar.y - VOLET_GAP - zone.top;
+  const short = room >= VOLET_MIN_H && room < h ? [below ? vertical(bar.y + bar.h + VOLET_GAP, false, Math.floor(room)) : vertical(zone.top, true, Math.floor(room))] : [];
+  // à côté de la barre : le long de sa rangée, vers le haut (son bas sur celui de la barre) puis vers le bas (son haut
+  // sur celui de la barre) ; la flèche vise la rangée
+  const row = bar.y + bar.h / 2;
+  const besides: VoletPlace[] = ([[bar.x + bar.w + VOLET_GAP, "right"], [bar.x - VOLET_GAP - w, "left"]] as const)
+    .filter(([sx]) => sx >= zone.left && sx + w <= zone.right)
+    .flatMap(([sx, side]) => [bar.y + bar.h - h, bar.y].map((y): VoletPlace => ({ x: sx, y, up: y < bar.y, maxH: null, side, caret: Math.round(clamp(row - y, CARET_MIN, Math.max(CARET_MIN, h - CARET_MIN))) })));
+  const candidates: VoletPlace[] = [near, far, ...short, ...besides];
+  const height = (c: VoletPlace): number => (c.maxH === null ? h : c.maxH);
+  const fits = (c: VoletPlace): boolean => c.y >= zone.top && c.y + height(c) <= zone.bottom;
+  const covers = (c: VoletPlace): number => overlap({ x: c.x, y: c.y, w, h: height(c) }, selection) + overlap({ x: c.x, y: c.y, w, h: height(c) }, bar);
   const clean = candidates.find((c) => fits(c) && covers(c) === 0);
   if (clean) return { ...clean, y: Math.round(clean.y) };
-  const kept = candidates.map((c) => ({ ...c, y: clamp(c.y, zone.top, Math.max(zone.top, zone.bottom - h)) }));
+  const kept = candidates.map((c) => {
+    const y = clamp(c.y, zone.top, Math.max(zone.top, zone.bottom - height(c)));
+    const caretOf = c.side === "left" || c.side === "right" ? Math.round(clamp(row - y, CARET_MIN, Math.max(CARET_MIN, h - CARET_MIN))) : c.caret;
+    return { ...c, y, caret: caretOf };
+  });
   kept.sort((p, q) => covers(p) - covers(q));
   return { ...kept[0], y: Math.round(kept[0].y) };
 }
 
-export const floating = { GRID_MIN, isGridKey, multiHues, targetOf, shows, entriesOf, barLabel, nextHeads, nextTextAlign, selectionKey, alignFromKey, alignCommand, movableCount, alignRows, anchorOf, placeBar, placeVolet, toScreen, ariaKeys, BAR_H, GAP };
+/** Le clavier d'un volet (audit du 2026-10-15, P1) : un volet est fait de groupes (une grille d'alignement, un pas à pas,
+ *  une liste de choix, une action seule) ; Tab va au groupe suivant, Maj+Tab au précédent, en boucle (le volet garde le
+ *  focus, comme un menu ; Échap le ferme), les flèches parcourent un groupe. `at` : le groupe qui a le focus (-1 :
+ *  aucun, on entre par le premier ou le dernier). */
+export function nextGroup(count: number, at: number, back: boolean): number {
+  if (count <= 0) return -1;
+  if (at < 0) return back ? count - 1 : 0;
+  return (at + (back ? count - 1 : 1)) % count;
+}
+/** Le groupe où le focus entre à l'ouverture : le premier groupe de choix (une liste, une grille, un menu ; l'élément
+ *  coché y prend le focus), avant une action seule (« appliquer » la suggestion d'un langage) ; sinon le premier. */
+export const startGroup = (units: { grouped: boolean }[]): number => Math.max(0, units.findIndex((u) => u.grouped));
+
+export const floating = { GRID_MIN, isGridKey, multiHues, targetOf, shows, entriesOf, barLabel, nextHeads, nextTextAlign, selectionKey, alignFromKey, alignCommand, movableCount, alignRows, anchorOf, placeBar, placeVolet, toScreen, ariaKeys, BAR_H, GAP, VOLET_MIN_H, nextGroup, startGroup };

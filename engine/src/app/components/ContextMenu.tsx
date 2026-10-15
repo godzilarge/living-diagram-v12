@@ -72,6 +72,7 @@ function execute(target: ContextTarget, id: string, plan: { x: number; y: number
   if (id.startsWith("clip:")) { // le presse-papiers (lot 3) : sur la sélection si la cible en fait partie, sinon sur elle seule
     const what = target.kind === "node" || target.kind === "annotation" || target.kind === "connector" ? { kind: target.kind, id: target.id } : null;
     if (id === "clip:paste") commands.pasteFromMenu(plan);
+    else if (id === "clip:pasteCode") commands.pasteCodeFromMenu(plan);
     else if (id === "clip:copy" || id === "clip:cut") commands.copyFromMenu(id === "clip:cut", what);
     else if (id === "clip:duplicate") commands.duplicate(what);
     return;

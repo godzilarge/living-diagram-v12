@@ -168,7 +168,8 @@
     "editing": "editing",
     "showFbar": "context bar",
     "guideColor": "guide colour",
-    "guideDefault": "default",
+    "guideDefault": "reset",
+    "guideDefaultTitle": "reset to chartreuse, the default colour",
     "chartreuse": "chartreuse"
   },
   "band": {
@@ -294,6 +295,7 @@
     "copy": "copy",
     "cut": "cut",
     "pasteHere": "paste here",
+    "pasteCodeHere": "paste as code block",
     "copyName": "copy the name",
     "copyNames": "copy the names",
     "copySelection": "copy the selection",
@@ -301,6 +303,7 @@
       "copy": "Ctrl+C",
       "cut": "Ctrl+X",
       "paste": "Ctrl+V",
+      "pasteCode": "Ctrl+Shift+V",
       "duplicate": "Ctrl+D"
     },
     "grid": "arrange in a grid",
@@ -646,6 +649,7 @@
     "removed_other": "{{count}} values removed from the text",
     "kept": "saved as is: the block keeps its warning",
     "tooLong": "code block too long: {{max}} characters at most",
+    "noText": "nothing to paste: the clipboard holds no text",
     "abandoned": "block abandoned: nothing was saved",
     "created_one": "code block created: {{count}} line, {{language}}",
     "created_other": "code block created: {{count}} lines, {{language}}",

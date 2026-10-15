@@ -5,7 +5,7 @@
 // s'y masque aussi, mais c'est une préférence du navigateur (prefs.ts), jamais dans l'adresse ; Ctrl+. fait de même.
 // La couleur des repères d'alignement (lot 8) aussi : une rangée de pastilles, le chartreuse et les teintes nommées qui
 // tiennent un contraste de 3:1 sur la toile dans les deux thèmes (`GUIDE_HUES`), et « défaut ».
-import { CircleDashed, Gauge, Network, PanelTop, Pin, RulerDimensionLine, SlidersHorizontal, StickyNote, Tag, Unplug } from "lucide-react";
+import { CircleDashed, Gauge, Network, PanelTop, Pin, RotateCcw, RulerDimensionLine, SlidersHorizontal, StickyNote, Tag, Unplug } from "lucide-react";
 import { HUE_LABEL } from "../../canvas/hues";
 import type { HueName } from "../../canvas/hues";
 import { GUIDE_HUES } from "../canvas/guides";
@@ -97,15 +97,17 @@ function GuideColors() {
   const chosen = state.prefs.guideHue;
   const pick = (hue: HueName | null): void => commands.setPrefs({ guideHue: hue });
   const swatch = (hue: HueName | null, label: string) => (
+    // une cible de 24 × 24 (WCAG 2.5.8), la pastille de 16 dessinée dedans (audit du 2026-10-15)
     <button key={hue || "default"} type="button" role="radio" aria-checked={chosen === hue ? "true" : "false"} aria-label={label} title={label}
-      className={"guide-swatch " + (hue ? "guide-" + hue : "guide-default")} onClick={() => pick(hue)} />
+      className={"guide-swatch " + (hue ? "guide-" + hue : "guide-default")} onClick={() => pick(hue)}><span className="guide-dot" aria-hidden="true" /></button>
   );
   return (
     <div className="guide-colors">
       <div className="guide-colors-head">
         <RulerDimensionLine className="layer-icon" aria-hidden="true" />
         <span className="layer-label" id="guide-colors-label">{t("display.guideColor")}</span>
-        <button type="button" className="guide-reset" disabled={!chosen} onClick={() => pick(null)}>{t("display.guideDefault")}</button>
+        {/* un verbe dans un bouton fantôme, pas un mot gris qui se lisait comme l'état (critique du 2026-10-15) */}
+        <button type="button" className="pbtn ghost guide-reset" disabled={!chosen} title={t("display.guideDefaultTitle")} onClick={() => pick(null)}><RotateCcw aria-hidden="true" />{t("display.guideDefault")}</button>
       </div>
       <div className="guide-swatches" role="radiogroup" aria-labelledby="guide-colors-label">
         {swatch(null, t("display.chartreuse"))}

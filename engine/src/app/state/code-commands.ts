@@ -14,7 +14,7 @@ import type { CodeContent } from "../../contracts/intent";
 import type { Op } from "../../shell/apps";
 import { DEFAULT_SIZE, DEFAULT_STYLE } from "../../canvas/annotations";
 import { CODE, fitHeight, lineCount, pasteWidth } from "../code/geometry";
-import { DEFAULT_CODE_CONTENT, LANGUAGE_LABEL, detectLanguage, normalizeCode, pastedAsCode } from "../code/languages";
+import { DEFAULT_CODE_CONTENT, LANGUAGE_LABEL, detectLanguage, normalizeCode, pasteChoice } from "../code/languages";
 import type { LanguageId } from "../code/languages";
 import { findSecrets, maskSecrets } from "../code/secrets";
 import { codeView } from "../code/view";
@@ -35,8 +35,9 @@ export interface CodeCommands {
   /** Insérer (barre d'outils, menu du fond) : un brouillon vide au point du plan, l'écriture ouverte. */
   codeInsert: (at: Point | null) => void;
   /** Un texte collé : un bloc s'il ressemble à du code ou porte une valeur sensible (rend vrai), sinon rien (la page en
-   *  fait une note). */
-  codePaste: (raw: string) => boolean;
+   *  fait une note). `force` : « coller comme bloc de code » (Ctrl+Maj+V, menu du fond), toujours un bloc, langage
+   *  détecté même non sûr, sinon texte brut ; `at` : le point du plan visé (le menu), sinon le pointeur. */
+  codePaste: (raw: string, options?: { force?: boolean; at?: Point | null }) => boolean;
   /** Le brouillon enregistré avec ce texte (déjà vu : valeurs retirées ou gardées) ; abandonné si le texte est vide.
    *  Rend faux si rien ne part et que le brouillon reste ouvert (texte trop long). */
   codeCreate: (draft: CodeDraft, text: string, outcome: CodeOutcome, removed: number) => boolean;
@@ -80,23 +81,24 @@ export function codeCommands({ dispatch, current, handle }: CodeDeps): CodeComma
       const c = at || ((p) => ({ x: p.x - w / 2, y: p.y - hh / 2 }))(h.toile.viewCenter());
       codeView.setDraft({ key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text: "", language: "plain", sure: false, x: snap(c.x), y: snap(c.y), w, h: hh, pasted: false });
     },
-    codePaste: (raw) => {
+    codePaste: (raw, options = {}) => {
       const h = handle();
       if (!h || !h.intents.canWrite()) return false;
       // la longueur brute d'abord : un texte démesuré n'est ni normalisé ni lu (revue, B3)
       if (raw.length > PASTE_RAW_MAX) { say(t("shell:code.tooLong", { max: CODE_MAX })); return true; }
       const text = normalizeCode(raw);
       // un texte qui porte une valeur sensible passe par l'avertissement, quels que soient sa longueur et son langage :
-      // une note n'en a pas (revue, M3)
-      const secret = findSecrets(text).length > 0, code = pastedAsCode(text);
-      if (!code && !secret) return false;
+      // une note n'en a pas (revue, M3) ; « coller comme bloc de code » en fait toujours un bloc (pasteChoice)
+      const secret = findSecrets(text).length > 0, choice = pasteChoice(text, { secret, force: !!options.force });
+      if (choice.as === "nothing") { if (options.force) say(t("shell:code.noText")); return !!options.force; }
+      if (choice.as === "note") return false;
       if (!ready(text)) return true;
-      const found = code || detectLanguage(text);
       const w = pasteWidth(text), hh = fitHeight(lineCount(text), 13, CODE.PASTE_MAX);
-      // au pointeur s'il est sur la toile ; sinon au centre de la vue, décalé à gauche pour que l'avertissement tienne à droite
-      const center = h.toile.viewCenter(), p = h.toile.pointer;
+      // au point visé (menu), sinon au pointeur s'il est sur la toile ; sinon au centre de la vue, décalé à gauche pour
+      // que l'avertissement tienne à droite
+      const center = h.toile.viewCenter(), p = options.at || h.toile.pointer;
       const at = p ? { x: p.x, y: p.y } : { x: center.x - w / 2 - 240, y: center.y - hh / 2 };
-      const draft: CodeDraft = { key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text, language: found.id, sure: found.sure, x: snap(at.x), y: snap(at.y), w, h: hh, pasted: true };
+      const draft: CodeDraft = { key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text, language: choice.language, sure: choice.sure, x: snap(at.x), y: snap(at.y), w, h: hh, pasted: true };
       // sans valeur sensible, le bloc s'enregistre aussitôt ; sinon le brouillon s'ouvre avec l'avertissement (la toile)
       if (secret) codeView.setDraft(draft); else commands.codeCreate(draft, text, "plain", 0);
       return true;
@@ -114,7 +116,8 @@ export function codeCommands({ dispatch, current, handle }: CodeDeps): CodeComma
       const language: LanguageId = guess && guess.sure ? guess.id : draft.language;
       const content: CodeContent = { ...DEFAULT_CODE_CONTENT, text, language };
       const lines = lineCount(text), hh = draft.pasted ? draft.h : Math.max(draft.h, fitHeight(lines, 13, CODE.PASTE_MAX));
-      const created = t(draft.pasted ? (draft.sure ? "shell:code.createdSure" : "shell:code.createdGuess") : "shell:code.created", { count: lines, language: LANGUAGE_LABEL[language] });
+      // un collage en texte brut n'a rien de « reconnu » ni de « proposé » : il dit seulement ce qu'il est
+      const created = t(draft.pasted && language !== "plain" ? (draft.sure ? "shell:code.createdSure" : "shell:code.createdGuess") : "shell:code.created", { count: lines, language: LANGUAGE_LABEL[language] });
       const extra = outcomeText(outcome, removed);
       void h.intents.onAnnotation([{ op: "annotation_create", content, x: draft.x, y: draft.y, w: draft.w, h: hh }], extra ? created + " · " + extra : created).then((intent) => {
         if (!intent) return;

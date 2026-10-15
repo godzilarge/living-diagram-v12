@@ -9,7 +9,7 @@
 import { t } from "../../i18n";
 import { useReactFlow, useStore } from "@xyflow/react";
 import type { Node, NodeProps } from "@xyflow/react";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { dashArray, KIND_LABEL, layoutText } from "../../canvas/annotations";
 import type { Frame, Segment } from "../../canvas/annotations";
@@ -21,6 +21,8 @@ import type { TableContent } from "../../contracts/intent";
 import type { ConnectorPatch } from "../../shell/apps";
 import type { ContextTarget } from "../state/context";
 import { PillSvg } from "./pill";
+import { GuideContext } from "./GuideLayer";
+import type { Line } from "./guides";
 import { positionPill, resized, sizePill, handleShapes } from "./handles";
 import type { HandleId, PillPlace } from "./handles";
 import { useAsset } from "./assets";
@@ -83,6 +85,17 @@ export function claim(request: EditAsk): boolean { if (claimed.has(request)) ret
 const useZoom = (): number => useStore((st) => st.transform[2]);
 
 /** Une pastille à taille d'écran, posée dans les coordonnées de la boîte (handles.ts). */
+/** La pastille « X, Y » d'une annotation glissée, à l'écart des repères du geste (abonnée à leur magasin le temps du
+ *  glissé seulement : les autres nœuds ne se redessinent pas). `at` : la place absolue du nœud dans le plan. */
+function MovedPill({ x, y, at, box, zoom }: { x: number; y: number; at: { x: number; y: number }; box: { w: number; h: number }; zoom: number }) {
+  const store = useContext(GuideContext);
+  const lines = useSyncExternalStore(store ? store.subscribe : noSubscribe, () => (store ? store.get().lines : NO_LINES));
+  const local = lines.map((l) => ({ axis: l.axis, at: l.at - (l.axis === "x" ? at.x : at.y) }));
+  return <GesturePill place={positionPill(x, y, zoom, local, box)} />;
+}
+const NO_LINES: Line[] = [];
+const noSubscribe = (): (() => void) => () => undefined;
+
 function GesturePill({ place }: { place: PillPlace }) {
   return <g className="gesture-pill" transform={`translate(${place.x} ${place.y}) scale(${place.scale})`}><PillSvg x={0} y={0} text={place.text} tone="muted" /></g>;
 }
@@ -217,7 +230,7 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
   // depuis la place du nœud, jusqu'à ce que l'écriture la pose.
   const shift = live ? { x: live.x - data.frame.x, y: live.y - data.frame.y } : null;
   // Glissée : la place qui sera écrite (celle de la fiche : relative à l'ancre d'une annotation attachée).
-  const moved = dragging ? positionPill(a.x + Math.round(positionAbsoluteX - data.frame.x), a.y + Math.round(positionAbsoluteY - data.frame.y), rf.getZoom()) : null;
+  const moved = dragging ? { x: a.x + Math.round(positionAbsoluteX - data.frame.x), y: a.y + Math.round(positionAbsoluteY - data.frame.y) } : null;
   // Relâché : la page écrit, sauf si rien n'a bougé (un clic sur une poignée n'écrit rien).
   const onResize = useCallback((raw: Frame, done: boolean): void => {
     // un bloc de code : jamais sous trois lignes ni sous 240 de large (lot 16) ; repères puis aimant de la grille comme
@@ -274,7 +287,7 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
             ? <ellipse className="hover-ring" cx={frame.w / 2} cy={frame.h / 2} rx={frame.w / 2} ry={frame.h / 2} />
             : <rect className="hover-ring" x={0} y={0} width={frame.w} height={frame.h} rx={a.style.radius} />}
           {selected && canEdit && !editingNow && !data.multi ? <Handles frame={frame} onResize={onResize} adjust={adjust} release={actions.guideEnd} /> : null}
-          {moved ? <GesturePill place={moved} /> : null}
+          {moved ? <MovedPill x={moved.x} y={moved.y} at={{ x: positionAbsoluteX, y: positionAbsoluteY }} box={frame} zoom={rf.getZoom()} /> : null}
           {editing && a.content.kind === "shape" ? <InlineInput at={{ x: 6, y: Math.max(0, frame.h / 2 - 13) }} width={Math.max(60, frame.w - 12)} height={26} initial={a.content.label} max={80} label={t("shell:canvas.shapeLabel")} onDone={done} /> : null}
         </g>
       </svg>

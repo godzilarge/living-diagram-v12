@@ -32,7 +32,7 @@ export function menuItems(target: ContextTarget, model: Model, ctx: MenuContext)
   const out: MenuItem[] = [];
   const write = ctx.editable;
   if (target.kind === "pane") {
-    if (write) out.push(clip("paste", "pasteHere"), sep(), item("insert:note", "insertNote"), item("insert:rectangle", "insertRectangle"), item("insert:ellipse", "insertEllipse"), item("insert:connector", "insertConnector"), item("insert:table", "insertTable"), item("insert:code", "insertCode"), item("insert:image", "insertImage"), sep());
+    if (write) out.push(clip("paste", "pasteHere"), item("clip:pasteCode", "pasteCodeHere", { keys: t("shell:context.keys.pasteCode"), aria: "Control+Shift+V" }), sep(), item("insert:note", "insertNote"), item("insert:rectangle", "insertRectangle"), item("insert:ellipse", "insertEllipse"), item("insert:connector", "insertConnector"), item("insert:table", "insertTable"), item("insert:code", "insertCode"), item("insert:image", "insertImage"), sep());
     out.push(item("fit", "fit"));
     if (ctx.hasSelection) out.push(item("clear", "clear"));
     return out;

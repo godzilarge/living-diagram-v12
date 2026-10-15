@@ -431,7 +431,8 @@
     "numbersOff": "cachés",
     "height": "hauteur",
     "heightLabel": "hauteur de la boîte, en pixels",
-    "fit": "ajuster au contenu",
+    "fit": "ajuster",
+    "fitTitle": "ajuster la hauteur au contenu",
     "size": "taille",
     "sizeLabel": "taille du code, en pixels",
     "looksLike": "Le contenu ressemble à",
@@ -473,6 +474,19 @@
     "warnGo": "ligne {{line}}, {{kind}}, {{nature}} : aller à la valeur",
     "warnNote": "Retirer : chaque valeur est remplacée par {{mask}} dans le texte enregistré ; la commande reste lisible.",
     "keep": "Garder tel quel",
-    "editText": "Modifier le texte"
+    "editText": "Modifier le texte",
+    "tipKept": "Valeur sensible gardée",
+    "tipWhere": "ligne {{line}} · {{kind}}",
+    "tipReadable": "lisible par tous ceux qui ouvrent {{infrastructure}}",
+    "tipKeptCount_one": "1 valeur sensible gardée",
+    "tipKeptCount_many": "{{count}} valeurs sensibles gardées",
+    "tipKeptCount_other": "{{count}} valeurs sensibles gardées",
+    "tipMore_one": "et 1 de plus, dans le code",
+    "tipMore_many": "et {{count}} de plus, dans le code",
+    "tipMore_other": "et {{count}} de plus, dans le code",
+    "tipTitle": "{{kind}}, {{nature}}, ligne {{line}} ; lisible par tous ceux qui ouvrent {{infrastructure}}",
+    "tipShieldTitle_one": "1 valeur sensible gardée telle quelle, lisible par tous ceux qui ouvrent {{infrastructure}}",
+    "tipShieldTitle_many": "{{count}} valeurs sensibles gardées telles quelles, lisibles par tous ceux qui ouvrent {{infrastructure}}",
+    "tipShieldTitle_other": "{{count}} valeurs sensibles gardées telles quelles, lisibles par tous ceux qui ouvrent {{infrastructure}}"
   }
 }

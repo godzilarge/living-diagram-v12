@@ -316,8 +316,13 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   (150 ms, 4 px) ne se joue qu'au passage de cachée à montrée. **Masquer** : Ctrl + . ou la case « barre contextuelle »
   du panneau Affichage (une préférence du navigateur, `fbar` dans `ld-prefs`, jamais dans l'adresse) ; la ligne d'état
   dit la bascule ; masquée, Alt+T la rappelle pour la sélection en cours sans changer la préférence. **Clavier** : Alt+T
-  donne le focus à la barre (`role="toolbar"`), ← → Origine Fin la parcourent, ↓ ou ↑ ouvre un volet et y entre (← → ↑ ↓
-  dans sa grille), Échap ferme le volet (d'où que vienne le focus, avant de vider la sélection) puis rend la toile ;
+  donne le focus à la barre (`role="toolbar"`), ← → Origine Fin la parcourent, ↓ ou ↑ ouvre un volet et y entre, sur
+  l'élément coché de son premier groupe de choix (← → ↑ ↓ dans un groupe) ; **Tab et Maj+Tab font le tour des groupes du
+  volet** sans le fermer (dans « aligner et répartir » : la grille, les colonnes, l'ordre, « mettre en grille » ; dans le
+  volet du langage : la suggestion et la liste ; passe de finition du 2026-10-15), un menu (grouper, ajouter à) se ferme
+  à Tab comme un menu ; Échap ferme le volet (d'où que vienne le focus, avant de vider la sélection) puis rend la toile ;
+  un volet qui ne tient pas au-dessus se raccourcit (sa liste défile) ou se pose à côté de la barre, le long de sa
+  rangée, toujours avec une flèche vers son bouton ou sa rangée ;
   chaque bouton a son nom, son raccourci (`aria-keyshortcuts`), son infobulle « libellé · raccourci ». **Le code** :
   `state/floating.ts` (pur, testé sous Node : quels boutons pour quelle sélection et quel droit, la place de la barre et
   des volets) ; `components/FloatingBar.tsx` (une couche à soi en coordonnées d'écran, plutôt que `NodeToolbar` de
@@ -513,12 +518,21 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   veut, copiable, et ne jamais enregistrer un mot de passe sans l'avoir vu. **Insérer** : bouton du bloc Insérer de la
   barre d'outils ou menu du fond ; un brouillon s'ouvre en écriture, rien n'existe avant Ctrl+Entrée. **Coller**
   (Ctrl+V) : un texte de trois lignes au moins dont le langage se reconnaît devient un bloc avec son langage, sinon une
-  note comme avant ; Ctrl+Z défait le collage. **Valeurs sensibles** : avant tout enregistrement (création, écriture,
+  note comme avant ; **Ctrl+Maj+V** (ou « coller comme bloc de code » au clic droit du fond) en fait **toujours** un
+  bloc, au langage détecté même non sûr, sinon « Texte brut » (Orhan, 2026-10-15 ; `pasteChoice` dans
+  `app/code/languages.ts` ; mêmes règles : normalisation, borne, avertissement des valeurs sensibles) ; Ctrl+Z défait le
+  collage. **Valeurs sensibles** : avant tout enregistrement (création, écriture,
   collage), la page repère les mots de passe, hashs, communautés SNMP, clés (Cisco, FortiOS, Junos, clés privées,
   clé = valeur en YAML / JSON / Python / Bash) et avertit à côté du bloc : chaque valeur avec sa ligne, sa sorte et sa
   nature (hash, type 7 réversible, chiffrée, en clair), la valeur en points, un point rouge dans la gouttière, un clic qui
   la sélectionne dans le texte ; « Retirer ces valeurs » (`<removed>`), « Garder tel quel » (une alerte reste sur le bloc
-  et dans la fiche, qui propose encore de les retirer), « Modifier le texte ». Rien n'est envoyé ailleurs.
+  et dans la fiche, qui propose encore de les retirer), « Modifier le texte ». L'avertissement est un dialogue modal : le
+  focus y entre sur « Retirer », Tab y tourne et n'écrit rien dans le texte ; il se pose à droite du bloc, à gauche,
+  dessous, dessus, sinon sur le bloc, toujours dans la zone visible, jamais sous la fiche (`placeWarn`). **Rappel** :
+  une valeur gardée reste dessinée en rouge souligné et le bloc porte un bouclier ; au survol de la valeur ou du
+  bouclier, la bulle dit sa nature (« type 7 : réversible »…) et « lisible par tous ceux qui ouvrent {infrastructure} »,
+  jamais la valeur (`app/code/secret-tip.ts`) ; la fiche dit la même chose au survol (`title`). Rien n'est redemandé ni
+  bloqué. Rien n'est envoyé ailleurs.
   **Coloration** : Prism 1.30.0 (`prismjs`, MIT, `manual: true`, `Prism.tokenize` seulement, jamais de HTML ni de DOM),
   grammaires Python, Bash, JSON, YAML de Prism, Cisco IOS / NX-OS recopiée de `blakebratcher/obsidian-cisco-syntax` 0.2.0
   (MIT, `engine/vendor/obsidian-cisco-syntax/` avec sa licence), FortiOS écrite ici (`app/code/fortios.ts`) ; chaque jeton
@@ -536,15 +550,17 @@ l'utilisateur chercher, sélectionner, masquer, aligner.
   là où l'on lisait ; Ctrl+Entrée enregistre, Échap annule, Tab = 4 espaces, un clic dehors enregistre. **Barre
   contextuelle** : teinte | langage (volet, avec la détection qui propose), police (volet, chaque police dans son rendu),
   coloration, numéros, ajuster la hauteur (60 lignes au plus, absent si inutile), taille | plan, verrou | dupliquer,
-  supprimer ; **copier** dans l'en-tête du bloc et dans la fiche. **Fiche** : titre, code entier coloré, « Affichage »
-  (mêmes réglages, plus la hauteur). **Recherche** : le texte d'un bloc (et d'une note) se cherche, section « notes et
-  code », un bloc s'ouvre à la ligne trouvée. Code : `app/code/` (`geometry.ts`, `languages.ts`, `tokens.ts`,
+  supprimer ; **copier** dans l'en-tête du bloc (à la souris) et dans la fiche (au clavier aussi). **Fiche** : titre,
+  code entier coloré (au-delà de 200 lignes, seules les lignes visibles sont rendues : Ctrl+A dans la fiche ne prend
+  que la fenêtre, « copier » prend tout), « Affichage » (mêmes réglages, plus la hauteur). **Recherche** : le texte d'un bloc (et d'une note) se cherche, section « notes et
+  code », un bloc s'ouvre à la ligne trouvée. Code : `app/code/` (`geometry.ts`, `languages.ts`, `tokens.ts`, `secret-tip.ts`,
   `secrets.ts`, `prism.ts`, `fortios.ts`, `view.ts` ; pur, `LDApp.code`, `backend/tests/js/code.test.js`),
   `app/canvas/code.tsx` (dessin, défilement), `code-edit.tsx` (écriture), `code-warn.tsx` (avertissement),
   `code-draft.tsx` (brouillon, `ViewportPortal`), `app/state/code-commands.ts`, `code-bar.ts`, `components/CodeVolets.tsx`,
-  `cards/CodeCard.tsx`, `styles/code.css` ; parcours Chromium `backend/tests/test_app_code.py`. Clavier : la barre et la
-  fiche portent tout ce que la souris fait ; la barre de défilement et la molette n'ont pas d'équivalent au clavier
-  autre que Page préc. / Page suiv. / Origine / Fin sur le bloc sélectionné.
+  `cards/CodeCard.tsx`, `styles/code.css` ; parcours Chromium `backend/tests/test_app_code.py`. Clavier : la barre (ses
+  volets compris, Tab y fait le tour des groupes) et la fiche portent tout ce que la souris fait ; la barre de
+  défilement et la molette n'ont pas d'équivalent au clavier autre que Page préc. / Page suiv. / Origine / Fin sur le
+  bloc sélectionné ; « copier » de l'en-tête du bloc est retiré de l'arbre d'accessibilité (celui de la fiche le porte).
 - **Pas de Tailwind, pas de bibliothèque d'état ni de routeur** (décisions du 2026-10-06) : composants maison dans
   `ui/`, CSS à jetons, `useReducer`.
 

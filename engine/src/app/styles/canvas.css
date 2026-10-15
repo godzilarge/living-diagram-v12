@@ -42,20 +42,20 @@
 .node-label.lod-tiny { font-size: 30px; }
 /* la carte : sa teinte (`--type`, posée par la classe `hue-*` : celle du type, ou celle que l'intention donne, docs/10)
    colore le rail et l'icône, sur la carte comme sur l'icône d'une fiche et sur une pastille */
-.node, .type-icon, .swatch, .frame, .annotation, .connector, .tip-end-dot { --type: var(--hue-slate); }
+.node, .type-icon, .swatch, .frame, .annotation, .connector, .tip-end-dot { --type: var(--hue-slate); --type-ink: var(--hue-slate-ink); }
 .node { cursor: pointer; }
-.hue-blue { --type: var(--hue-blue); }
-.hue-sky { --type: var(--hue-sky); }
-.hue-indigo { --type: var(--hue-indigo); }
-.hue-violet { --type: var(--hue-violet); }
-.hue-pink { --type: var(--hue-pink); }
-.hue-red { --type: var(--hue-red); }
-.hue-orange { --type: var(--hue-orange); }
-.hue-amber { --type: var(--hue-amber); }
-.hue-lime { --type: var(--hue-lime); }
-.hue-green { --type: var(--hue-green); }
-.hue-teal { --type: var(--hue-teal); }
-.hue-slate { --type: var(--hue-slate); }
+.hue-blue { --type: var(--hue-blue); --type-ink: var(--hue-blue-ink); }
+.hue-sky { --type: var(--hue-sky); --type-ink: var(--hue-sky-ink); }
+.hue-indigo { --type: var(--hue-indigo); --type-ink: var(--hue-indigo-ink); }
+.hue-violet { --type: var(--hue-violet); --type-ink: var(--hue-violet-ink); }
+.hue-pink { --type: var(--hue-pink); --type-ink: var(--hue-pink-ink); }
+.hue-red { --type: var(--hue-red); --type-ink: var(--hue-red-ink); }
+.hue-orange { --type: var(--hue-orange); --type-ink: var(--hue-orange-ink); }
+.hue-amber { --type: var(--hue-amber); --type-ink: var(--hue-amber-ink); }
+.hue-lime { --type: var(--hue-lime); --type-ink: var(--hue-lime-ink); }
+.hue-green { --type: var(--hue-green); --type-ink: var(--hue-green-ink); }
+.hue-teal { --type: var(--hue-teal); --type-ink: var(--hue-teal-ink); }
+.hue-slate { --type: var(--hue-slate); --type-ink: var(--hue-slate-ink); }
 .node-shape { fill: var(--node); stroke: var(--node-line); stroke-width: 1.2; transition: stroke var(--t-fast), fill var(--t-fast); }
 .node-rail { fill: var(--type); pointer-events: none; }
 /* l'icône de type en trois couches (icons.ts) : silhouette, bandeau d'épaisseur, symbole en réserve */

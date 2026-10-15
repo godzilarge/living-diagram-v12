@@ -10,6 +10,9 @@
   --tk-comment: #8a9bb1; --tk-keyword: #c79bff; --tk-string: #86dfa5; --tk-number: #f2b066; --tk-function: #82b6ff;
   --tk-builtin: #55d6c2; --tk-property: #74c8f2; --tk-punct: #9fb0c3; --tk-variable: #f597c9; --tk-secret: #ff8f86;
   --tk-masked: #8a9bb1;
+  /* le pouce de défilement (≥ 3:1 sur le fond du bloc, WCAG 1.4.11) et la nature d'une valeur dans l'avertissement
+     (≥ 4,5:1 sur sa pastille) : testés sous Node, audit du 2026-10-15 */
+  --code-thumb: #6f757b; --code-thumb-hover: #9ba0a7; --code-nature: #e0a040;
 }
 :root[data-theme="light"] {
   --code-bg: #f8fafc; --code-head: #eef2f6; --code-gutter: #f1f4f8; --code-line: #c8d1dc; --code-rule: #dde3ea;
@@ -17,6 +20,7 @@
   --tk-comment: #5c6b7e; --tk-keyword: #6d28d9; --tk-string: #13703a; --tk-number: #a04a06; --tk-function: #1d4ed8;
   --tk-builtin: #0f766e; --tk-property: #0369a1; --tk-punct: #4b5a6e; --tk-variable: #be185d; --tk-secret: #b91c1c;
   --tk-masked: #5c6b7e;
+  --code-thumb: #7e848c; --code-thumb-hover: #525a63; --code-nature: #8a410c;
 }
 
 /* les polices d'un bloc : une classe pose --code-font, le texte en hérite (chasse fixe seulement) */
@@ -55,7 +59,8 @@
 
 /* l'en-tête : la pastille du langage (un fait), copier (une commande), l'alerte */
 .code-pill rect { fill: color-mix(in srgb, var(--type) 14%, var(--code-head)); stroke: color-mix(in srgb, var(--type) 45%, var(--code-head)); stroke-width: 1; }
-.code-pill text { font: 600 11px var(--mono); fill: color-mix(in srgb, var(--type) 70%, var(--ink)); letter-spacing: 0.02em; pointer-events: none; }
+/* le texte de la pastille : l'encre de sa teinte (`--type-ink`, une par teinte et par thème, canvas.css), ≥ 4,5:1 */
+.code-pill text { font: 600 11px var(--mono); fill: var(--type-ink, var(--ink-2)); letter-spacing: 0.02em; pointer-events: none; }
 .code-pill.off rect { fill: none; stroke: var(--code-line); stroke-dasharray: 3 2; }
 .code-pill.off text { fill: var(--ink-3); }
 .code-icon { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
@@ -64,14 +69,16 @@
 .code-copy rect { fill: transparent; }
 .code-copy:hover { color: var(--ink); }
 .code-copy:hover rect { fill: color-mix(in srgb, var(--ink) 9%, var(--code-head)); }
+/* le survol d'une valeur sensible gardée et du bouclier : la bulle rappelle sa nature et qui la lit (secret-tip.ts) */
+.code-hit { fill: transparent; pointer-events: all; cursor: help; }
 .code-foot-hint, .code-foot-more { font: 400 11.5px var(--sans); fill: var(--ink-3); pointer-events: none; }
 
 /* le défilement dans la boîte : fine, visible au survol et sur le bloc sélectionné ; le pouce se glisse, la piste pagine */
 .code-scroll { opacity: 0; transition: opacity var(--t-fast); }
 .react-flow__node-annotation:hover .code-scroll, .annotation.selected .code-scroll { opacity: 1; }
 .code-track { fill: transparent; cursor: pointer; }
-.code-thumb { fill: color-mix(in srgb, var(--ink) 28%, transparent); cursor: grab; }
-.code-thumb:hover, .code-thumb:active { fill: color-mix(in srgb, var(--ink) 48%, transparent); }
+.code-thumb { fill: var(--code-thumb); cursor: grab; }
+.code-thumb:hover, .code-thumb:active { fill: var(--code-thumb-hover); }
 
 /* ——— l'écriture en place : un textarea en chasse fixe sur la zone du code, la gouttière gardée ——— */
 .react-flow__node:has(.code-editor) { z-index: 1000 !important; }
@@ -87,7 +94,7 @@
   overflow: hidden; pointer-events: none; padding-top: var(--ce-py, 10px); box-sizing: border-box; background: var(--code-gutter); border-bottom-left-radius: 8px; }
 .code-edit-nums { transform: translateY(var(--gs, 0px)); padding-right: 12px; text-align: right; font: 400 var(--ce-fs, 13px)/var(--ce-lh, 20px) var(--code-font, var(--mono)); color: var(--code-num); font-variant-numeric: tabular-nums; }
 .code-edit-nums .flag { position: relative; color: var(--tk-secret); font-weight: 600; }
-.code-edit-nums .flag::before { content: ""; position: absolute; left: 6px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--tk-secret); }
+.code-edit-nums .flag::before { content: ""; position: absolute; left: 4px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--tk-secret); }
 .code-edit-hint { position: absolute; left: 0; bottom: calc(100% + 8px); scale: var(--unzoom, 1); transform-origin: left bottom; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px;
   border-radius: var(--ctl-r); background: var(--bg-elev-2); border: 1px solid var(--line-strong); box-shadow: var(--shadow-tip); font: 400 12px/1 var(--sans); color: var(--ink-3); white-space: nowrap; pointer-events: none; }
 .code-edit-hint kbd { font: 500 11px/1 var(--mono); color: var(--ink-2); }
@@ -97,20 +104,22 @@
 .code-draft > svg { position: absolute; left: 0; top: 0; overflow: visible; }
 
 /* ——— l'avertissement : la famille des volets, un filet d'avertissement ; à côté du bloc, jamais dessus ——— */
+/* sa place (--cw-x, --cw-y, en unités du bloc) vient de placeWarn (geometry.ts) : à droite, à gauche, dessous, dessus,
+   sinon sur le bloc, toujours dans la zone visible, jamais sous la fiche (audit du 2026-10-15) */
 .code-warn-panel { position: absolute; z-index: 2; left: var(--cw-x, 100%); top: var(--cw-y, 0px); scale: var(--unzoom, 1); transform-origin: left top; width: 448px; box-sizing: border-box; padding: 14px 16px;
   background: var(--bg-elev-2); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: var(--shadow-fbar), inset 3px 0 0 var(--warning); color: var(--ink);
   animation: fbar-fade var(--t-fast) linear both; cursor: default; }
-.code-warn-panel.left { left: auto; right: calc(100% + 12px); transform-origin: right top; }
 .code-warn-head { display: flex; align-items: center; gap: 8px; font: 600 13.5px/20px var(--sans); color: var(--ink); }
 .code-warn-head svg { width: 18px; height: 18px; color: var(--warning); flex: none; }
 .code-warn-why { margin: 6px 0 12px 26px; font: 400 12.5px/18px var(--sans); color: var(--ink-2); }
-.code-warn-list { display: flex; flex-direction: column; gap: 1px; margin: 0 0 14px; padding: 4px; border-radius: 8px; background: var(--ctl-bg); box-shadow: inset 0 0 0 1px var(--ctl-line); max-height: 272px; overflow: auto; }
+.code-warn-list { display: flex; flex-direction: column; gap: 1px; margin: 0 0 14px; padding: 4px; list-style: none; border-radius: 8px; background: var(--ctl-bg); box-shadow: inset 0 0 0 1px var(--ctl-line); max-height: 272px; overflow: auto; }
+.code-warn-list > li { margin: 0; padding: 0; }
 .code-warn-row { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 2px 8px; width: 100%; padding: 6px 8px; border-radius: 6px; text-align: left; cursor: pointer; }
 .code-warn-row:hover { background: var(--ctl-bg-hover); }
 .code-warn-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .code-warn-ln { grid-row: span 2; font: 500 11.5px/18px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .code-warn-kind { font: 500 12px/18px var(--sans); color: var(--ink); }
-.code-warn-nature { margin-left: 8px; padding: 0 6px; border-radius: 4px; font: 500 11px/16px var(--sans); color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.code-warn-nature { margin-left: 8px; padding: 0 6px; border-radius: 4px; font: 500 11px/16px var(--sans); color: var(--code-nature); background: color-mix(in srgb, var(--warning) 12%, transparent); }
 .code-warn-nature.hash { color: var(--ink-2); background: color-mix(in srgb, var(--ink) 8%, transparent); }
 .code-warn-line { font: 400 12px/18px var(--mono); color: var(--ink-2); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
 .code-warn-note { margin: -4px 0 12px; font: 400 12px/17px var(--sans); color: var(--ink-3); }
@@ -123,11 +132,16 @@
 .insp-code { margin: 4px 0 4px; border-radius: 8px; background: var(--code-bg); box-shadow: inset 0 0 0 1px var(--code-line); overflow: hidden; }
 .insp-code-head { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 12px; background: var(--code-head); border-bottom: 1px solid var(--code-rule); font: 500 12px/1 var(--sans); color: var(--ink-3); }
 .insp-code-head .grow { flex: 1; }
-.insp-code pre { margin: 0; max-height: 300px; overflow: auto; padding: 8px 0; font: 400 12px/19px var(--code-font, var(--mono)); color: var(--code-ink); counter-reset: ln;
+.insp-code pre { margin: 0; max-height: 300px; overflow: auto; padding: 8px 0; font: 400 12px/19px var(--code-font, var(--mono)); color: var(--code-ink);
   font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 .insp-code pre:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .insp-code .ln { display: block; padding: 0 14px 0 0; white-space: pre; }
-.insp-code .ln::before { counter-increment: ln; content: counter(ln); display: inline-block; width: 4ch; margin-right: 14px; padding-right: 10px; text-align: right; color: var(--code-num); border-right: 1px solid var(--code-rule); }
+/* le numéro vient de la ligne (`data-n`) : une fiche fenêtrée ne rend que les lignes visibles (audit du 2026-10-15),
+   l'espace des autres est tenu par deux cales et la largeur par la plus longue ligne (--ln-cols) */
+.insp-code .ln-pad.before { display: block; height: var(--ln-before, 0px); }
+.insp-code .ln-pad.after { display: block; height: var(--ln-after, 0px); }
+.insp-code pre.windowed .ln { min-width: calc((var(--ln-cols, 0) + var(--ln-digits, 4)) * 1ch + 39px); }
+.insp-code .ln::before { content: attr(data-n); display: inline-block; width: calc(var(--ln-digits, 4) * 1ch); margin-right: 14px; padding-right: 10px; text-align: right; color: var(--code-num); border-right: 1px solid var(--code-rule); }
 .insp-code span.tk-comment { color: var(--tk-comment); font-style: italic; } .insp-code span.tk-keyword { color: var(--tk-keyword); }
 .insp-code span.tk-string { color: var(--tk-string); } .insp-code span.tk-number { color: var(--tk-number); }
 .insp-code span.tk-function { color: var(--tk-function); } .insp-code span.tk-builtin { color: var(--tk-builtin); }
@@ -139,7 +153,9 @@
 .insp-btn svg { width: 14px; height: 14px; }
 .insp-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .insp-warn { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--warning) 10%, var(--bg-elev)); font: 400 12.5px/18px var(--sans); color: var(--ink); }
-.insp-warn > svg { width: 16px; height: 16px; flex: none; color: var(--warning); margin-top: 1px; }
+.insp-warn-icon { display: inline-flex; flex: none; margin-top: 1px; cursor: help; }
+.insp-warn-icon svg { width: 16px; height: 16px; color: var(--warning); }
+.insp-code span.tk-secret[title] { cursor: help; }
 .insp-fit-row { display: flex; align-items: center; gap: 8px; width: 100%; }
 .insp-fit-row .insp-fit { flex: none; }
 
@@ -172,6 +188,7 @@
 .fb.named .fname { position: relative; font: 500 12.5px/1 var(--sans); white-space: nowrap; }
 .fb.named .fname[class*="cf-"] { font-family: var(--code-font); }
 .fb.named .chev { width: 12px; height: 12px; color: var(--ink-3); }
+.fb.named .fval { font: 500 12.5px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); margin-left: 2px; }
 .lang-hint { position: absolute; right: -5px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) { .code-scroll { transition: none; } .code-warn-panel { animation: none; } }
