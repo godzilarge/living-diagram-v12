@@ -75,6 +75,9 @@ Confirmed, upcoming, which the interface must **already anticipate**:
   auditors). A **crucial** function, not a convenience.
 - **Accounts** through OAuth / OpenID: the declarative author (a typed name) is temporary; the shell must be able to
   go from a "name" field to a session without reorganizing itself.
+- **A home page** (Orhan, 2026-10-16): the application opens on a modular space of widgets, extensible over time:
+  the list of infrastructures, the latest modifications and by whom, and later whatever a new function brings. It is
+  where one picks an infrastructure; the diagram is one click away.
 - **Data verification enters the product**: the diagnostic page `/view` (coverage per topic, ingestion findings,
   unparsed descriptions, sources) has no reason to exist apart anymore; its readings join the check view, in plain
   language for the engineer. `/view` only survives for the duration of the migration.
