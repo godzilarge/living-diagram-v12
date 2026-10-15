@@ -4,7 +4,8 @@ Un document par infrastructure, jamais par run. Trois sortes de patch, chacune d
 stable (le `hostname` du nœud, le `type` du contrat d'entrée, l'`id` d'un groupe ou d'une annotation), jamais par une
 coordonnée ni par une run : l'épingle (1.0.0), la couleur d'un type et la couleur d'un équipement (1.1.0), le groupe
 (1.2.0, docs/10 §5), l'annotation (1.3.0, docs/10 §6 : note, forme, tableau, image, libre ou attachée ;
-`annotations.py`), le connecteur (1.4.0 : une ligne ou une flèche à deux bouts, libres ou attachés ; `connectors.py`).
+`annotations.py`), le connecteur (1.4.0 : une ligne ou une flèche à deux bouts, libres ou attachés ; `connectors.py`),
+le bloc de code (1.6.0 : une cinquième sorte d'annotation, `CodeContent`).
 D'autres sortes viendront comme des listes à côté (additif, mineure). Toutes les clés sont écrites, aucun défaut, pas
 d'`extras` ; l'ordre de chaque liste est refusé par le type, comme dans le snapshot.
 """
@@ -41,7 +42,7 @@ from ld_contracts.intent.base import (
 from ld_contracts.intent.connectors import DEFAULT_CONNECTOR_STYLE, MAX_CONNECTORS, Connector
 from ld_contracts.snapshot.order import require_canonical
 
-INTENT_VERSION = "1.5.0"
+INTENT_VERSION = "1.6.0"
 INTENT_MAJOR = int(INTENT_VERSION.split(".")[0])
 __all__ = [
     "AUTHOR_MAX_LENGTH",
@@ -225,7 +226,8 @@ class Intent(ContractModel):
     )
     annotations: tuple[Annotation, ...] = Field(
         max_length=MAX_ANNOTATIONS,
-        description="Les annotations (docs/10 §6 : notes, formes, tableaux, images), triées par `id`, uniques ; "
+        description="Les annotations (docs/10 §6 : notes, formes, tableaux, images, blocs de code), triées par `id`, "
+        "uniques ; "
         "2 000 au plus.",
     )
     connectors: tuple[Connector, ...] = Field(
@@ -298,7 +300,8 @@ def empty_intent(infrastructure: str) -> Intent:
 def upgraded(data: dict) -> dict:
     """Un document d'une mineure antérieure relu dans la mineure courante : les listes qu'il ignore, vides
     (docs/10, décision 7 ; 1.0.x sans couleurs, 1.1.x sans groupes, 1.2.x sans annotations, 1.3.x sans connecteurs,
-    1.4.x sans ancre sur les bouts attachés : `side` = `auto`, le contour vers l'autre bout, ce qu'ils dessinaient).
+    1.4.x sans ancre sur les bouts attachés : `side` = `auto`, le contour vers l'autre bout, ce qu'ils dessinaient ;
+    1.5.x sans bloc de code : rien à ajouter, `code` n'est qu'une sorte de plus du contenu d'une annotation).
 
     En 1.3.x, une ligne ou une flèche était une forme dans sa boîte : elle devient un connecteur (`c<revision>-<n>`,
     mêmes numéros que l'annotation), ses bouts aux coins de la boîte ; attachée, son bout de départ reste attaché à

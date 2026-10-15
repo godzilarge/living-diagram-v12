@@ -3,7 +3,7 @@
 // qu'elle dit (`onSelect`). La toile elle-même (toile.ts) est sans DOM ; React Flow la dessine (Flow.tsx). Les hôtes
 // d'intention et de placement de `/view` sont réutilisés sans leur DOM : un glissé épingle par l'API sous le nom
 // donné, un alignement de même ; ce qui vient d'être placé se mémorise.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { selectionFromToken } from "../../canvas/model";
 import { t as text } from "../../i18n";
 import { exactRule, parseRule } from "../../canvas/query";
@@ -14,6 +14,8 @@ import { createIntentHost } from "../../shell/intent";
 import { createPlacementHost } from "../../shell/placement";
 import { Flow } from "../canvas/Flow";
 import { FloatingBar } from "./FloatingBar";
+import { CodeContext } from "../canvas/code";
+import { CodeDraftLayer } from "../canvas/code-draft";
 import type { ContextRequest } from "../canvas/Flow";
 import type { ConnectorPatch } from "../../shell/apps";
 import type { End } from "../../canvas/connectors";
@@ -170,6 +172,9 @@ export function Canvas() {
   // Alt + glissé relâché (lot 3 de docs/11) : la copie à la place du fantôme.
   const onClone = useCallback((items: Item[], d: Point): void => commands.cloneDrop(items, d), [commands]);
   const editable = useEditable();
-  return toile ? <Flow key={runKey} toile={toile} prefs={state.prefs} editable={editable} onAnnotation={onAnnotation} onConnector={onConnector} onGroupLabel={onGroupLabel} onConnectorCreate={onConnectorCreate} onContext={onContext} editRequest={state.editRequest}
-    toolArmed={state.tool === "connector"} onToolDone={onToolDone} onClone={onClone}><FloatingBar /></Flow> : null;
+  // Le bloc de code (lot 16 de docs/11) : ses commandes et le nom de l'infrastructure (l'avertissement dit qui le lira) ;
+  // son brouillon (un collage ou une insertion pas encore enregistrés) se dessine dans le plan, à côté de la barre.
+  const code = useMemo(() => ({ commands, infrastructure: state.address.infrastructure }), [commands, state.address.infrastructure]);
+  return toile ? <CodeContext.Provider value={code}><Flow key={runKey} toile={toile} prefs={state.prefs} editable={editable} onAnnotation={onAnnotation} onConnector={onConnector} onGroupLabel={onGroupLabel} onConnectorCreate={onConnectorCreate} onContext={onContext} editRequest={state.editRequest}
+    toolArmed={state.tool === "connector"} onToolDone={onToolDone} onClone={onClone}><FloatingBar /><CodeDraftLayer /></Flow></CodeContext.Provider> : null;
 }

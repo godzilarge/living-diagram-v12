@@ -85,7 +85,7 @@ class JournalSubject(ApiModel):
     label: str = Field(
         description="Le nom connu à cette révision (libellé, début d'une note, taille d'un tableau) ; vide si aucun."
     )
-    form: str = Field(description="La sorte d'une annotation (`note`, `shape`, `table`, `image`) ; vide sinon.")
+    form: str = Field(description="La sorte d'une annotation (`note`, `shape`, `table`, `image`, `code`) ; vide sinon.")
     unnamed: str = Field(
         default="",
         description="Sans nom à cette révision : sa sorte (`group`, `connector`, `note`, `shape`, `table`, `image`, "

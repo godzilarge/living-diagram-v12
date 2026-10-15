@@ -18,6 +18,7 @@ UNNAMED_TEXT = {
     "shape": "forme sans titre",
     "table": "tableau vide",
     "image": "image sans titre",
+    "code": "bloc de code sans titre",
     "annotation": "annotation sans titre",
 }
 _LEGACY = {text: kind for kind, text in UNNAMED_TEXT.items()}  # bouts écrits en mots par une purge d'avant le marqueur
@@ -46,7 +47,8 @@ def _short(text: str) -> str:
 
 def _annotation_label(content: Any) -> str:
     """Le nom d'une annotation : la première ligne d'une note, l'étiquette d'une forme, les premières cellules d'un
-    tableau (son en-tête, le plus souvent), le texte alternatif d'une image ; vide s'il n'y a rien à dire."""
+    tableau (son en-tête, le plus souvent), le texte alternatif d'une image, le titre d'un bloc de code (jamais son
+    texte : il peut porter une valeur sensible) ; vide s'il n'y a rien à dire."""
     if not isinstance(content, dict):
         return ""
     kind = content.get("kind")
@@ -64,6 +66,8 @@ def _annotation_label(content: Any) -> str:
         return f"{len(rows)} × {cols}"
     if kind == "image":
         return _short(str(content.get("alt", "") or ""))
+    if kind == "code":
+        return _short(str(content.get("title", "") or ""))
     return ""
 
 
@@ -91,7 +95,7 @@ class NameReplay:
         if subject[:1] == "c":
             return "connector"
         form = self.forms.get(subject, "")
-        return form if form in ("note", "shape", "table", "image") else "annotation"
+        return form if form in ("note", "shape", "table", "image", "code") else "annotation"
 
     def unnamed(self, subject: str) -> str:
         """Un sujet sans nom, en mots français (le nom lisible gardé pour la recherche)."""

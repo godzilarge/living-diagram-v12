@@ -101,6 +101,7 @@
         "content": {
           "discriminator": {
             "mapping": {
+              "code": "#/$defs/CodeContent",
               "image": "#/$defs/ImageContent",
               "note": "#/$defs/NoteContent",
               "shape": "#/$defs/ShapeContent",
@@ -120,6 +121,9 @@
             },
             {
               "$ref": "#/$defs/ImageContent"
+            },
+            {
+              "$ref": "#/$defs/CodeContent"
             }
           ],
           "title": "Content"
@@ -278,6 +282,86 @@
       ],
       "title": "AttachedEnd",
       "type": "object"
+    },
+    "CodeContent": {
+      "additionalProperties": false,
+      "description": "Un bloc de code (1.6.0, lot 16 de docs/11) : un extrait de configuration ou de script, lisible, coloré si on le\nveut. La boîte a une hauteur libre : le code défile dedans (la position de défilement est un état de vue, jamais\ndans ce document). Les valeurs sensibles ne sont pas jugées ici : la page avertit avant d'enregistrer.",
+      "properties": {
+        "kind": {
+          "const": "code",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "description": "1 à 20 000 caractères ; retours à la ligne admis, ni tabulation ni retour chariot (la page les normalise), aucun autre caractère de contrôle.",
+          "maxLength": 20000,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x09\\x0b-\\x1f\\x7f]*$",
+          "title": "Text",
+          "type": "string"
+        },
+        "language": {
+          "$ref": "#/$defs/CodeLanguage",
+          "description": "Le langage, pour la coloration (`plain` = texte brut)."
+        },
+        "title": {
+          "description": "Le titre du bloc (un nom de fichier, une commande), 80 caractères au plus.",
+          "maxLength": 80,
+          "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+          "title": "Title",
+          "type": "string"
+        },
+        "highlight": {
+          "description": "Coloration syntaxique allumée ; sans effet sur `plain`.",
+          "title": "Highlight",
+          "type": "boolean"
+        },
+        "line_numbers": {
+          "description": "Numéros de ligne affichés dans une gouttière.",
+          "title": "Line Numbers",
+          "type": "boolean"
+        },
+        "font": {
+          "$ref": "#/$defs/CodeFont",
+          "description": "La police, à chasse fixe (`style.text_font` n'est pas lu pour un bloc)."
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "language",
+        "title",
+        "highlight",
+        "line_numbers",
+        "font"
+      ],
+      "title": "CodeContent",
+      "type": "object"
+    },
+    "CodeFont": {
+      "description": "Les polices d'un bloc de code (1.6.0) : chasse fixe seulement, embarquées par l'application (OFL).",
+      "enum": [
+        "jetbrains_mono",
+        "ibm_plex_mono",
+        "source_code_pro",
+        "cascadia_mono"
+      ],
+      "title": "CodeFont",
+      "type": "string"
+    },
+    "CodeLanguage": {
+      "description": "Les langages d'un bloc de code (1.6.0) : ce que la page sait colorer. Junos viendra dans une mineure.",
+      "enum": [
+        "plain",
+        "python",
+        "bash",
+        "json",
+        "yaml",
+        "cisco_ios",
+        "fortios"
+      ],
+      "title": "CodeLanguage",
+      "type": "string"
     },
     "Connector": {
       "additionalProperties": false,
@@ -1240,7 +1324,7 @@
       "type": "array"
     },
     "annotations": {
-      "description": "Les annotations (docs/10 §6 : notes, formes, tableaux, images), triées par `id`, uniques ; 2 000 au plus.",
+      "description": "Les annotations (docs/10 §6 : notes, formes, tableaux, images, blocs de code), triées par `id`, uniques ; 2 000 au plus.",
       "items": {
         "$ref": "#/$defs/Annotation"
       },

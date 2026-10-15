@@ -20,6 +20,7 @@
       "shape": "added a shape {{ref}}",
       "table": "added a table {{ref}}",
       "image": "added an image {{ref}}",
+      "code": "added a code block {{ref}}",
       "other": "added an annotation {{ref}}"
     },
     "annotation_update": {
@@ -27,6 +28,7 @@
       "shape": "modified the shape {{ref}}",
       "table": "modified the table {{ref}}",
       "image": "modified the image {{ref}}",
+      "code": "modified the code block {{ref}}",
       "other": "modified the annotation {{ref}}"
     },
     "annotation_delete": {
@@ -34,6 +36,7 @@
       "shape": "deleted the shape {{ref}}",
       "table": "deleted the table {{ref}}",
       "image": "deleted the image {{ref}}",
+      "code": "deleted the code block {{ref}}",
       "other": "deleted the annotation {{ref}}"
     },
     "connector_create": "drew the connector {{ref}}",
@@ -97,6 +100,7 @@
     "shape": "(untitled)",
     "table": "(empty)",
     "image": "(untitled)",
+    "code": "(untitled)",
     "annotation": "(untitled)",
     "other": "(unnamed)"
   },
@@ -105,6 +109,7 @@
     "shape": "untitled shape",
     "table": "empty table",
     "image": "untitled image",
+    "code": "untitled code block",
     "annotation": "untitled annotation",
     "group": "unnamed group",
     "connector": "unnamed connector",
@@ -150,7 +155,9 @@
     "point": "point ({{x}}, {{y}})",
     "side": ", {{side}} side",
     "quoted": "“{{text}}”",
-    "table": "table {{rows}} × {{cols}}"
+    "table": "table {{rows}} × {{cols}}",
+    "code_one": "({{language}}, {{count}} line)",
+    "code_other": "({{language}}, {{count}} lines)"
   },
   "style": {
     "hue": "hue",

@@ -2431,7 +2431,8 @@
       note: "note",
       shape: "forme",
       table: "tableau",
-      image: "image"
+      image: "image",
+      code: "bloc de code"
     },
     connectorWord: {
       straight: "droit",
@@ -2635,6 +2636,24 @@
       tunnel: "tunnel",
       management: "management",
       other: "autre"
+    },
+    codeLanguage: {
+      plain: "Texte brut",
+      python: "Python",
+      bash: "Bash",
+      json: "JSON",
+      yaml: "YAML",
+      cisco_ios: "Cisco IOS / NX-OS",
+      fortios: "FortiOS"
+    },
+    codeLanguageShort: {
+      plain: "TEXTE",
+      python: "PYTHON",
+      bash: "BASH",
+      json: "JSON",
+      yaml: "YAML",
+      cisco_ios: "CISCO",
+      fortios: "FORTIOS"
     }
   };
 
@@ -3009,14 +3028,14 @@
   var groups = { SHAPES, STROKES, POSITIONS, PLACEMENTS, WEIGHTS, FONTS, LABEL_COLORS, BOUNDS, DEFAULT_STYLE, STYLE_LABEL, WEIGHT_VALUE, presentMembers, orphanMembers, frameOf, labelSlot, dashArray };
 
   // src/canvas/annotations.ts
-  var KINDS = ["note", "shape", "table", "image"];
+  var KINDS = ["note", "shape", "table", "image", "code"];
   var SHAPES2 = ["rectangle", "ellipse"];
   var ANCHORS = ["free", "device", "group"];
   var PLANES = ["back", "front"];
   var ALIGNS = ["left", "center", "right"];
   var VALIGNS = ["top", "middle", "bottom"];
   var BOUNDS2 = { size: [20, 4e3], fill_opacity: [0, 100], stroke_width: [0, 8], radius: [0, 80], opacity: [10, 100], text_size: [8, 64] };
-  var KIND_LABEL = labelMap("common:annotationKind", ["note", "shape", "table", "image"]);
+  var KIND_LABEL = labelMap("common:annotationKind", ["note", "shape", "table", "image", "code"]);
   var LABEL2 = labelMap("common:annotationWord", [
     "rectangle",
     "ellipse",
@@ -3036,9 +3055,10 @@
     note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
     shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle" },
     table: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 6, opacity: 100, text_size: 12, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
-    image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" }
+    image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
+    code: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" }
   };
-  var DEFAULT_SIZE = { note: { w: 220, h: 80 }, shape: { w: 200, h: 120 }, table: { w: 160, h: 52 }, image: { w: 320, h: 240 } };
+  var DEFAULT_SIZE = { note: { w: 220, h: 80 }, shape: { w: 200, h: 120 }, table: { w: 160, h: 52 }, image: { w: 320, h: 240 }, code: { w: 480, h: 240 } };
   var TABLE_CELL_W = 80;
   var TABLE_ROW_H = 26;
   var PAD2 = 8;
@@ -3141,6 +3161,7 @@
     if (c.kind === "note") return c.text.split("\n")[0].slice(0, 60);
     if (c.kind === "shape") return (LABEL2[c.shape] || c.shape) + (c.label ? " · " + c.label : "");
     if (c.kind === "table") return c.rows.length + " × " + (c.rows[0] ? c.rows[0].length : 0) + (c.header && c.rows[0] ? " · " + c.rows[0].join(" | ").slice(0, 40) : "");
+    if (c.kind === "code") return c.title || t2("common:annotationKind.code");
     return c.alt || t2("common:annotationKind.image");
   }
   var signature = (a) => JSON.stringify([a.anchor, a.x, a.y, a.w, a.h, a.z, a.locked, a.leader, a.content, a.style]);

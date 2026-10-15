@@ -2,7 +2,7 @@
 
 import pytest
 
-INTENT_VERSION = "1.5.0"
+INTENT_VERSION = "1.6.0"
 AT = "2026-10-04T18:30:00Z"
 
 

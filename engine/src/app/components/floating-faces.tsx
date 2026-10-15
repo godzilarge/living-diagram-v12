@@ -2,7 +2,7 @@
 // (un disque coupé quand la sélection en mêle deux), ou un glyphe dessiné ici, au trait, 16 × 16, qui montre la valeur
 // posée (remplissage, bordure, coins, pointes, tracé…) : on lit l'état sans ouvrir. Les glyphes du prototype validé le
 // 2026-10-14, recopiés en SVG pur (attributs de présentation : jamais de style en ligne, CSP).
-import { ALargeSmall, AlignStartVertical, ArrowRightLeft, BetweenHorizontalEnd, BetweenVerticalEnd, Bold, CopyPlus, EyeOff, Focus, Group, ImageUp, Layers, Lock, LockOpen,
+import { ALargeSmall, AlignStartVertical, ChevronDown, Highlighter, ListOrdered, MoveVertical, ArrowRightLeft, BetweenHorizontalEnd, BetweenVerticalEnd, Bold, CopyPlus, EyeOff, Focus, Group, ImageUp, Layers, Lock, LockOpen,
   MoveUpRight, Paintbrush, PanelTop, Pin, PinOff, SquareDashedMousePointer, StickyNote, TextAlignCenter, TextAlignEnd, TextAlignStart, TextCursorInput, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Face, GlyphName, IconName } from "../state/floating";
@@ -12,7 +12,7 @@ const ICONS: Record<IconName, ReactNode> = {
   lock: <Lock />, unlock: <LockOpen />, duplicate: <CopyPlus />, delete: <Trash2 />, editLabel: <TextCursorInput />, addRow: <BetweenHorizontalEnd />,
   addColumn: <BetweenVerticalEnd />, header: <PanelTop />, replace: <ImageUp />, reverse: <ArrowRightLeft />, selectMembers: <SquareDashedMousePointer />,
   paint: <Paintbrush />, pin: <Pin />, unpin: <PinOff />, group: <Group />, note: <StickyNote />, connect: <MoveUpRight />, hide: <EyeOff />, isolate: <Focus />,
-  align: <AlignStartVertical />,
+  align: <AlignStartVertical />, highlighter: <Highlighter />, listOrdered: <ListOrdered />, fitHeight: <MoveVertical />,
 };
 export const iconOf = (name: IconName): ReactNode => ICONS[name];
 
@@ -62,6 +62,8 @@ export const Glyph = ({ name, value }: { name: GlyphName; value: string }) => <s
 export function FaceOf({ face }: { face: Face }) {
   if (face.kind === "icon") return <>{ICONS[face.icon]}</>;
   if (face.kind === "glyph") return <Glyph name={face.glyph} value={face.value} />;
+  // un nom (langage, police d'un bloc de code) : écrit dans sa police quand c'en est une, un point quand la détection propose autre chose
+  if (face.kind === "text") return <><span className={"fname" + (face.font ? " cf-" + face.font : "")}>{face.text}{face.hint ? <span className="lang-hint" aria-hidden="true" /> : null}</span><ChevronDown className="chev" aria-hidden="true" /></>;
   if (face.hues.length < 2) return <span className={"fb-hue hue-" + (face.hues[0] || "slate")} aria-hidden="true" />;
   return (
     <svg viewBox="0 0 14 14" className="fb-mix" aria-hidden="true">

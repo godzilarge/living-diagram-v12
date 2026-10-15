@@ -2,7 +2,7 @@
 // ancre et signature), le contenu selon la sorte (texte, forme et étiquette, tableau, image), la position (ancrage,
 // boîte, calque, ligne de rappel), puis la forme et le texte, repliés par défaut. Chaque réglage part aussitôt par
 // l'hôte d'intention ; sans nom, tout se lit. Signée et datée : une intention, jamais un fait collecté.
-import { Copy, Crosshair, Image as ImageIcon, Link2Off, Lock, LockOpen, Shapes, StickyNote, Table2, Trash2 } from "lucide-react";
+import { Code, Copy, Crosshair, Image as ImageIcon, Link2Off, Lock, LockOpen, Shapes, StickyNote, Table2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,13 +18,15 @@ import { Badge } from "../../ui";
 import { Confirm, Facts, IconButton, Inspector, InspectorHead, Menu, NumberField, Pair, Row, Section, Segmented, Select, Stepper, Switch, TextArea, TextInput, Title } from "../../ui/inspector";
 import { HistoryButton, HostLink, HueSetting, WriteHint, signed } from "./shared";
 import { StrokeRow, TextRows, options } from "./style";
+import { CodeContentRows, CodeDisplay, codeTitle } from "./CodeCard";
 
 type Content = Annotation["content"];
-const KIND_ICON: Record<string, ReactNode> = { note: <StickyNote />, shape: <Shapes />, table: <Table2 />, image: <ImageIcon /> };
+const KIND_ICON: Record<string, ReactNode> = { note: <StickyNote />, shape: <Shapes />, table: <Table2 />, image: <ImageIcon />, code: <Code /> };
 const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
 
 const titleOf = (c: Content): string => (c.kind === "note" ? c.text.split("\n")[0].slice(0, 60) || t("panel:annotation.note")
-  : c.kind === "shape" ? c.label || capital(LABEL[c.shape]) : c.kind === "table" ? t("panel:annotation.table", { rows: c.rows.length, cols: c.rows[0] ? c.rows[0].length : 0 }) : c.alt || t("panel:annotation.image"));
+  : c.kind === "shape" ? c.label || capital(LABEL[c.shape]) : c.kind === "table" ? t("panel:annotation.table", { rows: c.rows.length, cols: c.rows[0] ? c.rows[0].length : 0 })
+    : c.kind === "code" ? codeTitle(c, t("panel:code.untitled")) : c.alt || t("panel:annotation.image"));
 
 /** Le tableau : la grille des cellules (les fusions, largeurs et hauteurs se règlent sur la toile), le nombre de lignes
  *  et de colonnes (bornes du contrat), l'en-tête ; chaque geste rend un contenu neuf (table.ts). */
@@ -85,6 +87,7 @@ function AnchorRows({ model, a, onAnchor }: { model: Model; a: Annotation; onAnc
 function ContentRows({ a, canWrite, onContent, onTable, onImage }: { a: Annotation; canWrite: boolean; onContent: (next: Content) => void; onTable: (next: TableContent) => void; onImage: (file: File) => void }) {
   const c = a.content;
   const { t } = useTranslation("panel");
+  if (c.kind === "code") return <CodeContentRows a={a} c={c} canWrite={canWrite} />;
   if (!canWrite) {
     if (c.kind === "table") return <table className="insp-table"><tbody>{c.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody></table>;
     return <p className="insp-text">{c.kind === "note" ? c.text : c.kind === "shape" ? c.label || LABEL[c.shape] : c.alt}</p>;
@@ -117,12 +120,12 @@ function StyleSections({ a, onStyle }: { a: Annotation; onStyle: (patch: Partial
     <>
       <Section title={t("annotation.shapeSection")} collapsible defaultOpen={false}>
         <Row label={t("hue")}><HueSetting value={s.hue} inherited={null} allowDefault={false} onPick={(hue) => onStyle({ hue: hue || "slate" })} /></Row>
-        <Row label={t("style.fill")}><NumberField label={t("style.fill")} value={s.fill_opacity} min={BOUNDS.fill_opacity[0]} max={BOUNDS.fill_opacity[1]} unit="%" onCommit={(fill_opacity) => onStyle({ fill_opacity })} /></Row>
+        {c.kind === "code" ? null : <Row label={t("style.fill")}><NumberField label={t("style.fill")} value={s.fill_opacity} min={BOUNDS.fill_opacity[0]} max={BOUNDS.fill_opacity[1]} unit="%" onCommit={(fill_opacity) => onStyle({ fill_opacity })} /></Row>}
         <Row label={t("style.border")}><StrokeRow value={s.stroke_style} options={options(STROKES)} width={s.stroke_width} bounds={BOUNDS.stroke_width}
           onStyle={(stroke_style) => onStyle({ stroke_style: stroke_style as AnnotationStyle["stroke_style"] })} onWidth={(stroke_width) => onStyle({ stroke_width })} /></Row>
         <Row label={t("style.corners")}><NumberField label={t("style.corners")} value={s.radius} min={BOUNDS.radius[0]} max={BOUNDS.radius[1]} unit="px" onCommit={(radius) => onStyle({ radius })} /></Row>
       </Section>
-      {c.kind !== "image" ? (
+      {c.kind !== "image" && c.kind !== "code" ? (
         <Section title={t("annotation.textSection")} collapsible defaultOpen={false}>
           <TextRows value={{ size: s.text_size, weight: s.text_weight, font: s.text_font, color: s.text_color, align: s.text_align, valign: c.kind !== "table" ? s.text_valign : undefined }}
             bounds={{ size: BOUNDS.text_size, weights: WEIGHTS, fonts: FONTS, colors: LABEL_COLORS, aligns: ALIGNS, valigns: c.kind !== "table" ? VALIGNS : undefined }}
@@ -171,9 +174,10 @@ export function AnnotationCard({ model, a }: { model: Model; a: Annotation }) {
         {canWrite ? null : <WriteHint action={t("annotation.toEdit")} />}
         {confirm ? <Confirm text={t("annotation.confirmDelete")} action={t("annotation.delete")} onCancel={() => setConfirm(false)} onConfirm={() => commands.annotationDelete(a.id)} /> : null}
       </InspectorHead>
-      <Section title={t("annotation.content")}>
+      <Section title={c.kind === "code" ? t("code.section") : t("annotation.content")}>
         <ContentRows a={a} canWrite={canWrite} onContent={(content) => update({ content })} onTable={(next) => commands.tableUpdate(a.id, next)} onImage={(file) => commands.annotationImage(file, a.id)} />
       </Section>
+      {canWrite && c.kind === "code" ? <CodeDisplay a={a} c={c} /> : null}
       {canWrite ? (
         <>
           <Section title={t("annotation.positionSection")} collapsible>

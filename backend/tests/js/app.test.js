@@ -19,7 +19,7 @@ function loadApp() {
 
 test("sans DOM, l'application ne monte rien et expose ses modules purs", () => {
   const LDApp = loadApp();
-  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "context", "debug", "floating", "gridding", "guides", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
+  assert.deepEqual(Object.keys(LDApp).sort(), ["address", "alignment", "boxAlignment", "checkMeaning", "clipboard", "code", "context", "debug", "floating", "gridding", "guides", "handles", "history", "hover", "http", "i18n", "initialState", "journal", "journalCsv", "opening", "prefs", "query", "reducer", "reusing", "searching", "selecting", "snap", "tool", "walking", "wheel"]);
   assert.equal(LDApp.debug.state(), null);
   assert.equal(LDApp.debug.handle(), null);
 });
@@ -373,7 +373,7 @@ test("le menu contextuel (context.ts) : ce qu'un clic droit propose selon la cib
   const ids = (items) => clone(items.filter((i) => !i.sep).map((i) => i.id));
   const rw = { editable: true, selectedHosts: [], hasSelection: false, pinned: () => false };
   const ro = { ...rw, editable: false };
-  assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, rw)), ["clip:paste", "insert:note", "insert:rectangle", "insert:ellipse", "insert:connector", "insert:table", "insert:image", "fit"]);
+  assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, rw)), ["clip:paste", "insert:note", "insert:rectangle", "insert:ellipse", "insert:connector", "insert:table", "insert:code", "insert:image", "fit"]);
   assert.deepEqual(ids(c.menuItems({ kind: "pane" }, model, { ...ro, hasSelection: true })), ["fit", "clear"], "en lecture seule, rien à insérer");
   assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, pinned: () => true })), ["center", "hide", "isolate", "clip:copy", "clip:paste", "note", "connect", "unpin"]);
   assert.deepEqual(ids(c.menuItems({ kind: "node", id: "sw-core-01" }, model, { ...rw, selectedHosts: ["sw-core-01", "sw-core-02"] })), ["center", "hide", "isolate", "clip:copy", "clip:paste", "align:horizontal", "align:vertical", "group"], "dans une sélection multiple : aligner, grouper");

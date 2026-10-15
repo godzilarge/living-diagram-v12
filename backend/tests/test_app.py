@@ -357,8 +357,8 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             assert tab.js("location.search") == f"?infrastructure=infra-lab&run_id={third_id}&from={LATER_RUN_ID}"
             assert tab.js(NODES) == 5, "les voisins inconnus sont masqués"
             assert tab.js("!!document.querySelector('.band') && !document.querySelector('.panel')")
-            assert tab.js("document.querySelectorAll('.toolbar button').length") == 10, (
-                "au repos : annuler, rétablir, cadrer, centrer, six outils d'insertion (docs/10 §6)"
+            assert tab.js("document.querySelectorAll('.toolbar button').length") == 11, (
+                "au repos : annuler, rétablir, cadrer, centrer, sept outils d'insertion (docs/10 §6, bloc de code du lot 16)"
             )
             assert "orhan" in tab.js("document.querySelector('.bar').textContent")
             # un clic réel sur un équipement : la fiche s'ouvre, l'adresse porte la sélection
@@ -898,7 +898,7 @@ def test_the_application_annotations_in_a_browser(settings, bundle_dict, tmp_pat
             tab.js("localStorage.setItem('ld-author', 'orhan')")
             tab.navigate(f"{base}/?infrastructure=infra-lab")
             _wait(tab, READY)
-            assert tab.js("document.querySelectorAll('.toolbar button').length") == 10, "quatre au repos, six outils"
+            assert tab.js("document.querySelectorAll('.toolbar button').length") == 11, "quatre au repos, sept outils"
             node = _node("a1-1")
             # insérer une note : créée par l'API, sélectionnée, sa fiche ouverte, au centre de la vue
             tab.js("document.querySelector(\".toolbar button[aria-label='insérer une note']\").click()")

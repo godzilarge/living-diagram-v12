@@ -116,7 +116,9 @@
     "showAll": "show all",
     "groupDetail_one": "group · {{count}} member",
     "groupDetail_other": "group · {{count}} members",
-    "clusterDetail": "HA cluster · {{mode}}"
+    "clusterDetail": "HA cluster · {{mode}}",
+    "notes": "notes and code",
+    "codeLine": "l. {{line}} · {{text}}"
   },
   "toolbar": {
     "label": "canvas actions",
@@ -141,7 +143,8 @@
     "clear": "clear the selection",
     "keys": "{{label}} ({{keys}})",
     "selectedItems_one": "{{count}} item selected",
-    "selectedItems_other": "{{count}} items selected"
+    "selectedItems_other": "{{count}} items selected",
+    "insertCode": "insert a code block"
   },
   "keys": {
     "escape": "Esc"
@@ -298,7 +301,9 @@
       "paste": "Ctrl+V",
       "duplicate": "Ctrl+D"
     },
-    "grid": "arrange in a grid"
+    "grid": "arrange in a grid",
+    "insertCode": "insert a code block",
+    "editCode": "edit the code"
   },
   "palette": {
     "label": "type palette",
@@ -482,7 +487,8 @@
       "table": "table",
       "image": "image",
       "connector": "connector",
-      "group": "group"
+      "group": "group",
+      "code": "code block"
     },
     "hue": "hue",
     "hueMixed": "mixed",
@@ -598,6 +604,51 @@
     "gridMore": "one column more",
     "gridResult": "{{total}} → {{cols}} × {{rows}}",
     "gridColumnsCount_one": "{{count}} column",
-    "gridColumnsCount_other": "{{count}} columns"
+    "gridColumnsCount_other": "{{count}} columns",
+    "codeLanguageOf": "language: {{value}}",
+    "codeLanguageHint": "language: {{value}} (the content looks like {{detected}})",
+    "codeFontOf": "font: {{value}}",
+    "codeHighlightOn": "syntax highlighting: on",
+    "codeHighlightOff": "syntax highlighting: off (plain text)",
+    "codeNumbersOn": "line numbers: shown",
+    "codeNumbersOff": "line numbers: hidden",
+    "codeFit": "fit the height to the content",
+    "codeFitMax": "fit the height to the content ({{max}} lines at most)",
+    "codeSizeOf": "code size: {{value}} px",
+    "codeSize": "code size"
+  },
+  "code": {
+    "lines_one": "{{count}} line",
+    "lines_other": "{{count}} lines",
+    "copyCode": "copy the code",
+    "foot": "lines {{from}}-{{to}} of {{total}}",
+    "below_one": "{{count}} more below",
+    "below_other": "{{count}} more below",
+    "end": "end of code",
+    "blockLabel_one": "{{language}} code block{{title}}, {{count}} line",
+    "blockLabel_other": "{{language}} code block{{title}}, {{count}} lines",
+    "editorLabel": "editing: {{name}}",
+    "keySave": "Ctrl+Enter",
+    "hintSave": "save",
+    "keyCancel": "Esc",
+    "hintCancel": "cancel",
+    "hintTab": "4 spaces",
+    "locked": "locked block: unlock it to write",
+    "removed_one": "1 value removed from the text",
+    "removed_other": "{{count}} values removed from the text",
+    "kept": "saved as is: the block keeps its warning",
+    "tooLong": "code block too long: {{max}} characters at most",
+    "abandoned": "block abandoned: nothing was saved",
+    "created_one": "code block created: {{count}} line, {{language}}",
+    "created_other": "code block created: {{count}} lines, {{language}}",
+    "createdSure_one": "block created: {{count}} line, language recognised: {{language}} · change it in the bar",
+    "createdSure_other": "block created: {{count}} lines, language recognised: {{language}} · change it in the bar",
+    "createdGuess_one": "block created: {{count}} line, language suggested: {{language}} · change it in the bar",
+    "createdGuess_other": "block created: {{count}} lines, language suggested: {{language}} · change it in the bar",
+    "copied_one": "copied: {{count}} line",
+    "copied_other": "copied: {{count}} lines",
+    "copiedOf_one": "copied: {{count}} line of {{title}}",
+    "copiedOf_other": "copied: {{count}} lines of {{title}}",
+    "copyRefused": "copy refused by the browser: select the text in the panel"
   }
 }

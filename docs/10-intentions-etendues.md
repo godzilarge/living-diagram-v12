@@ -447,6 +447,37 @@ attaché à un équipement, un groupe ou une annotation ; il suit ce qui bouge e
   contours, sorties, équerre, accrochage), Chromium (un bout relâché près du haut d'une carte s'ancre en `n` ; tirer
   depuis une ancre crée un connecteur, Ctrl+Z le défait). Parqué (§6.5) : plusieurs ancres par côté.
 
+### 6.7 Le bloc de code (2026-10-14, Intent 1.6.0 ; lot 16 de `docs/11`)
+
+En une phrase : **coller sur le diagramme un bout de configuration ou de code, lisible, coloré si on le veut, copiable,
+et ne jamais enregistrer un mot de passe sans l'avoir vu.** Prototype validé par Orhan
+(`.impeccable/prototype-lot-16/`, « C'est très bon, on code ça maintenant ») ; décisions recopiées dans `docs/11`
+§ Lot 16.
+
+- **Une cinquième sorte d'annotation, `code`**, mêmes règles que les autres (A0 à A9) : libre ou attachée (équipement,
+  groupe), ligne de rappel, plan, verrou, connecteurs, presse-papiers (lot 3), Ctrl+Z, journal, orphelines, recherche.
+- **Contrat** : `CodeContent` = `kind`, `text` (1 à 20 000 caractères, multi-ligne, ni tabulation ni retour chariot :
+  la page normalise, le contrat refuse), `language` (`plain`, `python`, `bash`, `json`, `yaml`, `cisco_ios`,
+  `fortios`), `title` (0 à 80, une ligne), `highlight`, `line_numbers`, `font` (`jetbrains_mono`, `ibm_plex_mono`,
+  `source_code_pro`, `cascadia_mono`). **Hauteur libre** : le code défile dans la boîte ; la position de défilement est un
+  état de vue, jamais dans le document, ni au journal, ni dans l'historique. Défauts de la sorte : ardoise, 13, mono,
+  coins 8. Les valeurs sensibles ne sont pas dans le contrat : la page avertit avant d'enregistrer.
+- **A10 — Rien n'est enregistré sans que les valeurs sensibles aient été vues.** Création, écriture et collage passent
+  par la même détection (`app/code/secrets.ts`, pure, quel que soit le langage choisi) ; l'avertissement liste chaque
+  valeur (ligne, sorte, nature : hash, type 7 réversible, chiffrée, en clair) sans jamais la remontrer en clair ; trois
+  issues : retirer (`<removed>`, convention de RANCID, neutre vis-à-vis de la langue), garder tel quel (une alerte reste
+  sur le bloc et dans la fiche), modifier le texte. Un champ d'écriture démonté avec une valeur non vue n'enregistre
+  rien. Motif : le texte enregistré est lu par tous et reste dans `journal.jsonl` (seule `ld journal prune` l'en retire).
+- **A11 — Un texte de code collé devient un bloc** : trois lignes au moins et un langage reconnu par la détection (un
+  score par langage, le meilleur s'il se détache) ; sinon une note, comme avant (§6, A8).
+- **Le journal** nomme un bloc par son titre (jamais une ligne de son texte), sinon « bloc de code sans titre » ;
+  `ld intent` l'imprime par son langage, ses lignes et son titre.
+- **Branchement** : `app/code/` (pur), `app/canvas/code.tsx` / `code-edit.tsx` / `code-warn.tsx` / `code-draft.tsx`,
+  `app/state/code-commands.ts` / `code-bar.ts`, `components/CodeVolets.tsx`, `cards/CodeCard.tsx`, `styles/code.css` ;
+  `/view` (gelée) liste les blocs dans l'onglet Intentions sans les dessiner. Guide : `engine/README.md` § L'application.
+- **Hors périmètre** : Junos (grammaire à écrire, une mineure), repli d'un bloc, export « déplié » (lot 11), thème par
+  bloc, retour à la ligne automatique, graisses de police (le regular seul est embarqué).
+
 ## 7. Annuler, rétablir (2026-10-07, validé par Orhan : « GO »)
 
 Deux boutons dans la barre (toujours visibles, la bulle nomme le geste), Ctrl+Z, Ctrl+Y ou Ctrl+Maj+Z (sans effet

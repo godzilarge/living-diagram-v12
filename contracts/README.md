@@ -439,6 +439,21 @@ test, et le schéma est régénéré.
 
 ## Décisions prises sur le contrat
 
+- **2026-10-14** — **`Intent` 1.5.0 → 1.6.0, additif : le bloc de code** (lot 16 de `docs/11`, prototype validé par
+  Orhan : « C'est très bon, on code ça maintenant »). Une cinquième sorte de contenu d'annotation, `CodeContent` :
+  `kind: "code"`, `text` 1 à 20 000 caractères, multi-ligne, **ni tabulation ni retour chariot** (la page normalise :
+  CRLF → LF, tabulation → espaces à quatre colonnes ; `string_pattern_mismatch`), `language` ∈ `plain | python | bash |
+  json | yaml | cisco_ios | fortios` (Junos dans une mineure), `title` 0 à 80 caractères sur une ligne, `highlight` et
+  `line_numbers` booléens stricts, `font` ∈ `jetbrains_mono | ibm_plex_mono | source_code_pro | cascadia_mono` (chasse
+  fixe seulement : une configuration s'aligne en colonnes). Le reste est celui de toute annotation (boîte, ancrage,
+  plan, verrou, ligne de rappel, auteur, date). **Hauteur libre** : le code défile dans la boîte ; ni `folded` ni
+  `fold_lines` (réponse 5 d'Orhan au prototype : « une très grosse configuration, je ne veux peut-être pas l'afficher en
+  entier ») ; **la position de défilement n'est jamais dans le contrat** (état de vue). Défauts de la sorte dans
+  `DEFAULT_ANNOTATION_STYLE` (ardoise, 13, mono, coins 8 ; `style.text_font` n'est pas lu pour un bloc). **Les valeurs
+  sensibles ne sont pas jugées ici** : le serveur ne sait pas ce qu'est un secret dans quinze syntaxes, la page avertit
+  avant l'enregistrement. `upgraded()` relit un 1.5.x sans rien changer. Écarté : une police proportionnelle, une
+  « monospace du système » (la police changerait d'un poste à l'autre et la coupure calculée tomberait faux). Note : le
+  lot 9 (ordre et verrou), prévu en 1.6.0 dans `docs/11`, prendra la mineure suivante.
 - **2026-10-07** — **`Intent` 1.1.0 → 1.2.0, additif : les groupes** (`docs/10` §5, « Go sur le regroupement, riche en
   fonctions, ne pas brider l'utilisateur, ergonomique »). `groups` : `{id, label, description, members, style, author, at}`,
   triés par `id` ; **l'`id` est attribué par le serveur** (`g<revision>-<n>`), jamais le libellé ; `members` triés, uniques,

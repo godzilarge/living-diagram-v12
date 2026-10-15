@@ -1,9 +1,10 @@
 """Les annotations (docs/10 §6) : ce que seul l'humain sait et que la collecte ne saura jamais, posé sur la toile.
 
-Une annotation est une note, une forme, un tableau ou une image, avec une boîte (`x`, `y`, `w`, `h`), un ancrage (libre
-dans le plan, ou attachée à un équipement ou à un groupe : elle suit ce qui bouge), un plan (dessous, dessus), un
-verrou, une ligne de rappel vers son ancre, un style complet, un auteur et une date. Identité `a<revision>-<n>`
-attribuée par le serveur. Ce qu'elle porte n'entre jamais dans le snapshot, le diff ni le placement mémorisé.
+Une annotation est une note, une forme, un tableau, une image ou un bloc de code (1.6.0), avec une boîte (`x`, `y`,
+`w`, `h`), un ancrage (libre dans le plan, ou attachée à un équipement ou à un groupe : elle suit ce qui bouge), un plan
+(dessous, dessus), un verrou, une ligne de rappel vers son ancre, un style complet, un auteur et une date.
+Identité `a<revision>-<n>` attribuée par le serveur. Ce qu'elle porte n'entre jamais dans le snapshot, le diff ni le
+placement mémorisé.
 Les lignes et les flèches ne sont plus des formes depuis 1.4.0 : ce sont des connecteurs (`connectors.py`), à deux
 bouts, chacun libre ou attaché à un élément du diagramme.
 """
@@ -37,6 +38,8 @@ CELL_MAX_LENGTH = 120
 TABLE_MAX_ROWS, TABLE_MAX_COLUMNS = 30, 8
 SHAPE_LABEL_MAX_LENGTH = 80
 ALT_MAX_LENGTH = 120
+CODE_MAX_LENGTH = 20_000
+CODE_TITLE_MAX_LENGTH = 80
 
 AnnotationId = Annotated[str, StringConstraints(pattern=r"^a[0-9]+-[0-9]+$")]
 AnchorRef = Annotated[str, StringConstraints(min_length=1, max_length=HOSTNAME_MAX_LENGTH, pattern=PRINTABLE)]
@@ -46,6 +49,10 @@ ShapeLabel = Annotated[str, StringConstraints(max_length=SHAPE_LABEL_MAX_LENGTH,
 Cell = Annotated[str, StringConstraints(max_length=CELL_MAX_LENGTH, pattern=PRINTABLE_OR_EMPTY)]
 AssetId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 AltText = Annotated[str, StringConstraints(max_length=ALT_MAX_LENGTH, pattern=PRINTABLE_OR_EMPTY)]
+# Le texte d'un bloc de code : multi-ligne, sans tabulation ni retour chariot (la page normalise au collage : CRLF → LF,
+# tabulation → espaces à quatre colonnes) ; aucun autre caractère de contrôle (MULTILINE refuse \t et \r).
+CodeText = Annotated[str, StringConstraints(min_length=1, max_length=CODE_MAX_LENGTH, pattern=MULTILINE)]
+CodeTitle = Annotated[str, StringConstraints(max_length=CODE_TITLE_MAX_LENGTH, pattern=PRINTABLE_OR_EMPTY)]
 GROUP_ID = r"^g[0-9]+-[0-9]+$"
 
 
@@ -206,6 +213,44 @@ class TableContent(ContractModel):
             covered |= cells
 
 
+class CodeLanguage(StrEnum):
+    """Les langages d'un bloc de code (1.6.0) : ce que la page sait colorer. Junos viendra dans une mineure."""
+
+    PLAIN = "plain"
+    PYTHON = "python"
+    BASH = "bash"
+    JSON = "json"
+    YAML = "yaml"
+    CISCO_IOS = "cisco_ios"
+    FORTIOS = "fortios"
+
+
+class CodeFont(StrEnum):
+    """Les polices d'un bloc de code (1.6.0) : chasse fixe seulement, embarquées par l'application (OFL)."""
+
+    JETBRAINS_MONO = "jetbrains_mono"
+    IBM_PLEX_MONO = "ibm_plex_mono"
+    SOURCE_CODE_PRO = "source_code_pro"
+    CASCADIA_MONO = "cascadia_mono"
+
+
+class CodeContent(ContractModel):
+    """Un bloc de code (1.6.0, lot 16 de docs/11) : un extrait de configuration ou de script, lisible, coloré si on le
+    veut. La boîte a une hauteur libre : le code défile dedans (la position de défilement est un état de vue, jamais
+    dans ce document). Les valeurs sensibles ne sont pas jugées ici : la page avertit avant d'enregistrer."""
+
+    kind: Literal["code"]
+    text: CodeText = Field(
+        description="1 à 20 000 caractères ; retours à la ligne admis, ni tabulation ni retour chariot (la page les "
+        "normalise), aucun autre caractère de contrôle."
+    )
+    language: CodeLanguage = Field(description="Le langage, pour la coloration (`plain` = texte brut).")
+    title: CodeTitle = Field(description="Le titre du bloc (un nom de fichier, une commande), 80 caractères au plus.")
+    highlight: StrictBool = Field(description="Coloration syntaxique allumée ; sans effet sur `plain`.")
+    line_numbers: StrictBool = Field(description="Numéros de ligne affichés dans une gouttière.")
+    font: CodeFont = Field(description="La police, à chasse fixe (`style.text_font` n'est pas lu pour un bloc).")
+
+
 class ImageContent(ContractModel):
     """Une image du magasin de fichiers de l'infrastructure, par son empreinte ; PNG, JPEG ou WebP, jamais SVG."""
 
@@ -214,8 +259,10 @@ class ImageContent(ContractModel):
     alt: AltText = Field(description="Texte de remplacement, 120 caractères au plus (vide admis).")
 
 
-AnnotationContent = Annotated[NoteContent | ShapeContent | TableContent | ImageContent, Field(discriminator="kind")]
-ANNOTATION_KINDS = ("note", "shape", "table", "image")
+AnnotationContent = Annotated[
+    NoteContent | ShapeContent | TableContent | ImageContent | CodeContent, Field(discriminator="kind")
+]
+ANNOTATION_KINDS = ("note", "shape", "table", "image", "code")
 
 DEFAULT_ANNOTATION_STYLE: dict[str, dict[str, object]] = {
     "note": {
@@ -274,12 +321,31 @@ DEFAULT_ANNOTATION_STYLE: dict[str, dict[str, object]] = {
         "text_align": "left",
         "text_valign": "top",
     },
+    "code": {
+        "hue": "slate",
+        "fill_opacity": 0,
+        "stroke_width": 1,
+        "stroke_style": "solid",
+        "radius": 8,
+        "opacity": 100,
+        "text_size": 13,
+        "text_weight": "regular",
+        "text_font": "mono",
+        "text_color": "ink",
+        "text_align": "left",
+        "text_valign": "top",
+    },
 }
-DEFAULT_ANNOTATION_SIZE: dict[str, tuple[int, int]] = {"note": (220, 80), "shape": (200, 120), "image": (320, 240)}
+DEFAULT_ANNOTATION_SIZE: dict[str, tuple[int, int]] = {
+    "note": (220, 80),
+    "shape": (200, 120),
+    "image": (320, 240),
+    "code": (480, 240),
+}
 TABLE_CELL_W, TABLE_ROW_H = 80, 26
 
 
-def default_size(content: NoteContent | ShapeContent | TableContent | ImageContent) -> tuple[int, int]:
+def default_size(content: NoteContent | ShapeContent | TableContent | ImageContent | CodeContent) -> tuple[int, int]:
     """La taille d'une annotation créée sans `w` ni `h` : par sorte ; un tableau, selon ses lignes et colonnes."""
     if isinstance(content, TableContent):
         return (TABLE_CELL_W * len(content.rows[0]), TABLE_ROW_H * len(content.rows))

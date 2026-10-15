@@ -9,20 +9,23 @@ import type { Annotation, Connector, Group, Model, Selection } from "../../canva
 import { t } from "../../i18n";
 import { size } from "./selection";
 import type { Multi } from "./selection";
+import { codeEntries } from "./code-bar";
 
 // ——— Quoi ———
 
 /** Les icônes Lucide de la barre, par nom (le composant les dessine). */
 export type IconName = "textSize" | "bold" | "alignLeft" | "alignCenter" | "alignRight" | "layers" | "lock" | "unlock" | "duplicate" | "delete"
   | "editLabel" | "addRow" | "addColumn" | "header" | "replace" | "reverse" | "selectMembers" | "paint" | "pin" | "unpin" | "group"
-  | "note" | "connect" | "hide" | "isolate" | "align";
+  | "note" | "connect" | "hide" | "isolate" | "align" | "highlighter" | "listOrdered" | "fitHeight";
 /** Les glyphes dessinés à la main (ce que Lucide n'a pas) : ils montrent la valeur posée sur le bouton. */
 export type GlyphName = "fill" | "border" | "corners" | "heads" | "route" | "widths" | "strokes" | "width" | "stroke" | "shape" | "opacity" | "position" | "plane";
 export type Face =
   | { kind: "icon"; icon: IconName }
   | { kind: "glyph"; glyph: GlyphName; value: string }
   /** La teinte : une pastille, ou un disque coupé quand la sélection en mêle plusieurs (les deux premières). */
-  | { kind: "hue"; hues: string[] };
+  | { kind: "hue"; hues: string[] }
+  /** Un nom écrit sur le bouton (le langage, la police d'un bloc de code, lot 16) ; `hint` : la détection propose autre chose. */
+  | { kind: "text"; text: string; font?: string; hint?: boolean };
 export interface Choice { value: string; label: string; num?: string; glyph?: GlyphName; icon?: IconName }
 export type Volet =
   | { kind: "hue"; value: string | null; inherited: string | null; allowDefault: boolean }
@@ -30,7 +33,8 @@ export type Volet =
   /** `grid` : « mettre en grille » sous les alignements (lot 8 de docs/11 ; trois éléments au moins, comme répartir). */
   | { kind: "align"; count: number; rows: AlignCell[][]; grid: boolean }
   | { kind: "position"; value: string }
-  | { kind: "groups"; hosts: string[]; groups: { id: string; label: string }[] };
+  | { kind: "groups"; hosts: string[]; groups: { id: string; label: string }[] }
+  | { kind: "codeLanguage"; value: string; text: string } | { kind: "codeFont"; value: string };
 export interface AlignCell { mode: BarAlign; label: string; keys: string; aria: string; distribute: boolean }
 /** Un bouton : `id` dit ce qu'il fait (le composant l'exécute), `keys` son raccourci écrit, `aria` le même pour
  *  `aria-keyshortcuts` ; un bouton à volet propose (il n'agit pas seul). */
@@ -102,6 +106,7 @@ function annotationEntries(a: Annotation): BarEntry[] {
   const lock = button("lock", a.locked ? L("unlock") : L("lock"), icon(a.locked ? "lock" : "unlock"), { pressed: a.locked });
   const dup = button("duplicate", L("duplicate"), icon("duplicate"), keys("Ctrl+D"));
   const del = button("delete", L("delete"), icon("delete"), { ...keys(L("keyDelete")), danger: true });
+  if (c.kind === "code") return codeEntries(a, c, { hue, plane, lock, dup, del, sep: SEP }); // lot 16 : code-bar.ts
   if (c.kind === "note") {
     const size = TEXT_SIZES.find(([, px]) => px === s.text_size);
     const align = ALIGN_CYCLE.includes(s.text_align as typeof ALIGN_CYCLE[number]) ? s.text_align : "left";

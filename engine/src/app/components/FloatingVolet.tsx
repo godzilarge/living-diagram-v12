@@ -17,6 +17,7 @@ import type { HueName } from "../../canvas/hues";
 import type { BarAlign, BarButton, Choice, Volet } from "../state/floating";
 import { HueGrid, PositionGrid } from "../ui/inspector";
 import { Glyph } from "./floating-faces";
+import { CodeVolet } from "./CodeVolets";
 import { iconOf } from "./floating-faces";
 
 const ALIGN_ICON: Record<BarAlign, ReactNode> = {
@@ -141,6 +142,7 @@ export function VoletBody({ button, onPick, onTip, grid }: { button: BarButton; 
       </>
     );
   }
+  if (volet.kind === "codeLanguage" || volet.kind === "codeFont") return <CodeVolet volet={volet} onPick={onPick} />; // lot 16
   if (volet.kind === "position") {
     return (
       <>

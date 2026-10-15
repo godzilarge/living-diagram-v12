@@ -287,6 +287,74 @@ def test_annotations_have_a_server_id_a_coherent_anchor_a_typed_content_and_a_co
     assert Intent.model_validate(intent_doc(annotations=[note])).annotations[0].content.text == "ligne 1\nligne 2"
 
 
+def code_content(**overrides) -> dict:
+    base = {
+        "kind": "code",
+        "text": "interface Vlan20\n ip address 10.0.20.1 255.255.255.0\n!",
+        "language": "cisco_ios",
+        "title": "running-config",
+        "highlight": True,
+        "line_numbers": True,
+        "font": "jetbrains_mono",
+    }
+    return {**base, **overrides}
+
+
+def test_a_code_block_is_a_fifth_kind_of_annotation_with_a_bounded_text_a_language_and_a_font():
+    """1.6.0 (lot 16 de docs/11) : texte de 1 à 20 000 caractères, multi-ligne, ni tabulation ni retour chariot ;
+    langage et police dans leurs énumérations ; titre d'une ligne, 80 caractères ; deux booléens stricts ; la hauteur de
+    la boîte est libre comme toute annotation (aucun repli, aucune position de défilement)."""
+    from ld_contracts.intent import ANNOTATION_KINDS, DEFAULT_ANNOTATION_STYLE, default_size
+    from ld_contracts.intent.annotations import CodeContent
+
+    block = annotation_doc("a5-1", content=code_content(), h=900, anchor={"kind": "device", "ref": "sw-core-01"})
+    bare = code_content(language="plain", title="", highlight=False, font="cascadia_mono")
+    plain = annotation_doc("a5-2", content=bare)
+    read = Intent.model_validate(intent_doc(annotations=[block, plain]))
+    code = read.annotations[0].content
+    assert code.kind == "code" and code.language == "cisco_ios" and code.text.count("\n") == 2
+    assert read.annotations[0].h == 900 and read.annotations[1].content.font == "cascadia_mono"
+    assert "code" in ANNOTATION_KINDS and DEFAULT_ANNOTATION_STYLE["code"]["text_font"] == "mono"
+    assert default_size(CodeContent.model_validate(code_content())) == (480, 240)
+    longest = annotation_doc(content=code_content(text="x" * 20_000))
+    assert len(Intent.model_validate(intent_doc(annotations=[longest])).annotations[0].content.text) == 20_000
+    refused = {
+        "string_too_long": [
+            annotation_doc(content=code_content(text="x" * 20_001)),
+            annotation_doc(content=code_content(title="t" * 81)),
+        ],
+        "string_too_short": [annotation_doc(content=code_content(text=""))],
+        "string_pattern_mismatch": [
+            annotation_doc(content=code_content(text="if x:\n\treturn 1")),
+            annotation_doc(content=code_content(text="hostname a\r\n!")),
+            annotation_doc(content=code_content(text="a\x1b[31m")),
+            annotation_doc(content=code_content(title="deux\nlignes")),
+        ],
+        "enum": [
+            annotation_doc(content=code_content(language="junos")),
+            annotation_doc(content=code_content(font="fira_code")),
+        ],
+        "bool_type": [annotation_doc(content=code_content(highlight="yes"))],
+        "missing": [annotation_doc(content={k: v for k, v in code_content().items() if k != "line_numbers"})],
+        "extra_forbidden": [annotation_doc(content=code_content(folded=True))],
+    }
+    for kind, docs in refused.items():
+        for doc in docs:
+            with pytest.raises(ValidationError) as exc:
+                Intent.model_validate(intent_doc(annotations=[doc]))
+            assert first_error(exc)["type"] == kind, (kind, doc["content"])
+
+
+def test_a_1_5_document_reads_as_1_6_unchanged():
+    """Additif : un document 1.5.x n'a rien à recevoir, seule sa version monte."""
+    from ld_contracts.intent import upgraded
+
+    old = intent_doc(intent_version="1.5.0", annotations=[annotation_doc()], connectors=[connector_doc()])
+    read = Intent.model_validate(upgraded(old))
+    assert read.intent_version == INTENT_VERSION == "1.6.0"
+    assert read.annotations[0].content.kind == "note" and read.connectors[0].id == "c4-1"
+
+
 def table_doc(rows: list, merges: list) -> dict:
     return annotation_doc(content={"kind": "table", "header": False, "rows": rows, "merges": merges})
 
@@ -430,6 +498,7 @@ def test_no_field_of_any_intent_model_has_a_default():
         Annotation,
         AnnotationStyle,
         AttachedEnd,
+        CodeContent,
         Connector,
         ConnectorStyle,
         FreeEnd,
@@ -441,7 +510,7 @@ def test_no_field_of_any_intent_model_has_a_default():
         TableContent,
     )
 
-    contents = {NoteContent, ShapeContent, TableContent, ImageContent, Merge}
+    contents = {NoteContent, ShapeContent, TableContent, ImageContent, CodeContent, Merge}
     connectors = {Connector, ConnectorStyle, FreeEnd, AttachedEnd, Heads}
     assert (
         seen

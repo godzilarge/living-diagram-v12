@@ -6,7 +6,7 @@
 // Les préférences d'affichage restent en bas à gauche (Controls) : ici on agit, là-bas on règle ce qu'on voit.
 // L'outil connecteur est un bouton à bascule (lot 1 de docs/11, touche C) : armé, on tire des connecteurs sur la toile.
 // Le compte dit « éléments » dès que la sélection mêle les sortes.
-import { Circle, Crosshair, Image, Maximize, MoveUpRight, Redo2, Square, StickyNote, Table, Undo2, X } from "lucide-react";
+import { Circle, Code, Crosshair, Image, Maximize, MoveUpRight, Redo2, Square, StickyNote, Table, Undo2, X } from "lucide-react";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { size } from "../state/selection";
@@ -22,6 +22,7 @@ const INSERTS = [
   { key: "rectangle", label: "toolbar.insertRectangle", icon: Square },
   { key: "ellipse", label: "toolbar.insertEllipse", icon: Circle },
   { key: "table", label: "toolbar.insertTable", icon: Table },
+  { key: "code", label: "toolbar.insertCode", icon: Code }, // lot 16 : un brouillon, l'écriture ouverte
 ] as const;
 
 function Tool({ label, keys, disabled, pressed, onClick, children }: { label: string; keys?: string; disabled?: boolean; pressed?: boolean; onClick: () => void; children: ReactNode }) {

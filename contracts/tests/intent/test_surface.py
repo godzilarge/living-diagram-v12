@@ -72,7 +72,7 @@ def test_the_reference_has_a_part_d_with_every_field_and_the_catalogue():
 def test_cli_validates_an_intent_and_refuses_a_broken_one(tmp_path, capsys):
     assert cli.main(["validate", "--contract", "intent", str(SKELETON)]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("valid: intent 1.5.0") and "pins 2" in out
+    assert out.startswith("valid: intent 1.6.0") and "pins 2" in out
     assert "annotations 1" in out and "connectors 1" in out
     broken = tmp_path / "broken.json"
     broken.write_text(json.dumps({**json.loads(SKELETON.read_text(encoding="utf-8")), "revision": 0}), encoding="utf-8")

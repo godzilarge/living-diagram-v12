@@ -49,6 +49,8 @@ export const ALLOWED = new Map([
   ["src/i18n/core.ts:Français", "le nom d'une langue s'écrit dans sa langue, quelle que soit celle de la page (sélecteur)"],
   ["src/canvas/groups.ts:sans", "valeur du contrat (`label_font` : `sans` | `mono`), jamais affichée telle quelle"],
   ["src/canvas/connectors.ts:sans", "valeur du contrat (`text_font` : `sans` | `mono`), jamais affichée telle quelle"],
+  ["src/canvas/annotations.ts:sans", "valeur du contrat (`text_font` : `sans` | `mono`), jamais affichée telle quelle (le brouillon d'un bloc de code lit les défauts, lot 16)"],
+  ["src/app/code/tokens.ts:comment", "nom d'un jeton de Prism (`comment`, la famille des commentaires), jamais affiché"],
 ]);
 // Garde-fou : le scan lit bien l'application (un fichier livré vide ou mal découpé ne prouverait rien).
 const MIN_TEXTS = 500;

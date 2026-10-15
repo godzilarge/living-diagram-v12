@@ -99,6 +99,7 @@ KIND_WORDS: dict[str, tuple[str, ...]] = {
     "shape": ("forme", "shape"),
     "table": ("tableau", "table"),
     "image": ("image",),
+    "code": ("bloc de code", "code block"),
 }
 HUE_WORDS: dict[str, tuple[str, ...]] = {
     "blue": ("bleu", "blue"),
@@ -150,6 +151,7 @@ UNNAMED_WORDS: dict[str, tuple[str, str]] = {
     "shape": ("forme sans titre", "untitled shape"),
     "table": ("tableau vide", "empty table"),
     "image": ("image sans titre", "untitled image"),
+    "code": ("bloc de code sans titre", "untitled code block"),
     "annotation": ("annotation sans titre", "untitled annotation"),
     "group": ("groupe sans nom", "unnamed group"),
     "connector": ("connecteur sans nom", "unnamed connector"),

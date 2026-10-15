@@ -1308,41 +1308,113 @@ la ligne apprend les jetons, `annotation.tsx` : `tspan` par style) ; l'éditeur 
 « gras » dans la barre contextuelle entoure la sélection du champ. Un texte qui ne parse pas s'affiche brut. Test Node
 du parseur (pur), Chromium (gras rendu, lien cliquable, mutation : `<script>` reste du texte).
 
-### Lot 16 — Le bloc de code (demande d'Orhan, 2026-10-14) — prototype d'abord
+### Lot 16 — Le bloc de code (Intent 1.6.0) — prototype validé le 2026-10-14
 
-**En une phrase** : coller sur le diagramme un bout de configuration (switch, firewall, routeur) ou de code (Python,
-Bash, JSON, YAML), lisible, coloré si on le veut, et copiable.
+**En une phrase** : coller sur le diagramme un bout de configuration ou de code, lisible, coloré si on le veut,
+copiable, et ne jamais enregistrer un mot de passe sans l'avoir vu. Prototype : `.impeccable/prototype-lot-16/` (README :
+décisions, contrat, règle de la molette, sources, licences), validé par Orhan (« C'est très bon, on code ça maintenant »). Passé avant le lot 4 bis, codé dans un
+worktree en parallèle du lot 8 et fusionné après lui ; versions du contrat : lot 16 = `Intent` 1.6.0, lot 4 bis = 1.7.0,
+lot 9 = 1.8.0 (une mineure par lot livré).
 
-**Décisions** (avis rendu, retenu par Orhan le 2026-10-14) : cinquième sorte d'annotation (`code`), mêmes règles que les
-autres (libre ou attachée, connecteurs, presse-papiers, annulable, journal) ; langages d'abord **Python, Bash, JSON,
-YAML** (choix d'Orhan), puis la famille « configuration réseau » (Cisco IOS / NX-OS, FortiOS, Junos) ; **coloration
-syntaxique au choix** par bloc (activée ou texte brut) ; chasse fixe, numéros de ligne en option, bouton « copier » ;
-bloc long replié sur la toile (N premières lignes, dépliable), en entier dans la fiche ; contenu cherchable ; borne
-proposée 20 000 caractères. **Ne pas réécrire la roue** (Orhan) : une bibliothèque de coloration éprouvée, dont la
-sortie se dessine en SVG sans HTML injecté (piste : Prism, `Prism.tokenize` rend des jetons, grammaires officielles pour
-Python, Bash, JSON, YAML ; grammaires Cisco existantes à reprendre si la licence le permet ; aucune trouvée pour FortiOS)
-— choix, version épinglée et licences à écrire avant le code (nouvelle dépendance). **Secrets** : la page repère les
-motifs courants (`password`, `secret`, `community`, `pre-shared-key`, `key 7`…) et avertit avant d'enregistrer, avec
-« masquer ces valeurs » ; rien n'est envoyé ailleurs. Contrat : ajout additif dans la même mineure `Intent` que le lot
-4 bis (l'ordre et le verrou du lot 9 passent à la suivante). Ordre : lot 8 → lot 4 bis → lot 16 (ou les deux ensemble) →
-lot 7. Prototype : `.impeccable/prototype-lot-16/`.
+**Décisions d'Orhan (2026-10-14), appliquées telles quelles**
 
-**Prototype jugé le 2026-10-14** : bibliothèque **Prism 1.30.0** (MIT, `Prism.tokenize`, jetons dessinés en `tspan`).
-Réponses d'Orhan : (1) langages de la V1 = Python, Bash, JSON, YAML, Cisco IOS / NX-OS (grammaire Prism du plugin
-Obsidian `blakebratcher/obsidian-cisco-syntax`, MIT, reprise, corrections proposées à l'auteur) et FortiOS (grammaire
-Prism écrite, aucune n'existe) ; Junos plus tard (la grammaire trouvée n'a pas de licence) ; (2) un texte de code collé
-(au moins trois lignes, langage reconnu) devient un bloc, sinon une note, Ctrl+Z annule ; (3) secrets : avertir et
-proposer (« retirer ces valeurs » → `<removed>`, « garder tel quel » avec alerte qui reste, « modifier le texte ») ;
-(4) grammaire Cisco reprise ; (5) **refusé : la hauteur n'est pas déduite des lignes** ; une très grosse configuration
-ne doit pas s'afficher en entier : **la boîte a une hauteur libre et le code défile dedans** (remplace le repli) ;
-(6) quatre polices à chasse fixe embarquées (OFL : JetBrains Mono par défaut, IBM Plex Mono, Source Code Pro, Cascadia
-Mono, chasse mesurée par police), pas de police du système. Le poids des fichiers ne s'affiche pas dans le volet.
+- Cinquième sorte d'annotation `code`, mêmes règles que les autres (libre ou attachée, connecteurs, presse-papiers du
+  lot 3, annulable, journal, orphelines, recherche).
+- **Contrat `Intent` 1.5.0 → 1.6.0, additif** : `CodeContent` (`kind: "code"`, `text` 1 à 20 000 caractères,
+  tabulations → 4 espaces et CRLF → LF normalisés par la page, refus d'une tabulation ou d'un CR ; `language` ∈ `plain |
+  python | bash | json | yaml | cisco_ios | fortios` ; `title` 0-80 ; `highlight` booléen ; `line_numbers` booléen ;
+  `font` ∈ `jetbrains_mono | ibm_plex_mono | source_code_pro | cascadia_mono`), **hauteur de boîte libre** (`h` comme
+  les autres annotations, pas de repli : `folded` / `fold_lines` n'existent pas), défauts dans
+  `DEFAULT_ANNOTATION_STYLE`, `upgraded()` relit 1.5.x sans changement, schéma JSON et `CONTRAT.md` régénérés, motifs dans
+  `contracts/README.md` § Décisions. La position de défilement n'est jamais dans le contrat (état de vue). Le journal et
+  `journal_words.py` / catalogues de recherche connaissent la sorte `code` (faits du Journal en mots, sujet nommé par
+  son titre).
+- **Coloration par Prism 1.30.0** (MIT ; dépendance nouvelle **décidée**, version exacte épinglée ; `Prism.tokenize`,
+  jamais de DOM ni de `highlightAll`, `manual: true`) ; grammaires Python, Bash, JSON, YAML officielles ; **Cisco IOS /
+  NX-OS = grammaire Prism du plugin Obsidian `blakebratcher/obsidian-cisco-syntax` 0.2.0, MIT, reprise avec sa licence**
+  et la règle du prototype qui corrige les noms d'hôte coloriés à moitié ; **FortiOS = la grammaire écrite dans le
+  prototype** ; Junos plus tard. Jetons rangés en familles, dessinés en `tspan` à classes (`tk-…`), couleurs en jetons
+  CSS dans les deux thèmes (contraste ≥ 4,5:1, test). **Coloration au choix par bloc** (`highlight`). Corrige le défaut
+  vu : la variable d'une boucle Bash (`for hote in`) colorée comme un mot-clé.
+- **Polices** : quatre à chasse fixe, OFL, embarquées (JetBrains Mono déjà là ; IBM Plex Mono, Source Code Pro, Cascadia
+  Mono depuis `@fontsource` 5.3.0, woff2 latin + latin étendu, regular), servies par le backend comme les polices
+  existantes (`font-src 'self'`), `@font-face` avec `unicode-range` : chargées seulement si un bloc les affiche ; chasse
+  mesurée par police (`em` exact, Cascadia 0,590) pour couper les lignes ; pas de police du système ; le volet ne
+  montre pas le poids des fichiers.
+- **Hauteur libre, le code défile dans la boîte** (« une très grosse configuration, je ne veux peut-être pas l'afficher
+  en entier ») : huit poignées, aimant à la grille ; seules les lignes visibles sont dessinées ; bouton « ajuster la
+  hauteur au contenu » (borné à 60 lignes, absent si inutile) ; pied « lignes 34-58 sur 120 », « n plus bas » ; barre de
+  défilement fine visible au survol ou à la sélection, pouce glissable, clic sur la piste = une page ; Page préc. /
+  Page suiv. / Origine / Fin sur le bloc sélectionné ; double-clic = édition qui s'ouvre là où on lisait. **Règle de la
+  molette** : sur un bloc **sélectionné seul**, la molette fait défiler le code ; ailleurs (bloc non sélectionné,
+  sélection multiple, toile) elle zoome la toile (D2) ; Ctrl + molette zoome toujours ; en butée, rien ne passe à la
+  toile ; pendant l'édition, le champ défile de lui-même. La fiche montre le code entier.
+- **Édition** : `textarea` à chasse fixe avec gouttière de numéros, Ctrl+Entrée enregistre, Échap annule, Tab = 4 espaces.
+- **Collage** : un texte de code collé (au moins trois lignes et un langage reconnu par la détection du prototype)
+  devient un bloc de code avec son langage ; sinon une note ; Ctrl+Z annule. Détection de langage aussi proposée dans
+  le volet « langage ».
+- **Secrets** : avant tout enregistrement (création, édition, collage), la page repère les motifs du prototype et
+  avertit : liste par ligne et nature, point rouge dans la gouttière, clic qui sélectionne la valeur ; « Retirer ces
+  valeurs » (→ `<removed>`), « Garder tel quel » (une alerte reste sur le bloc et dans la fiche), « Modifier le texte ».
+  Module pur, testé, aucun envoi ailleurs.
+- **Barre contextuelle** (entrées d'un bloc de code) : teinte, langage, police, coloration, numéros, ajuster la hauteur,
+  taille, plan, verrou, dupliquer, supprimer ; **copier** dans l'en-tête du bloc et dans la fiche (pas dans la barre).
+  Fiche : titre éditable, code entier coloré, section « Affichage ». Insertion depuis la barre d'outils haute (bloc
+  « Insérer ») et le menu contextuel du fond.
+- Recherche : le contenu d'un bloc est cherchable (« vlan 20 »).
+- `/view` (gelée) : liste les blocs de code dans l'onglet Intentions comme les autres annotations, sans les dessiner ;
+  `ld intent` les imprime.
 
-**Prototype validé le 2026-10-14** (défilement compris : la molette fait défiler un bloc sélectionné seul, zoome
-ailleurs ; Ctrl + molette zoome toujours). Orhan : « C'est très bon, on code ça maintenant. » Le lot 16 passe **avant
-le lot 4 bis**, codé dans un worktree isolé en parallèle du lot 8, fusionné après lui. Versions du contrat : lot 16 =
-`Intent` **1.6.0**, lot 4 bis = **1.7.0**, lot 9 = 1.8.0 (une mineure par lot livré : un document écrit en 1.6.0 doit
-rester valide).
+**Fait le 2026-10-14** (agent Opus, worktree isolé, en parallèle du lot 8) : tout ce qui précède. **Contrat** 1.6.0
+(`contracts/src/ld_contracts/intent/annotations.py` : `CodeContent`, `CodeLanguage`, `CodeFont` ; refus par le type :
+`string_too_long`, `string_pattern_mismatch` pour une tabulation ou un CR, `enum`, `bool_type`, `extra_forbidden`) ;
+**backend** : rien à changer à l'API (le contenu discriminé du contrat suffit), `journal_replay.py` (nom = titre,
+jamais le texte ; « bloc de code sans titre »), `journal_words.py` (« bloc de code », « code block »), `cli.py` (`ld
+intent` : langage, lignes, titre, jamais le texte). **Pur** (`engine/src/app/code/`, `LDApp.code`) : `geometry.ts`
+(boîte, fenêtre de lignes, barre de défilement, molette en lignes entières avec reste, touches, ajuster), `languages.ts`
+(énumération, normalisation, détection, « collé = bloc ? »), `tokens.ts` (Prism → onze familles, noms d'hôte entiers,
+`<removed>`, coupure `›`), `secrets.ts` (motifs, nature, retrait, aperçu en points, marquage `secret` d'une valeur
+gardée quelle que soit la grammaire), `prism.ts` (ordre de chargement écrit : `manual`, cœur, global, grammaires),
+`fortios.ts`, `view.ts` (défilement, « copié », brouillon : un petit magasin à part, faire défiler un bloc ne
+reconstruit pas la toile). **React** : `app/canvas/code.tsx` (dessin SVG, seules les lignes visibles, molette en
+écouteur natif non passif arrêté avant React Flow, Ctrl + molette laissé au zoom), `code-edit.tsx`, `code-warn.tsx`,
+`code-draft.tsx` (le brouillon dans le plan par `ViewportPortal`), `state/code-commands.ts` (insérer, coller, créer,
+enregistrer, copier, retirer, régler, ajuster), `state/code-bar.ts` (entrées de la barre, pures), `components/
+CodeVolets.tsx` (polices, langages avec suggestion), `cards/CodeCard.tsx`, `styles/code.css`, `fonts.css`.
+**Points d'insertion dans des fichiers partagés avec le lot 8** (une à trois lignes chacun) : `floating.ts` (types
+`Face` / `Volet` / `IconName` étendus, une ligne qui délègue à `code-bar.ts`), `FloatingBar.tsx` (une ligne
+d'exécution, une classe `named`), `FloatingVolet.tsx` (une ligne : les volets du code). `Flow.tsx`, `ContextMenu.tsx`,
+`prefs.ts` : inchangés (le brouillon est un enfant de `Flow` posé par `Canvas.tsx`, le menu exécute déjà `insert:*`).
+**Tests** : contrats 637 ; backend : CLI, API (défauts, 422 sans écho), journal (nom, recherche) ; Node
+`backend/tests/js/code.test.js` (9 tests : familles, coupure, normalisation et détection, secrets, géométrie, barre,
+contraste des deux thèmes, Journal, recherche) ; Chromium `backend/tests/test_app_code.py` (insérer puis écrire, coller
+une configuration avec secrets → avertissement → ligne qui sélectionne la valeur → retirer, Ctrl+Z, molette sur le bloc
+sélectionné qui défile sans zoomer, Page suiv. / Origine, coloration coupée puis rendue, police changée et son fichier
+chargé à ce moment seulement, redimensionner sur la grille, molette sur un bloc non sélectionné qui zoome, double-clic
+qui s'ouvre à la ligne lue, Échap qui n'écrit rien, Ctrl+Entrée, copier). **Mutations** : 25 attrapées sur 26
+(`.impeccable/planche-lot-16/scripts/mutations_lot16.py`, 21 sous Node, 5 dans Chromium) ; la survivante est
+équivalente (« nombre collé à une lettre » : aucune grammaire du lot ne coupe un nombre collé à une lettre, la règle
+reste en défense). Captures : `.impeccable/planche-lot-16/` (1 à 7, script `scripts/capture_lot16.py`).
+**Écarts, décisions prises seul** : (1) un nombre précédé d'un tiret seul après une espace reste un nombre (`= -9.0` :
+la règle du prototype le décolorait) ; (2) une valeur sensible gardée est marquée `secret` (rouge souligné) quelle que
+soit la grammaire, pas seulement en Cisco / FortiOS ; (3) une insertion ouvre un brouillon vide (rien n'est créé avant
+Ctrl+Entrée ; le langage est alors proposé par la détection) ; (4) un champ d'écriture démonté avec une valeur sensible
+non vue n'enregistre rien (la règle du lot 13, « un champ qui disparaît enregistre », cède devant A10) ; (5) la recherche
+lit aussi le texte des notes (section « notes et code ») ; (6) le panneau ne s'élargit pas tout seul pour un bloc
+(prototype : 560) : la poignée de l'application le fait ; (7) le double-clic sur l'en-tête ouvre l'écriture comme
+ailleurs (le titre s'écrit dans la fiche) ; (8) le texte d'un bloc n'est jamais un nom : ni dans le journal, ni dans
+`ld intent`, ni dans l'aide accessible (un secret gardé y vivrait). **Parqués** : le volet d'une barre posée au-dessus
+d'un bloc très haut peut couvrir le bloc quand la place manque au-dessus (placement du lot 4, à reprendre avec le lot 4
+bis) ; un collage de plus de 20 000 caractères est refusé et le dit (pas de découpe) ; Junos ; les graisses (le regular
+seul est embarqué, le gras se synthétise).
+
+**Fusion sur `main` le 2026-10-15**, après le lot 8 : conflits mécaniques (exports `LDApp`, feuilles importées,
+catalogues `shell`, volet) résolus en gardant les deux lots. Deux corrections : (1) **le redimensionnement d'un bloc de
+code suit la règle du lot 8** (repères, puis la grille seulement si l'aimant est mis, Ctrl = libre) au lieu d'un
+arrondi à 20 imposé à la relâche, qui faisait sauter la boîte alignée et ignorait la préférence ; les tailles minimales
+du bloc restent (`boundedBox`) ; le parcours Chromium allume l'aimant avant de vérifier la grille ; (2) deux parcours
+de `test_app.py` comptaient dix boutons dans la barre d'outils, onze avec « bloc de code ». Suite complète verte après
+reconstruction.
 
 ### Déjà planifiés, inchangés, après ces lots (docs/10 §8)
 

@@ -74,12 +74,12 @@ function subjectOf(entry: JournalEntry, op: JournalOp, index: number): JournalSu
   return entry.subjects.find((s) => s.id === id) || { id, kind, label: "", form: "" };
 }
 const node = (host: string): Piece => ({ ref: "node", id: host, text: host });
-const FORMS = ["note", "shape", "table", "image"];
+const FORMS = ["note", "shape", "table", "image", "code"];
 // Le nom d'un sujet reçu du serveur : un nom saisi ne se traduit jamais ; un connecteur sans étiquette se nomme par ses
 // bouts, dont le serveur marque ceux qui n'ont pas de nom (`parts[].unnamed` : `free`, `group`, `note`…), que la page dit
 // dans sa langue (revue de l'interface bilingue, B3 : la page traduisait avant par comparaison de texte, et un groupe
 // nommé « point libre » devenait « free point »).
-const UNNAMED_KINDS = new Set(["note", "shape", "table", "image", "annotation", "group", "connector", "free"]);
+const UNNAMED_KINDS = new Set(["note", "shape", "table", "image", "code", "annotation", "group", "connector", "free"]);
 /** Le nom d'un sujet dans la langue de la page ; vide s'il n'en a pas (la phrase dit alors sa sorte). */
 export function subjectLabel(s: Pick<JournalSubject, "label" | "parts">): string {
   if (s.parts && s.parts.length) return s.parts.map((p) => (p.unnamed && UNNAMED_KINDS.has(p.unnamed) ? tx(dyn("unnamedRef." + p.unnamed)) : p.text || "")).join(" → ");
@@ -241,6 +241,9 @@ function contentText(value: unknown): string {
   if (c.kind === "table") { const rows = Array.isArray(c.rows) ? c.rows : []; return tx("fact.table", { rows: rows.length, cols: Math.max(0, ...rows.map((r) => (Array.isArray(r) ? r.length : 0))) }); }
   if (c.kind === "image") return kindWord("image") + (str(c.alt) ? " " + quoted(str(c.alt)) : "");
   if (c.kind === "shape") return (STYLE_WORD(c.shape) || kindWord("shape")) + (str(c.label) ? " " + quoted(str(c.label)) : "");
+  // un bloc de code (lot 16) : son titre, son langage, ses lignes ; jamais son texte (une valeur sensible gardée y vit)
+  if (c.kind === "code") return kindWord("code") + (str(c.title) ? " " + quoted(str(c.title)) : "")
+    + " " + tx("fact.code", { language: t(("common:codeLanguage." + str(c.language)) as never) as unknown as string, count: str(c.text).split("\n").length });
   return str(c.kind);
 }
 const SIDES = new Set(["n", "e", "s", "w"]);

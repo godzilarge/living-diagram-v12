@@ -148,7 +148,8 @@
     "note": "note",
     "shape": "shape",
     "table": "table",
-    "image": "image"
+    "image": "image",
+    "code": "code block"
   },
   "connectorWord": {
     "straight": "straight",
@@ -338,5 +339,23 @@
     "tunnel": "tunnel",
     "management": "management",
     "other": "other"
+  },
+  "codeLanguage": {
+    "plain": "Plain text",
+    "python": "Python",
+    "bash": "Bash",
+    "json": "JSON",
+    "yaml": "YAML",
+    "cisco_ios": "Cisco IOS / NX-OS",
+    "fortios": "FortiOS"
+  },
+  "codeLanguageShort": {
+    "plain": "TEXT",
+    "python": "PYTHON",
+    "bash": "BASH",
+    "json": "JSON",
+    "yaml": "YAML",
+    "cisco_ios": "CISCO",
+    "fortios": "FORTIOS"
   }
 }

@@ -1,7 +1,7 @@
-// Les annotations (docs/10 §6) : ce que seul l'humain sait, posé sur la toile. Une note, une forme, un tableau ou une
-// image, avec une boîte et un ancrage (libre dans le plan ; attachée à un équipement, relative au centre de sa carte ;
-// attachée à un groupe, relative au coin haut gauche de son cadre). Ici, la partie pure : énumérations, défauts, la
-// boîte depuis l'ancre, le retour à la ligne d'un texte (chasse estimée comme la carte, jamais mesurée), la grille
+// Les annotations (docs/10 §6) : ce que seul l'humain sait, posé sur la toile. Une note, une forme, un tableau, une
+// image ou un bloc de code (Intent 1.6.0, dessiné par l'application seule : app/code/), avec une boîte et un ancrage
+// (libre dans le plan ; attachée à un équipement, relative au centre de sa carte ; attachée à un groupe, relative au
+// coin haut gauche de son cadre). Ici, la partie pure : énumérations, défauts, la boîte depuis l'ancre, le retour à la ligne d'un texte (chasse estimée comme la carte, jamais mesurée), la grille
 // d'un tableau (table.ts), la ligne de rappel, les orphelines. Les deux faces et les tests sous Node lisent la même
 // géométrie. Les lignes et les flèches sont des connecteurs (connectors.ts) depuis Intent 1.4.0.
 import { labelMap, t } from "../i18n/core";
@@ -11,7 +11,7 @@ import { dashArray as groupDash } from "./groups";
 import type { Point } from "./layout";
 import type { Annotation, AnnotationStyle, Model } from "./types";
 
-export const KINDS = ["note", "shape", "table", "image"] as const;
+export const KINDS = ["note", "shape", "table", "image", "code"] as const;
 export type AnnotationKind = (typeof KINDS)[number];
 export const SHAPES = ["rectangle", "ellipse"] as const;
 export const ANCHORS = ["free", "device", "group"] as const;
@@ -20,7 +20,7 @@ export const ALIGNS = ["left", "center", "right"] as const;
 export const VALIGNS = ["top", "middle", "bottom"] as const;
 export const BOUNDS = { size: [20, 4000], fill_opacity: [0, 100], stroke_width: [0, 8], radius: [0, 80], opacity: [10, 100], text_size: [8, 64] } as const;
 export const MAX_NOTE = 2000, MAX_CELL = 120, MAX_ROWS = 30, MAX_COLUMNS = 8, MAX_LABEL = 80;
-export const KIND_LABEL: Record<string, string> = labelMap("common:annotationKind", ["note", "shape", "table", "image"]);
+export const KIND_LABEL: Record<string, string> = labelMap("common:annotationKind", ["note", "shape", "table", "image", "code"]);
 export const LABEL: Record<string, string> = labelMap("common:annotationWord", [
   "rectangle", "ellipse", "free", "device", "group", "back", "front", "left", "center", "right", "top", "middle", "bottom",
 ]);
@@ -30,8 +30,9 @@ export const DEFAULT_STYLE: Record<AnnotationKind, AnnotationStyle> = {
   shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle" },
   table: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 6, opacity: 100, text_size: 12, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
   image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
+  code: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
 };
-export const DEFAULT_SIZE: Record<AnnotationKind, Box> = { note: { w: 220, h: 80 }, shape: { w: 200, h: 120 }, table: { w: 160, h: 52 }, image: { w: 320, h: 240 } };
+export const DEFAULT_SIZE: Record<AnnotationKind, Box> = { note: { w: 220, h: 80 }, shape: { w: 200, h: 120 }, table: { w: 160, h: 52 }, image: { w: 320, h: 240 }, code: { w: 480, h: 240 } };
 export const TABLE_CELL_W = 80, TABLE_ROW_H = 26, PAD = 8;
 
 export interface Frame { x: number; y: number; w: number; h: number }
@@ -155,6 +156,8 @@ export function summary(a: Annotation): string {
   if (c.kind === "note") return c.text.split("\n")[0].slice(0, 60);
   if (c.kind === "shape") return (LABEL[c.shape] || c.shape) + (c.label ? " · " + c.label : "");
   if (c.kind === "table") return c.rows.length + " × " + (c.rows[0] ? c.rows[0].length : 0) + (c.header && c.rows[0] ? " · " + c.rows[0].join(" | ").slice(0, 40) : "");
+  // un bloc de code (lot 16) : son titre, sinon sa sorte ; jamais une ligne de son texte (une valeur sensible y vit)
+  if (c.kind === "code") return c.title || t("common:annotationKind.code");
   return c.alt || t("common:annotationKind.image");
 }
 /** La version du dessin d'une annotation pour une clé (contenu, boîte, style, ancre) : change quand elle change. */

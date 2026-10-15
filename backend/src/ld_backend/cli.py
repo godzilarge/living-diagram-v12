@@ -103,7 +103,13 @@ def _cmd_intent(args: argparse.Namespace) -> int:
     for a in intent.annotations:
         anchor = a.anchor.kind if a.anchor.ref is None else f"{a.anchor.kind} {a.anchor.ref}"
         box = f"{a.x},{a.y} {a.w}x{a.h}"
-        print(f"annotation {a.id}\t{a.content.kind}\t{anchor}\t{box}\t{a.author}\t{utc_z(a.at)}")
+        kind = a.content.kind
+        if a.content.kind == "code":  # un bloc de code (1.6.0) : son langage, ses lignes, son titre ; jamais son texte
+            lines = a.content.text.count("\n") + 1
+            kind = (
+                f"code {a.content.language} {lines} ligne(s){' « ' + a.content.title + ' »' if a.content.title else ''}"
+            )
+        print(f"annotation {a.id}\t{kind}\t{anchor}\t{box}\t{a.author}\t{utc_z(a.at)}")
     if not intent.annotations:
         print("aucune annotation pour cette infrastructure")
     for c in intent.connectors:
