@@ -102,6 +102,14 @@ Open decisions (not to be invented):
   piece of information must be a pleasure, not a procedure. Never a "generic AI page".
 - Explicit rejection of the current style (tinted dark ground, cyan accent, uppercase mono, pills everywhere, glass
   floating bars): it serves as an anti-reference, not as a starting point.
+- **Binding negative constraints** (Orhan, 2026-10-15): no violet or purple tints; no pill-shaped or "bubble"
+  buttons; nothing that reads as "made by an AI". **Rich in functions, light to the eye.**
+- **Details are the product**: button sizes, shapes, placement, alignment between elements, text. Two controls side
+  by side with different heights is a defect, not a nuance. The finish is **measured** in the DOM (heights, baselines,
+  gaps, alignment), never judged on a screenshot alone.
+- Orhan has no reference interface in mind and no creative process of his own: he judges what he sees. The design
+  process therefore **shows him materially different directions** to choose from; it never asks him to describe a
+  look.
 
 ## Evidence on Hand
 
