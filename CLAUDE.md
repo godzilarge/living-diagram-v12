@@ -21,6 +21,8 @@ Une session = **un lot**. Elle finit par le skill `livraison` (suites, captures,
 - **Être synthétique.** Une réponse commence par ce que la chose fait, en une phrase répétable, puis le strict
   nécessaire. Vaut pour les docs : README = ce que c'est, lancer, tester, sur un écran ; une décision = une ligne.
 - **Échanger en français**, avec rigueur et confrontation : pas de complaisance. Orhan tranche le visuel en comparant.
+  **Tout ce que la v2 crée s'écrit en anglais** (`PRODUCT.md`, `DESIGN.md`, `app/` : code, commentaires, README,
+  tests, entrées de journal de la refonte) ; l'existant reste en français jusqu'à la passe prévue après la refonte.
 - **Voir avant de trancher.** Aucune décision de design sans rendu sous les yeux ; les cas limites abstraits ne lui
   sont pas soumis : défaut pur ⇒ corrigé sans lui, règle douteuse ⇒ `docs/a-juger-a-l-usage.md`, comportement prudent.
 - **Le contrat est le standard** (`contracts/CONTRAT.md`). Il demande ce que B1 consomme, jamais ce qu'un producteur

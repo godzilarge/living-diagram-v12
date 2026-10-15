@@ -7,6 +7,18 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Step 1 of the UI redesign: product truth** (2026-10-15 evening, interview with Orhan, `PRODUCT.md` written in the
+  Impeccable `init` format and validated). Facts recorded: reading is the dominant job (device → interfaces without
+  SSH); two audiences on the same application (engineer in charge who places, annotates and checks discovery quality;
+  non-technical reader who consults and exports); three jobs, not two (read, edit, **verify the data**); scenes from a
+  13-inch laptop to a projector, phone and tablet never; Edge and Chrome; French and English as equals; own identity
+  wanted, professional and functional, "playful" to browse. Decided: **a map one explores, where editing is a mode**
+  (the Visio comparison only holds for drawing quality); **`/view` disappears**, its readings join the check view;
+  the shell must already anticipate **L2 / L3 views** (marked "in progress"), **PNG / SVG export with anonymization**
+  (crucial), **OAuth / OpenID accounts**; interface counters out of V1. Left open: export form, roles once accounts
+  arrive, fate of each `/view` tab. **Language**: the conversation stays in French; **everything v2 creates is written in
+  English** (`PRODUCT.md`, `DESIGN.md`, `app/`, these journal entries); the existing French docs wait for the pass
+  planned after the redesign. Next: Orhan's references, then the `app/` skeleton.
 - **Étape 0 de la refonte UI : la gouvernance** (2026-10-15 soir, demande d'Orhan : « toute l'UI est affreuse », « je suis
   perdu », l'application est codée à 100 % par Claude Code et « plein de sessions travaillent dans leur coin sans
   direction globale »). Diagnostic rendu et accepté : l'interface n'a jamais eu de monde visuel choisi, chaque agent a

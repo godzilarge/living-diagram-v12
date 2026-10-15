@@ -19,8 +19,9 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
 ## En cours
 
-- **Refonte UI v2** (décidée le 2026-10-15). Socle en étapes : **0 gouvernance (faite ce jour)** → 1 entretien produit
-  (`PRODUCT.md`) et références d'Orhan → 2 squelette `app/` (paquet séparé, Vite, moteur extrait de `engine/src/app/`)
+- **Refonte UI v2** (décidée le 2026-10-15). Socle en étapes : **0 gouvernance (faite, 45d2a21)** → **1 entretien produit
+  fait, `PRODUCT.md` validé (en anglais : tout ce que la v2 crée s'écrit en anglais)** ; références d'Orhan à
+  recueillir → 2 squelette `app/` (paquet séparé, Vite, moteur extrait de `engine/src/app/`)
   → 3 tour de directions Impeccable `new-work`, une direction verrouillée → 4 `DESIGN.md` + page vivante des
   primitives → 5 migration surface par surface (barre, toile et cartes, inspecteur, barre contextuelle, journal),
   chaque surface revue contre la maquette. **Aucune fonctionnalité nouvelle pendant la refonte.**
