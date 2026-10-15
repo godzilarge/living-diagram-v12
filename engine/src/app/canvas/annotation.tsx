@@ -224,6 +224,14 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
   const adjust = useCallback((start: Frame, raw: Frame, handle: HandleId, mods: { ratio: boolean; center: boolean; free: boolean }): Frame => actions.guideResize(a.id, start, raw, handle, mods), [actions, a.id]);
   const canEdit = editable && !a.locked;
   const code = useCode();
+  // une écriture laissée en attente (le bloc était sorti de l'écran avec une valeur sensible nouvelle, jamais vue) se
+  // rouvre quand il revient, avec l'avertissement (revue du lot 16, M1)
+  const pending = a.content.kind === "code" ? codeView.pending(code.infrastructure, a.id) : null;
+  useEffect(() => { if (pending !== null && canEdit) setEditing(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const codeLeave = useCallback((text: string): void => {
+    codeView.setPending(code.infrastructure, a.id, text);
+    if (code.commands) code.commands.codeSay(t("shell:code.pendingKept"));
+  }, [a.id, code]);
   const dbl = useCallback((): void => {
     if (canEdit && (a.content.kind === "note" || a.content.kind === "shape" || a.content.kind === "code")) setEditing(true);
     else if (editable && a.locked && a.content.kind === "code" && code.commands) code.commands.codeSay(t("shell:code.locked"));
@@ -231,6 +239,7 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
   // un bloc de code écrit : le texte vu (valeurs retirées ou gardées) part par les commandes du store (lot 16)
   const codeDone = useCallback((text: string | null, outcome: CodeOutcome, removed: number): void => {
     setEditing(false);
+    codeView.setPending(code.infrastructure, a.id, null);
     if (text === null || !code.commands) return;
     code.commands.codeSave(a.id, text, outcome, removed);
   }, [a.id, code]);
@@ -263,8 +272,8 @@ export function AnnotationNode({ data, selected, dragging, positionAbsoluteX, po
         </g>
       </svg>
       {editing && a.content.kind === "note" ? <NoteEditor initial={a.content.text} onDone={done} /> : null}
-      {editing && a.content.kind === "code" ? <CodeEditor w={frame.w} h={frame.h} size={a.style.text_size} font={a.content.font} numbers={a.content.line_numbers} initial={a.content.text}
-        first={codeView.first(a.id)} label={t("shell:code.editorLabel", { name: codeLabel(a.content) })} infrastructure={code.infrastructure} onDone={codeDone} /> : null}
+      {editing && a.content.kind === "code" ? <CodeEditor w={frame.w} h={frame.h} size={a.style.text_size} font={a.content.font} numbers={a.content.line_numbers}
+        initial={pending ?? a.content.text} saved={a.content.text} warnAtOnce={pending !== null} onLeave={codeLeave} first={codeView.first(a.id)} label={t("shell:code.editorLabel", { name: codeLabel(a.content) })} infrastructure={code.infrastructure} onDone={codeDone} /> : null}
     </>
   );
 }

@@ -358,7 +358,7 @@ def test_the_application_end_to_end_in_a_browser(settings, bundle_dict):
             assert tab.js(NODES) == 5, "les voisins inconnus sont masqués"
             assert tab.js("!!document.querySelector('.band') && !document.querySelector('.panel')")
             assert tab.js("document.querySelectorAll('.toolbar button').length") == 11, (
-                "au repos : annuler, rétablir, cadrer, centrer, sept outils d'insertion (docs/10 §6, bloc de code du lot 16)"
+                "au repos : annuler, rétablir, cadrer, centrer, sept outils d'insertion (docs/10 §6, bloc de code)"
             )
             assert "orhan" in tab.js("document.querySelector('.bar').textContent")
             # un clic réel sur un équipement : la fiche s'ouvre, l'adresse porte la sélection

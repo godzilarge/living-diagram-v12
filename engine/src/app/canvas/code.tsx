@@ -171,10 +171,13 @@ function useCodeScrolling(ref: RefObject<SVGGElement | null>, a: Annotation, c: 
     const onKey = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      // hors d'un champ, et hors de la fiche (elle défile d'elle-même) ou d'un volet : la page de la toile
+      // hors d'un champ, et hors de la fiche (elle défile d'elle-même), d'un volet ou d'une barre d'outils (la barre
+      // contextuelle parcourt ses boutons par Origine / Fin : revue du lot 16, B1) : la page de la toile
       if (target && (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable)) return;
-      if (target && target.closest && target.closest(".panel, .fvolet, .search, .journal, [role=dialog], [role=menu]")) return;
-      const next = keyScroll(now(), event.key);
+      if (target && target.closest && target.closest(".panel, .fvolet, .fbar, .band, .search, .journal, [role=dialog], [role=menu], [role=toolbar]")) return;
+      const l = now();
+      if (!l.scrolls) return; // tout tient : la touche garde son rôle ailleurs
+      const next = keyScroll(l, event.key);
       if (next === null) return;
       event.preventDefault(); event.stopPropagation();
       codeView.setFirst(latest.current.a.id, next);

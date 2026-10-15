@@ -28,7 +28,9 @@ export interface ContextMenuState { target: ContextTarget; at: Point; plan: Poin
 /** Une édition en place demandée par le menu : la cellule d'un tableau, ou le texte d'une note (`cell` null) ; `at` la distingue d'une demande identique. */
 export interface EditRequestState { id: string; cell: [number, number] | null; at: number; kind?: "annotation" | "group" }
 /** Ce qu'une ligne d'état propose de faire (lot 2 de docs/11 : Suppr sur un équipement propose de le masquer). */
-export interface NoteOffer { kind: "hide"; hosts: string[] }
+/** Une action proposée par la ligne d'état : masquer des équipements (lot 2), ou choisir quoi faire des valeurs
+ *  sensibles d'un collage venu d'une autre infrastructure (revue du lot 16, M3 : rien n'est collé avant le choix). */
+export type NoteOffer = { kind: "hide"; hosts: string[] } | { kind: "secrets" };
 
 /** La vue Journal : la page lue (entrées accumulées par « plus ancien »), ou ce qui l'empêche. `key` : les filtres
  *  de la lecture, une réponse pour d'autres filtres est ignorée ; `at` : l'instant de la première page, d'où se compte

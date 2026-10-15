@@ -1790,6 +1790,19 @@ MongoDB amont : devices (référence) · collector_runs · collector_run_tasks_<
   500 équipements : un pas 0,16 ms, glissé 40-45 i/s (32 sans repères, aucune régression). 22 mutations sur 22.
   **À surveiller** : la garde de la jauge a échoué 3 fois sur ~50 passages (vue envoyée loin, cartes encore montées
   0,6 s après), cause non établie. Parqués : écart égal au redimensionnement, repères aux flèches (voulu).
+  Commité et poussé (674df45).
+- **Lot 16 livré et fusionné : le bloc de code, `Intent` 1.6.0** (2026-10-15 ; agent Opus dans un worktree, fusion par
+  l'orchestrateur, « autonome pour la livraison » d'Orhan ; détail dans `docs/11` § Lot 16 « Fait » et « Fusion »).
+  Cinquième sorte d'annotation `code` : Prism 1.30.0 par `tokenize` (jetons en `tspan`, jamais de DOM), Python, Bash,
+  JSON, YAML, Cisco IOS / NX-OS (grammaire Obsidian, MIT, vendue dans `engine/vendor/`), FortiOS (écrite) ; coloration
+  et numéros au choix par bloc ; quatre polices OFL chargées à la demande ; hauteur libre, seules les lignes visibles
+  dessinées, molette = défilement sur un bloc sélectionné seul, zoom ailleurs ; secrets repérés avant tout
+  enregistrement (retirer → `<removed>`, garder avec alerte, modifier) ; collage d'une configuration = bloc ; le texte
+  d'un bloc n'est jamais un nom (journal, `ld intent`, aide accessible). Contrat additif, aucune route nouvelle.
+  **Fusion** : conflits mécaniques ; corrigé au passage : le redimensionnement d'un bloc suit la règle du lot 8 (repères,
+  grille si l'aimant est mis) au lieu d'un arrondi à 20 imposé ; deux parcours comptaient dix outils (onze avec le
+  bloc). Suite complète verte (617 + lot 16), contrats verts. Commité et poussé (324116a). Revue indépendante du lot et
+  revue de la session lancées.
 - **B1 embarque la liste devices lue** dans le snapshot ; **B2 archive le bundle brut** :
   historique et rejeu indépendants de la rétention amont.
 

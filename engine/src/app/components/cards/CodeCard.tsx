@@ -7,10 +7,10 @@ import { Check, Copy, Eraser, ShieldAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Annotation } from "../../../canvas/types";
 import type { CodeContent } from "../../../contracts/intent";
-import { CODE_SIZE, fitHeight, lineCount } from "../../code/geometry";
+import { CODE, CODE_SIZE, fitHeight, lineCount, minHeight } from "../../code/geometry";
 import { LANGUAGES, LANGUAGE_LABEL } from "../../code/languages";
 import { withSecrets } from "../../code/secrets";
-import { codeLines } from "../../code/tokens";
+import { linesOf } from "../../code/tokens";
 import { secretsIn, useCopied } from "../../canvas/code";
 import { useStore } from "../../state/store";
 import { NumberField, Row, Section, Segmented, Select, TextInput } from "../../ui/inspector";
@@ -26,7 +26,8 @@ export function CodeContentRows({ a, c, canWrite }: { a: Annotation; c: CodeCont
   const copied = useCopied() === a.id;
   const secrets = secretsIn(c.text), total = lineCount(c.text);
   const colored = c.highlight && c.language !== "plain";
-  const lines = withSecrets(codeLines(c.text, c.language, colored), secrets);
+  // par le cache des lignes (la fiche se redessine à chaque action du store : revue du lot 16, B3)
+  const lines = withSecrets(linesOf(a.id + "-card", c.text, c.language, colored), secrets);
   return (
     <>
       {secrets.length ? (
@@ -55,8 +56,12 @@ export function CodeContentRows({ a, c, canWrite }: { a: Annotation; c: CodeCont
 
 /** « Affichage » : les réglages de la barre, plus la hauteur de la boîte. */
 export function CodeDisplay({ a, c }: { a: Annotation; c: CodeContent }) {
-  const { commands } = useStore();
+  const { commands, state } = useStore();
   const { t } = useTranslation("panel");
+  // la hauteur saisie suit les bornes des poignées : jamais sous trois lignes ; sur la grille seulement si l'aimant est
+  // mis (règle du lot 8 ; revue du lot 16, B5)
+  const low = minHeight(a.style.text_size);
+  const height = (h: number): number => Math.max(low, state.prefs.snap ? Math.round(h / CODE.GRID) * CODE.GRID : Math.round(h));
   const set = (patch: Parameters<typeof commands.codeSet>[1]): void => commands.codeSet([a.id], patch);
   const fit = fitHeight(lineCount(c.text), a.style.text_size);
   return (
@@ -67,7 +72,7 @@ export function CodeDisplay({ a, c }: { a: Annotation; c: CodeContent }) {
       <Row label={t("code.numbers")}><Segmented label={t("code.numbers")} value={c.line_numbers ? "on" : "off"} options={[{ value: "on", label: t("code.numbersOn") }, { value: "off", label: t("code.numbersOff") }]} onPick={(v) => set({ line_numbers: v === "on" })} /></Row>
       <Row label={t("code.height")}>
         <span className="insp-fit-row">
-          <NumberField label={t("code.heightLabel")} value={a.h} min={80} max={4000} step={20} unit="px" onCommit={(h) => commands.annotationUpdate(a.id, { h })} />
+          <NumberField label={t("code.heightLabel")} value={a.h} min={low} max={4000} step={CODE.GRID} unit="px" onCommit={(h) => { const next = height(h); if (next !== a.h) commands.annotationUpdate(a.id, { h: next }); }} />
           {a.h !== fit ? <button type="button" className="insp-btn insp-fit" onClick={() => commands.codeFit([a.id])}>{t("code.fit")}</button> : null}
         </span>
       </Row>

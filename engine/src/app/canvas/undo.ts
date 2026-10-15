@@ -91,10 +91,10 @@ export function createUndo(model: Model, writer: AppWriter | null, intents: Inte
     const p = plan(model.intent, entry.changes, direction);
     if (!p.ops.length) {
       holder.set(discard(stack, direction));
-      note(t(direction === "undo" ? "history.undoStale" : "history.redoStale", { what }));
+      note(p.withheld.length ? t("history.secretsWithheld", { what }) : t(direction === "undo" ? "history.undoStale" : "history.redoStale", { what }));
       return;
     }
-    const skipped = p.skipped.length ? " (" + t("history.skipped", { count: p.skipped.length }) + ")" : "";
+    const skipped = (p.skipped.length ? " (" + t("history.skipped", { count: p.skipped.length }) + ")" : "") + (p.withheld.length ? " (" + t("history.secretsSkipped") + ")" : "");
     busy = true;
     p.ops.forEach((op) => replayed.add(op));
     try {

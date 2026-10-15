@@ -547,6 +547,35 @@ def test_the_application_pastes_from_one_infrastructure_to_another_in_a_browser(
             assert [a["content"] for a in doc["annotations"] if a["content"].get("text") == "Plan perdu"] == [
                 {"kind": "note", "text": "Plan perdu"}
             ]
+            # un bloc de code venu d'ailleurs avec une valeur gardée là-bas : rien n'est collé avant le choix, proposé
+            # par la ligne d'état ; « retirer ces valeurs » colle le bloc sans elle, « coller tel quel » avec (revue du
+            # lot 16, M3)
+            code = {"kind": "code", "text": "snmp-server community Comm-S3cret RO\nend", "language": "cisco_ios"}
+            code |= {"title": ""}
+            code |= {"highlight": True, "line_numbers": True, "font": "jetbrains_mono"}
+            block = {**lost["annotations"][0], "id": "a9-2", "content": code, "w": 480, "h": 120}
+            block["frame"] = {"x": 0, "y": 0, "w": 480, "h": 120}
+            secret = {**lost, "annotations": [block]}
+
+            def codes() -> list[str]:
+                doc = httpx.get(f"{base}/api/intent", params={"infrastructure": "infra-b"}, headers=auth).json()
+                return [a["content"]["text"] for a in doc["annotations"] if a["content"]["kind"] == "code"]
+
+            tab.js(_PASTE_TEXT.format(json.dumps(json.dumps(secret))))
+            _wait_note(tab, "rien n'est collé avant votre choix")
+            assert codes() == [], "rien n'est écrit avant le choix"
+            tab.js("Array.from(document.querySelectorAll('.toast-action'))[0].click()")
+            _wait_note(tab, "1 valeur sensible retirée")
+            assert codes() == ["snmp-server community <removed> RO\nend"]
+            tab.js(_PASTE_TEXT.format(json.dumps(json.dumps(secret))))
+            _wait_note(tab, "rien n'est collé avant votre choix")
+            tab.js("Array.from(document.querySelectorAll('.toast-action'))[1].click()")
+            _wait(tab, "LDApp.debug.state().note === null || !/avant votre choix/.test(LDApp.debug.state().note.text)")
+            for _ in range(100):
+                if len(codes()) == 2:
+                    break
+                threading.Event().wait(0.05)
+            assert codes()[1] == "snmp-server community Comm-S3cret RO\nend", "tel quel, sur demande"
         assert not [m for m in chrome.console if m.get("level") == "error"], chrome.console
     finally:
         server.should_exit = True

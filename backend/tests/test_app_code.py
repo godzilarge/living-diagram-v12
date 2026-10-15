@@ -3,8 +3,9 @@ une configuration Cisco qui porte des valeurs sensibles (l'avertissement s'ouvre
 ligne de la liste mène à la valeur, « Retirer ces valeurs »), Ctrl+Z ; la coloration coupée puis rendue, la police
 changée (son fichier n'est chargé qu'à ce moment), redimensionner (sur la grille) ; la molette sur le bloc sélectionné
 seul fait défiler le code sans zoomer, sur un bloc non sélectionné elle zoome ; Page suiv. ; double-clic = écriture
-ouverte là où on lisait, Échap n'écrit rien, Ctrl+Entrée enregistre ; copier. Les textes sont factices (secrets
-inventés)."""
+ouverte là où on lisait, Échap n'écrit rien, Ctrl+Entrée enregistre ; copier. Revue du 2026-10-15 : un texte trop long
+garde le brouillon ouvert avec ce qui a été écrit (M2) ; un collage de deux lignes qui porte des valeurs sensibles passe
+par l'avertissement au lieu de devenir une note (M3). Les textes sont factices (secrets inventés)."""
 
 import json
 import os
@@ -156,6 +157,50 @@ def _insert_and_write(tab, base: str, auth: dict) -> None:
     assert made[0]["content"]["text"] == PYTHON and made[0]["content"]["highlight"] is True
 
 
+def _too_long_keeps_the_draft(tab, base: str, auth: dict) -> None:
+    """Un texte qui dépasse 20 000 caractères une fois normalisé (les tabulations deviennent des espaces) : Ctrl+Entrée
+    le dit, le brouillon reste ouvert avec tout ce qui a été écrit ; Échap l'abandonne (revue du lot 16, M2)."""
+    from tests.test_view import _wait
+
+    before = len(_codes(base, auth))
+    tab.js("document.querySelector('.toolbar [aria-label=\"insérer un bloc de code\"]').click()")
+    _wait(tab, EDITING)
+    tab.call("Input.insertText", {"text": "x" * 19990})
+    tab.call("Input.insertText", {"text": "\t\t\t\t\tx"})
+    _wait(tab, f"{EDITOR}.value.length === 20009")
+    assert "\t" not in tab.js(f"{EDITOR}.value"), "une tabulation devient des espaces dès qu'elle entre"
+    _press(tab, "Enter", 13, CTRL)
+    _wait(tab, f"/bloc de code trop long/.test({NOTE})")
+    assert tab.js(f"!!{EDITOR} && {EDITOR}.value.length === 20009"), "le brouillon reste, avec son texte"
+    assert len(_codes(base, auth)) == before
+    _press(tab, "Escape", 27)
+    _wait(tab, "!document.querySelector('.code-draft')")
+    assert len(_codes(base, auth)) == before
+
+
+def _short_paste_with_secrets(tab, base: str, auth: dict) -> None:
+    """Deux lignes qui portent des valeurs sensibles : plus une note en silence, l'avertissement s'ouvre (revue du
+    lot 16, M3) ; « Retirer ces valeurs » enregistre un bloc sans elles ; Ctrl+Z le défait."""
+    from tests.test_view import _wait
+
+    before = len(_codes(base, auth))
+    tab.js("LDApp.debug.handle().toile.select(null)")
+    _paste(tab, "enable secret 0 Cl34r-S3cret\nusername admin password 0 Adm-S3cret")
+    _wait(tab, "!!document.querySelector('.code-warn-panel')")
+    assert tab.js("document.querySelectorAll('.code-warn-row').length") == 2
+    assert len(_codes(base, auth)) == before, "rien n'est enregistré avant le choix"
+    tab.js("document.querySelector('.code-warn-panel .pbtn.primary').click()")
+    _wait(tab, "!document.querySelector('.code-draft')")
+    _until(lambda: len(_codes(base, auth)) == before + 1, "le bloc enregistré")
+    text = _codes(base, auth)[-1]["content"]["text"]
+    assert text == "enable secret 0 <removed>\nusername admin password 0 <removed>", text
+    notes = [a for a in _intent_doc(base, auth)["annotations"] if "S3cret" in json.dumps(a["content"])]
+    assert not notes, "aucune note"
+    tab.js("document.querySelector('.app').focus()")
+    _press(tab, "z", 90, CTRL)
+    _until(lambda: len(_codes(base, auth)) == before, "Ctrl+Z défait le collage")
+
+
 def _paste_with_secrets(tab, base: str, auth: dict) -> None:
     """Coller une configuration qui porte des valeurs sensibles : l'avertissement, rien d'enregistré avant le choix ;
     une ligne de la liste mène à la valeur ; « Retirer ces valeurs » ; Ctrl+Z défait le collage."""
@@ -241,8 +286,8 @@ def _scroll_and_settings(tab, base: str, auth: dict, ident: str) -> None:
 
 
 def _resize_and_zoom(tab, base: str, auth: dict, ident: str) -> None:
-    """Redimensionner par le bas, aimant mis : une écriture, sur la grille de 20 (règle du lot 8 : repères, puis la grille
-    si l'aimant est mis, comme toute annotation) ; la molette sur un bloc non sélectionné zoome."""
+    """Redimensionner par le bas, aimant mis : une écriture, sur la grille de 20 (règle du lot 8 : repères, puis la
+    grille si l'aimant est mis, comme toute annotation) ; la molette sur un bloc non sélectionné zoome."""
     from tests.test_view import _wait
 
     magnet = "document.querySelector('[aria-label=\"aimanter les glissés à la grille\"]')"
@@ -325,6 +370,8 @@ def test_the_code_block_in_a_browser(settings, bundle_dict):
             _wait(tab, READY)
             _insert_and_write(tab, base, auth)
             _paste_with_secrets(tab, base, auth)
+            _too_long_keeps_the_draft(tab, base, auth)
+            _short_paste_with_secrets(tab, base, auth)
             ident = _seed_long(tab, base, auth, url)
             _scroll_and_settings(tab, base, auth, ident)
             _resize_and_zoom(tab, base, auth, ident)

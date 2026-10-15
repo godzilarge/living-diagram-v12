@@ -1416,6 +1416,24 @@ du bloc restent (`boundedBox`) ; le parcours Chromium allume l'aimant avant de v
 de `test_app.py` comptaient dix boutons dans la barre d'outils, onze avec « bloc de code ». Suite complète verte après
 reconstruction.
 
+**Corrections après la revue (2026-10-15).** Revue indépendante consignée (`docs/revues/2026-10-15-lot-16-bloc-de-code.md`
+: 0 critique, 2 hauts, 5 moyens, 5 bas), plus B6 et J2 de la revue de session ; tout traité, suivi constat par constat
+dans le rapport. **Valeurs sensibles** : la table des motifs sort dans `app/code/secret-rules.ts`, chaque motif trouve
+toutes les valeurs d'une ligne ; RADIUS / TACACS sans type, BGP, OSPF, HSRP / VRRP, IS-IS, SNMPv3, hôtes SNMP, Wi-Fi,
+communauté SNMP FortiOS, en-têtes `Authorization`, `curl -u`, adresses `user:pass@`, `mysql -p`, `sshpass`, `--password`,
+`snmpwalk`, clés `*_pass` et `community`, PGP (S1 : 3 cas sur 26 avant, 26 après) ; « Retirer » prend la valeur entière
+(`#`, phrase de passe, `$(…)`, bloc YAML `|`) ; seules les valeurs nouvelles par rapport au texte enregistré se
+redemandent ; une écriture démontée avec une valeur nouvelle attend dans le bloc et rouvre l'avertissement ; Ctrl+Z ne
+rétablit jamais une valeur retirée (la page le dit). **Collage** : un texte qui porte une valeur sensible passe toujours
+par l'avertissement ; un collage ne devient un bloc que si le langage est sûr ; une charge d'une autre infrastructure
+avec des valeurs sensibles attend un choix (retirer, ou coller tel quel) dans la ligne d'état. **Robustesse** : trop
+long, le champ reste ouvert ; un brouillon reste dans son infrastructure ; une ligne de plus de 2 000 caractères n'est
+pas colorée (pire cas 1,2 s → 0,1 ms) ; contrôles bidirectionnels et séparateurs Unicode retirés ; Origine / Fin rendus à
+la barre contextuelle ; hauteur de la fiche bornée. Tests : 8 tests Node de plus (`code.test.js`, 17), deux passages
+Chromium (`test_app_code.py`) et un (`test_app_clipboard.py`) ; 25 mutations attrapées sur 25. **Questions ouvertes pour
+Orhan** (comportement prudent en attendant) : collage = bloc seulement si « sûr » ; réglage partiel du bloc et `text`
+masqué dans « Brut » / CSV (M5 b, c) ; ne pas redemander une valeur gardée ; ne pas rétablir une valeur retirée par Ctrl+Z.
+
 ### Déjà planifiés, inchangés, après ces lots (docs/10 §8)
 
 Épingles d'étiquettes et styles de câbles ; masque par règle enregistré ; câbles déclarés. Puis la revue indépendante de

@@ -231,7 +231,9 @@
     "deletedItems_one": "deletion of {{count}} item",
     "deletedItems_other": "deletion of {{count}} items",
     "createdItems_one": "addition of {{count}} item",
-    "createdItems_other": "addition of {{count}} items"
+    "createdItems_other": "addition of {{count}} items",
+    "secretsWithheld": "not undone: {{what}}, it would restore removed sensitive values",
+    "secretsSkipped": "removed sensitive values not restored"
   },
   "context": {
     "label": "context menu",
@@ -475,7 +477,13 @@
     "partial": "incomplete paste: {{reason}}; undoing it failed too ({{undo}}) · Ctrl+Z to undo what remains",
     "abandoned": "paste abandoned: the run or infrastructure shown changed, nothing was written to {{infrastructure}}",
     "abandonedAfter": "paste interrupted: the run or infrastructure shown changed; what was already written stays in {{infrastructure}}",
-    "pasteFailed": "the clipboard was read, but its content could not be pasted"
+    "pasteFailed": "the clipboard was read, but its content could not be pasted",
+    "secretsAsk_one": "paste from {{from}}: 1 sensitive value in the code, read by everyone who opens {{infrastructure}}; nothing is pasted before you choose",
+    "secretsAsk_other": "paste from {{from}}: {{count}} sensitive values in the code, read by everyone who opens {{infrastructure}}; nothing is pasted before you choose",
+    "secretsRemoved_one": "1 sensitive value removed",
+    "secretsRemoved_other": "{{count}} sensitive values removed",
+    "secretsRemove": "remove these values",
+    "secretsKeep": "paste as is"
   },
   "fbar": {
     "label": "quick actions: {{what}}",
@@ -649,6 +657,10 @@
     "copied_other": "copied: {{count}} lines",
     "copiedOf_one": "copied: {{count}} line of {{title}}",
     "copiedOf_other": "copied: {{count}} lines of {{title}}",
-    "copyRefused": "copy refused by the browser: select the text in the panel"
+    "copyRefused": "copy refused by the browser: select the text in the panel",
+    "pendingKept": "block left the screen with an unseen sensitive value: nothing saved, the text waits for you in the block",
+    "draftElsewhere": "draft abandoned: it belongs to {{infrastructure}}, nothing was saved here",
+    "removedKeptInLog_one": "1 value removed from the block; the change log keeps the previous text",
+    "removedKeptInLog_other": "{{count}} values removed from the block; the change log keeps the previous text"
   }
 }

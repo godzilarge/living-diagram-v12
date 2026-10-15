@@ -241,3 +241,203 @@ test("la recherche lit le texte des blocs de code : « vlan 20 » trouve la conf
   assert.equal(searching.search(model, "baie").notes[0].title, "baie 12", "une note aussi");
   assert.equal(searching.search(model, "type:switch").notes.length, 0, "un champ d'équipement ne vise pas le texte");
 });
+
+// ——— Revue indépendante du lot 16 (docs/revues/2026-10-15-lot-16-bloc-de-code.md) ———
+
+/** Les 26 cas de la sonde S1 de la revue (H1), puis ceux de S2 (H2) et quelques formes voisines : chaque valeur attendue
+ *  est trouvée en entier, et rien n'en survit au retrait. `missed` : manqué assumé, avec sa raison (aucun aujourd'hui). */
+const SECRET_CASES = [
+  ["radius key sans type", "radius-server host 10.0.0.5 key Radius-S3cret", ["Radius-S3cret"]],
+  ["radius-server key nu", "radius-server key Radius-S3cret", ["Radius-S3cret"]],
+  ["tacacs key sans type", "tacacs-server key Tac-S3cret", ["Tac-S3cret"]],
+  ["tacacs server bloc key nu", "tacacs server ISE\n address ipv4 10.0.0.40\n key Tac-S3cret", ["Tac-S3cret"]],
+  ["bgp neighbor password type 7", " neighbor 10.0.0.1 password 7 0822455D0A16", ["0822455D0A16"]],
+  ["bgp neighbor password clair", " neighbor 10.0.0.1 password Bgp-S3cret", ["Bgp-S3cret"]],
+  ["ospf md5", " ip ospf message-digest-key 1 md5 Ospf-S3cret", ["Ospf-S3cret"]],
+  ["ospf auth-key", " ip ospf authentication-key Ospf-S3cret", ["Ospf-S3cret"]],
+  ["hsrp key-string", " standby 1 authentication md5 key-string Hsrp-S3cret", ["Hsrp-S3cret"]],
+  ["hsrp texte", " standby 1 authentication Hsrp-S3cret", ["Hsrp-S3cret"]],
+  ["snmp v3 user", "snmp-server user netops grp v3 auth sha Auth-S3cret priv aes 128 Priv-S3cret", ["Auth-S3cret", "Priv-S3cret"]],
+  ["snmp host community", "snmp-server host 10.0.0.9 version 2c Comm-S3cret", ["Comm-S3cret"]],
+  ["snmp host traps", "snmp-server host 10.0.0.9 traps version 2c Comm-S3cret udp-port 162", ["Comm-S3cret"]],
+  ["nxos snmp user", "snmp-server user admin network-admin auth md5 Auth-S3cret priv Priv-S3cret", ["Auth-S3cret", "Priv-S3cret"]],
+  ["nxos snmp user aes-128", "snmp-server user admin network-admin auth sha Auth-S3cret priv aes-128 Priv-S3cret", ["Auth-S3cret", "Priv-S3cret"]],
+  ["wpa psk", " wpa-psk ascii 0 Wifi-S3cret", ["Wifi-S3cret"]],
+  ["bearer header", 'curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc.def" https://api', ["eyJhbGciOiJIUzI1NiJ9.abc.def"]],
+  ["curl -u", "curl -u admin:Curl-S3cret https://api", ["Curl-S3cret"]],
+  ["curl -u entre guillemets", "curl -u 'admin:Curl S3cret' https://api", ["Curl S3cret"]],
+  ["adresse avec identifiants", "git clone https://orhan:Url-S3cret@git.example/net.git", ["Url-S3cret"]],
+  ["mysql -p", "mysql -u root -pMy-S3cret db", ["My-S3cret"]],
+  ["sshpass", "sshpass -p 'Ssh-S3cret' ssh admin@sw1", ["Ssh-S3cret"]],
+  ["option --password", "netbox-sync --url https://nb --password Opt-S3cret --verbose", ["Opt-S3cret"]],
+  ["snmpwalk v3", "snmpwalk -v3 -l authPriv -u netops -a SHA -A Auth-S3cret -x AES -X Priv-S3cret 10.0.0.1", ["Auth-S3cret", "Priv-S3cret"]],
+  ["snmpwalk v2c", "snmpwalk -v2c -c Comm-S3cret 10.0.0.1 ifDescr", ["Comm-S3cret"]],
+  ["export TOKEN", "export API_TOKEN=tok-S3cret", ["tok-S3cret"]],
+  ["ansible_ssh_pass", "ansible_ssh_pass: Ans-S3cret", ["Ans-S3cret"]],
+  ["ansible_become_pass", "ansible_become_pass: Ans-S3cret", ["Ans-S3cret"]],
+  ["yaml community", "snmp_community: Comm-S3cret", ["Comm-S3cret"]],
+  ["json minifié", '{"user":"a","password":"P1-S3cret","api_key":"K2-S3cret"}', ["P1-S3cret", "K2-S3cret"]],
+  ["deux clés = sur une ligne", "password=P1-S3cret token=T2-S3cret", ["P1-S3cret", "T2-S3cret"]],
+  ["pem", "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA\n-----END OPENSSH PRIVATE KEY-----", ["b3BlbnNzaC1rZXktdjEAAAAA"]],
+  ["pgp", "-----BEGIN PGP PRIVATE KEY BLOCK-----\n\nlQOYBGXk2S3cret\n=AbCd\n-----END PGP PRIVATE KEY BLOCK-----", ["lQOYBGXk2S3cret", "=AbCd"]],
+  ["fortios snmp", "config system snmp community\n    edit 1\n        set name \"Comm-S3cret\"\n        config hosts\n            edit 1\n                set ip 10.0.0.9 255.255.255.255\n            next\n        end\n    next\nend", ["Comm-S3cret"]],
+  ["fortios set password", "        set password ENC SH2vE9pQ1zR8tY4uI0oP3aS6dF7gH2", ["SH2vE9pQ1zR8tY4uI0oP3aS6dF7gH2"]],
+  // S2 : la valeur entière, jamais un morceau
+  ["dièse dans un mot de passe", "password=Ab#Cd-S3cret", ["Ab#Cd-S3cret"]],
+  ["phrase de passe YAML", "db_password: correct horse battery S3cret", ["correct horse battery S3cret"]],
+  ["phrase de passe et commentaire", "db_password: correct horse S3cret  # rotation 2026", ["correct horse S3cret"]],
+  ["substitution Bash", "PASSWORD=$(cat /etc/S3cret)", ["$(cat /etc/S3cret)"]],
+  ["concaténation Python", "api_key = 'abc' + 'S3cret'", ["'abc' + 'S3cret'"]],
+  ["Python avec espaces", 'password = "Py-S3cret"', ['"Py-S3cret"']],
+  ["bloc YAML", "vault:\n  password: |\n    Line1-S3cret\n    Line2-S3cret\n  user: admin", ["Line1-S3cret", "Line2-S3cret"]],
+  ["hash bcrypt en YAML", "password_hash: $2b$12$S3cretHashValueAbCdEf", ["$2b$12$S3cretHashValueAbCdEf"]],
+];
+
+/** Des lignes qui citent un mot sensible sans porter de valeur : rien n'est trouvé. */
+const NOT_SECRETS = [
+  " description password reset by noc",
+  "no password",
+  "no enable secret",
+  "password encryption aes",
+  "key chain HSRP-KEYS",
+  " key 1",
+  "  key 7",
+  " standby 1 authentication md5 key-chain HSRP-KEYS",
+  "snmp-server host 10.0.0.9 version 3 priv netops",
+  "snmp-server host 10.0.0.9 use-vrf management",
+  "snmp-server user netops grp v3",
+  " ip ospf authentication message-digest",
+  "password: $DB_PASS",
+  "PASSWORD=${VAULT_PASSWORD}",
+  'token: "{{ vault_token }}"',
+  "password: <removed>",
+  "password: <votre mot de passe>",
+  "secret: ********",
+  "password: null",
+  "password_required: yes",
+  "password:",
+  "token: !vault |",
+  "community: 65000:100",
+  "bypass: true",
+  "compass: north",
+  "ssh -p 2222 admin@sw1",
+  "mysql -u root -p db",
+  "sshpass -e ssh admin@sw1",
+  "curl -u admin https://api",
+  "docker run -u 1000:1000 alpine",
+  'logger.info(f"token: {tok}")',
+];
+
+/** La valeur d'un constat, sans guillemets de bord. */
+const valueOf = (text, f) => text.split("\n")[f.line].slice(f.start, f.end).replace(/^["']|["']$/g, "");
+
+test("H1 : les valeurs sensibles d'une configuration, d'un script, d'un fichier de variables : toutes, chacune en entier", () => {
+  const { code } = loadApp();
+  for (const [name, text, values] of SECRET_CASES) {
+    const found = code.findSecrets(text), got = found.map((f) => valueOf(text, f));
+    for (const v of values) assert.ok(got.some((g) => g.includes(v.replace(/^["']|["']$/g, ""))), `${name} : ${v} non trouvé (trouvés : ${JSON.stringify(got)})`);
+    assert.equal(found.length, values.length, `${name} : ${JSON.stringify(got)}`);
+  }
+  for (const line of NOT_SECRETS) assert.deepEqual(clone(code.findSecrets(line).map((f) => valueOf(line, f))), [], line);
+  // la sorte et la nature, sur quelques formes
+  const kinds = (text) => clone(code.findSecrets(text).map((f) => [f.kind, f.nature]));
+  assert.deepEqual(kinds(" neighbor 10.0.0.1 password 7 0822455D0A16"), [["routing", "type7"]]);
+  assert.deepEqual(kinds("snmp-server user admin network-admin auth md5 0x1a2b3c priv 0x4d5e6f localizedkey"), [["snmpUser", "hash"], ["snmpUser", "hash"]]);
+  assert.deepEqual(kinds("password_hash: $2b$12$S3cretHashValueAbCdEf"), [["generic", "hash"]]);
+  assert.deepEqual(kinds("curl -u admin:Curl-S3cret https://api"), [["commandLine", "clear"]]);
+  assert.deepEqual(kinds('curl -H "Authorization: Bearer eyJh.abc.def" https://api'), [["token", "clear"]]);
+  assert.deepEqual(kinds("git clone https://o:Url-S3cret@git.example/x"), [["url", "clear"]]);
+  assert.deepEqual(kinds(" wpa-psk ascii 0 Wifi-S3cret"), [["wifi", "clear"]]);
+});
+
+test("H2 : « Retirer » ne laisse aucun morceau de la valeur ; un texte retiré ne réveille plus l'alerte", () => {
+  const { code } = loadApp();
+  // les morceaux d'une valeur (`Ab`, `Cd`, `S3cret`), hors ceux que le reste de la ligne porte déjà (`Priv` de `authPriv`)
+  const pieces = (v, rest) => v.split(/[^A-Za-z0-9]+/).filter((p) => p.length >= 2 && !rest.includes(p));
+  for (const [name, text, values] of SECRET_CASES) {
+    const masked = code.maskSecrets(text), rest = values.reduce((r, v) => r.split(v).join(" "), text);
+    for (const v of values) for (const p of pieces(v, rest)) assert.ok(!masked.includes(p), `${name} : « ${p} » survit dans ${JSON.stringify(masked)}`);
+    assert.ok(!masked.includes("S3cret"), `${name} : ${JSON.stringify(masked)}`);
+    assert.deepEqual(clone(code.findSecrets(masked)), [], `${name} : ${JSON.stringify(masked)}`);
+  }
+  assert.equal(code.maskSecrets("password=Ab#Cd-S3cret"), "password=<removed>");
+  assert.equal(code.maskSecrets("db_password: correct horse S3cret  # rotation 2026"), "db_password: <removed>  # rotation 2026", "le commentaire reste");
+  assert.equal(code.maskSecrets("PASSWORD=$(cat /etc/S3cret)"), "PASSWORD=<removed>");
+  assert.equal(code.maskSecrets('{"user":"a","password":"P1","api_key":"K2"}'), '{"user":"a","password":"<removed>","api_key":"<removed>"}');
+  assert.equal(code.maskSecrets("vault:\n  password: |\n    Line1-S3cret\n  user: admin"), "vault:\n  password: |\n    <removed>\n  user: admin", "un bloc YAML : ses lignes, pas la suivante");
+  assert.equal(code.maskSecrets("password = get_pw()"), "password = <removed>", "jamais « password <removed> » : un `=` n'est pas une valeur");
+});
+
+test("M1 : une valeur déjà gardée dans le texte enregistré ne se redemande pas ; une nouvelle, si", () => {
+  const { code } = loadApp();
+  const saved = "snmp-server community Comm-S3cret RO\nend";
+  assert.deepEqual(clone(code.newSecrets(saved + "\n!", saved)), [], "même valeur, gardée telle quelle");
+  const edited = "snmp-server community Comm-S3cret RO\nusername a secret 0 New-S3cret\nend";
+  assert.deepEqual(clone(code.newSecrets(edited, saved).map((f) => [f.line, f.kind])), [[1, "account"]]);
+  assert.equal(code.newSecrets(edited, "").length, 2, "un brouillon : toutes");
+});
+
+test("M4 et B4 : un collage ne devient un bloc que si le langage est sûr ; les contrôles bidirectionnels ne passent pas", () => {
+  const { code } = loadApp();
+  for (const t of ["- vérifier le cœur\n- remplacer l'optique\n- appeler le NOC", "Intervention prévue :\nDébut: 22h\nFin: 23h",
+    "NOC Paris\n12 rue des Lilas\nContact: astreinte", "site | baie | U\ndc01 | 4 | 22\ndc02 | 7 | 10", "a && b\nc && d\ne && f"]) {
+    assert.equal(code.pastedAsCode(t), null, JSON.stringify(t));
+  }
+  for (const t of [CISCO, FORTIOS, PYTHON, BASH, YAML, JSON_TEXT, "ip route 0.0.0.0 0.0.0.0 10.0.0.1\nip route 10.1.0.0 255.255.0.0 10.0.0.2\nip route 10.2.0.0 255.255.0.0 10.0.0.3",
+    "show version | include uptime\nshow interfaces status | include connected\nshow log | last 20"]) {
+    assert.ok(code.pastedAsCode(t) && code.pastedAsCode(t).sure, t.split("\n")[0]);
+  }
+  assert.equal(code.pastedAsCode("ls -l | grep cfg\ncat a.cfg | wc -l\ndf -h | sort").id, "bash", "des tubes Bash restent un bloc Bash");
+  // B4 : Trojan Source et séparateurs Unicode retirés
+  const bidi = "access-list 10 permit any‮ ⁦x⁩ y\u0085z‏";
+  assert.equal(code.normalizeCode(bidi), "access-list 10 permit any xyz");
+  assert.equal(code.cleanTyped("a\tb\r\nc‮d  "), "a   b\nc" + "d  ", "en écrivant : tabulations, CR et contrôles seulement");
+});
+
+test("B3 : une ligne démesurée se dessine sans coloration (pire cas quadratique des grammaires), les autres gardent la leur", () => {
+  const { code } = loadApp();
+  const long = "a-".repeat(10000), text = "for h in a b; do\n" + long + "\ndone";
+  const t0 = Date.now(), lines = code.codeLines(text, "bash", true), ms = Date.now() - t0;
+  assert.ok(ms < 300, `${ms} ms`);
+  assert.equal(lines.length, 3);
+  assert.deepEqual(clone(lines[1]), [{ t: long, c: null }]);
+  assert.equal(lines[0].find((s) => s.t === "for").c, "keyword", "la ligne courte reste colorée");
+  assert.equal(lines.map((l) => l.map((s) => s.t).join("")).join("\n"), text, "rien de perdu");
+});
+
+test("J2 (revue de session) : Ctrl+Z après « Retirer ces valeurs » ne réécrit pas la valeur retirée ; une autre modification s'annule", () => {
+  const { history } = loadApp();
+  const base = { anchor: { kind: "free", ref: null }, x: 0, y: 0, w: 480, h: 300, z: "front", locked: false, leader: false, style: {} };
+  const code = (text) => ({ ...base, content: { kind: "code", text, language: "cisco_ios", title: "", highlight: true, line_numbers: true, font: "jetbrains_mono" } });
+  const doc = (text) => ({ pins: [], device_colors: [], type_colors: [], groups: [], connectors: [], annotations: [{ id: "a1-1", author: "o", at: "", ...code(text) }] });
+  const key = history.keyOf("annotation", "a1-1");
+  const kept = "snmp-server community Comm-S3cret RO", removed = "snmp-server community <removed> RO";
+  const undoRemove = history.plan(doc(removed), [{ key, before: code(kept), after: code(removed) }], "undo");
+  assert.deepEqual([undoRemove.ops.length, undoRemove.withheld.length], [0, 1], "retenu, jamais rejoué");
+  const undoEdit = history.plan(doc(kept + "\nend"), [{ key, before: code(kept), after: code(kept + "\nend") }], "undo");
+  assert.deepEqual([undoEdit.ops.length, undoEdit.withheld.length], [1, 0], "la valeur est encore là : rien de rétabli, l'annulation passe");
+  const undoDelete = history.plan({ ...doc(kept), annotations: [] }, [{ key, before: code(kept), after: null }], "undo");
+  assert.equal(undoDelete.ops[0].op, "annotation_create", "un bloc supprimé revient tel qu'il était");
+});
+
+test("M3 : une charge du presse-papiers compte les valeurs sensibles de ses blocs de code, et sait les retirer sans toucher l'original", () => {
+  const { clipboard } = loadApp();
+  const block = { id: "a1-1", anchor: { kind: "free", ref: null }, x: 0, y: 0, w: 480, h: 300, z: "front", leader: false, frame: { x: 0, y: 0, w: 480, h: 300 }, style: {},
+    content: { kind: "code", text: "snmp-server community Comm-S3cret RO\nusername a secret 0 Adm-S3cret", language: "cisco_ios", title: "", highlight: true, line_numbers: true, font: "jetbrains_mono" } };
+  const note = { ...block, id: "a1-2", content: { kind: "note", text: "password: rien à voir ici" } };
+  const p = { "living-diagram": 1, infrastructure: "dc01", annotations: [block, note], connectors: [], hosts: [] };
+  assert.equal(clipboard.secretsOf(p), 2);
+  const clean = clipboard.withoutSecrets(p);
+  assert.equal(clean.annotations[0].content.text, "snmp-server community <removed> RO\nusername a secret 0 <removed>");
+  assert.equal(clean.annotations[1], note, "une note passe telle quelle");
+  assert.ok(p.annotations[0].content.text.includes("Comm-S3cret"), "la charge d'origine n'est pas touchée");
+  assert.equal(clipboard.secretsOf(clean), 0);
+});
+
+test("B3 : la recherche des valeurs sensibles reste linéaire sur une ligne démesurée", () => {
+  const { code } = loadApp();
+  for (const text of ["password: x" + " ".repeat(20000) + "y", "snmpwalk" + " -c".repeat(6600), "PASSWORD=$(" + "(".repeat(20000), "a-".repeat(10000)]) {
+    const t0 = Date.now(); code.findSecrets(text); const ms = Date.now() - t0;
+    assert.ok(ms < 150, `${ms} ms sur ${JSON.stringify(text.slice(0, 20))}…`);
+  }
+});

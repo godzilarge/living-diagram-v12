@@ -2,7 +2,11 @@
 // (l'épingle d'un équipement, sa couleur, la couleur d'un type, un groupe), avant et après ; et les opérations qui
 // ramènent ces clés à l'un ou l'autre état. Annuler n'efface rien : c'est une nouvelle écriture, signée, au journal.
 // Une clé modifiée par quelqu'un d'autre depuis (sa valeur n'est plus celle qu'on a laissée) est sautée, jamais
-// écrasée. Les déplacements faits sans nom (locaux) ont leur entrée à part : des positions, rien à envoyer.
+// écrasée. Les déplacements faits sans nom (locaux) ont leur entrée à part : des positions, rien à envoyer. Annuler ou
+// rétablir ne réécrit jamais dans un bloc de code une valeur sensible qu'il ne porte plus (« Retirer ces valeurs »,
+// revue du lot 16, J2) : la clé est retenue (`withheld`) et la page le dit ; l'historique (le journal) garde l'ancien
+// texte, c'est la seule copie.
+import { newSecrets } from "../code/secrets";
 import type { Annotation, Connector, Group, Intent } from "../../canvas/types";
 import { t } from "../../i18n";
 import type { Point } from "../../canvas/layout";
@@ -34,7 +38,7 @@ export function labelText(label: Label): string {
   const who = label.who ? (label.who.host !== null ? label.who.host : t("common:devices", { count: label.who.count })) : "";
   return t(`history.${label.key}`, { who, name: label.name || "", ...(label.count === undefined ? {} : { count: label.count }) });
 }
-export interface Plan { ops: Op[]; applied: Change[]; skipped: Change[]; created: string[] }
+export interface Plan { ops: Op[]; applied: Change[]; skipped: Change[]; withheld: Change[]; created: string[] }
 
 export const LIMIT = 100;
 const MOVES = ["pin", "annotation_update", "connector_update"];
@@ -121,15 +125,24 @@ function opFor(key: string, current: Value, target: Value): Op {
     : { op: "group_create", label: g.label, description: g.description, members: g.members, style: g.style };
 }
 
+/** Un bloc de code ramené à un texte qui porte une valeur sensible qu'il ne porte plus (une création, ou le retour d'un
+ *  bloc supprimé, rend ce qui était : pas une valeur retirée). */
+function restoresSecrets(current: Value, target: Value): boolean {
+  const code = (v: Value): string | null => (v && typeof v === "object" && "content" in v && v.content.kind === "code" ? v.content.text : null);
+  const now = code(current), then = code(target);
+  return now !== null && then !== null && newSecrets(then, now).length > 0;
+}
+
 /** Les opérations qui ramènent les clés d'une entrée à leur état d'avant (`undo`) ou d'après (`redo`), sur le document
  *  courant ; une clé dont la valeur n'est plus celle qu'on attend est sautée. `created` : l'ancienne identité de chaque
  *  groupe recréé, dans l'ordre de ses `group_create` (le serveur lui en donnera une nouvelle). */
 export function plan(doc: Intent | null, changes: Change[], direction: "undo" | "redo"): Plan {
-  const out: Plan = { ops: [], applied: [], skipped: [], created: [] };
+  const out: Plan = { ops: [], applied: [], skipped: [], withheld: [], created: [] };
   changes.forEach((change) => {
     const from = direction === "undo" ? change.after : change.before, to = direction === "undo" ? change.before : change.after;
     const current = valueOf(doc, change.key);
     if (!same(current, from)) { out.skipped.push(change); return; }
+    if (restoresSecrets(current, to)) { out.withheld.push(change); return; }
     const op = opFor(change.key, current, to);
     if (op.op === "group_create" || op.op === "annotation_create" || op.op === "connector_create") out.created.push(split(change.key)[1]);
     out.ops.push(op);

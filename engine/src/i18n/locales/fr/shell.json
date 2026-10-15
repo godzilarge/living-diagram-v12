@@ -254,7 +254,9 @@
     "deletedItems_other": "suppression de {{count}} éléments",
     "createdItems_one": "ajout de {{count}} élément",
     "createdItems_many": "ajout de {{count}} éléments",
-    "createdItems_other": "ajout de {{count}} éléments"
+    "createdItems_other": "ajout de {{count}} éléments",
+    "secretsWithheld": "non annulé : {{what}}, cela rétablirait des valeurs sensibles retirées",
+    "secretsSkipped": "valeurs sensibles retirées non rétablies"
   },
   "context": {
     "label": "menu contextuel",
@@ -522,7 +524,15 @@
     "partial": "collage incomplet : {{reason}} ; le défaire a échoué aussi ({{undo}}) · Ctrl+Z pour défaire ce qui reste",
     "abandoned": "collage abandonné : la run ou l'infrastructure affichée a changé, rien n'a été écrit dans {{infrastructure}}",
     "abandonedAfter": "collage interrompu : la run ou l'infrastructure affichée a changé ; ce qui était déjà écrit reste dans {{infrastructure}}",
-    "pasteFailed": "le presse-papiers a été lu, mais son contenu n'a pas pu être collé"
+    "pasteFailed": "le presse-papiers a été lu, mais son contenu n'a pas pu être collé",
+    "secretsAsk_one": "collage depuis {{from}} : 1 valeur sensible dans le code, lue par tous ceux qui ouvrent {{infrastructure}} ; rien n'est collé avant votre choix",
+    "secretsAsk_many": "collage depuis {{from}} : {{count}} valeurs sensibles dans le code, lues par tous ceux qui ouvrent {{infrastructure}} ; rien n'est collé avant votre choix",
+    "secretsAsk_other": "collage depuis {{from}} : {{count}} valeurs sensibles dans le code, lues par tous ceux qui ouvrent {{infrastructure}} ; rien n'est collé avant votre choix",
+    "secretsRemoved_one": "1 valeur sensible retirée",
+    "secretsRemoved_many": "{{count}} valeurs sensibles retirées",
+    "secretsRemoved_other": "{{count}} valeurs sensibles retirées",
+    "secretsRemove": "retirer ces valeurs",
+    "secretsKeep": "coller tel quel"
   },
   "fbar": {
     "label": "actions rapides : {{what}}",
@@ -711,6 +721,11 @@
     "copiedOf_one": "copié : {{count}} ligne de {{title}}",
     "copiedOf_many": "copié : {{count}} lignes de {{title}}",
     "copiedOf_other": "copié : {{count}} lignes de {{title}}",
-    "copyRefused": "copie refusée par le navigateur : sélectionnez le texte dans la fiche"
+    "copyRefused": "copie refusée par le navigateur : sélectionnez le texte dans la fiche",
+    "pendingKept": "bloc sorti de l'écran avec une valeur sensible jamais vue : rien n'est enregistré, le texte vous attend dans le bloc",
+    "draftElsewhere": "brouillon abandonné : il appartient à {{infrastructure}}, rien n'a été enregistré ici",
+    "removedKeptInLog_one": "1 valeur retirée du bloc ; le journal des modifications garde l'ancien texte",
+    "removedKeptInLog_many": "{{count}} valeurs retirées du bloc ; le journal des modifications garde l'ancien texte",
+    "removedKeptInLog_other": "{{count}} valeurs retirées du bloc ; le journal des modifications garde l'ancien texte"
   }
 }

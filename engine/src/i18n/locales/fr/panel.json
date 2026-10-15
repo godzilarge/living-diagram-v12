@@ -451,7 +451,13 @@
       "fortios": "secret FortiOS",
       "junos": "secret Junos",
       "privateKey": "clé privée",
-      "generic": "valeur sensible"
+      "generic": "valeur sensible",
+      "snmpUser": "mot de passe SNMPv3",
+      "routing": "clé de protocole de routage",
+      "wifi": "clé Wi-Fi",
+      "token": "jeton d'accès",
+      "commandLine": "mot de passe dans une commande",
+      "url": "mot de passe dans une adresse"
     },
     "secretNature": {
       "hash": "hash",

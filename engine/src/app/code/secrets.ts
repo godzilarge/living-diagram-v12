@@ -2,74 +2,106 @@
 // (création, écriture, collage), quel que soit le langage choisi (une configuration Cisco déclarée « texte brut » est
 // quand même lue). Une fois enregistré, le texte est lu par tous ceux qui ouvrent l'infrastructure et reste dans le
 // journal ; la page avertit donc avant, et propose de retirer les valeurs (`<removed>`). Rien n'est envoyé ailleurs :
-// la détection est ici, sur le texte local. Motifs Cisco repris de la grammaire obsidian-cisco-syntax (MIT), complétés
-// pour FortiOS, Junos, les clés privées et les fichiers clé = valeur (YAML, JSON, Python, Bash). Ancrés au début de la
-// ligne pour les configurations : le même mot dans une `description` n'est pas une valeur sensible. Sans DOM, testé
-// sous Node (`LDApp.code`) ; les mots (nature, sorte) viennent des catalogues (`panel:code.secret`).
-import { FORTIOS_SECRET_ATTRS } from "./fortios";
+// la détection est ici, sur le texte local. Les motifs sont dans secret-rules.ts ; ici, la lecture ligne à ligne, avec
+// ce qui demande un contexte (une clé privée sur plusieurs lignes, un bloc YAML `password: |`, la communauté SNMP de
+// FortiOS) ; toutes les valeurs d'une ligne, chacune en entier (revue du 2026-10-15, H1 et H2). Sans DOM, testé sous
+// Node (`LDApp.code`) ; les mots (nature, sorte) viennent des catalogues (`panel:code.secret`).
+import { BLOCK_SCALAR, FORTI_COMMUNITY, FORTI_NAME, KEY_BEGIN, KEY_END, PLACEHOLDER, REFERENCE, RULES, TRIGGER } from "./secret-rules";
+import type { Rule, SecretKind } from "./secret-rules";
 import { MASK } from "./tokens";
 import type { Line } from "./tokens";
 
-/** La sorte d'une valeur (clé du catalogue `panel:code.secretKind`). */
-export type SecretKind = "account" | "password" | "snmp" | "ike" | "psk" | "keyString" | "aaaKey" | "ntpKey" | "fortios" | "junos" | "privateKey" | "generic";
+export type { SecretKind } from "./secret-rules";
 /** Ce qu'elle est, pour décider (clé `panel:code.secretNature`) : un type 7 Cisco se déchiffre en une seconde, un hash
  *  de type 5, 8 ou 9 non. */
 export type SecretNature = "hash" | "type7" | "encrypted" | "clear";
 export interface Secret { line: number; start: number; end: number; kind: SecretKind; nature: SecretNature; length: number }
 
-interface Rule { kind: SecretKind; re: RegExp; generic?: boolean }
-/** Le motif avec ses indices (`d` : où commence et finit la valeur nommée `v`), posé à l'exécution (la cible ES2020 de la
- *  construction n'écrit pas ce drapeau dans un littéral). */
-const rx = (re: RegExp): RegExp => new RegExp(re.source, re.flags + "d");
-const RULES: Rule[] = [
-  { kind: "account", re: rx(/^[ \t]*username[ \t]+\S+[ \t]+(?:.*?[ \t]+)?(?:password|secret)[ \t]+(?:\d{1,2}[ \t]+)?(?<v>\S+)/i) },
-  { kind: "password", re: rx(/^[ \t]*(?:enable[ \t]+)?(?:password|secret)[ \t]+(?:\d{1,2}[ \t]+)?(?<v>\S+)/i) },
-  { kind: "snmp", re: rx(/^[ \t]*snmp-server[ \t]+community[ \t]+(?<v>\S+)/i) },
-  { kind: "ike", re: rx(/^[ \t]*crypto[ \t]+isakmp[ \t]+key[ \t]+(?:\d[ \t]+)?(?<v>\S+)/i) },
-  { kind: "psk", re: rx(/^[ \t]*pre-shared-key[ \t]+(?:local[ \t]+|remote[ \t]+)?(?:\d[ \t]+)?(?<v>\S+)/i) },
-  { kind: "keyString", re: rx(/^[ \t]*key-string[ \t]+(?:\d{1,2}[ \t]+)?(?<v>\S+)/i) },
-  { kind: "aaaKey", re: rx(/^[ \t]*(?:(?:tacacs-server|radius-server)[ \t]+(?:host[ \t]+\S+[ \t]+)?)?key[ \t]+(?:0|6|7)[ \t]+(?<v>\S+)/i) },
-  { kind: "ntpKey", re: rx(/^[ \t]*ntp[ \t]+authentication-key[ \t]+\d+[ \t]+\w+[ \t]+(?<v>\S+)/i) },
-  { kind: "fortios", re: rx(new RegExp(`^[ \\t]*set[ \\t]+(?:${FORTIOS_SECRET_ATTRS})[ \\t]+(?:ENC[ \\t]+)?(?<v>"(?:[^"\\\\]|\\\\.)*"|\\S+)`, "i")) },
-  { kind: "junos", re: rx(/(?:encrypted-password|secret|authentication-key|ascii-text)[ \t]+(?<v>"\$(?:9|1|5|6)\$[^"]*")/i) },
-  { kind: "generic", generic: true, re: rx(/(?:^|[\s,{"'])["']?[\w.-]*(?:password|passwd|pwd|secret|token|api[_-]?key|apikey|private[_-]?key|access[_-]?key)[\w.-]*["']?[ \t]*[:=][ \t]*(?<v>"[^"\n]+"|'[^'\n]+'|[^\s,#}]+)/i) },
-];
-// une référence (`$VAR`, `${VAR}`, `{{ vault_… }}`), un booléen, un vide : pas une valeur, pour la règle générique
-const NOT_A_SECRET = /^["']?(?:\$\{?\w|\{\{|null\b|none\b|true\b|false\b|\*+["']?$|["']?$)/i;
-const KEY_BEGIN = /-----BEGIN [A-Z ]*PRIVATE KEY-----/, KEY_END = /-----END [A-Z ]*PRIVATE KEY-----/;
+type Spans = Record<string, [number, number] | undefined>;
+/** Ce que la lecture retient d'une ligne à l'autre : dans une clé privée, dans un bloc YAML (l'indentation de sa clé),
+ *  dans `config system snmp community` de FortiOS (la profondeur des `config` / `end`). */
+interface Scan { inKey: boolean; block: number | null; forti: number }
 
 function natureOf(before: string, value: string): SecretNature {
   if (/\bENC[ \t]+$/.test(before)) return "encrypted";
   const type = (before.match(/\b(\d{1,2})[ \t]+$/) || [])[1];
   if (type === "7") return "type7";
-  if (type === "5" || type === "8" || type === "9" || /^"?\$(?:1|5|6|8|9)\$/.test(value)) return "hash";
+  if (type === "5" || type === "8" || type === "9" || /^["']?\$(?:1|2[aby]?|5|6|8|9|y|argon2\w*)\$/.test(value) || /^0x[0-9a-f]+$/i.test(value)) return "hash";
   return "clear";
+}
+const indentOf = (line: string): number => line.length - line.trimStart().length;
+const unquoted = (value: string): string => value.replace(/^["']|["']$/g, "");
+const wholeLine = (line: string, i: number, kind: SecretKind): Secret => ({ line: i, start: indentOf(line), end: line.trimEnd().length, kind, nature: "clear", length: line.trim().length });
+
+/** Les valeurs d'un motif sur une ligne (toutes ses occurrences, toutes ses valeurs nommées), hors références et
+ *  gabarits ; `block` : la clé d'un bloc YAML a été vue (la valeur est dessous). */
+function ruleSecrets(line: string, i: number, rule: Rule, onBlock: () => void): Secret[] {
+  const out: Secret[] = [];
+  for (const m of line.matchAll(rule.re) as IterableIterator<RegExpMatchArray & { indices?: { groups?: Spans } }>) {
+    const groups = m.indices && m.indices.groups ? m.indices.groups : {};
+    for (const [name, span] of Object.entries(groups)) {
+      if (!name.startsWith("v") || !span) continue;
+      const [start, end] = span, value = line.slice(start, end);
+      if (rule.generic && BLOCK_SCALAR.test(value)) { onBlock(); continue; }
+      if (value.includes(MASK) || PLACEHOLDER.test(value) || (rule.shell && REFERENCE.test(value))) continue;
+      out.push({ line: i, start, end, kind: rule.kind, nature: natureOf(line.slice(0, start), value), length: unquoted(value).length });
+    }
+  }
+  return out;
+}
+
+/** Les valeurs d'une ligne qui demandent un contexte ; `null` : la ligne se lit avec les motifs. */
+function contextSecrets(line: string, i: number, scan: Scan): Secret[] | null {
+  if (KEY_BEGIN.test(line)) { scan.inKey = true; return []; }
+  if (scan.inKey) {
+    if (KEY_END.test(line)) scan.inKey = false;
+    return line.trim() && line.trim() !== MASK && !KEY_END.test(line) ? [wholeLine(line, i, "privateKey")] : [];
+  }
+  if (scan.block !== null) {
+    if (!line.trim()) return [];
+    if (indentOf(line) > scan.block) return line.trim() === MASK ? [] : [wholeLine(line, i, "generic")];
+    scan.block = null;
+  }
+  if (FORTI_COMMUNITY.test(line)) { scan.forti = 1; return []; }
+  if (scan.forti) {
+    if (/^\s*config\b/i.test(line)) scan.forti += 1;
+    else if (/^\s*end\b/i.test(line)) scan.forti -= 1;
+    const m = scan.forti === 1 ? (FORTI_NAME.exec(line) as (RegExpExecArray & { indices?: { groups?: Spans } }) | null) : null;
+    const span = m && m.indices && m.indices.groups ? m.indices.groups.v : undefined;
+    if (span && !line.slice(span[0], span[1]).includes(MASK)) return [{ line: i, start: span[0], end: span[1], kind: "snmp", nature: "clear", length: unquoted(line.slice(span[0], span[1])).length }];
+  }
+  return null;
 }
 
 /** Les valeurs sensibles d'un texte : ligne, début et fin de la valeur seule (indices dans la ligne), sorte, nature. */
 export function findSecrets(text: string): Secret[] {
   const found: Secret[] = [];
-  let inKey = false;
+  const scan: Scan = { inKey: false, block: null, forti: 0 };
   text.split("\n").forEach((line, i) => {
-    if (KEY_BEGIN.test(line)) { inKey = true; return; }
-    if (inKey) {
-      if (KEY_END.test(line)) inKey = false;
-      else if (line.trim() && line.trim() !== MASK) found.push({ line: i, start: line.search(/\S/), end: line.length, kind: "privateKey", nature: "clear", length: line.trim().length });
-      return;
-    }
+    const context = contextSecrets(line, i, scan);
+    if (context) { found.push(...context); return; }
+    if (!TRIGGER.test(line)) return;
     const taken: [number, number][] = [];
     for (const rule of RULES) {
-      const m = rule.re.exec(line) as (RegExpExecArray & { indices?: { groups?: Record<string, [number, number] | undefined> } }) | null;
-      const span = m && m.indices && m.indices.groups ? m.indices.groups.v : undefined;
-      if (!m || !span || !m.groups) continue;
-      const [start, end] = span, value = m.groups.v;
-      if (value.includes(MASK) || /^["']?["']?$/.test(value) || (rule.generic && NOT_A_SECRET.test(value))) continue;
-      if (taken.some(([a, b]) => start < b && a < end)) continue;
-      taken.push([start, end]);
-      found.push({ line: i, start, end, kind: rule.kind, nature: natureOf(line.slice(0, start), value), length: value.replace(/^["']|["']$/g, "").length });
+      for (const f of ruleSecrets(line, i, rule, () => { scan.block = indentOf(line); })) {
+        if (taken.some(([a, b]) => f.start < b && a < f.end)) continue;
+        taken.push([f.start, f.end]);
+        found.push(f);
+      }
     }
   });
   return found.sort((a, b) => a.line - b.line || a.start - b.start);
+}
+
+/** La valeur d'un constat, sans guillemets de bord. */
+export const secretValue = (text: string, f: Secret): string => unquoted((text.split("\n")[f.line] || "").slice(f.start, f.end));
+
+/** Les valeurs d'un texte qui ne sont pas déjà dans le texte enregistré (revue du 2026-10-15, M1) : une valeur gardée
+ *  telle quelle ne se redemande pas à chaque écriture du même bloc ; une nouvelle, si. Un brouillon : `saved` vide. */
+export function newSecrets(text: string, saved: string, found: Secret[] = findSecrets(text)): Secret[] {
+  if (!saved) return found;
+  const kept = new Set(findSecrets(saved).map((f) => secretValue(saved, f)));
+  return found.filter((f) => !kept.has(secretValue(text, f)));
 }
 
 /** Le texte, chaque valeur sensible remplacée par `<removed>` (les guillemets gardés : la commande reste lisible). */
@@ -118,4 +150,4 @@ export function withSecrets(lines: Line[], found: Secret[]): Line[] {
   });
 }
 
-export const secrets = { findSecrets, maskSecrets, maskedPreview, withSecrets };
+export const secrets = { findSecrets, newSecrets, secretValue, maskSecrets, maskedPreview, withSecrets };

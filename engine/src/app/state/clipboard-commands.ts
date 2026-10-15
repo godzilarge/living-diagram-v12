@@ -15,13 +15,16 @@
 // et y sont vérifiées ; une seconde requête pour les connecteurs qui visent une annotation collée ; une seule entrée
 // d'annulation pour les deux (`undo.chain`). Si la seconde ne peut pas partir ou est refusée, la première est défaite
 // (`undo.revert`, sans entrée) et la page dit « collage refusé » ; « n éléments collés » ne se dit qu'après tout.
+// Une charge venue d'une autre infrastructure dont des blocs de code portent des valeurs sensibles (gardées telles
+// quelles là-bas, pour une autre audience) ne s'écrit qu'après un choix, proposé par la ligne d'état : « retirer ces
+// valeurs » ou « coller tel quel » (revue du lot 16, M3 ; revue de session, J3).
 import { fetchAssetFile, uploadAsset } from "../api/client";
 import type { Session } from "../api/client";
 import type { CanvasHandle } from "./store";
 import { t } from "../../i18n";
 import type { Point } from "../../canvas/layout";
 import type { Op } from "../../shell/apps";
-import { CLIP_MIME, CLIP_WEB, MAX_CARRIED, MAX_PASTE, MAX_REQUEST_BYTES, assetsOf, boundsOf, createdIds, duplicateStep, keyOf, offsetFor, parse, pastable, pastePlan, resolve, textOf, verifyCreated } from "./clipboard";
+import { CLIP_MIME, CLIP_WEB, MAX_CARRIED, MAX_PASTE, MAX_REQUEST_BYTES, assetsOf, boundsOf, createdIds, duplicateStep, keyOf, offsetFor, parse, pastable, pastePlan, resolve, secretsOf, textOf, verifyCreated, withoutSecrets } from "./clipboard";
 import type { Payload } from "./clipboard";
 import { groupsIn, payloadFromToile, targetOf } from "../canvas/clip-toile";
 import { has, selectionOf } from "./selection";
@@ -50,7 +53,12 @@ export interface ClipboardCommands {
   duplicate: (what?: Item | null) => boolean;
   /** Alt + glissé relâché : les éléments clonés, à l'écart `d` (unités du plan). */
   cloneDrop: (items: Item[], d: Point) => void;
+  /** Le choix proposé pour un collage d'une autre infrastructure qui porte des valeurs sensibles : le collage attendu
+   *  part, valeurs retirées ou telles quelles. */
+  pasteSecrets: (choice: "remove" | "keep") => void;
 }
+/** Où et comment coller : l'écart donné ou le pointeur ; le choix déjà fait pour les valeurs sensibles, et leur nombre. */
+interface Where { d?: Point; pointer?: Point | null; secrets?: "remove" | "keep"; removed?: number }
 
 /** Pourquoi un collage s'est arrêté avant d'avoir tout écrit. */
 class Stop extends Error {}
@@ -65,6 +73,8 @@ export function clipboardCommands(deps: ClipboardDeps): ClipboardCommands {
   let repeat: { key: string; pointer: string; n: number } | null = null;
   let lastStep: { key: string; d: Point } | null = null;
   const flying = new Map<string, number>();
+  // Le collage qui attend le choix des valeurs sensibles (un seul : un nouveau collage le remplace).
+  let waiting: { p: Payload; where: Where; infrastructure: string } | null = null;
 
   // ——— Ce qui se copie ———
   function selected(items?: Item[]): Payload | null { const h = handle(); return h ? payloadFromToile(h.toile, items) : null; }
@@ -131,7 +141,7 @@ export function clipboardCommands(deps: ClipboardDeps): ClipboardCommands {
   }
   // La place d'un collage : l'écart donné (Ctrl+D, Alt + glissé), sinon au pointeur, sinon à la place d'origine, chaque
   // collage répété au même endroit décalant encore.
-  function placeOf(p: Payload, where: { d?: Point; pointer?: Point | null }): Point {
+  function placeOf(p: Payload, where: Where): Point {
     const box = boundsOf(p);
     if (where.d || !box) return where.d || { x: 0, y: 0 };
     const pointer = where.pointer || null, at = pointer ? Math.round(pointer.x) + "," + Math.round(pointer.y) : "";
@@ -142,7 +152,7 @@ export function clipboardCommands(deps: ClipboardDeps): ClipboardCommands {
   const refusedText = (reason: string): string => (reason === "too_many" ? t("shell:clipboard.tooMany", { max: MAX_PASTE })
     : reason === "too_big" ? t("shell:clipboard.tooBig", { max: Math.round(MAX_REQUEST_BYTES / 1024) }) : t("shell:clipboard.empty"));
   /** Colle une charge ; sélectionne la copie. Rend la clé de la copie, ou `null` si rien n'a été collé. */
-  async function paste(p: Payload, where: { d?: Point; pointer?: Point | null }): Promise<string | null> {
+  async function paste(p: Payload, where: Where): Promise<string | null> {
     const h = handle();
     if (!h) return null;
     if (!pastable(p)) { note(p.hosts.length ? t("shell:clipboard.devicesNotPasted", { count: p.hosts.length }) : t("shell:clipboard.empty")); return null; }
@@ -150,6 +160,13 @@ export function clipboardCommands(deps: ClipboardDeps): ClipboardCommands {
     const infrastructure = h.toile.model.source.infrastructure;
     const here: Session = { token: session().token, infrastructure }; // figée : rien ne part ailleurs (H1)
     const alive = (): boolean => handle() === h && session().infrastructure === infrastructure;
+    waiting = null;
+    const secrets = p.infrastructure === infrastructure || where.secrets ? 0 : secretsOf(p);
+    if (secrets) {
+      waiting = { p, where, infrastructure };
+      dispatch({ type: "note", text: t("shell:clipboard.secretsAsk", { count: secrets, from: p.infrastructure, infrastructure }), offer: { kind: "secrets" }, at: Date.now() });
+      return null;
+    }
     if (p.infrastructure !== infrastructure && assetsOf(p).length > MAX_CARRIED) { note(t("shell:clipboard.tooManyImages", { max: MAX_CARRIED })); return null; }
     const d = placeOf(p, where);
     let written = false;
@@ -159,7 +176,7 @@ export function clipboardCommands(deps: ClipboardDeps): ClipboardCommands {
       if (!planned.ok) { note(refusedText(planned.reason)); return null; }
       const { first, later, annotations, connectors, freed } = planned.plan;
       const extras = [p.hosts.length ? t("shell:clipboard.devicesNotPasted", { count: p.hosts.length }) : "", missing.size ? t("shell:clipboard.imagesMissing", { count: missing.size }) : "",
-        freed ? t("shell:clipboard.freed", { count: freed }) : ""].filter(Boolean);
+        freed ? t("shell:clipboard.freed", { count: freed }) : "", where.removed ? t("shell:clipboard.secretsRemoved", { count: where.removed }) : ""].filter(Boolean);
       const done = [t("shell:clipboard.pasted", { count: pastable(p), author: h.writer.author })].concat(extras).join(" · ");
       const writer = h.writer;
       await h.intents.apply(first, later.length ? t("shell:clipboard.pasting") : done);
@@ -303,6 +320,16 @@ export function clipboardCommands(deps: ClipboardDeps): ClipboardCommands {
         return;
       }
       void paste(p, { d }).then((made) => remember(made, d));
+    },
+    pasteSecrets: (choice) => {
+      const w = waiting, h = handle();
+      waiting = null;
+      dispatch({ type: "note", text: null });
+      if (!w) return;
+      // la toile a changé entre la question et la réponse : rien ne part ailleurs (revue du lot 3, H1)
+      if (!h || h.toile.model.source.infrastructure !== w.infrastructure) { note(t("shell:clipboard.abandoned", { infrastructure: w.infrastructure })); return; }
+      const removed = choice === "remove" ? secretsOf(w.p) : 0;
+      void paste(choice === "remove" ? withoutSecrets(w.p) : w.p, { ...w.where, secrets: choice, removed });
     },
   };
 }

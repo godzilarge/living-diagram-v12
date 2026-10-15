@@ -4,14 +4,17 @@
 // des valeurs sensibles, que la toile montre), copier, retirer les valeurs sensibles d'un bloc, régler langage, police,
 // coloration, numéros et hauteur d'un ou de plusieurs blocs. Tout s'écrit par l'hôte d'intention : sous le nom, au
 // journal, dans la pile d'annulation (Ctrl+Z défait un collage comme une modification). Sans minuterie (la page fournit
-// le retour de l'icône « copié »).
+// le retour de l'icône « copié »). Revue du 2026-10-15 : un texte collé qui porte une valeur sensible passe toujours par
+// l'avertissement, même court ou sans langage sûr (M3) ; un texte trop long garde son brouillon (M2) ; un brouillon
+// appartient à l'infrastructure où il est né (B6).
 import { t } from "../../i18n";
 import type { Point } from "../../canvas/layout";
 import type { Annotation } from "../../canvas/types";
 import type { CodeContent } from "../../contracts/intent";
 import type { Op } from "../../shell/apps";
+import { DEFAULT_SIZE, DEFAULT_STYLE } from "../../canvas/annotations";
 import { CODE, fitHeight, lineCount, pasteWidth } from "../code/geometry";
-import { LANGUAGE_LABEL, detectLanguage, normalizeCode, pastedAsCode } from "../code/languages";
+import { DEFAULT_CODE_CONTENT, LANGUAGE_LABEL, detectLanguage, normalizeCode, pastedAsCode } from "../code/languages";
 import type { LanguageId } from "../code/languages";
 import { findSecrets, maskSecrets } from "../code/secrets";
 import { codeView } from "../code/view";
@@ -20,15 +23,22 @@ import type { CanvasHandle } from "./store";
 import type { Action } from "./types";
 
 export const CODE_MAX = 20_000;
+/** Un texte collé plus long que ceci est refusé avant d'être lu (la normalisation et la détection coûtent ~0,7 s sur
+ *  4 Mo) : quatre fois la borne, la marge d'un texte à tabulations (une tabulation devient au plus quatre espaces). */
+export const PASTE_RAW_MAX = CODE_MAX * 4;
+/** Un bloc inséré : douze lignes à la taille du code. */
+const INSERT_LINES = 12;
 /** Ce que la page dit après un enregistrement : rien de plus, les valeurs retirées, ou gardées telles quelles. */
 export type CodeOutcome = "plain" | "removed" | "kept";
 export interface CodeCommands {
   /** Insérer (barre d'outils, menu du fond) : un brouillon vide au point du plan, l'écriture ouverte. */
   codeInsert: (at: Point | null) => void;
-  /** Un texte collé : un bloc s'il ressemble à du code (rend vrai), sinon rien (la page en fait une note). */
+  /** Un texte collé : un bloc s'il ressemble à du code ou porte une valeur sensible (rend vrai), sinon rien (la page en
+   *  fait une note). */
   codePaste: (raw: string) => boolean;
-  /** Le brouillon enregistré avec ce texte (déjà vu : valeurs retirées ou gardées) ; abandonné si le texte est vide. */
-  codeCreate: (draft: CodeDraft, text: string, outcome: CodeOutcome, removed: number) => void;
+  /** Le brouillon enregistré avec ce texte (déjà vu : valeurs retirées ou gardées) ; abandonné si le texte est vide.
+   *  Rend faux si rien ne part et que le brouillon reste ouvert (texte trop long). */
+  codeCreate: (draft: CodeDraft, text: string, outcome: CodeOutcome, removed: number) => boolean;
   codeCancel: () => void;
   /** Le texte d'un bloc existant, enregistré (déjà vu). */
   codeSave: (id: string, text: string, outcome: CodeOutcome, removed: number) => void;
@@ -46,7 +56,6 @@ export interface CodeCommands {
 
 export interface CodeDeps { dispatch: (action: Action) => void; handle: () => CanvasHandle | null }
 
-let drafts = 0;
 const contentOf = (h: CanvasHandle, id: string): { a: Annotation; c: CodeContent } | null => {
   const a = h.toile.model.annotationById.get(id);
   return a && a.content.kind === "code" ? { a, c: a.content } : null;
@@ -64,40 +73,45 @@ export function codeCommands({ dispatch, handle }: CodeDeps): CodeCommands {
     codeInsert: (at) => {
       const h = handle();
       if (!h || !h.intents.canWrite()) return;
-      const w = 480, hh = fitHeight(12, 13);
+      const w = DEFAULT_SIZE.code.w, hh = fitHeight(INSERT_LINES, DEFAULT_STYLE.code.text_size);
       const c = at || ((p) => ({ x: p.x - w / 2, y: p.y - hh / 2 }))(h.toile.viewCenter());
       const snap = (v: number): number => Math.round(v / CODE.GRID) * CODE.GRID;
-      drafts += 1;
-      codeView.setDraft({ key: drafts, text: "", language: "plain", sure: false, x: snap(c.x), y: snap(c.y), w, h: hh, pasted: false });
+      codeView.setDraft({ key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text: "", language: "plain", sure: false, x: snap(c.x), y: snap(c.y), w, h: hh, pasted: false });
     },
     codePaste: (raw) => {
       const h = handle();
-      const found = pastedAsCode(raw);
-      if (!h || !found) return false;
-      if (!h.intents.canWrite()) return false;
+      if (!h || !h.intents.canWrite()) return false;
+      // la longueur brute d'abord : un texte démesuré n'est ni normalisé ni lu (revue, B3)
+      if (raw.length > PASTE_RAW_MAX) { say(t("shell:code.tooLong", { max: CODE_MAX })); return true; }
       const text = normalizeCode(raw);
+      // un texte qui porte une valeur sensible passe par l'avertissement, quels que soient sa longueur et son langage :
+      // une note n'en a pas (revue, M3)
+      const secret = findSecrets(text).length > 0, code = pastedAsCode(text);
+      if (!code && !secret) return false;
       if (!ready(text)) return true;
+      const found = code || detectLanguage(text);
       const w = pasteWidth(text), hh = fitHeight(lineCount(text), 13, CODE.PASTE_MAX);
       // au pointeur s'il est sur la toile ; sinon au centre de la vue, décalé à gauche pour que l'avertissement tienne à droite
       const center = h.toile.viewCenter(), p = h.toile.pointer;
       const at = p ? { x: p.x, y: p.y } : { x: center.x - w / 2 - 240, y: center.y - hh / 2 };
       const snap = (v: number): number => Math.round(v / CODE.GRID) * CODE.GRID;
-      drafts += 1;
-      const draft: CodeDraft = { key: drafts, text, language: found.id, sure: found.sure, x: snap(at.x), y: snap(at.y), w, h: hh, pasted: true };
+      const draft: CodeDraft = { key: codeView.nextKey(), infrastructure: h.toile.model.source.infrastructure, text, language: found.id, sure: found.sure, x: snap(at.x), y: snap(at.y), w, h: hh, pasted: true };
       // sans valeur sensible, le bloc s'enregistre aussitôt ; sinon le brouillon s'ouvre avec l'avertissement (la toile)
-      if (findSecrets(text).length) codeView.setDraft(draft); else commands.codeCreate(draft, text, "plain", 0);
+      if (secret) codeView.setDraft(draft); else commands.codeCreate(draft, text, "plain", 0);
       return true;
     },
     codeCreate: (draft, raw, outcome, removed) => {
       const h = handle();
-      codeView.setDraft(null);
       const text = normalizeCode(raw);
-      if (!h || !text.trim()) { say(t("shell:code.abandoned")); return; }
-      if (!ready(text)) return;
+      // un brouillon né dans une autre infrastructure ne s'écrit jamais ici : ses coordonnées n'y veulent rien dire (B6)
+      if (h && h.toile.model.source.infrastructure !== draft.infrastructure) { codeView.setDraft(null); say(t("shell:code.draftElsewhere", { infrastructure: draft.infrastructure })); return true; }
+      if (!h || !text.trim()) { codeView.setDraft(null); say(t("shell:code.abandoned")); return true; }
+      if (!ready(text)) return false; // le brouillon reste ouvert, avec ce qui a été écrit (M2)
+      codeView.setDraft(null);
       // un brouillon inséré vide est « texte brut » : la détection propose le langage de ce qu'on y a écrit
       const guess = draft.language === "plain" ? detectLanguage(text) : null;
       const language: LanguageId = guess && guess.sure ? guess.id : draft.language;
-      const content: CodeContent = { kind: "code", text, language, title: "", highlight: true, line_numbers: true, font: "jetbrains_mono" };
+      const content: CodeContent = { ...DEFAULT_CODE_CONTENT, text, language };
       const lines = lineCount(text), hh = draft.pasted ? draft.h : Math.max(draft.h, fitHeight(lines, 13, CODE.PASTE_MAX));
       const created = t(draft.pasted ? (draft.sure ? "shell:code.createdSure" : "shell:code.createdGuess") : "shell:code.created", { count: lines, language: LANGUAGE_LABEL[language] });
       const extra = outcomeText(outcome, removed);
@@ -106,6 +120,7 @@ export function codeCommands({ dispatch, handle }: CodeDeps): CodeCommands {
         const id = "a" + intent.revision + "-1";
         if (h.toile.model.annotationById.has(id)) h.toile.reveal({ kind: "annotation", id });
       });
+      return true;
     },
     codeCancel: () => { if (codeView.draft()) { codeView.setDraft(null); say(t("shell:code.abandoned")); } },
     codeSave: (id, raw, outcome, removed) => {
@@ -145,7 +160,8 @@ export function codeCommands({ dispatch, handle }: CodeDeps): CodeCommands {
       if (!found) return;
       const secrets = findSecrets(found.c.text);
       if (!secrets.length) return;
-      write([{ op: "annotation_update", id, content: { ...found.c, text: maskSecrets(found.c.text, secrets) } }], t("shell:code.removed", { count: secrets.length }));
+      // l'historique (le journal) garde la valeur d'avant : la page le dit (revue, M5) ; Ctrl+Z ne la rétablit pas (J2)
+      write([{ op: "annotation_update", id, content: { ...found.c, text: maskSecrets(found.c.text, secrets) } }], t("shell:code.removedKeptInLog", { count: secrets.length }));
     },
     codeSet: (ids, patch) => {
       const h = handle();

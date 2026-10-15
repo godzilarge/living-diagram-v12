@@ -13,6 +13,7 @@
 import type { Point } from "../../canvas/layout";
 import type { Annotation, Connector } from "../../canvas/types";
 import type { Op } from "../../shell/apps";
+import { findSecrets, maskSecrets } from "../code/secrets";
 
 export const CLIP_KEY = "living-diagram";
 export const CLIP_VERSION = 1;
@@ -296,4 +297,14 @@ export const keyOf = (annotations: string[], connectors: string[]): string => an
  *  est cette copie, sinon un pas de grille. */
 export const duplicateStep = (last: { key: string; d: Point } | null, key: string): Point => (last && last.key === key ? last.d : { x: STEP, y: STEP });
 
-export const clipboard = { CLIP_KEY, CLIP_VERSION, CLIP_MIME, CLIP_WEB, MAX_PASTE, MAX_CARRIED, MAX_REQUEST_BYTES, STEP, payloadOf, assetsOf, bytesOf, verifyCreated, pastable, textOf, parse, boundsOf, offsetFor, pastePlan, createdIds, resolve, ghostOf, keyOf, duplicateStep };
+// ——— Les valeurs sensibles d'une charge (revue du lot 16, M3 ; revue de session, J3) ———
+/** Les valeurs sensibles des blocs de code d'une charge : collée dans une autre infrastructure, une valeur gardée telle
+ *  quelle là-bas serait lue par une autre audience ; la page demande avant d'écrire. */
+export const secretsOf = (p: Payload): number => p.annotations.reduce((n, a) => n + (a.content.kind === "code" ? findSecrets(a.content.text).length : 0), 0);
+/** La charge, chaque valeur sensible de ses blocs de code remplacée par `<removed>` (une charge neuve, l'autre intacte). */
+export const withoutSecrets = (p: Payload): Payload => ({
+  ...p,
+  annotations: p.annotations.map((a) => (a.content.kind === "code" ? { ...a, content: { ...a.content, text: maskSecrets(a.content.text) } } : a)),
+});
+
+export const clipboard = { CLIP_KEY, CLIP_VERSION, CLIP_MIME, CLIP_WEB, MAX_PASTE, MAX_CARRIED, MAX_REQUEST_BYTES, STEP, payloadOf, assetsOf, bytesOf, verifyCreated, pastable, textOf, parse, boundsOf, offsetFor, pastePlan, createdIds, resolve, ghostOf, keyOf, duplicateStep, secretsOf, withoutSecrets };

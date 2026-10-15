@@ -76,11 +76,32 @@ function mended(runs: Segment[]): Segment[] {
   return out;
 }
 
+/** Au-delà, une ligne se dessine sans coloration : certaines grammaires officielles (Bash `function-name`, YAML,
+ *  Python) sont quadratiques sur une longue ligne sans blanc (1,2 s pour 20 000 caractères ; revue du 2026-10-15, B3).
+ *  Mesuré : à 2 000, le pire cas coûte ~15 ms par ligne ; aucune ligne de configuration n'en approche. */
+export const LONG_LINE = 2000;
+
+/** Les morceaux du texte : les suites de lignes ordinaires, colorées ensemble (une chaîne sur plusieurs lignes garde sa
+ *  couleur), et chaque ligne démesurée, seule, sans coloration ; séparés par leur retour à la ligne. */
+function chunked(text: string, language: string, highlight: boolean): Segment[] {
+  const lines = text.split("\n");
+  if (!highlight || lines.every((l) => l.length <= LONG_LINE)) return runsOf(text, language, highlight);
+  const pieces: { long: boolean; lines: string[] }[] = [];
+  for (const line of lines) {
+    const long = line.length > LONG_LINE, last = pieces[pieces.length - 1];
+    if (!long && last && !last.long) last.lines.push(line); else pieces.push({ long, lines: [line] });
+  }
+  return pieces.flatMap((p, i) => {
+    const runs: Segment[] = p.long ? [{ t: p.lines[0], c: null }] : runsOf(p.lines.join("\n"), language, true);
+    return i ? [{ t: "\n", c: null } as Segment].concat(runs) : runs;
+  });
+}
+
 /** Le texte en lignes de segments ; sans coloration, une seule famille nulle. Un marqueur `<removed>` se lit comme tel,
  *  quelle que soit la grammaire (et même sans coloration). */
 export function codeLines(text: string, language: string, highlight: boolean): Line[] {
   const out: Line[] = [[]];
-  for (const run of mended(runsOf(text, language, highlight))) {
+  for (const run of mended(chunked(text, language, highlight))) {
     run.t.split("\n").forEach((part, i) => {
       if (i) out.push([]);
       if (!part) return;
@@ -122,4 +143,4 @@ export function clipLine(segs: Line, max: number): { segs: Line; clipped: boolea
   return { segs: out, clipped: true };
 }
 
-export const tokens = { FAMILIES, MASK, familyOf, codeLines, clipLine };
+export const tokens = { FAMILIES, MASK, LONG_LINE, familyOf, codeLines, clipLine };
