@@ -1,0 +1,79 @@
+// The guards that fail the suite: tokens, primitives, strings. Each is proved on synthetic sources (it catches what
+// it must, lets pass what it must), then run on every source of src/.
+import { describe, expect, it } from "vitest";
+import { sources } from "./guards/files";
+import { primitiveFindings } from "./guards/primitives-guard";
+import { looksLikeWords, stringFindings } from "./guards/strings-guard";
+import { cssFindings, scriptFindings } from "./guards/tokens-guard";
+
+const css = (text: string, path = "src/ui/X.css") => cssFindings({ path, text }).map((f) => f.text);
+const tsx = (text: string, path = "src/shell/X.tsx") => ({ path, text });
+
+describe("tokens guard", () => {
+  it("refuses a raw colour, radius, shadow, font family or size", () => {
+    expect(css(".a { color: #141414; }")).toHaveLength(1);
+    expect(css(".a { background: rgb(0, 0, 0); }")).toHaveLength(1);
+    expect(css(".a { border-color: white; }")).toHaveLength(1);
+    expect(css(".a { border-radius: 6px; }")).toHaveLength(1);
+    expect(css(".a { box-shadow: 0 1px 2px var(--color-ink); }")).toHaveLength(1);
+    expect(css(".a { font-family: Inter, sans-serif; }")).toHaveLength(1);
+    expect(css(".a { font-size: 13px; }")).toHaveLength(1);
+    expect(css(".a { font: 12px Inter; }")).toHaveLength(1);
+  });
+
+  it("lets tokens, keywords and font faces pass", () => {
+    expect(css(".a { color: var(--color-ink); border-radius: var(--radius-control); box-shadow: none; }")).toEqual([]);
+    expect(css(".a { font: inherit; font-family: inherit; font-size: var(--text-body-size); border-radius: 0; }")).toEqual([]);
+    expect(css('@font-face { font-family: "Archivo"; src: url(a.woff2); }')).toEqual([]);
+    expect(css(".a { color: #000; }", "src/styles/tokens.css")).toEqual([]);
+  });
+
+  it("refuses a colour or a style property in a script", () => {
+    expect(scriptFindings(tsx('const c = "#2150E8";'))).toHaveLength(1);
+    expect(scriptFindings(tsx("const c = `rgba(0, 0, 0, 0.5)`;"))).toHaveLength(1);
+    expect(scriptFindings(tsx("const x = <div style={{ borderRadius: 4 }} />;"))).toHaveLength(1);
+    expect(scriptFindings(tsx('const x = <div className="ui-a" data-tab="b" />;'))).toEqual([]);
+  });
+
+  it("holds on every stylesheet and script of src/", () => {
+    const found = [...sources([".css"]).flatMap(cssFindings), ...sources([".ts", ".tsx"]).flatMap(scriptFindings)];
+    expect(found).toEqual([]);
+  });
+});
+
+describe("primitives guard", () => {
+  it("refuses a native control, style= or title= outside src/ui", () => {
+    const found = primitiveFindings(tsx('const x = <div title="a"><button /><a href="#">{x}</a><input style={s} /></div>;'));
+    expect(found.map((f) => f.text)).toEqual(["title= on <div>", "<button>", "<a>", "<input>", "style= on <input>"]);
+  });
+
+  it("lets the primitives themselves and lookalike tags pass", () => {
+    expect(primitiveFindings(tsx("const x = <button />;", "src/ui/Button.tsx"))).toEqual([]);
+    expect(primitiveFindings(tsx("const x = <aside><abbr /><Button /><Panel title={t} /></aside>;"))).toEqual([]);
+  });
+
+  it("holds on every component of src/", () => {
+    expect(sources([".tsx"]).flatMap(primitiveFindings)).toEqual([]);
+  });
+});
+
+describe("strings guard", () => {
+  it("recognises words in both languages and lets code pass", () => {
+    for (const words of ["Search everywhere", "aucun équipement", "Réglages", "nom : x", "the page is empty now", "Settings"])
+      expect(looksLikeWords(words), words).toBe(true);
+    for (const code of ["ui-control ui-rail", "data-tab", "10 G", "Ethernet1/1", "ArrowRight", "shell:prefs.theme", "en-GB", "L1"])
+      expect(looksLikeWords(code), code).toBe(false);
+  });
+
+  it("refuses JSX text, a visible attribute and words in a literal; never a type, a key or an Error", () => {
+    const found = stringFindings(tsx(
+      'const x = <p aria-label="Close" className="ui-a">Hello</p>;\nconst y = "Search everywhere";\n' +
+        'type T = "Some Words Here";\nconst o = { "Key Name Here": 1 };\nthrow new Error("the page has no root element");',
+    ));
+    expect(found.map((f) => f.text)).toEqual(['aria-label="Close"', "Hello", "Search everywhere"]);
+  });
+
+  it("holds on every script of src/ outside the catalogues", () => {
+    expect(sources([".ts", ".tsx"]).flatMap(stringFindings)).toEqual([]);
+  });
+});

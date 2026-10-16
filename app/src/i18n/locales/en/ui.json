@@ -1,0 +1,9 @@
+{
+  "locale": "en-GB",
+  "close": "Close",
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Shift",
+    "escape": "Esc"
+  }
+}

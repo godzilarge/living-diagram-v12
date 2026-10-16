@@ -3,6 +3,7 @@ name: Living Diagram
 description: Floating islands over a white map; one accent, one rail for "current"; colour only where it means something.
 colors:
   paper: "#FFFFFF"
+  canvas: "#FFFFFF"
   ground: "#F4F5F6"
   sunken: "#F1F2F3"
   hover: "#EFF0F2"
@@ -17,6 +18,8 @@ colors:
   accent-weak: "#EBF0FE"
   on-accent: "#FFFFFF"
   accent-ink-option: "#141414"
+  accent-ink-option-weak: "#EDEEF0"
+  accent-ink-option-on: "#FFFFFF"
   ok: "#14783C"
   error: "#D21F26"
   error-weak: "#FCEDED"
@@ -25,6 +28,7 @@ colors:
   tip-bg: "#000000"
   tip-ink: "#FFFFFF"
   tip-sub: "#A9ACB1"
+  tip-line: "transparent"
   scrim: "rgba(244, 245, 246, 0.74)"
   dark-paper: "#1C1D1F"
   dark-ground: "#131415"
@@ -40,9 +44,15 @@ colors:
   dark-accent-ink: "#93AEFF"
   dark-accent-weak: "#222C47"
   dark-on-accent: "#0B1530"
+  dark-accent-ink-option: "#EEEFF1"
+  dark-accent-ink-option-weak: "#2E3034"
+  dark-accent-ink-option-on: "#141414"
   dark-ok: "#4CC47A"
   dark-error: "#F2545B"
+  dark-error-weak: "#3A1E20"
   dark-warning: "#E8A33A"
+  dark-warning-mark: "#E8A33A"
+  dark-tip-line: "#3A3C40"
   dark-canvas: "#161719"
   dark-scrim: "rgba(10, 10, 11, 0.62)"
 typography:
@@ -80,12 +90,29 @@ rounded:
   control: "6px"
   surface: "10px"
   tooltip: "5px"
+  chip: "4px"
 spacing:
   xs: "4px"
   sm: "8px"
   md: "12px"
   lg: "16px"
   xl: "24px"
+shadows:
+  island: "0 1px 2px rgba(20, 20, 20, 0.05), 0 8px 24px -10px rgba(20, 20, 20, 0.16)"
+  layer: "0 2px 6px rgba(20, 20, 20, 0.06), 0 28px 64px -18px rgba(20, 20, 20, 0.30)"
+  tooltip: "0 4px 12px -2px rgba(0, 0, 0, 0.22)"
+  dark-island: "0 1px 2px rgba(0, 0, 0, 0.30), 0 10px 28px -10px rgba(0, 0, 0, 0.55)"
+  dark-layer: "0 2px 6px rgba(0, 0, 0, 0.35), 0 28px 64px -18px rgba(0, 0, 0, 0.70)"
+  dark-tooltip: "0 4px 12px -2px rgba(0, 0, 0, 0.5)"
+motion:
+  ease: "cubic-bezier(0.16, 1, 0.3, 1)"
+  hover: "120ms"
+  tooltip: "150ms"
+  tooltip-delay: "350ms"
+  rail: "200ms"
+  popover: "200ms"
+  layer: "240ms"
+  panel: "260ms"
 components:
   island:
     backgroundColor: "{colors.paper}"
@@ -126,6 +153,24 @@ components:
     rounded: "{rounded.surface}"
     width: "440px"
     padding: "16px"
+  icon:
+    size: "16px"
+    strokeWidth: 1.75
+  shortcut:
+    textColor: "{colors.ink-3}"
+    typography: "{typography.label}"
+    rounded: "{rounded.chip}"
+    height: "20px"
+    padding: "0 5px"
+  rail:
+    backgroundColor: "{colors.accent}"
+    height: "2px"
+  focus-ring:
+    backgroundColor: "{colors.accent}"
+    width: "2px"
+    offset: "2px"
+  table-row:
+    height: "44px"
 ---
 
 # Design System: Living Diagram
@@ -208,8 +253,9 @@ reserved for code blocks on the canvas.
 ratio 1.125. Sentence case everywhere; no uppercase labels, no tracked-out eyebrows.
 
 ### Hierarchy
-- **Title** (600, 19 px, 1.25): the name of the selected element in a panel header; a page title on the home.
-- **Headline** (600, 17 px, 1.3): a widget title, a focus-panel section.
+- **Title** (600, 19 px, 1.25): a page title on the home.
+- **Headline** (600, 17 px, 1.3): the name of the selected element in a panel header, a widget title, a
+  focus-panel section.
 - **Subtitle** (500, 15 px, 1.35): a device name on a card, the label of a choice in the top bar.
 - **Body** (400, 13.5 px, 1.45): everything one reads: table cells, lists, facts. Tables run denser than prose.
 - **Label** (500, 12 px, 1.3): column headers, captions, the secondary line under a fact, keyboard shortcuts.
@@ -252,8 +298,9 @@ do the work of separating surfaces.
 - **Island** (`box-shadow: 0 1px 2px rgba(20,20,20,.05), 0 8px 24px -10px rgba(20,20,20,.16)`; dark
   `0 1px 2px rgba(0,0,0,.30), 0 10px 28px -10px rgba(0,0,0,.55)`): every floating surface at rest.
 - **Layer** (`box-shadow: 0 2px 6px rgba(20,20,20,.06), 0 28px 64px -18px rgba(20,20,20,.30)`; dark
-  `0 2px 6px rgba(0,0,0,.35), 0 28px 64px -18px rgba(0,0,0,.70)`): the search palette, the settings popover, the
-  volets of a contextual bar.
+  `0 2px 6px rgba(0,0,0,.35), 0 28px 64px -18px rgba(0,0,0,.70)`): the search palette and the focus panel only.
+  Popovers (settings, lists, the volets of a contextual bar) keep the island shadow: they are islands that happen
+  to float higher.
 - **Tooltip** (`box-shadow: 0 4px 12px -2px rgba(0,0,0,.22)`; dark `.5`).
 - **Scrim** (`rgba(244,245,246,.74)`; dark `rgba(10,10,11,.62)`): behind the palette and the focus panel.
 
@@ -277,7 +324,11 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 - **Hover / Focus:** hover fill 120 ms; focus ring 2 px accent, offset 2 px, on keyboard focus only.
 - **Current / on:** the 2 px accent rail (bottom of a tab, left of a vertical tool, under a run), ink text; no fill.
 - **Disabled:** ink-4, no hover, cursor default; a tooltip still says why (L2, L3: "en cours").
-- **Danger:** error text on hover only (delete).
+- **Danger:** error text on hover, no fill (the error red on the dark hover fill would fall under 4.5:1).
+
+### Toast
+- **Style:** an island at the bottom centre, 12 px above the run band's line, body text with a state mark on the
+  left, one action and a close icon on the right; hides itself after 6 s unless hovered; one at a time.
 
 ### Chips and counts
 - **Count** (e.g. "Contrôle 6"): a label-size number in the state colour next to its word, no pill.
@@ -289,7 +340,8 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 - **Shadow Strategy:** island shadow; layer shadow for popovers.
 - **Border:** 1 px line.
 - **Internal Padding:** 8 px (bars), 16 px (panels, widgets).
-- **Header:** title at 19 px with a 12 px subtitle in ink-3; icon buttons on the right; a 1 px rule below.
+- **Header:** the element's name at headline size (17 px, 600) with a 12 px subtitle in ink-3; icon buttons on
+  the right; a 1 px rule below. Title size (19 px) is for the home page only.
 
 ### Inputs / Fields
 - **Style:** paper fill, 1 px line-2 border, 6 px radius, 32 px high, body text, placeholder ink-3.
@@ -299,8 +351,8 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   layer in settings); the current segment never uses the accent fill.
 
 ### Navigation
-- **View switch** (Diagramme / Contrôle / Journal): subtitle-size words, ink-2, the current one in ink with the
-  2 px accent rail; counts next to Contrôle in the state colour.
+- **View switch** (Diagramme / Contrôle / Journal): body-size words (13.5 px) at 500, ink-2; the current one in
+  ink at 600 with the 2 px accent rail; counts next to Contrôle in the state colour.
 - **Layer choice** (L1 / L2 / L3): the same rail; L2 and L3 disabled with a tooltip, no extra text.
 - **Context choices** (infrastructure, run): a word with a chevron, opens a list.
 - **Run band:** the runs as words on a line, the current one with the rail, the compared one with a dotted grey
@@ -312,7 +364,7 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 ### Tooltip
 - **Style:** black fill, white 12 px 500 text, 6 × 8 px padding, 5 px radius, tooltip shadow; a shortcut after the
   words in tip-sub; in dark a 1 px #3A3C40 outline.
-- **Placement:** below the control, centred, 6 px away; toward the canvas side when against an edge; 350 ms delay,
+- **Placement:** below the control, centred, 8 px away; toward the canvas side when against an edge; 350 ms delay,
   150 ms fade; `[role="tooltip"]`, one class for the whole application, nothing else may render a tooltip.
 
 ### Search palette

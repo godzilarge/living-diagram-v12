@@ -1,0 +1,35 @@
+.ui-button-choice {
+  gap: var(--space-xs);
+  padding-right: var(--space-sm);
+}
+
+.ui-button-chevron {
+  display: inline-flex;
+  color: var(--color-ink-3);
+}
+
+.ui-button-line {
+  border-color: var(--color-line-2);
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.ui-button-primary {
+  padding: var(--button-primary-padding);
+  border-color: var(--button-primary-background-color);
+  background: var(--button-primary-background-color);
+  color: var(--button-primary-text-color);
+  font-weight: var(--text-headline-weight);
+}
+
+.ui-button-primary:is(:hover, [data-force="hover"]):not([aria-disabled="true"], [aria-busy="true"]) {
+  border-color: var(--color-accent-ink);
+  background: var(--color-accent-ink);
+  color: var(--button-primary-text-color);
+}
+
+.ui-button-primary[aria-disabled="true"] {
+  border-color: var(--color-line);
+  background: var(--color-sunken);
+  color: var(--color-ink-4);
+}

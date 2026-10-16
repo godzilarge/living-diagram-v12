@@ -11,6 +11,8 @@ DEFAULT_MAX_INTENT_BYTES = (
 )  # 500 opérations tiennent en quelques dizaines de Ko : au-delà, ce n'est pas une requête
 DEFAULT_MAX_ASSET_BYTES = 4 * 1024 * 1024  # une image d'annotation (docs/10 §6) : 4 Mo, choix d'Orhan
 DEFAULT_ARCHIVE_DIR = "./archive"
+# The v2 build (`app/dist`, written by `cd app && npm run build`), served at `/next/`; `LD_APP_DIST` overrides it.
+DEFAULT_APP_DIST = Path(__file__).resolve().parents[3] / "app" / "dist"
 
 
 class ConfigError(ValueError):
@@ -24,6 +26,7 @@ class Settings:
     max_bundle_bytes: int = DEFAULT_MAX_BUNDLE_BYTES
     max_intent_bytes: int = DEFAULT_MAX_INTENT_BYTES
     max_asset_bytes: int = DEFAULT_MAX_ASSET_BYTES
+    app_dist: Path = DEFAULT_APP_DIST
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -37,6 +40,7 @@ class Settings:
             max_bundle_bytes=_positive_int(source, "LD_MAX_BUNDLE_BYTES", DEFAULT_MAX_BUNDLE_BYTES),
             max_intent_bytes=_positive_int(source, "LD_MAX_INTENT_BYTES", DEFAULT_MAX_INTENT_BYTES),
             max_asset_bytes=_positive_int(source, "LD_MAX_ASSET_BYTES", DEFAULT_MAX_ASSET_BYTES),
+            app_dist=Path(source.get("LD_APP_DIST", "").strip() or DEFAULT_APP_DIST),
         )
 
 

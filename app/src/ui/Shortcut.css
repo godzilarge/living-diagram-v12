@@ -1,0 +1,20 @@
+.ui-shortcut {
+  display: inline-flex;
+  align-items: center;
+  height: var(--shortcut-height);
+  padding: var(--shortcut-padding);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--shortcut-radius);
+  background: var(--color-paper);
+  color: var(--shortcut-text-color);
+  font-family: inherit;
+  font-size: var(--shortcut-font-size);
+  font-weight: var(--shortcut-font-weight);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ui-tooltip .ui-shortcut {
+  border-color: transparent;
+  background: transparent;
+}

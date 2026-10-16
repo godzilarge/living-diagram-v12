@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
 from functools import partial
+from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
@@ -55,6 +56,7 @@ from ld_backend.placement import (
 from ld_backend.problems import PROBLEMS, ApiError, body
 from ld_backend.render import render_shell
 from ld_backend.render.app import APP_ASSET_PREFIX, APP_CSP, APP_ROUTE, read_app_asset, render_app
+from ld_backend.render.next import NEXT_CSP, NEXT_FILE, NEXT_INDEX, NEXT_ROUTE, read_next_file
 from ld_backend.schemas import AssetReceipt, Health, IngestReport, IntentOps, RunEntry, RunList
 
 # Une run s'adresse par paramètres de requête, jamais par le chemin : `infrastructure` est un libellé libre et
@@ -204,6 +206,28 @@ def _pages(app: FastAPI) -> None:
         if request.headers.get("if-none-match") == etag:
             return Response(status_code=304, headers=headers)
         return Response(content=content, media_type=media_type, headers=headers)
+
+
+def _next_pages(app: FastAPI, dist: Path) -> None:
+    """The v2 application (`app/dist`), read at request time: `/next/` is its shell, `/next/<file>` its files."""
+
+    def serve(name: str, request: Request) -> Response:
+        found = read_next_file(dist, name)
+        if found is None:
+            raise ApiError(404, "file_unknown")
+        content, media_type, etag = found
+        headers = {"ETag": etag, "Cache-Control": "no-cache", "Content-Security-Policy": NEXT_CSP}
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers=headers)
+        return Response(content=content, media_type=media_type, headers=headers)
+
+    @app.get(NEXT_ROUTE, include_in_schema=False)
+    def next_page(request: Request) -> Response:
+        return serve(NEXT_INDEX, request)
+
+    @app.get(NEXT_FILE, include_in_schema=False)
+    def next_file(name: str, request: Request) -> Response:
+        return serve(name, request)
 
 
 def _ingestion_routes(router: APIRouter, store: BundleArchive, settings: Settings) -> None:
@@ -513,6 +537,7 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
         return Health(status="ok")
 
     _pages(app)
+    _next_pages(app, settings.app_dist)
     protected = APIRouter(dependencies=[Depends(_bearer_guard(settings))], responses=doc.PROTECTED)
     _ingestion_routes(protected, store, settings)
     _run_routes(protected, store)

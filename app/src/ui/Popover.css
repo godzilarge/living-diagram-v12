@@ -1,0 +1,22 @@
+.ui-popover {
+  z-index: 55;
+  padding: var(--island-padding);
+  border: 1px solid var(--color-line);
+  border-radius: var(--island-radius);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-island);
+  opacity: 0;
+  transition: opacity var(--motion-popover) var(--motion-ease);
+}
+
+.ui-popover[data-elevation="layer"] {
+  box-shadow: var(--shadow-layer);
+}
+
+.ui-popover[data-status="open"] {
+  opacity: 1;
+}
+
+.ui-popover:focus {
+  outline: 0;
+}

@@ -1,0 +1,28 @@
+.prefs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.prefs[data-layout="inline"] {
+  flex-direction: row;
+  gap: var(--space-xl);
+}
+
+.prefs-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 40px;
+}
+
+.prefs[data-layout="rows"] .prefs-label {
+  width: 72px;
+  padding-left: var(--space-sm);
+}
+
+.prefs-label {
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+}

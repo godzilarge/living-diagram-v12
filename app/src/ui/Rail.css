@@ -1,0 +1,29 @@
+.ui-tabs {
+  display: flex;
+  align-items: stretch;
+}
+
+/* a tab fills the island's height so its rail sits on the island's edge (48 - 2 hairlines) */
+.ui-tab {
+  height: calc(var(--control-height) + 2 * var(--island-padding) - 2px);
+  padding: 0 var(--space-md);
+  border: 0;
+  border-radius: 0;
+  font-size: var(--text-body-size);
+  font-weight: var(--text-label-weight);
+  gap: 6px;
+}
+
+.ui-tab:is(:hover, [data-force="hover"]):not([aria-disabled="true"]) {
+  background: transparent;
+}
+
+.ui-tab.ui-rail::after {
+  left: var(--space-md);
+  right: var(--space-md);
+}
+
+.ui-tab[aria-selected="true"] {
+  color: var(--control-current-text-color);
+  font-weight: var(--text-headline-weight);
+}

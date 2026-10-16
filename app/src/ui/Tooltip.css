@@ -1,0 +1,28 @@
+.ui-tooltip {
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: max-content;
+  max-width: 320px;
+  padding: var(--tooltip-padding);
+  border-radius: var(--tooltip-radius);
+  background: var(--tooltip-background-color);
+  color: var(--tooltip-text-color);
+  font-size: var(--tooltip-font-size);
+  font-weight: var(--tooltip-font-weight);
+  line-height: var(--tooltip-font-leading);
+  box-shadow: var(--shadow-tooltip);
+  outline: 1px solid var(--color-tip-line);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--motion-tooltip) var(--motion-ease);
+}
+
+.ui-tooltip[data-status="open"] {
+  opacity: 1;
+}
+
+.ui-tooltip-shortcut {
+  color: var(--color-tip-sub);
+}

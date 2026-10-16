@@ -1,0 +1,88 @@
+.ui-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 28px;
+  padding: 0 var(--space-md) 0 0;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-paper);
+  text-align: left;
+  font-weight: var(--text-label-weight);
+}
+
+.ui-table td {
+  height: var(--table-row-height);
+  padding: 0 var(--space-md) 0 0;
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-table[data-density="compact"] td {
+  height: var(--control-height);
+}
+
+.ui-table [data-align="end"] {
+  text-align: right;
+}
+
+.ui-table :is(th, td):last-child {
+  padding-right: 0;
+}
+
+.ui-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ui-table tbody tr:hover td {
+  background: var(--color-ground);
+}
+
+.ui-table tbody tr[aria-current="true"] td {
+  background: var(--color-accent-weak);
+}
+
+.ui-th {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  white-space: nowrap;
+}
+
+button.ui-th {
+  cursor: pointer;
+}
+
+button.ui-th:hover,
+th[aria-sort="ascending"] .ui-th,
+th[aria-sort="descending"] .ui-th {
+  color: var(--color-ink);
+}
+
+.ui-sort {
+  display: inline-flex;
+  color: var(--color-ink-4);
+}
+
+.ui-sort .ui-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ui-sort[data-on] {
+  color: var(--color-accent-ink);
+}

@@ -1,0 +1,33 @@
+.ui-island {
+  border: 1px solid var(--color-line);
+  border-radius: var(--island-radius);
+  background: var(--island-background-color);
+  box-shadow: var(--shadow-island);
+}
+
+/* 48 px: a 32 px control, 8 px around it, the hairline included */
+.ui-island-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: calc(var(--island-padding) - 1px);
+}
+
+.ui-island-strip {
+  display: inline-flex;
+  align-items: stretch;
+  gap: var(--space-sm);
+  padding: 0 calc(var(--island-padding) - 1px);
+}
+
+.ui-island-panel {
+  padding: var(--panel-padding);
+}
+
+.ui-separator {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 20px;
+  background: var(--color-line);
+}

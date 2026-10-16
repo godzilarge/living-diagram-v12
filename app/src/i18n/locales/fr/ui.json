@@ -1,0 +1,9 @@
+{
+  "locale": "fr-FR",
+  "close": "Fermer",
+  "keys": {
+    "ctrl": "Ctrl",
+    "shift": "Maj",
+    "escape": "Échap"
+  }
+}

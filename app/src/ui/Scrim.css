@@ -1,0 +1,17 @@
+.ui-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--color-scrim);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--motion-popover) var(--motion-ease),
+    visibility 0s linear var(--motion-popover);
+}
+
+.ui-scrim[data-open] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--motion-popover) var(--motion-ease);
+}

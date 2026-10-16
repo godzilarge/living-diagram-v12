@@ -1,0 +1,27 @@
+{
+  "map": "Diagramme",
+  "home": "Living Diagram, accueil",
+  "search": "Rechercher",
+  "searchEverywhere": "Rechercher partout",
+  "searchSoon": "Rechercher partout : en cours",
+  "export": "Exporter en PNG ou SVG",
+  "exportSoon": "Exporter en PNG ou SVG : en cours",
+  "settings": "Réglages",
+  "prefs": {
+    "theme": "Thème",
+    "themes": {
+      "light": "Clair",
+      "dark": "Sombre"
+    },
+    "accent": "Accent",
+    "accents": {
+      "cobalt": "Cobalt",
+      "ink": "Encre"
+    },
+    "language": "Langue",
+    "languages": {
+      "en": "English",
+      "fr": "Français"
+    }
+  }
+}

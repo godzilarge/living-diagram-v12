@@ -1,0 +1,229 @@
+/* The primitives page layout: a ground page, sections of specimens; islands keep 16 px from each other. */
+html:has(.page),
+body:has(.page) {
+  background: var(--color-ground);
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: var(--space-xl) var(--space-xl) 64px;
+}
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xl);
+}
+
+.page-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.page-brand h1 {
+  margin: 0;
+  font-size: var(--text-title-size);
+  font-weight: var(--text-title-weight);
+  line-height: var(--text-title-leading);
+}
+
+.page-brand p {
+  margin: 2px 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+}
+
+.page-section h2 {
+  margin: 0;
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-headline-leading);
+}
+
+.page-note {
+  max-width: 760px;
+  margin: var(--space-xs) 0 var(--space-lg);
+  color: var(--color-ink-3);
+}
+
+.page-section[data-room="popover"] {
+  padding-bottom: 240px;
+}
+
+.page-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-lg);
+}
+
+.page-row + .page-row {
+  margin-top: var(--space-lg);
+}
+
+.page-specimen {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.page-specimen figcaption {
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+}
+
+.page-words {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink);
+}
+
+.page-frame {
+  position: relative;
+  contain: layout paint;
+  width: 520px;
+  height: 220px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-surface);
+  background: var(--color-canvas);
+}
+
+.page-frame-content {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+}
+
+.page-dialog {
+  width: 320px;
+}
+
+.page-dialog h3 {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-headline-leading);
+}
+
+.page-dialog p {
+  margin: 0;
+  color: var(--color-ink-2);
+}
+
+.page-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.page-state::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--color-ok);
+}
+
+.page-state[data-state="down"] {
+  color: var(--color-error);
+}
+
+.page-state[data-state="up"] {
+  color: var(--color-ok);
+}
+
+.page-state[data-state="down"]::before {
+  background: var(--color-error);
+}
+
+.page-muted {
+  color: var(--color-ink-3);
+}
+
+.page-panel-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.page-panel-tools .ui-field {
+  margin-left: auto;
+}
+
+.page-panel-tools .ui-field-input {
+  width: 148px;
+}
+
+.page-edge {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.page-layers {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.page-layers .ui-control {
+  width: 36px;
+  padding: 0;
+}
+
+.page-edge {
+  flex: 1;
+}
+
+.page-scope {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.page-scope .ui-control {
+  padding: 0 var(--space-sm);
+  gap: 6px;
+}
+
+.page-specimen[data-caption="above"] {
+  flex-direction: column-reverse;
+}
+
+.page-section[data-room="tooltip"] .page-row {
+  padding-bottom: 40px;
+}
+
+.page-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-lg);
+}
+
+/* each tooltip specimen gets the room its open tooltip needs */
+.page-section[data-room="tooltip"] .page-specimen {
+  width: 260px;
+  align-items: center;
+}
+
+.page-section[data-room="tooltip"] .page-edge .page-specimen {
+  align-items: flex-end;
+}
+
+.page-tip-rail {
+  display: flex;
+  justify-content: center;
+  width: 260px;
+}

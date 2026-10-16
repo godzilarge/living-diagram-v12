@@ -1,0 +1,19 @@
+.ui-count {
+  font-size: var(--text-label-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-label-leading);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-3);
+}
+
+.ui-count[data-tone="ok"] {
+  color: var(--color-ok);
+}
+
+.ui-count[data-tone="warning"] {
+  color: var(--color-warning);
+}
+
+.ui-count[data-tone="error"] {
+  color: var(--color-error);
+}

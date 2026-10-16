@@ -1,0 +1,27 @@
+{
+  "map": "Diagram",
+  "home": "Living Diagram, home",
+  "search": "Search",
+  "searchEverywhere": "Search everywhere",
+  "searchSoon": "Search everywhere: in progress",
+  "export": "Export as PNG or SVG",
+  "exportSoon": "Export as PNG or SVG: in progress",
+  "settings": "Settings",
+  "prefs": {
+    "theme": "Theme",
+    "themes": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "accent": "Accent",
+    "accents": {
+      "cobalt": "Cobalt",
+      "ink": "Ink"
+    },
+    "language": "Language",
+    "languages": {
+      "en": "English",
+      "fr": "Français"
+    }
+  }
+}

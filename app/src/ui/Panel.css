@@ -1,0 +1,85 @@
+.ui-panel {
+  display: flex;
+  flex-direction: column;
+  width: var(--panel-width);
+  max-height: 100%;
+  transition: width var(--motion-panel) var(--motion-ease);
+}
+
+.ui-panel[data-width="wide"] {
+  width: 864px;
+}
+
+.ui-panel[data-width="focus"] {
+  width: 1408px;
+  box-shadow: var(--shadow-layer);
+}
+
+.ui-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--panel-padding) var(--space-md) var(--panel-padding) var(--panel-padding);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.ui-panel-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.ui-panel-title h2 {
+  margin: 0;
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-headline-leading);
+}
+
+.ui-panel-title p {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ui-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.ui-panel-body {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-bottom: var(--space-xl);
+  mask-image: linear-gradient(to bottom, currentColor calc(100% - 48px), transparent);
+}
+
+.ui-panel-section {
+  padding: var(--panel-padding);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.ui-panel-section:last-child {
+  border-bottom: 0;
+}
+
+.ui-panel-section h3 {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-headline-leading);
+}
+
+.ui-panel-aside {
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+}
