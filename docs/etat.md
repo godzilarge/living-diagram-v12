@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-16** (refonte UI : étapes 0, 1 faites, étape 3 au tour 2 ; verdict sur la coquille attendu).
+**Dernière mise à jour : 2026-10-16** (refonte UI : coquille validée, DESIGN.md écrit, squelette `app/` en cours).
 
 ## Fait
 
@@ -19,16 +19,16 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
 ## En cours
 
-- **Refonte UI v2** (décidée le 2026-10-15). Socle en étapes : **0 gouvernance (faite, 45d2a21)** → **1 entretien produit
-  fait, `PRODUCT.md` validé (en anglais : tout ce que la v2 crée s'écrit en anglais)** ; références d'Orhan à
-  recueillir → **3 tour de directions : tour 1 jugé le 16 (base = le standard + la vivacité du graphique suisse ; la toile est
-  une autre surface, session à part, repartir des cartes v1 ; accueil à widgets ajouté) ; tour 2 ter livré : la coquille
-  au banc (`bac-a-sable/directions/shell/`, diagramme + accueil, panneau à trois largeurs avec tous les faits du
-  contrat, mode édition avec les deux barres contextuelles et leurs volets, réglages ; clair / sombre ; accent =
-  préférence parmi cobalt (défaut) / encre ; vert = couleur d'état « actif » ; 13 états mesurés), **en attente de la
-  validation d'Orhan, puis `DESIGN.md`** → 2 squelette `app/` (paquet séparé, Vite, moteur extrait de `engine/src/app/`, après le choix) → 4
-  `DESIGN.md` + page vivante des primitives → 5 migration surface par surface (barre, toile et cartes, inspecteur, barre contextuelle, journal),
-  chaque surface revue contre la maquette. **Aucune fonctionnalité nouvelle pendant la refonte.**
+- **Refonte UI v2** (décidée le 2026-10-15). Socle : **0 gouvernance faite (45d2a21, hook de démarrage d89ee37)** →
+  **1 `PRODUCT.md` validé** (en anglais ; tout ce que la v2 crée s'écrit en anglais) → **3 tour de directions fait et
+  coquille validée le 2026-10-16** (base = le standard + la vivacité suisse ; îlots flottants, un accent cobalt ou
+  encre en préférence, vert = état actif, rail fin pour « courant », icônes + infobulle noire, palette Ctrl+K, accueil
+  à widgets, panneau à trois largeurs, mode édition avec barres contextuelles) → **4 `DESIGN.md` écrit et maquettes
+  versionnées dans `design/` (fabd1ee)** → **2 squelette `app/` en cours** (`docs/12-app-skeleton.md` : paquet Vite,
+  jetons générés de `DESIGN.md`, primitives, page vivante, gardes, mesure Playwright, route `/next/`) → 5 migration
+  surface par surface par bricks `brique-ui` (accueil, coquille du diagramme, panneau, recherche, réglages, édition),
+  chacune revue contre `design/comps/shell/`. **La toile (cartes, câbles) est une autre surface** : tour de
+  directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
   fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.
 
