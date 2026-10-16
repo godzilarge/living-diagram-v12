@@ -70,3 +70,6 @@ bac-a-sable/
 
 # Worktrees du client Claude Desktop (jamais versionnés)
 .claude/worktrees/
+
+# Captures de mesure des maquettes (regénérées par design/scripts/measure.py)
+design/comps/captures/
