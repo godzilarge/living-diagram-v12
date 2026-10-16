@@ -56,7 +56,7 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   à 44 px ; le redimensionnement du panneau à la souris est **parqué** (Orhan, 2026-10-16 : « plus tard ») ; le
   sélecteur de colonnes du focus, jugé « lourd, laid », a été tranché au banc (`bac-a-sable/colonnes/`, quatre
   directions) : une **liste à coches**, primitive `Checklist` ajoutée à `DESIGN.md` et à la page vivante).
-  Suites : app check 161, e2e 46 ; engine check vert ; backend et contrats verts.
+  Suites : app check 162, e2e 46 ; engine check vert ; backend et contrats verts ; **commité bc3ecff, non poussé**.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
   la main : `cd backend && LD_API_TOKEN=demo LD_ARCHIVE_DIR=../bac-a-sable/accueil-data/archive-six uv run uvicorn
   ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build`). **Prochaine
