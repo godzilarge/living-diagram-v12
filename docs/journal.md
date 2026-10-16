@@ -7,6 +7,21 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Round 2 ter: the contextual bars enter the mockup, the active state goes green, the green accent is withdrawn**
+  (2026-10-16, same agent). Orhan on round 2 bis: focus mode "excellent, one of v1's biggest gaps"; three changes:
+  "en cours" dropped next to L2 / L3 (greyed buttons and tooltips suffice); the **active** port state in **green**
+  (`#14783C` light, `#4CC47A` dark; down red, the rest grey) and, as a consequence, **accent B withdrawn** (green is
+  now a state colour): accents = cobalt (default) and ink; the dense "Voisin et description" column split: Voisin
+  = the observed neighbour only (LLDP / CDP), empty otherwise, no "décrit seulement"; Description its own raw column.
+  **The contextual bar of v1 is a critical editing element and had to be in the prototype**: rendered on a selected
+  device (hue with a 12-hue volet, pin, lock, group, align with its volet open, hide, isolate, more) and on a
+  selected note (`data-state="edit-note"`: text size with its volet open, bold / italic / underline, alignment, text
+  colour, label position, layer, lock, duplicate, delete); the bar sits 12 px above the element, centred, its volet
+  12 px above the bar; near the top islands it flips below the element (rule written, no state shows it). 13 states
+  measured by the agent, 4 re-measured by the orchestrator: 21 bars, 9 floating surfaces in edit, 75 / 9 tooltips in
+  one style, nothing flagged. Agent's choice to confirm: a successful collection stays neutral on the home (green
+  only for ports and aggregate members). Known: the note's yellow is fixed until the hue volet handles it; in compact
+  the interfaces table starts below the fold. **Awaiting Orhan's validation of the shell.**
 - **Round 2 bis: the shell corrected on Orhan's five points, the accent becomes a preference** (2026-10-16, same agent
   resumed with its context). Orhan on round 2: "I like the direction"; tooltip grammar kept for the whole application;
   home page "exactly what I had in mind". Changes: the Recherche widget removed from the home (Ctrl+K does it), grid
