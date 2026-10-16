@@ -9,7 +9,8 @@ pointe sont la direction globale de toute session, humaine ou agent.
 
 1. **`docs/etat.md`** : fait / en cours / à faire / parqué. Première lecture d'une session, dernière écriture.
 2. La règle de la zone touchée, chargée automatiquement : `.claude/rules/{app,engine,backend,contracts}.md`.
-3. Le document de conception de la brique (`docs/NN-*.md`) et, pour l'interface, `PRODUCT.md` et `DESIGN.md`.
+3. Le document de conception de la brique (`docs/NN-*.md` ; la refonte : `docs/12-app-skeleton.md`,
+   `docs/13-migration-plan.md`) et, pour l'interface, `PRODUCT.md`, `DESIGN.md` et `design/comps/shell/`.
 4. `docs/journal.md` : l'histoire des décisions (2026-08 → aujourd'hui), à consulter par recherche, jamais à relire.
 
 Une session = **un lot**. Elle finit par le skill `livraison` (suites, captures, docs, entrée de journal, `etat.md`).

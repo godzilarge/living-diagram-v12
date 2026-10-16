@@ -26,9 +26,10 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   à widgets, panneau à trois largeurs, mode édition avec barres contextuelles) → **4 `DESIGN.md` écrit et maquettes
   versionnées dans `design/` (fabd1ee)** → **2 squelette `app/` livré (d3937c3)** : paquet Vite, jetons générés de `DESIGN.md`, 15 primitives,
   page vivante `app/primitives.html`, gardes par mutation, mesure Playwright, route `/next/` ; revue indépendante
-  en cours (`docs/revues/2026-10-16-squelette-app.md`) → 5 migration
-  surface par surface par bricks `brique-ui` (accueil, coquille du diagramme, panneau, recherche, réglages, édition),
-  chacune revue contre `design/comps/shell/`. **La toile (cartes, câbles) est une autre surface** : tour de
+  en cours (`docs/revues/2026-10-16-squelette-app.md`) → **5 migration par
+  briques, plan dans `docs/13-migration-plan.md`** : 1 accueil → 2 coquille du diagramme (toile v1 dedans) → 3 panneau →
+  4 recherche → 5 réglages et langue → 6 édition → 7 vues Contrôle et Journal → 8 bascule de `/` et suppression de
+  `engine/src/app/`. **Prochaine session : `/brique-ui accueil`.** **La toile (cartes, câbles) est une autre surface** : tour de
   directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
   fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.
