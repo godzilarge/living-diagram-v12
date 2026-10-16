@@ -7,6 +7,19 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Step 4 of the UI redesign: `DESIGN.md` written, the approved mockups versioned, the `app/` skeleton launched**
+  (2026-10-16, "Coquille validée" from Orhan). `DESIGN.md` at the root in Impeccable's `document` format: tokens in
+  the frontmatter (light and dark, cobalt and ink accents, ok / error / warning states, Archivo scale 12–19, radii
+  6 / 10 / 5, components), body with the North Star ("the Swiss network graphic, floating over the map"), the three
+  named colour rules (One Rail, Meaning, Red), layout of the islands (16 / 12 px, hide when empty, three panel
+  widths), elevation, shapes, every component of the shell, Do's and Don'ts; **scope = the shell, the canvas stays a
+  separate surface**. `design/` created: `comps/shell/` (the approved pages, states, fonts, generator, captures),
+  `rounds/2026-10-15/` (the round's brief, roll, verdicts, four candidates), `scripts/measure.py` and `extract.py`,
+  `data/demo-dc.json`; measurement captures gitignored. `docs/12-app-skeleton.md` written (English): the `app/`
+  package, tokens generated from `DESIGN.md`, primitives as the only way to render a control, the living primitives
+  page, five guards (tokens, primitives, strings, measure under Playwright, engine alias), a minimal shell, the
+  backend route `/next/`. Skeleton lot handed to an Opus agent. Skill `brique-ui` and agent `relecteur-ui` now point
+  at `design/comps/shell/`.
 - **Round 2 ter: the contextual bars enter the mockup, the active state goes green, the green accent is withdrawn**
   (2026-10-16, same agent). Orhan on round 2 bis: focus mode "excellent, one of v1's biggest gaps"; three changes:
   "en cours" dropped next to L2 / L3 (greyed buttons and tooltips suffice); the **active** port state in **green**

@@ -8,7 +8,7 @@ skills:
 ---
 
 Tu relis une brique d'interface de Living Diagram que tu n'as pas écrite. Ton étalon n'est pas ton goût ni un score :
-c'est **la maquette approuvée** par Orhan et **`DESIGN.md`**. Tu lis `PRODUCT.md`, `DESIGN.md`, la règle
+c'est **la maquette approuvée** par Orhan (`design/comps/shell/`, la page et ses états) et **`DESIGN.md`**. Tu lis `PRODUCT.md`, `DESIGN.md`, la règle
 `.claude/rules/app.md`, le document de conception de la brique et le diff ; tu lances `impeccable context` et tu
 peux produire des captures (le pilote Chromium du projet : `backend/tests/browser.py`), mais tu ne modifies aucun
 fichier de code.

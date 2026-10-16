@@ -11,8 +11,11 @@ Une brique = une surface ou une interaction, livrée sous `DESIGN.md`, jugée pa
 
 1. `docs/etat.md` : où en est la refonte, ce qui est gelé.
 2. `PRODUCT.md` : qui regarde, où, pour faire quoi. **Absent ⇒ s'arrêter** : la brique n'a pas de vérité produit.
-3. `DESIGN.md` : le monde visuel, les jetons, chaque primitive et ses états. **Absent ⇒ s'arrêter.**
-4. La page vivante des primitives (`app/`, route indiquée dans `DESIGN.md`) : ce qui existe se réutilise.
+3. `DESIGN.md` : le monde visuel, les jetons, chaque primitive et ses états. **Absent ⇒ s'arrêter.** Puis la
+   maquette approuvée de la surface dans `design/comps/shell/` (page, états, captures) : c'est elle que la brique
+   reproduit et que le relecteur compare.
+4. La page vivante des primitives (`app/primitives.html`, `npm run dev`) et `app/src/ui/` : ce qui existe se
+   réutilise ; un contrôle ne se rend que par une primitive.
 5. La règle `.claude/rules/app.md` et le document de conception de la brique (`docs/NN-*.md` ou `docs/11`).
 6. Les skills `frontend-design:frontend-design` et `impeccable:impeccable` (lancer `impeccable context`).
 
