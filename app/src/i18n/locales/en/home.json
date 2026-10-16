@@ -2,8 +2,6 @@
   "page": "Home",
   "arrange": "Arrange widgets",
   "arrangeSoon": "Arrange widgets: in progress",
-  "account": "Account",
-  "accountSoon": "Accounts: in progress",
   "loading": "Reading the archive…",
   "failed": "The archive could not be read (error {{status}}). Reload the page to try again.",
   "unreachable": "The API does not answer. Check that the service runs, then reload the page.",

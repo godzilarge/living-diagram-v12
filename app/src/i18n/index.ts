@@ -3,10 +3,12 @@
 // is checked by `tsc`. Never translated: what the user typed, identifiers (hostnames, ports, codes).
 import i18next from "i18next";
 import { useTranslation } from "react-i18next";
+import enDiagram from "./locales/en/diagram.json";
 import enHome from "./locales/en/home.json";
 import enPrimitives from "./locales/en/primitives.json";
 import enShell from "./locales/en/shell.json";
 import enUi from "./locales/en/ui.json";
+import frDiagram from "./locales/fr/diagram.json";
 import frHome from "./locales/fr/home.json";
 import frPrimitives from "./locales/fr/primitives.json";
 import frShell from "./locales/fr/shell.json";
@@ -16,11 +18,11 @@ export const LANGUAGES = ["en", "fr"] as const;
 export type Language = (typeof LANGUAGES)[number];
 /** The language of a browser that announces none we speak. */
 export const DEFAULT_LANGUAGE: Language = "en";
-export const NAMESPACES = ["ui", "shell", "home", "primitives"] as const;
+export const NAMESPACES = ["ui", "shell", "home", "diagram", "primitives"] as const;
 
 export const resources = {
-  en: { ui: enUi, shell: enShell, home: enHome, primitives: enPrimitives },
-  fr: { ui: frUi, shell: frShell, home: frHome, primitives: frPrimitives },
+  en: { ui: enUi, shell: enShell, home: enHome, diagram: enDiagram, primitives: enPrimitives },
+  fr: { ui: frUi, shell: frShell, home: frHome, diagram: frDiagram, primitives: frPrimitives },
 } as const;
 
 type Catalogue = (typeof resources)["en"];

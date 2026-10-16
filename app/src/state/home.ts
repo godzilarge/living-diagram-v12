@@ -9,7 +9,8 @@ import { daysSince, isStale, parseTime } from "./time";
 
 /** The collections the widget lists when the browser has no `homeRuns` preference (`prefs.ts`). */
 export const LATEST_RUNS = 6;
-/** Where an infrastructure opens until the diagram shell of the v2 exists (brick 2): the v1, at `/`. */
+/** Where an infrastructure opens: the v2's own diagram shell (brick 2), at the base the page is served from
+ *  (`/next/` built, `/` in development); the component passes `import.meta.env.BASE_URL`. */
 export const DIAGRAM_ROUTE = "/";
 
 export type StatusKey = "completed" | "partial" | "failed" | "failedOn" | "running" | "unknown" | "stale";
@@ -32,8 +33,8 @@ export function statusOf(run: Readonly<{ run_status: string; run_start: string }
 
 const byStartDesc = (a: string, b: string) => (parseTime(b) ?? 0) - (parseTime(a) ?? 0);
 
-export function openHref(infrastructure: string, runId: string): string {
-  return `${DIAGRAM_ROUTE}?${new URLSearchParams({ infrastructure, run_id: runId }).toString()}`;
+export function openHref(infrastructure: string, runId: string, base = DIAGRAM_ROUTE): string {
+  return `${base}?${new URLSearchParams({ infrastructure, run_id: runId }).toString()}`;
 }
 
 export type InfraRow = Readonly<{
@@ -60,7 +61,7 @@ export function infraStatus(item: Infrastructure, now: number): Status {
   return statusOf(shownRun(item), now);
 }
 
-export function infraRows(list: readonly Infrastructure[], now: number): InfraRow[] {
+export function infraRows(list: readonly Infrastructure[], now: number, base = DIAGRAM_ROUTE): InfraRow[] {
   const sorted = [...list].sort((a, b) => byStartDesc(a.last_run.run_start, b.last_run.run_start) || a.infrastructure.localeCompare(b.infrastructure));
   return sorted.map((item, index) => ({
     name: item.infrastructure,
@@ -70,7 +71,7 @@ export function infraRows(list: readonly Infrastructure[], now: number): InfraRo
     errors: item.checks?.error ?? null,
     warnings: item.checks?.warning ?? null,
     recent: index === 0,
-    href: openHref(item.infrastructure, shownRun(item).run_id),
+    href: openHref(item.infrastructure, shownRun(item).run_id, base),
   }));
 }
 

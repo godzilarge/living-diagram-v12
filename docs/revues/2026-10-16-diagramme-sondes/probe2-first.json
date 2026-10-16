@@ -1,0 +1,38 @@
+{
+ "F": {
+  "before": "#node=dc01-acc-01",
+  "after": "",
+  "focusInLayer": false,
+  "popoverOpen": 0
+ },
+ "F2": {
+  "after": "",
+  "popoverOpen": 0
+ },
+ "F3": {
+  "after": "#node=dc01-acc-01"
+ },
+ "G": {
+  "focused": "Check1",
+  "tip": [
+   "Check: in progress"
+  ],
+  "selected": "Diagram"
+ },
+ "G2": {
+  "same": true,
+  "disabled": null
+ },
+ "H": {
+  "t0": "matrix(0.737864, 0, 0, 0.737864, 769.068, 217.573)",
+  "t1": "matrix(0.737864, 0, 0, 0.737864, 769.068, 217.573)",
+  "t2": "matrix(0.885437, 0, 0, 0.885437, 778.882, 171.087)",
+  "rail": "0.001s"
+ },
+ "J": "demo-dc\nDiagram\nCheck\nLog\nL1\nL2\nL3\nCtrl K\n\nThe API does not answer. Check that the service runs, then reload the page.",
+ "K": "demo-dc\nCollection\nDiagram\nCheck\nLog\nL1\nL2\nL3\nCtrl K\n\nThe archive asks for the API token of this service.\n\nThe API refused this token. Check it and try again.\nConnect",
+ "L": {
+  "text": "demo-dc\n5 Jan 2026, 02:00\nDiagram\nCheck\nLog\nL1\nL2\nL3\nCtrl K\n\nThe collection could not be read (error 500). Reload the page to try again.\n\nCollections\n5 Jan\n12 Jan\n19 Jan\nCompare with…\n8 devices placed and saved",
+  "address": "?infrastructure=demo-dc&run_id=demo-0105"
+ }
+}

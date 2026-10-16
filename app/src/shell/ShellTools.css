@@ -1,0 +1,4 @@
+/* the shortcut chip sits centred in the control's height: as much room on its right as above and below it */
+.shell-search {
+  padding: 0 calc((var(--control-height) - var(--shortcut-height)) / 2) 0 var(--space-sm);
+}

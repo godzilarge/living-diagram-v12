@@ -2,8 +2,6 @@
   "page": "Accueil",
   "arrange": "Disposer les widgets",
   "arrangeSoon": "Disposer les widgets : en cours",
-  "account": "Compte",
-  "accountSoon": "Comptes : en cours",
   "loading": "Lecture de l'archive…",
   "failed": "L'archive n'a pas pu être lue (erreur {{status}}). Rechargez la page pour réessayer.",
   "unreachable": "L'API ne répond pas. Vérifiez que le service tourne, puis rechargez la page.",

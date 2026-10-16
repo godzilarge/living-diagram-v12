@@ -7,6 +7,25 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Brick 2 of the v2 migration: the diagram shell, delivered and reviewed** (2026-10-16, `/brique-ui diagramme`;
+  Orhan validated the seven decisions of the announcement, asking only that the grid never be aggressive, and, seeing
+  the first build, kept the plan: the magnet and the plan grid wait for edit mode, "I do not want us to degrade and
+  start doing anything"). `/next/?infrastructure=…` opens the diagram: the shell of `index.html` at rest (context,
+  views and layers, tools, canvas controls, run band) over the **v1 canvas, read only** (`app/src/diagram/`,
+  `docs/13` § Done). One primitive added, `RunBand`; `Select` gains `triggerLabel`, `loading`, `disabledReason`;
+  `ShellTools` (search, settings, user) and `TokenForm` shared with the home. Logic moved into `app/src/state/` and
+  `api/` with Node tests (address with the v1's keys, band rules, zoom, diff facts, reducer, run API, placement
+  writer); the v1 touched once (`Flow`: optional `onView`). Decisions: Check, Log, L2, L3, Edit, Export, Search
+  present but disabled with "in progress"; a run named without `from` opens compared with the previous one (unlike
+  the v1: to judge); the grid is the mockup's, fixed on the screen (`DESIGN.md` tokens `grid`, `grid.step`,
+  `grid.dot`); `grid` / `minimap` in `ld-prefs`. Review `docs/revues/2026-10-16-diagramme.md` (0 critical, 3 high,
+  5 medium, 10 low, probes in `-sondes/`), **all treated the same day**: minimap island above the controls (H1), the
+  band shrinks and scrolls inside before meeting the controls (H2, to judge), the diff tooltip names every part of
+  the engine's total (H3), Escape belongs to an open layer (M1), the listing is said busy (M2), fixed grid (M3),
+  DOM order islands first (M5), one user button (B10), tokens for the mockup's sizes (B8). Suites: app check 137,
+  e2e 41 (diagram 13 on the synthetic series `e2e/fixtures/diagram/`, eight devices, three collections); engine
+  check and backend / contracts suites green (see `etat.md`). Captures `.impeccable/planche-diagramme/`. Test
+  server for Orhan: `:8018/next/` on `bac-a-sable/accueil-data/archive-six`, token `demo`.
 - **Home retouch after Orhan's first look: sort, filter, no cap on what the user sees** (2026-10-16, Orhan: "very
   clean work"; then "no filter or ordering on the columns?" and "only the last six runs is exactly what I do not
   want: we bridle the user, we frustrate him; show N by default and let a small widget setting fetch more").

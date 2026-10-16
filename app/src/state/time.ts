@@ -32,6 +32,14 @@ export function shortDateTime(iso: string, locale: string, timeZone?: string): s
   return dateFormat(locale, "short", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }, timeZone).format(time);
 }
 
+/** "19 Jan 2026" and "02:00": a collection's start as the run choice says it. Empty for an unreadable date. */
+export function dateAndClock(iso: string, locale: string, timeZone?: string): Readonly<{ date: string; time: string }> {
+  const time = parseTime(iso);
+  if (time === null) return { date: "", time: "" };
+  const date = dateFormat(locale, "day-year", { day: "numeric", month: "short", year: "numeric" }, timeZone).format(time);
+  return { date, time: clock(time, locale, timeZone) };
+}
+
 const sameYear = (a: number, b: number, timeZone?: string) =>
   dateFormat("en", "year", { year: "numeric" }, timeZone).format(a) === dateFormat("en", "year", { year: "numeric" }, timeZone).format(b);
 

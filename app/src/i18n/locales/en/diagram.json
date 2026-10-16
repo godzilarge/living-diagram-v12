@@ -1,0 +1,106 @@
+{
+  "page": "Diagram of {{infrastructure}}",
+  "context": {
+    "infrastructure": "Infrastructure",
+    "run": "Collection",
+    "runWords": "{{date}}, {{time}}",
+    "changes_one": "{{count}} change",
+    "changes_other": "{{count}} changes",
+    "noChange": "No change since {{date}}",
+    "changesDetail": "{{parts}} since {{date}}",
+    "partsJoin": ", ",
+    "parts": {
+      "nodes_one": "{{count}} device",
+      "nodes_other": "{{count}} devices",
+      "interfaces_one": "{{count}} interface",
+      "interfaces_other": "{{count}} interfaces",
+      "links_one": "{{count}} cable",
+      "links_other": "{{count}} cables",
+      "aggregates_one": "{{count}} aggregate",
+      "aggregates_other": "{{count}} aggregates",
+      "mlag_domains_one": "{{count}} MLAG domain",
+      "mlag_domains_other": "{{count}} MLAG domains",
+      "ha_clusters_one": "{{count}} HA cluster",
+      "ha_clusters_other": "{{count}} HA clusters",
+      "checksAppeared_one": "{{count}} check appeared",
+      "checksAppeared_other": "{{count}} checks appeared",
+      "checksResolved_one": "{{count}} check resolved",
+      "checksResolved_other": "{{count}} checks resolved",
+      "coverage_one": "{{count}} coverage change",
+      "coverage_other": "{{count}} coverage changes",
+      "rebooted_one": "{{count}} reboot",
+      "rebooted_other": "{{count}} reboots",
+      "flapped_one": "{{count}} flap",
+      "flapped_other": "{{count}} flaps"
+    },
+    "showChanges": "Show the changes on the map"
+  },
+  "views": {
+    "label": "View",
+    "diagram": "Diagram",
+    "control": "Check",
+    "controlSoon": "Check: in progress",
+    "errors_one": "{{count}} open error",
+    "errors_other": "{{count}} open errors",
+    "warnings_one": "{{count}} open warning",
+    "warnings_other": "{{count}} open warnings",
+    "journal": "Log",
+    "journalSoon": "Log: in progress",
+    "layer": "Layer",
+    "l1": "L1",
+    "l2": "L2",
+    "l3": "L3",
+    "l2Soon": "Layer 2, VLANs and trunks: in progress",
+    "l3Soon": "Layer 3, routing: in progress"
+  },
+  "controls": {
+    "label": "Canvas controls",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "zoom": "{{value}} %",
+    "zoomReset": "Back to 100 %",
+    "fit": "Show everything",
+    "grid": "Grid",
+    "minimap": "Overview",
+    "edit": "Edit: editing tools",
+    "editSoon": "Edit: in progress"
+  },
+  "band": {
+    "label": "Collections",
+    "run": "Collection of {{date}}, {{status}}",
+    "compared": "compared",
+    "comparedRun": "Collection of {{date}}, {{status}}, compared",
+    "compareWith": "Compare with…",
+    "compareLabel": "Compare with an earlier collection",
+    "none": "None",
+    "status": {
+      "completed": "completed",
+      "partial": "partial",
+      "failed": "failed",
+      "running": "running",
+      "unknown": "unknown"
+    },
+    "noEarlier": "No earlier collection to compare with",
+    "compareBusy": "Reading the collection…"
+  },
+  "state": {
+    "loading": "Reading the collection…",
+    "noRuns": "No collection archived for this infrastructure yet.",
+    "failed": "The collection could not be read (error {{status}}). Reload the page to try again.",
+    "unreachable": "The API does not answer. Check that the service runs, then reload the page.",
+    "invalid": "The API answered outside its contract. Reload the page; if it persists, check the version of the service.",
+    "missing": {
+      "report": "the ingestion report",
+      "diff": "the changes since the compared collection",
+      "intent": "the shared intent (pins, colours, groups, annotations)",
+      "placement": "the memorized placement",
+      "runs": "the list of collections"
+    },
+    "missingSaid": "Not read with this collection: {{parts}}.",
+    "notFound": "The address names {{token}}, which this collection does not hold."
+  },
+  "api": {
+    "refused": "the API refused (error {{status}})",
+    "unreachable": "the API does not answer"
+  }
+}

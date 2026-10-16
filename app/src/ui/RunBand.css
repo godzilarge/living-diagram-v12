@@ -1,0 +1,53 @@
+/* The run band (design/comps/shell/index.html, `.runs`): the label in label type, ink-3; the runs as 32 px rail
+   buttons 16 px apart, joined by a line-2 wire that runs from one button to the next (16 px, the bar's 8 px gaps
+   taken back on each side); the current run in ink at 600, the compared one with a dotted ink-3 rail and its small
+   word. */
+.ui-runs-label {
+  padding: 0 var(--space-xs);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-leading);
+  white-space: nowrap;
+}
+
+/* the runs scroll inside the band when they outgrow it (a hundred collections): the band itself never grows past
+   the room its row leaves; the wheel, a drag, the arrows and the focus reach every run, the current one is brought
+   into view */
+.ui-runs {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ui-runs::-webkit-scrollbar {
+  display: none;
+}
+
+.ui-run-wire {
+  flex: none;
+  width: var(--space-lg);
+  height: 1px;
+  margin: 0 calc(-1 * var(--space-sm));
+  background: var(--color-line-2);
+}
+
+.ui-run[aria-current="true"] {
+  font-weight: var(--text-headline-weight);
+}
+
+.ui-run small {
+  margin-left: var(--run-band-compared-gap);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+}
+
+.ui-run.ui-rail.ui-run-compared::after {
+  transform: scaleX(1);
+  background: repeating-linear-gradient(90deg, var(--color-ink-3) 0 var(--run-band-dash), transparent var(--run-band-dash) calc(var(--run-band-dash) + var(--run-band-dash-gap)));
+}

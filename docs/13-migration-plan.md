@@ -47,6 +47,35 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   (`?recent=N`, browser preference), diffs read for the rows on screen only. **Rule for every brick: the page never
   caps what the user can see; a default is a default, and a widget setting lets him ask for more.**
 
+- **Brick 2, Diagram shell** (2026-10-16): `/next/?infrastructure=…` opens the diagram (`routeOf` in
+  `app/src/state/address.ts`; without an infrastructure, `/next/` stays the home, whose rows now link here). The
+  shell of `index.html` at rest: brand, context (infrastructure and collection choices, the diff summary "N changes"
+  with the devices and cables touched in its tooltip), views (Diagram; Check with its open errors, else warnings;
+  Log) and layers (L1; L2, L3), tools (search, export, settings, user), the canvas controls (zoom out, the zoom as a
+  word that goes back to 100 %, zoom in | show everything, grid, overview | edit) and the run band (`RunBand`, the
+  one primitive added: words joined by wires, the current run with the rail, the compared one with a dotted rail and
+  "compared", "Compare with…" any earlier run or none). **Orhan's decisions**: Check, Log, L2, L3, Edit, Export and
+  Search are present but disabled with the "in progress" tooltip until their brick; the v1 canvas is mounted **read
+  only** (selection, pan and zoom, hover; a drag moves a card locally as the v1 does without a name; the memorized
+  placement is written as in the v1; no intent write, no context menu until brick 6); the map's ground is the
+  shell's paper and its grid the quiet dots of the mockup, fixed on the screen (tokens `grid`, `grid.step`,
+  `grid.dot` added to `DESIGN.md`; Orhan: the v1 grid was too present; the plan grid and the magnet come with edit
+  mode); `grid` and `minimap` join `ld-prefs` under the v1's names (the mockup's defaults: grid on, overview
+  off); the address keeps the v1's keys. **Logic moved into `app/src/`** with Node tests: the address (`state/address.ts`),
+  the band's rules (`state/runs.ts`), the zoom around the visible centre (`state/zoom.ts`), the diff facts, the
+  reducer (`state/diagram.ts`) and its effects (`state/useDiagram.ts`), the API of a run (`api/run.ts`: bodies
+  checked at the boundary, a missing part said in a toast), the placement writer (`api/placement.ts`). The canvas
+  mount (`app/src/diagram/Canvas.tsx`) wraps the v1 `Flow` in the v1's own i18n instance kept in the page's language;
+  the v1 gained one optional prop only (`Flow`: `onView` for the zoom word). Keys: Escape lets
+  go, F, G, N, +, −, 0; Left and Right walk the band. Measured in Chromium on a synthetic eight-device series
+  (`app/e2e/fixtures/diagram/`, `diagram.spec.ts`): islands, bars, tooltips, contrast, both themes and accents,
+  French. Captures `.impeccable/planche-diagramme/`. Review `docs/revues/2026-10-16-diagramme.md` (0 critical, 3 high,
+  5 medium, 10 low), all treated the same day: the minimap as an island above the controls, the band that scrolls
+  inside when the collections outgrow it, the diff tooltip that accounts for every change, Escape left to an open
+  popover, the listing said, one user button for every page. To judge in use: `docs/a-juger-a-l-usage.md` (a run
+  named without its compared run, the right click, the placement toast, the canvas bubble's role, the scrolling
+  band, the fixed grid).
+
 ## Rules every brick obeys
 
 - The approved mockup state is the comp; the `relecteur-ui` compares to it, never to a score.

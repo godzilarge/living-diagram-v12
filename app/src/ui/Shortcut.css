@@ -15,6 +15,12 @@
   white-space: nowrap;
 }
 
+/* in a disabled control the chip greys with the icon: one definition of the disabled state */
+.ui-control[aria-disabled="true"] .ui-shortcut {
+  border-color: var(--color-line);
+  color: var(--color-ink-4);
+}
+
 .ui-tooltip .ui-shortcut {
   border-color: transparent;
   background: transparent;

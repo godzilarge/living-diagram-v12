@@ -15,7 +15,7 @@ import { shortDateTime } from "../state/time";
 import type { HomeState } from "../state/useHome";
 import { Note } from "./Feedback";
 import { StatusFilter } from "./StatusFilter";
-import { TokenForm } from "./TokenForm";
+import { TokenForm } from "../shell/TokenForm";
 import { DASH, failedWords, statusWords, unreadableWords } from "./words";
 
 /** A count of checks: the mark and the number in the state colour; zero in ink-4, decorative. */
@@ -91,7 +91,7 @@ function Body({ state, view, onSort, onConnect }: { state: HomeState; view: View
   if (load.kind === "loading") return <Note>{t("home:loading")}</Note>;
   if (load.kind === "failed") return <Note>{failedWords(t, load)}</Note>;
   if (load.data.infrastructures.length === 0) return <Note>{t("home:infrastructures.empty")}</Note>;
-  const rows = sortInfraRows(filterRows(infraRows(load.data.infrastructures, state.now), view.filter), view.sort);
+  const rows = sortInfraRows(filterRows(infraRows(load.data.infrastructures, state.now, import.meta.env.BASE_URL), view.filter), view.sort);
   if (rows.length === 0) return <Note>{t("home:infrastructures.none")}</Note>;
   return (
     <Table
@@ -112,7 +112,7 @@ export function InfrastructuresWidget({ state, onConnect }: { state: HomeState; 
   const [view, setView] = useState<View>({ filter: "all" });
   const load = state.infrastructures;
   const ready = state.token === "present" && load.kind === "ok" && load.data.infrastructures.length > 0;
-  const rows = ready ? infraRows(load.data.infrastructures, state.now) : [];
+  const rows = ready ? infraRows(load.data.infrastructures, state.now, import.meta.env.BASE_URL) : [];
   return (
     <Widget
       name="infrastructures"

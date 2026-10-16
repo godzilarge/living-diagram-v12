@@ -78,21 +78,17 @@ test("the home: no token asks for one; Enter connects; a row opens its infrastru
   const first = table.locator("tbody tr").first();
   expect(await table.locator("tbody tr[tabindex]").count()).toBe(0);
   const link = first.getByRole("link", { name: "campus-rennes" });
-  await expect(link).toHaveAttribute("href", "/?infrastructure=campus-rennes&run_id=rennes-0118");
+  await expect(link).toHaveAttribute("href", "/next/?infrastructure=campus-rennes&run_id=rennes-0118");
   for (let i = 0; i < 12 && !(await link.evaluate((a) => a === document.activeElement)); i++) await page.keyboard.press("Tab");
   await expect(link).toBeFocused();
   expect((await focusLook(page))?.ring).toBe(true);
   // the last collection failed: the row shows the last good one's date and says the failure in red
   await expect(first).toContainText("18 Jan, 04:00");
   await expect(first.locator('td').nth(3).locator('.ui-state[data-tone="error"]')).toHaveText("Failed on 19 Jan");
-  let opened = "";
-  await page.route((url) => url.pathname === "/" && url.searchParams.has("infrastructure"), (route) => {
-    opened = new URL(route.request().url()).search;
-    return route.fulfill({ status: 200, contentType: "text/plain", body: "v1" });
-  });
+  // Enter opens the infrastructure in the v2's diagram (brick 2), on the collection the row shows
   await page.keyboard.press("Enter");
-  await page.waitForURL((url) => url.searchParams.has("infrastructure"));
-  expect(opened).toBe("?infrastructure=campus-rennes&run_id=rennes-0118");
+  await page.waitForURL((url) => url.pathname === "/next/" && url.searchParams.has("infrastructure"));
+  expect(new URL(page.url()).search).toBe("?infrastructure=campus-rennes&run_id=rennes-0118");
   // a click elsewhere on a row follows the same address
   await page.goto("/next/");
   await table.locator("tbody tr").nth(1).locator("td").nth(3).click();

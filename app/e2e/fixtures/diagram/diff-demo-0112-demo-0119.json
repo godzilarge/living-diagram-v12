@@ -1,0 +1,1222 @@
+{
+  "after": {
+    "bundle_sha256": "244e4f6530bc16a09ca21ec13302f1d3a5f42f54551bd3cceb7dbfcd8d956870",
+    "collector_run_id": "e3d0ee28766bcd439a272b98",
+    "end_datetime": "2026-01-19T02:01:43Z",
+    "snapshot_version": "1.0.0",
+    "start_datetime": "2026-01-19T02:00:00Z",
+    "status": "completed"
+  },
+  "aggregates": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "before": {
+    "bundle_sha256": "29be9edbced4326b7b4ab70f0716ef4a2d6bb0bf3058b68ebcddda42b4574a4f",
+    "collector_run_id": "7657cc35de8acb6a322465a4",
+    "end_datetime": "2026-01-12T02:01:28Z",
+    "snapshot_version": "1.0.0",
+    "start_datetime": "2026-01-12T02:00:00Z",
+    "status": "completed"
+  },
+  "checks": {
+    "appeared": [
+      {
+        "code": "device_partial_collection",
+        "details": {
+          "error": null,
+          "failed": [
+            {
+              "error": "command timeout on dc01-core-02",
+              "topic": "cdp"
+            }
+          ]
+        },
+        "origin": "correlation",
+        "refs": [
+          {
+            "hostname": "dc01-core-02",
+            "kind": "node"
+          }
+        ],
+        "severity": "info"
+      }
+    ],
+    "persisted": 25,
+    "resolved": []
+  },
+  "coverage": {
+    "changed": [
+      {
+        "fields": [
+          {
+            "after": "partial",
+            "before": "success",
+            "path": "status"
+          },
+          {
+            "after": "failed",
+            "before": "success",
+            "path": "topics.cdp"
+          }
+        ],
+        "ref": {
+          "hostname": "dc01-core-02",
+          "kind": "node"
+        }
+      }
+    ]
+  },
+  "diff_version": "1.0.0",
+  "elapsed_seconds": 604800,
+  "events": [
+    {
+      "details": {
+        "elapsed_seconds": 604800,
+        "uptime_after": 7207,
+        "uptime_before": 31622400
+      },
+      "kind": "rebooted",
+      "ref": {
+        "hostname": "dc01-rt-01",
+        "kind": "node"
+      }
+    }
+  ],
+  "ha_clusters": {
+    "added": [],
+    "changed": [
+      {
+        "fields": [
+          {
+            "after": [
+              {
+                "hostname": "dc01-fw-01",
+                "priority": 200,
+                "reported_by": [
+                  "dc01-fw-01",
+                  "dc01-fw-02"
+                ],
+                "role": "secondary",
+                "state": "up"
+              },
+              {
+                "hostname": "dc01-fw-02",
+                "priority": 100,
+                "reported_by": [
+                  "dc01-fw-01",
+                  "dc01-fw-02"
+                ],
+                "role": "primary",
+                "state": "up"
+              }
+            ],
+            "before": [
+              {
+                "hostname": "dc01-fw-01",
+                "priority": 200,
+                "reported_by": [
+                  "dc01-fw-01",
+                  "dc01-fw-02"
+                ],
+                "role": "primary",
+                "state": "up"
+              },
+              {
+                "hostname": "dc01-fw-02",
+                "priority": 100,
+                "reported_by": [
+                  "dc01-fw-01",
+                  "dc01-fw-02"
+                ],
+                "role": "secondary",
+                "state": "up"
+              }
+            ],
+            "path": "members"
+          }
+        ],
+        "ref": {
+          "kind": "cluster",
+          "members": [
+            "dc01-fw-01",
+            "dc01-fw-02"
+          ]
+        }
+      }
+    ],
+    "removed": []
+  },
+  "infrastructure": "infra-synth",
+  "interfaces": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "links": {
+    "added": [],
+    "changed": [
+      {
+        "fields": [
+          {
+            "after": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-01",
+                  "port": "TenGigabitEthernet1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-01",
+                  "port": "Te1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                }
+              }
+            ],
+            "before": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-01",
+                  "port": "TenGigabitEthernet1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-01",
+                  "port": "TenGigabitEthernet1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-01",
+                  "port": "Te1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-01",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/1"
+                }
+              }
+            ],
+            "path": "evidence"
+          }
+        ],
+        "ref": {
+          "a": {
+            "hostname": "dc01-acc-01",
+            "interface": "TenGigabitEthernet1/1/2"
+          },
+          "b": {
+            "hostname": "dc01-core-02",
+            "interface": "Ethernet1/1"
+          },
+          "kind": "link"
+        }
+      },
+      {
+        "fields": [
+          {
+            "after": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/3"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/3"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-03",
+                  "port": "TenGigabitEthernet1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/3"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-03",
+                  "port": "Te1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                }
+              }
+            ],
+            "before": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/3"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-03",
+                  "port": "TenGigabitEthernet1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/3"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-03",
+                  "port": "TenGigabitEthernet1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/3"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-acc-03",
+                  "port": "Te1/1/2"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-acc-03",
+                  "interface": "TenGigabitEthernet1/1/2"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/3"
+                }
+              }
+            ],
+            "path": "evidence"
+          }
+        ],
+        "ref": {
+          "a": {
+            "hostname": "dc01-acc-03",
+            "interface": "TenGigabitEthernet1/1/2"
+          },
+          "b": {
+            "hostname": "dc01-core-02",
+            "interface": "Ethernet1/3"
+          },
+          "kind": "link"
+        }
+      },
+      {
+        "fields": [
+          {
+            "after": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                }
+              }
+            ],
+            "before": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/49"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/49"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/49"
+                }
+              }
+            ],
+            "path": "evidence"
+          }
+        ],
+        "ref": {
+          "a": {
+            "hostname": "dc01-core-01",
+            "interface": "Ethernet1/49"
+          },
+          "b": {
+            "hostname": "dc01-core-02",
+            "interface": "Ethernet1/49"
+          },
+          "kind": "link"
+        }
+      },
+      {
+        "fields": [
+          {
+            "after": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                }
+              }
+            ],
+            "before": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-01",
+                  "port": "Ethernet1/50"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-01",
+                  "interface": "Ethernet1/50"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/50"
+                }
+              }
+            ],
+            "path": "evidence"
+          }
+        ],
+        "ref": {
+          "a": {
+            "hostname": "dc01-core-01",
+            "interface": "Ethernet1/50"
+          },
+          "b": {
+            "hostname": "dc01-core-02",
+            "interface": "Ethernet1/50"
+          },
+          "kind": "link"
+        }
+      },
+      {
+        "fields": [
+          {
+            "after": [
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/43"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-rt-01",
+                  "port": "GigabitEthernet0/0/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/43"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-rt-01",
+                  "port": "Gi0/0/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/43"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                }
+              }
+            ],
+            "before": [
+              {
+                "remote_raw": {
+                  "name": "dc01-rt-01",
+                  "port": "GigabitEthernet0/0/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/43"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                },
+                "resolution": "hostname",
+                "source": "cdp",
+                "witness": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-rt-01",
+                  "port": "GigabitEthernet0/0/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/43"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                },
+                "resolution": "hostname",
+                "source": "description",
+                "witness": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-rt-01",
+                  "port": "Gi0/0/1"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                }
+              },
+              {
+                "remote_raw": {
+                  "name": "dc01-core-02",
+                  "port": "Ethernet1/43"
+                },
+                "remote_resolved": {
+                  "hostname": "dc01-core-02",
+                  "interface": "Ethernet1/43"
+                },
+                "resolution": "hostname",
+                "source": "lldp",
+                "witness": {
+                  "hostname": "dc01-rt-01",
+                  "interface": "GigabitEthernet0/0/1"
+                }
+              }
+            ],
+            "path": "evidence"
+          }
+        ],
+        "ref": {
+          "a": {
+            "hostname": "dc01-core-02",
+            "interface": "Ethernet1/43"
+          },
+          "b": {
+            "hostname": "dc01-rt-01",
+            "interface": "GigabitEthernet0/0/1"
+          },
+          "kind": "link"
+        }
+      }
+    ],
+    "removed": []
+  },
+  "mlag_domains": {
+    "added": [],
+    "changed": [],
+    "removed": []
+  },
+  "nodes": {
+    "added": [],
+    "changed": [
+      {
+        "fields": [
+          {
+            "after": "partial",
+            "before": "success",
+            "path": "collection"
+          }
+        ],
+        "ref": {
+          "hostname": "dc01-core-02",
+          "kind": "node"
+        }
+      }
+    ],
+    "removed": []
+  },
+  "summary": {
+    "aggregates": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "checks": {
+      "appeared": 1,
+      "persisted": 25,
+      "resolved": 0
+    },
+    "coverage": {
+      "changed": 1
+    },
+    "events": {
+      "flapped": 0,
+      "rebooted": 1
+    },
+    "ha_clusters": {
+      "added": 0,
+      "changed": 1,
+      "removed": 0
+    },
+    "interfaces": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "links": {
+      "added": 0,
+      "changed": 5,
+      "removed": 0
+    },
+    "mlag_domains": {
+      "added": 0,
+      "changed": 0,
+      "removed": 0
+    },
+    "nodes": {
+      "added": 0,
+      "changed": 1,
+      "removed": 0
+    },
+    "volatile_changes": 64
+  }
+}

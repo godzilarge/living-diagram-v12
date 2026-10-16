@@ -1,0 +1,571 @@
+{
+ "m": {
+  "floats": [
+   {
+    "text": "",
+    "x": 16,
+    "y": 16,
+    "w": 48,
+    "h": 48,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "7px",
+    "border": "rgb(227, 228, 231) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "demo-dc 19 janv. 2026, 02:00 10 changeme",
+    "x": 76,
+    "y": 16,
+    "w": 448,
+    "h": 48,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "7px",
+    "border": "rgb(227, 228, 231) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "Diagramme Contrôle 1 Journal L1 L2 L3",
+    "x": 536,
+    "y": 16,
+    "w": 400,
+    "h": 48,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px 7px",
+    "border": "rgb(227, 228, 231) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "Ctrl K",
+    "x": 1197,
+    "y": 16,
+    "w": 227,
+    "h": 48,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "7px",
+    "border": "rgb(227, 228, 231) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "74 %",
+    "x": 16,
+    "y": 836,
+    "w": 326,
+    "h": 48,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "7px",
+    "border": "rgb(227, 228, 231) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "Collectes 5 janv. 12 janv.comparée 19 ja",
+    "x": 888,
+    "y": 836,
+    "w": 536,
+    "h": 48,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "7px",
+    "border": "rgb(227, 228, 231) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "8 équipements placés et mémorisés",
+    "x": 567.5,
+    "y": 776,
+    "w": 305,
+    "h": 48,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "7px 7px 7px 16px",
+    "border": "rgb(227, 228, 231) 1px",
+    "gap": "8px"
+   }
+  ],
+  "tabs": [
+   {
+    "text": "Diagramme",
+    "x": 544,
+    "y": 17,
+    "w": 98,
+    "h": 46,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "600",
+    "fs": "13.5px",
+    "pad": "0px 12px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "6px"
+   },
+   {
+    "text": "Contrôle 1",
+    "x": 642,
+    "y": 17,
+    "w": 90,
+    "h": 46,
+    "color": "rgb(164, 167, 172)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 12px",
+    "border": "rgb(164, 167, 172) 0px",
+    "gap": "6px"
+   },
+   {
+    "text": "Journal",
+    "x": 732,
+    "y": 17,
+    "w": 71,
+    "h": 46,
+    "color": "rgb(164, 167, 172)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 12px",
+    "border": "rgb(164, 167, 172) 0px",
+    "gap": "6px"
+   }
+  ],
+  "count": [
+   {
+    "text": "1",
+    "x": 713,
+    "y": 32.2,
+    "w": 7,
+    "h": 15.6,
+    "color": "rgb(210, 31, 38)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "600",
+    "fs": "12px",
+    "pad": "0px",
+    "border": "rgb(210, 31, 38) 0px",
+    "gap": "normal"
+   }
+  ],
+  "layers": [
+   {
+    "text": "L1",
+    "x": 820,
+    "y": 24,
+    "w": 36,
+    "h": 32,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "600",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "L2",
+    "x": 856,
+    "y": 24,
+    "w": 36,
+    "h": 32,
+    "color": "rgb(164, 167, 172)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "L3",
+    "x": 892,
+    "y": 24,
+    "w": 36,
+    "h": 32,
+    "color": "rgb(164, 167, 172)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   }
+  ],
+  "runLabel": [
+   {
+    "text": "Collectes",
+    "x": 896,
+    "y": 852.2,
+    "w": 60,
+    "h": 15.6,
+    "color": "rgb(100, 104, 110)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "12px",
+    "pad": "0px 4px",
+    "border": "rgb(100, 104, 110) 0px",
+    "gap": "normal"
+   }
+  ],
+  "runs": [
+   {
+    "text": "5 janv.",
+    "x": 964,
+    "y": 844,
+    "w": 60,
+    "h": 32,
+    "color": "rgb(69, 72, 77)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 10px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "12 janv.comparée",
+    "x": 1040,
+    "y": 844,
+    "w": 129,
+    "h": 32,
+    "color": "rgb(69, 72, 77)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 10px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   },
+   {
+    "text": "19 janv.",
+    "x": 1185,
+    "y": 844,
+    "w": 69,
+    "h": 32,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "600",
+    "fs": "13.5px",
+    "pad": "0px 10px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   }
+  ],
+  "compared": [
+   {
+    "text": "comparée",
+    "x": 1103,
+    "y": 853.3,
+    "w": 55,
+    "h": 14,
+    "color": "rgb(100, 104, 110)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "12px",
+    "pad": "0px",
+    "border": "rgb(100, 104, 110) 0px",
+    "gap": "normal"
+   }
+  ],
+  "wire": [
+   {
+    "text": "",
+    "x": 1024,
+    "y": 859.5,
+    "w": 16,
+    "h": 1,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(205, 208, 212)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   },
+   {
+    "text": "",
+    "x": 1169,
+    "y": 859.5,
+    "w": 16,
+    "h": 1,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(205, 208, 212)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   }
+  ],
+  "changes": [
+   {
+    "text": "10 changements",
+    "x": 368,
+    "y": 24,
+    "w": 148,
+    "h": 32,
+    "color": "rgb(69, 72, 77)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 10px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   }
+  ],
+  "zoom": [
+   {
+    "text": "74 %",
+    "x": 64,
+    "y": 844,
+    "w": 52,
+    "h": 32,
+    "color": "rgb(69, 72, 77)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   }
+  ],
+  "search": [
+   {
+    "text": "Ctrl K",
+    "x": 1205,
+    "y": 24,
+    "w": 82,
+    "h": 32,
+    "color": "rgb(164, 167, 172)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 6px 0px 8px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "8px"
+   }
+  ],
+  "searchIcon": [
+   {
+    "text": "",
+    "x": 1214,
+    "y": 32,
+    "w": 16,
+    "h": 16,
+    "color": "rgb(164, 167, 172)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(164, 167, 172) 0px",
+    "gap": "normal"
+   }
+  ],
+  "chip": [
+   {
+    "text": "Ctrl K",
+    "x": 1238,
+    "y": 30,
+    "w": 42,
+    "h": 20,
+    "color": "rgb(100, 104, 110)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "500",
+    "fs": "12px",
+    "pad": "0px 5px",
+    "border": "rgb(205, 208, 212) 1px",
+    "gap": "normal"
+   }
+  ],
+  "seps": [
+   {
+    "text": "",
+    "x": 359,
+    "y": 30,
+    "w": 1,
+    "h": 20,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(227, 228, 231)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   },
+   {
+    "text": "",
+    "x": 811,
+    "y": 30,
+    "w": 1,
+    "h": 20,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(227, 228, 231)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   },
+   {
+    "text": "",
+    "x": 1375,
+    "y": 30,
+    "w": 1,
+    "h": 20,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(227, 228, 231)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   },
+   {
+    "text": "",
+    "x": 164,
+    "y": 850,
+    "w": 1,
+    "h": 20,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(227, 228, 231)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   },
+   {
+    "text": "",
+    "x": 293,
+    "y": 850,
+    "w": 1,
+    "h": 20,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(227, 228, 231)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   },
+   {
+    "text": "",
+    "x": 1262,
+    "y": 850,
+    "w": 1,
+    "h": 20,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(227, 228, 231)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   }
+  ],
+  "ctxChoices": [
+   {
+    "text": "demo-dc",
+    "x": 84,
+    "y": 24,
+    "w": 95,
+    "h": 32,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 8px 0px 10px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "4px"
+   },
+   {
+    "text": "19 janv. 2026, 02:00",
+    "x": 187,
+    "y": 24,
+    "w": 164,
+    "h": 32,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 8px 0px 10px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "4px"
+   }
+  ],
+  "compare": [
+   {
+    "text": "Comparer avec…",
+    "x": 1271,
+    "y": 844,
+    "w": 145,
+    "h": 32,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgba(0, 0, 0, 0)",
+    "fw": "500",
+    "fs": "13.5px",
+    "pad": "0px 8px 0px 10px",
+    "border": "rgba(0, 0, 0, 0) 1px",
+    "gap": "4px"
+   }
+  ],
+  "canvas": [
+   {
+    "text": "HA · DC01-EDGE · actif-passif DC01-ACC-0",
+    "x": 0,
+    "y": 0,
+    "w": 1440,
+    "h": 900,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   }
+  ],
+  "rf": [
+   {
+    "text": "HA · DC01-EDGE · actif-passif DC01-ACC-0",
+    "x": 0,
+    "y": 0,
+    "w": 1440,
+    "h": 900,
+    "color": "rgb(20, 20, 20)",
+    "bg": "rgb(255, 255, 255)",
+    "fw": "400",
+    "fs": "13.5px",
+    "pad": "0px",
+    "border": "rgb(20, 20, 20) 0px",
+    "gap": "normal"
+   }
+  ]
+ },
+ "grid": {
+  "pattern": {
+   "w": "14.757281553398059",
+   "h": "14.757281553398059"
+  },
+  "circle": {
+   "r": "0.7378640776699029",
+   "fill": "rgb(220, 222, 226)"
+  },
+  "zoom": "74 %",
+  "scheme": "light"
+ },
+ "diffTip": "1 équipement et 5 câbles changés depuis le 12 janv."
+}

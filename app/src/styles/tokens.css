@@ -5,6 +5,7 @@
   --font-sans: Archivo, system-ui, sans-serif;
   --color-paper: #FFFFFF;
   --color-canvas: #FFFFFF;
+  --color-grid: #DCDEE2;
   --color-ground: #F4F5F6;
   --color-sunken: #F1F2F3;
   --color-hover: #EFF0F2;
@@ -162,6 +163,13 @@
   --avatar-size: 22px;
   --mark-radius: var(--radius-mark);
   --mark-size: 8px;
+  --grid-step: 24px;
+  --grid-dot: 1px;
+  --layer-choice-width: 36px;
+  --zoom-word-width: 52px;
+  --run-band-compared-gap: 6px;
+  --run-band-dash: 4px;
+  --run-band-dash-gap: 3px;
 }
 
 :root[data-accent="ink"] {
@@ -194,6 +202,7 @@
   --color-warning-mark: #E8A33A;
   --color-tip-line: #3A3C40;
   --color-canvas: #161719;
+  --color-grid: #2C2E31;
   --color-scrim: rgba(10, 10, 11, 0.62);
   --swatch-cobalt: #7193FF;
   --swatch-ink: #EEEFF1;

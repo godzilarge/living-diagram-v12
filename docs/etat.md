@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-16** (refonte UI : brique 1 accueil livrée et revue ; prochaine brique : la coquille du diagramme).
+**Dernière mise à jour : 2026-10-16** (refonte UI : brique 2, la coquille du diagramme, livrée et revue ; prochaine brique : le panneau).
 
 ## Fait
 
@@ -33,17 +33,28 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   l'archive réelle, primitives `Widget` / `Avatar` / `Mark` / `Link` ajoutées à `DESIGN.md` ; revue
   `docs/revues/2026-10-16-accueil.md` traitée, M5 parqué vers la brique 7 ; `docs/13` § Done ; retouche du même jour
   après le premier regard d'Orhan : tri, filtre par état, réglage par widget du nombre de lignes, `?recent=N` ; **règle :
-  la page ne bride jamais l'utilisateur, un défaut n'est pas un plafond**). **Prochaine session :
-  `/brique-ui diagramme`** (brique 2 de `docs/13-migration-plan.md` : `design/comps/shell/index.html` au repos : îlots
-  contexte (infrastructure, run, résumé du diff), vues + couches, outils ; contrôles de la toile ; bande des runs ; la
-  toile v1 (`engine/src/app/canvas/`, React Flow) montée dedans, inchangée ; `state/` adresse, run, prefs et `api/`
-  déplacés avec leurs tests ; rien de nouveau côté API). À savoir : l'accueil ouvre encore une infrastructure dans la
-  v1 à `/` (`openHref` dans `app/src/state/home.ts`) : la brique 2 fait pointer ce lien vers `/next/` ; `app/` se
-  lance par `cd app && npm ci && npm run dev` (proxy `/api` vers uvicorn sur 8000, jeton de session de la v1
-  `ld-api-token`) ; `npm run check`, `npm run e2e` (fuseau UTC fixé dans `playwright.config.ts`) et
-  `cd engine && npm run check` doivent rester verts ; la v1 à `/` reste intacte ; la toile n'est pas à redessiner ;
-  deux tests Chromium de la v1 (`test_app_gauge`, `test_app_code`) ont échoué une fois sous charge puis passé seuls. **La toile (cartes, câbles) est une autre surface** : tour de
-  directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la refonte.**
+  la page ne bride jamais l'utilisateur, un défaut n'est pas un plafond**). **Brique 2, la coquille du diagramme,
+  livrée le 2026-10-16** (`/next/?infrastructure=…` : îlots contexte / vues et couches / outils, commandes de la
+  toile, bande des collectes (`RunBand`), la toile v1 montée **en lecture** ; `state/` adresse, run, bande, zoom,
+  diff et `api/` run, placement, images déplacés avec leurs tests ; `grid` / `minimap` dans `ld-prefs` ; Contrôle,
+  Journal, L2, L3, Modifier, Exporter, Rechercher désactivés « en cours » ; grille fixe de la maquette ; revue
+  `docs/revues/2026-10-16-diagramme.md` traitée en entier le jour même ; `docs/13` § Done ; six points dans
+  `docs/a-juger-a-l-usage.md`). Suites : app check 137, e2e 41 ; engine check vert ; backend et contrats verts.
+  Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
+  la main : `cd backend && LD_API_TOKEN=demo LD_ARCHIVE_DIR=../bac-a-sable/accueil-data/archive-six uv run uvicorn
+  ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build`). **Prochaine
+  session : `/brique-ui panneau`** (brique 3 de `docs/13-migration-plan.md` : `design/comps/shell/index.html` avec sa
+  fiche, états `panel-wide` et `panel-focus` ; chaque fait du contrat sur l'élément sélectionné, colonnes Voisin et
+  Description, alertes en mots ; `state/` sélection, `canvas/neighbors.ts`, `format.ts` déplacés ; rien de nouveau
+  côté API). À savoir : la sélection de la toile est déjà dans l'état et l'adresse (`state.selection`, `hosts`,
+  `#node=`) ; le panneau se monte dans `app/src/diagram/Diagram.tsx` et réserve sa largeur dans les insets de la
+  toile (`diagram/chrome.ts`, `right`) ; la primitive `Panel` existe (`app/src/ui/Panel.tsx`, trois largeurs à
+  vérifier contre la maquette) ; la bulle au survol de la toile garde `role="tooltip"` (à juger) ; l'aimant, la
+  grille du plan, le clic droit et toute écriture d'intention attendent la brique 6 (Orhan, 2026-10-16 : « rester
+  sur le plan, ne pas dégrader ») ; `npm run e2e` dure ~1,5 min (série synthétique `app/e2e/fixtures/diagram/`) ;
+  `cd engine && npm ci` est requis avant `cd app && npm run build` (polices de la toile v1). **La toile (cartes,
+  câbles) est une autre surface** : tour de directions à part, en repartant des cartes v1. **Aucune fonctionnalité
+  nouvelle pendant la refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
   fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.
 

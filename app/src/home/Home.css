@@ -24,11 +24,6 @@
   right: var(--space-lg);
 }
 
-/* the shortcut chip sits centred in the control's height: as much room on its right as above and below it */
-.home-search {
-  padding: 0 calc((var(--control-height) - var(--shortcut-height)) / 2) 0 var(--space-sm);
-}
-
 .home-space {
   position: absolute;
   inset: calc(2 * var(--space-lg) + var(--control-height) + 2 * var(--island-padding)) var(--space-lg) var(--space-lg);
@@ -90,25 +85,6 @@
 tr:is(:hover, :focus-within) .home-go,
 .home-go[data-recent] {
   opacity: 1;
-}
-
-/* the token, in place of the table */
-.home-token {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding-bottom: var(--space-sm);
-}
-
-.home-token-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-}
-
-/* 280 px: a token of about forty characters shows whole; no token field in the mockup to measure */
-.home-token-field .ui-field-input {
-  width: 280px;
 }
 
 /* latest collections */

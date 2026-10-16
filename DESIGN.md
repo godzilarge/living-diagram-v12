@@ -4,6 +4,7 @@ description: Floating islands over a white map; one accent, one rail for "curren
 colors:
   paper: "#FFFFFF"
   canvas: "#FFFFFF"
+  grid: "#DCDEE2"
   ground: "#F4F5F6"
   sunken: "#F1F2F3"
   hover: "#EFF0F2"
@@ -54,6 +55,7 @@ colors:
   dark-warning-mark: "#E8A33A"
   dark-tip-line: "#3A3C40"
   dark-canvas: "#161719"
+  dark-grid: "#2C2E31"
   dark-scrim: "rgba(10, 10, 11, 0.62)"
 typography:
   title:
@@ -230,6 +232,17 @@ components:
   mark:
     rounded: "{rounded.mark}"
     size: "8px"
+  grid:
+    step: "24px"
+    dot: "1px"
+  layer-choice:
+    width: "36px"
+  zoom-word:
+    width: "52px"
+  run-band:
+    compared-gap: "6px"
+    dash: "4px"
+    dash-gap: "3px"
 ---
 
 # Design System: Living Diagram
@@ -278,6 +291,10 @@ White paper, black ink, one accent, and three state colours that mean exactly on
 
 ### Neutral
 - **Paper** (#FFFFFF, dark #1C1D1F): the canvas and every island, panel and widget.
+- **Grid** (#DCDEE2, dark #2C2E31): the dots of the map's grid, 1 px of radius every 24 px **of screen**, fixed under
+  the map whatever the zoom (the approved mockup's texture), one step under the hairline so the grid never competes
+  with a cable (Orhan, 2026-10-16: the v1 grid was too present). The plan grid (20 units, the one a drag snaps to)
+  belongs to edit mode, where the grid darkens one step (brick 6).
 - **Ground** (#F4F5F6, dark #131415): the home page ground, sunken tracks, the segmented control's track.
 - **Hover** (#EFF0F2, dark #2A2B2E): a control under the pointer.
 - **Line** (#E3E4E7, dark #2F3134): hairlines, island borders, table rules. **Line-2** (#CDD0D4, dark #45484C): the
@@ -453,10 +470,16 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 - **View switch** (Diagramme / Contrôle / Journal): body-size words (13.5 px) at 500, ink-2; the current one in
   ink at 600 with the 2 px accent rail; counts next to Contrôle in the state colour.
 - **Layer choice** (L1 / L2 / L3): the same rail; L2 and L3 disabled with a tooltip, no extra text.
-- **Context choices** (infrastructure, run): a word with a chevron, opens a list.
+- **Context choices** (infrastructure, run): a word with a chevron, opens a list. A choice may carry fixed words
+  instead of its value ("Compare with…") and a busy state while what it lists is read (the run choice while a
+  collection opens).
 - **Run band:** the runs as words on a line, the current one with the rail, the compared one with a dotted grey
   rail and the word "comparée"; "Comparer avec…" as a choice.
-- **Canvas controls:** zoom out, zoom level as a word, zoom in | fit, grid (toggle), minimap (toggle) | edit (toggle).
+- **Canvas controls:** zoom out, zoom level as a word (52 px, a click goes back to 100 %), zoom in | fit, grid
+  (toggle), minimap (toggle) | edit (toggle). The minimap, when shown, is an island above the canvas controls: paper,
+  hairline, the island shadow, 16 px from the left edge, 12 px above the controls.
+- **Layer choice** words are 36 px wide at 600; the compared run of the band carries its small word 6 px after its
+  date, its rail dashed 4 px on, 3 px off, in ink-3.
 - **Edit palette** (edit mode): a vertical island at x = 16, nine icon tools (select, declare a cable, connector,
   note, shape, table, image, code block, group), the current tool with a left rail, tooltips to the right.
 

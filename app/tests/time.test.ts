@@ -1,6 +1,6 @@
 // Dates and ages in both languages, with "now" given and the time zone pinned to UTC.
 import { describe, expect, it } from "vitest";
-import { dayMonth, daysSince, isStale, parseTime, shortDateTime, when } from "../src/state/time";
+import { dateAndClock, dayMonth, daysSince, isStale, parseTime, shortDateTime, when } from "../src/state/time";
 
 const UTC = "UTC";
 const NOW = Date.parse("2026-01-19T19:30:00Z");
@@ -13,6 +13,12 @@ describe("time", () => {
     expect(shortDateTime("2026-01-19T02:00:00Z", "fr-FR", UTC)).toBe("19 janv., 02:00");
     expect(shortDateTime("not a date", "en-GB", UTC)).toBe("");
     expect(parseTime("nope")).toBeNull();
+  });
+
+  it("writes a collection's start in full for the run choice: the day with its year, and the time", () => {
+    expect(dateAndClock("2026-01-19T02:00:00Z", "en-GB", UTC)).toEqual({ date: "19 Jan 2026", time: "02:00" });
+    expect(dateAndClock("2026-01-19T02:00:00Z", "fr-FR", UTC)).toEqual({ date: "19 janv. 2026", time: "02:00" });
+    expect(dateAndClock("nope", "en-GB", UTC)).toEqual({ date: "", time: "" });
   });
 
   it("says a day, with its year when it is not this year's", () => {

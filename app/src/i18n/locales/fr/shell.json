@@ -23,5 +23,8 @@
       "en": "English",
       "fr": "Français"
     }
-  }
+  },
+  "account": "Compte",
+  "accountSoon": "Comptes : en cours",
+  "user": "{{author}}, compte et langue"
 }

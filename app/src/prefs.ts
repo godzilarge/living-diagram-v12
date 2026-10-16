@@ -1,7 +1,7 @@
 // Browser preferences of the v2 (theme, accent, language, how many rows two home widgets list): stored under `ld-prefs`, the v1's key, with the v1's field
 // names (`theme`, `language`), so a choice made in one is the choice of the other; never an intent, never in the
 // address. Applied as `data-theme` / `data-accent` / `lang` on `<html>`.
-// The v2 writes by merging: the v1's own fields (grid, panel width…) are kept. The v1 writes its whole object
+// The v2 writes by merging: the v1's own fields (snap, panel width…) are kept. The v1 writes its whole object
 // (`engine/src/app/state/prefs.ts`, `writePrefs`), so a write from the v1 drops `accent`, `homeRuns` and
 // `homeChanges`: the v2 then reads their defaults (cobalt, 6, 10). Parsing is pure and tolerant: an unknown or missing value falls back to the default.
 import { detectLanguage, isLanguage, setLanguage } from "./i18n";
@@ -17,10 +17,14 @@ export const HOME_RUNS = [6, 12, 25, 50, 100] as const;
 export const HOME_CHANGES = [10, 25, 50, 100] as const;
 export type HomeRuns = (typeof HOME_RUNS)[number];
 export type HomeChanges = (typeof HOME_CHANGES)[number];
-export type Prefs = Readonly<{ theme: Theme; accent: Accent; language: Language | null; homeRuns: HomeRuns; homeChanges: HomeChanges }>;
+/** `grid`, `minimap`: the canvas controls of the diagram shell, under the v1's names (a choice made in one is the
+ *  choice of the other); the approved mockup's defaults: the grid shown, the minimap hidden. */
+export type Prefs = Readonly<{ theme: Theme; accent: Accent; language: Language | null; homeRuns: HomeRuns; homeChanges: HomeChanges; grid: boolean; minimap: boolean }>;
 
 export const STORAGE_KEY = "ld-prefs";
-export const DEFAULT_PREFS: Prefs = Object.freeze({ theme: "light", accent: "cobalt", language: null, homeRuns: 6, homeChanges: 10 });
+export const DEFAULT_PREFS: Prefs = Object.freeze({ theme: "light", accent: "cobalt", language: null, homeRuns: 6, homeChanges: 10, grid: true, minimap: false });
+
+const flag = (value: unknown, fallback: boolean): boolean => (typeof value === "boolean" ? value : fallback);
 
 const oneOf = <T extends string | number>(values: readonly T[], value: unknown, fallback: T): T =>
   (values as readonly unknown[]).includes(value) ? (value as T) : fallback;
@@ -40,6 +44,8 @@ export function parsePrefs(raw: string | null): Prefs {
     language: isLanguage(data.language) ? data.language : null,
     homeRuns: oneOf(HOME_RUNS, data.homeRuns, DEFAULT_PREFS.homeRuns),
     homeChanges: oneOf(HOME_CHANGES, data.homeChanges, DEFAULT_PREFS.homeChanges),
+    grid: flag(data.grid, DEFAULT_PREFS.grid),
+    minimap: flag(data.minimap, DEFAULT_PREFS.minimap),
   });
 }
 
@@ -52,8 +58,8 @@ export function mergePrefs(raw: string | null, prefs: Prefs): string {
   } catch {
     data = {};
   }
-  const { theme, accent, language, homeRuns, homeChanges } = prefs;
-  return JSON.stringify({ ...data, theme, accent, language, homeRuns, homeChanges });
+  const { theme, accent, language, homeRuns, homeChanges, grid, minimap } = prefs;
+  return JSON.stringify({ ...data, theme, accent, language, homeRuns, homeChanges, grid, minimap });
 }
 
 function storage(): Storage | null {

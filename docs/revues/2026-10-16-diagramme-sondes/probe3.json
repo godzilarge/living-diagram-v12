@@ -1,0 +1,23 @@
+{
+ "brand": "- link \"Living Diagram, home\":\n  - /url: /next/",
+ "context": "- combobox \"Infrastructure\": demo-dc\n- combobox \"Collection\": 19 Jan 2026, 02:00\n- separator\n- button \"10 changes\"",
+ "views": "- tablist \"View\":\n  - tab \"Diagram\" [selected]\n  - tab \"Check 1 open error\" [disabled]: Check 1\n  - tab \"Log\" [disabled]\n- separator\n- group \"Layer\":\n  - button \"L1\" [pressed]\n  - button \"L2\" [disabled]\n  - button \"L3\" [disabled]",
+ "tools": "- button \"Search\" [disabled]: Ctrl K\n- button \"Export as PNG or SVG\" [disabled]\n- button \"Settings\"\n- separator\n- button \"Account\" [disabled]",
+ "canvas-controls": "- toolbar \"Canvas controls\":\n  - button \"Zoom out\"\n  - button \"74 %\"\n  - button \"Zoom in\"\n  - separator\n  - button \"Show everything\"\n  - button \"Grid\" [pressed]\n  - button \"Overview\"\n  - separator\n  - 'button \"Edit: editing tools\" [disabled]'",
+ "runs": "- text: Collections\n- group \"Collections\":\n  - button \"5 Jan\"\n  - button \"12 Jancompared\"\n  - button \"19 Jan\"\n- separator\n- combobox \"Compare with an earlier collection\": Compare with…",
+ "tips": {
+  "Edit: editing tools": "Edit: in progressM",
+  "Export as PNG or SVG": "Export as PNG or SVG: in progress",
+  "Search": "Search everywhere: in progressCtrl K",
+  "Account": "Accounts: in progress",
+  "Show everything": "Show everythingF"
+ },
+ "infraOptions": [
+  "campus-rennes",
+  "wan-core",
+  "demo-dc",
+  "site-lyon",
+  "site-nantes",
+  "lab-sec"
+ ]
+}

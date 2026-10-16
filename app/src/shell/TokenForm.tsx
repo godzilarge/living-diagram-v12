@@ -1,9 +1,10 @@
-// The token asked in the Infrastructures widget, in place of its table: a password field and Connect. Enter submits.
-// A refused token says so under the field.
+// The API token, asked where the data would be (the home's Infrastructures widget, the diagram's centred island): a
+// password field and Connect. Enter submits. A refused token says so under the field.
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Button, Field } from "../ui";
 import { useText } from "../i18n";
+import "./TokenForm.css";
 
 export function TokenForm({ refused, onConnect }: { refused: boolean; onConnect: (token: string) => void }) {
   const t = useText();
@@ -13,9 +14,9 @@ export function TokenForm({ refused, onConnect }: { refused: boolean; onConnect:
     onConnect(value);
   };
   return (
-    <form className="home-token" onSubmit={submit}>
-      <p className="home-note">{t("home:token.intro")}</p>
-      <div className="home-token-row" data-bar="token">
+    <form className="shell-token" onSubmit={submit}>
+      <p className="shell-note">{t("home:token.intro")}</p>
+      <div className="shell-token-row" data-bar="token">
         <Field
           type="password"
           label={t("home:token.label")}
@@ -24,7 +25,7 @@ export function TokenForm({ refused, onConnect }: { refused: boolean; onConnect:
           value={value}
           onChange={(event) => setValue(event.target.value)}
           error={refused ? t("home:token.refused") : undefined}
-          className="home-token-field"
+          className="shell-token-field"
         />
         <Button variant="primary" type="submit">
           {t("home:token.connect")}

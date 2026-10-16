@@ -18,7 +18,8 @@ export default defineConfig(({ command, isPreview }) => ({
   plugins: [react()],
   resolve: {
     alias: { "@engine": engine },
-    dedupe: ["react", "react-dom", "i18next", "react-i18next"],
+    // the v1 canvas (engine/src/app/canvas) resolves these from this package too: one copy of each in the bundle
+    dedupe: ["react", "react-dom", "i18next", "react-i18next", "lucide-react", "@xyflow/react", "prismjs"],
   },
   server: { proxy: { "/api": API }, fs: { allow: [".."] } },
   preview: { headers: { "Content-Security-Policy": CSP } },

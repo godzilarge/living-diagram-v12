@@ -1,0 +1,126 @@
+{
+ "A": {
+  "floats": [
+   "runs: -1357.0 px from the left edge (< 16)",
+   "canvas-controls overlaps runs"
+  ],
+  "bars": [],
+  "contrast": [],
+  "tips": [
+   "no [role=tooltip] element"
+  ],
+  "band": {
+   "x": -1357,
+   "y": 836,
+   "width": 2781,
+   "height": 48
+  },
+  "ctl": {
+   "x": 16,
+   "y": 836,
+   "width": 326,
+   "height": 48
+  },
+  "docW": 1440
+ },
+ "B1280": {
+  "floats": [],
+  "bars": [],
+  "contrast": [],
+  "tips": [
+   "no [role=tooltip] element"
+  ]
+ },
+ "B1199": {
+  "floats": [],
+  "bars": [],
+  "contrast": [],
+  "tips": [
+   "no [role=tooltip] element"
+  ]
+ },
+ "Dtext": "demo-dc\nDiagram\nCheck\nLog\nL1\nL2\nL3\nCtrl K\n100 %",
+ "Dbusy": 0,
+ "E": [
+  "DIV.react-flow__node react-flow__n [cluster HA · DC01-EDGE · active-passive] outline=none 3px rgb(20, 20, 20)",
+  "DIV.react-flow__node react-flow__n [dc01-acc-01 · collected device · switch · collection: succeeded] outline=none 3px rgb(20, 20, 20)",
+  "DIV.react-flow__node react-flow__n [dc01-acc-03 · collected device · switch · collection: succeeded] outline=none 3px rgb(20, 20, 20)",
+  "DIV.react-flow__node react-flow__n [dc01-core-01 · collected device · switch · collection: succeeded] outline=none 3px rgb(20, 20, 20)",
+  "DIV.react-flow__node react-flow__n [dc01-core-02 · collected device · switch · collection: partial · changed] outline=none 3px rgb(20, 20, 20)",
+  "DIV.react-flow__node react-flow__n [dc01-fw-01 · collected device · firewall · collection: succeeded · HA secondary] outline=none 3px rgb(20, 20, 20)",
+  "DIV.react-flow__node react-flow__n [dc01-fw-02 · collected device · firewall · collection: succeeded · HA primary] outline=none 3px rgb(20, 20, 20)",
+  "DIV.react-flow__node react-flow__n [dc01-rt-01 · collected device · router · collection: succeeded] outline=none 3px rgb(20, 20, 20)",
+  "DIV.react-flow__node react-flow__n [dc01-pe-01 · device from another infra · router] outline=none 3px rgb(20, 20, 20)",
+  "A.ui-control ui-icon-button [Living Diagram, home] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [Infrastructure] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [Collection] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [10 changes] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-rail ui-tab [Diagram] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [L1] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [L2] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [L3] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [Search] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button [Export as PNG or SVG] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button ui-r [Settings] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button [Account] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button [Zoom out] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [74 %] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button [Zoom in] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button [Show everything] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button ui-r [Grid] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button ui-r [Overview] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-icon-button ui-r [Edit: editing tools] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [19 Jan] outline=solid 2px rgb(33, 80, 232)",
+  "BUTTON.ui-control ui-button ui-button [Compare with an earlier collection] outline=solid 2px rgb(33, 80, 232)"
+ ],
+ "H2-reduce": [
+  "9:matrix(0.737864",
+  "26:matrix(0.737864",
+  "28:matrix(0.737864",
+  "74:matrix(0.885437",
+  "77:matrix(0.885437",
+  "94:matrix(0.885437",
+  "110:matrix(0.885437",
+  "127:matrix(0.885437",
+  "144:matrix(0.885437",
+  "160:matrix(0.885437",
+  "177:matrix(0.885437",
+  "194:matrix(0.885437",
+  "210:matrix(0.885437",
+  "227:matrix(0.885437",
+  "244:matrix(0.885437",
+  "260:matrix(0.885437",
+  "277:matrix(0.885437",
+  "294:matrix(0.885437",
+  "310:matrix(0.885437",
+  "327:matrix(0.885437",
+  "344:matrix(0.885437",
+  "360:matrix(0.885437",
+  "377:matrix(0.885437",
+  "394:matrix(0.885437",
+  "410:matrix(0.885437"
+ ],
+ "H2-no-preference": [
+  "11:matrix(0.737864",
+  "26:matrix(0.738075",
+  "37:matrix(0.739357",
+  "60:matrix(0.745865",
+  "78:matrix(0.756411",
+  "116:matrix(0.798207",
+  "148:matrix(0.85215",
+  "161:matrix(0.869163",
+  "197:matrix(0.883866",
+  "227:matrix(0.885437",
+  "238:matrix(0.885437",
+  "255:matrix(0.885437",
+  "270:matrix(0.885437",
+  "287:matrix(0.885437",
+  "303:matrix(0.885437",
+  "320:matrix(0.885437",
+  "337:matrix(0.885437",
+  "353:matrix(0.885437",
+  "370:matrix(0.885437",
+  "387:matrix(0.885437",
+  "403:matrix(0.885437"
+ ]
+}

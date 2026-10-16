@@ -1,38 +1,19 @@
-// The tools island of the home: search (the palette comes with brick 4), arrange the widgets (later), the settings
-// popover, and the user (accounts come with OAuth: the button shows the declared author's initial).
-import { LayoutDashboard, Search, Settings, User } from "lucide-react";
-import { Avatar, Button, IconButton, Island, Popover, Separator, Shortcut } from "../ui";
+// The tools island of the home: the shell's search, settings and user (`shell/ShellTools`), and the home's own
+// "arrange the widgets" (later).
+import { LayoutDashboard } from "lucide-react";
+import { IconButton, Island, Separator } from "../ui";
 import { useText } from "../i18n";
-import { useAuthor } from "../state/author";
-import { PrefsControls } from "../shell/PrefsControls";
-import { usePrefs } from "../shell/usePrefs";
+import { SearchButton, SettingsPopover, UserButton } from "../shell/ShellTools";
 
 export function HomeTools() {
   const t = useText();
-  const { prefs, language, setPrefs } = usePrefs();
-  const ctrlK = [t("ui:keys.ctrl"), "K"];
-  const author = useAuthor();
   return (
     <Island name="tools" layout="bar">
-      <Button icon={<Search />} aria-label={t("shell:search")} tooltip={t("shell:searchSoon")} shortcut={ctrlK.join(" ")} disabled className="home-search">
-        <Shortcut keys={ctrlK} />
-      </Button>
+      <SearchButton />
       <IconButton label={t("home:arrange")} icon={<LayoutDashboard />} disabled disabledReason={t("home:arrangeSoon")} />
-      <Popover
-        name="settings"
-        label={t("shell:settings")}
-        trigger={(props, open) => <IconButton {...props} label={t("shell:settings")} icon={<Settings />} pressed={open} tooltipPlacement="bottom-end" />}
-      >
-        <PrefsControls prefs={prefs} language={language} onChange={setPrefs} />
-      </Popover>
+      <SettingsPopover />
       <Separator />
-      <IconButton
-        label={author || t("home:account")}
-        icon={author ? <Avatar name={author} /> : <User />}
-        disabled
-        disabledReason={t("home:accountSoon")}
-        tooltipPlacement="bottom-end"
-      />
+      <UserButton />
     </Island>
   );
 }

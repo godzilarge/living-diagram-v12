@@ -13,11 +13,12 @@
   padding: calc(var(--island-padding) - 1px);
 }
 
+/* 4 px before the first tab (its own 12 px padding brings its words to 16), 8 px after the last control */
 .ui-island-strip {
   display: inline-flex;
   align-items: stretch;
   gap: var(--space-sm);
-  padding: 0 calc(var(--island-padding) - 1px);
+  padding: 0 calc(var(--island-padding) - 1px) 0 calc(var(--space-xs) - 1px);
 }
 
 .ui-island-panel {

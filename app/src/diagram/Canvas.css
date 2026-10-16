@@ -1,0 +1,40 @@
+/* The v1 canvas inside the v2 shell: its own tokens, fonts and styles (cards, cables, groups, annotations, code blocks,
+   hover bubble, minimap), imported before the shell's cascade refines them. The map's ground and its grid are the
+   shell's (DESIGN.md: paper is the canvas; the grid is quiet, one step under the line); the drawing is the v1's. The
+   v1 tokens set `color-scheme` on `:root`; the shell's tokens, imported first in `base.css`, win on `[data-theme]`. */
+@import "@xyflow/react/dist/base.css";
+@import "@engine/app/styles/tokens.css";
+@import "@engine/app/styles/fonts.css";
+@import "@engine/app/styles/canvas.css";
+@import "@engine/app/styles/flow.css";
+@import "@engine/app/styles/app.css";
+@import "@engine/app/styles/guides.css";
+@import "@engine/app/styles/code.css";
+
+.diagram-canvas {
+  position: absolute;
+  inset: 0;
+  background: var(--color-canvas);
+}
+
+/* the shell's grid (DESIGN.md, Colors: Grid): dots fixed on the screen, whatever the zoom; the plan grid is edit mode's */
+.diagram-canvas[data-grid] {
+  background-image: radial-gradient(circle at var(--grid-dot) var(--grid-dot), var(--color-grid) var(--grid-dot), transparent calc(var(--grid-dot) + 0.4px));
+  background-size: var(--grid-step) var(--grid-step);
+}
+
+.diagram-canvas .flow-host,
+.diagram-canvas .flow-host .react-flow {
+  background: transparent;
+}
+
+/* the minimap is an island above the canvas controls: 16 px from the left edge, 12 px above the controls island */
+.diagram-canvas .flow-host .react-flow__minimap.react-flow__panel {
+  margin: 0 0 calc(var(--space-lg) + var(--control-height) + 2 * var(--island-padding) + var(--space-md)) var(--space-lg);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-surface);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-island);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

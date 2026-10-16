@@ -1,0 +1,24 @@
+/* The token form: the sentence, then the field and Connect on one row (the field's message under it). */
+.shell-token {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-bottom: var(--space-sm);
+}
+
+.shell-token-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+/* 280 px: a token of about forty characters shows whole; no token field in the mockup to measure */
+.shell-token-field .ui-field-input {
+  width: 280px;
+}
+
+/* a sentence in place of the data, in ink-3 (the home's note) */
+.shell-note {
+  margin: 0 0 var(--space-xs);
+  color: var(--color-ink-3);
+}

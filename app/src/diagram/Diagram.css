@@ -1,0 +1,110 @@
+/* The diagram page (design/comps/shell/index.html): the map fills the window, the islands float over it, 16 px from
+   the edges and 12 px from each other; the top row starts at 16 px, the bottom islands sit 16 px above the edge. The
+   canvas is its own stacking context, under every island. */
+.diagram {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-canvas);
+}
+
+.diagram > .diagram-canvas {
+  z-index: 0;
+}
+
+.diagram-top {
+  position: absolute;
+  top: var(--space-lg);
+  z-index: 1;
+  display: flex;
+  gap: var(--space-md);
+}
+
+.diagram-top-start {
+  left: var(--space-lg);
+}
+
+.diagram-top-end {
+  right: var(--space-lg);
+}
+
+.diagram-state {
+  position: absolute;
+  z-index: 1;
+}
+
+/* the bottom row: the controls at the start, the band at the end, 12 px between them at least; the band gives way
+   (its runs scroll inside) before the two islands could meet; the row itself lets the pointer through */
+.diagram-bottom {
+  position: absolute;
+  left: var(--space-lg);
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+  pointer-events: none;
+}
+
+.diagram-bottom > * {
+  pointer-events: auto;
+}
+
+.diagram-controls {
+  flex: none;
+}
+
+.diagram-runs {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* in place of the canvas: a compact panel at the centre of the map */
+.diagram-state {
+  top: 50%;
+  left: 50%;
+  width: var(--panel-width);
+  transform: translate(-50%, -50%);
+}
+
+.diagram-sentence {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* the diff summary and its separator: one piece of the context island, folded away under 1200 px */
+.diagram-diff {
+  display: contents;
+}
+
+@media (max-width: 1199px) {
+  .diagram-diff {
+    display: none;
+  }
+}
+
+/* the layers: 36 px words at 600 (the mockup's `.layers .btn`), side by side; a layer not ready is ink-4 at 500 */
+.diagram-layers {
+  display: flex;
+  align-items: center;
+}
+
+.diagram-layers .ui-control {
+  width: var(--layer-choice-width);
+  padding: 0;
+  font-weight: var(--text-headline-weight);
+}
+
+.diagram-layers .ui-control[aria-disabled="true"] {
+  font-weight: var(--text-label-weight);
+}
+
+/* the zoom as a word: 52 px, tabular figures, so the island never changes width as the zoom moves */
+.diagram-zoom {
+  width: var(--zoom-word-width);
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}

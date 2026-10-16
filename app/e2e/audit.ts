@@ -84,8 +84,9 @@ export function audit(limits: { edge: number; gap: number; contrast: number; too
     return [...edgeFlags(own, limits.edge), ...over, ...(trigger ? [] : [`${own.name}: no trigger names it (aria-controls)`])];
   });
 
-  // tooltips: one computed style, and the edge distance
-  const tips = [...document.querySelectorAll('[role="tooltip"]')];
+  // tooltips: one computed style, and the edge distance; a tooltip not rendered (the canvas's hover bubble at rest,
+  // an SVG kept hidden) is not measured
+  const tips = [...document.querySelectorAll('[role="tooltip"]')].filter(visible);
   const styleOf = (el: Element) => {
     const cs = getComputedStyle(el);
     return [cs.backgroundColor, cs.color, cs.fontFamily, cs.fontSize, cs.fontWeight, cs.lineHeight, cs.borderRadius, cs.paddingTop, cs.paddingLeft, cs.boxShadow, cs.outlineColor, cs.outlineWidth, cs.letterSpacing, cs.height].join(" | ");

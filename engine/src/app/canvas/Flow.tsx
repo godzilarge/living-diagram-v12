@@ -136,6 +136,8 @@ export interface FlowProps {
   onClone: (items: Item[], d: Point) => void;
   /** Ce qui se pose par-dessus la toile, en coordonnées d'écran, avec accès à sa vue (la barre contextuelle). */
   children?: ReactNode;
+  /** La vue a bougé (ou vient d'être posée) : la coquille v2 lit le zoom pour l'écrire (« 62 % »). Facultatif, sans effet sur le dessin. */
+  onView?: (view: Viewport) => void;
 }
 export function Flow(props: FlowProps) {
   return (
@@ -145,7 +147,7 @@ export function Flow(props: FlowProps) {
   );
 }
 
-function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel, onConnectorCreate, onContext, editRequest, toolArmed, onToolDone, onClone, children }: FlowProps) {
+function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel, onConnectorCreate, onContext, editRequest, toolArmed, onToolDone, onClone, children, onView }: FlowProps) {
   const rf = useReactFlow<FlowNode, FlowEdge>();
   const store = useStoreApi<FlowNode, FlowEdge>();
   const container = useRef<HTMLDivElement>(null);
@@ -458,7 +460,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
     if (edge.type === "cable") { const link = (edge.data as CableData).link; showTip("link:" + link.id, () => linkLines(model, link, { control: toile.state.control }), event); }
     else if (edge.type !== "speed") { const beam = (edge.data as BeamData).beam; showTip("beam:" + beam.id, () => beamLines(beam, { control: toile.state.control }), event); }
   }, [toile, showTip]);
-  const onMove = useCallback((_event: unknown, view: Viewport): void => setZoom(view.zoom), []);
+  const onMove = useCallback((_event: unknown, view: Viewport): void => { setZoom(view.zoom); if (onView) onView(view); }, [onView]);
   // Le clic droit (Orhan, 2026-10-09) : un menu contextuel selon ce qu'il vise ; les annotations et les connecteurs
   // gèrent le leur (cellule visée), les autres nœuds, la sélection multiple et le fond passent par ici.
   const context = useCallback((event: ReactMouseEvent | MouseEvent, target: ContextTarget): void => {
@@ -479,7 +481,7 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
   }, [context]);
   // Ce qui garde sa taille d'écran quel que soit le zoom (la liste d'un stack, comme la bulle) lit l'inverse du zoom.
   useEffect(() => { const el = container.current; if (el) el.style.setProperty("--unzoom", String(1 / Math.max(zoom, MIN_ZOOM))); }, [zoom]);
-  const onInit = useCallback((): void => toile.open(), [toile]);
+  const onInit = useCallback((): void => { toile.open(); if (onView) onView(rf.getViewport()); }, [toile, rf, onView]);
   useViewGestures(container, rf, MIN_ZOOM, MAX_ZOOM);
 
   const control = toile.state.control;

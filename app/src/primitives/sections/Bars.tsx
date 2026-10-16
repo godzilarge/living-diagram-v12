@@ -2,11 +2,43 @@
 // layers strip, the tools, the canvas controls. Their controls must share one height, one centre line, two gaps.
 import { Download, GitCompare, Grid3x3, Map as MapIcon, Maximize, Pencil, Search, Settings, ZoomIn, ZoomOut } from "lucide-react";
 import { useState } from "react";
-import { Button, IconButton, Island, LogoMark, Rail, Select, Separator, Shortcut } from "../../ui";
+import { Button, IconButton, Island, LogoMark, Rail, RunBand, Select, Separator, Shortcut } from "../../ui";
 import { useText } from "../../i18n";
 import { INFRASTRUCTURES } from "../sample";
 import { Row, Section } from "../Specimen";
-import { useRuns } from "./runs";
+import { useBandRuns, useRuns } from "./runs";
+
+/** The run band: three runs, the last current and the one before it compared; opening a run compares it with the one
+ *  before it, as the diagram does. */
+function Band() {
+  const t = useText();
+  const band = useBandRuns();
+  const [shown, setShown] = useState(band[band.length - 1].id);
+  const [from, setFrom] = useState(band[band.length - 2].id);
+  const bandItems = band.map((item) => ({ ...item, current: item.id === shown, compared: item.id === from }));
+  const earlier = bandItems.slice(0, bandItems.findIndex((item) => item.current)).reverse();
+  return (
+    <RunBand
+      name="runs"
+      label={t("diagram:band.label")}
+      comparedLabel={t("diagram:band.compared")}
+      items={bandItems}
+      onOpen={(id) => {
+        const at = band.findIndex((item) => item.id === id);
+        setShown(id);
+        setFrom(at > 0 ? band[at - 1].id : "");
+      }}
+      compare={{
+        label: t("diagram:band.compareLabel"),
+        triggerLabel: t("diagram:band.compareWith"),
+        options: [{ value: "", label: t("diagram:band.none") }, ...earlier.map((item) => ({ value: item.id, label: item.label }))],
+        value: from,
+        onChange: setFrom,
+        disabled: earlier.length === 0,
+      }}
+    />
+  );
+}
 
 export function Bars() {
   const t = useText();
@@ -72,6 +104,9 @@ export function Bars() {
           <Separator />
           <IconButton label={t("primitives:bars.edit")} icon={<Pencil />} pressed={edit} onClick={() => setEdit(!edit)} shortcut="E" />
         </Island>
+      </Row>
+      <Row>
+        <Band />
       </Row>
     </Section>
   );

@@ -21,6 +21,8 @@ export { Popover } from "./Popover";
 export type { TriggerProps } from "./Popover";
 export { Rail } from "./Rail";
 export type { RailItem } from "./Rail";
+export { RunBand } from "./RunBand";
+export type { RunBandCompare, RunBandItem } from "./RunBand";
 export { Scrim } from "./Scrim";
 export { Segmented } from "./Segmented";
 export type { SegmentedOption } from "./Segmented";
