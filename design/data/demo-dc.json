@@ -1,0 +1,3244 @@
+{
+ "infrastructure": "demo-dc",
+ "diff_detail": {
+  "summary": {
+   "nodes": {
+    "added": 2,
+    "removed": 0,
+    "changed": 4
+   },
+   "interfaces": {
+    "added": 41,
+    "removed": 22,
+    "changed": 14
+   },
+   "links": {
+    "added": 2,
+    "removed": 1,
+    "changed": 9
+   },
+   "aggregates": {
+    "added": 2,
+    "removed": 2,
+    "changed": 6
+   },
+   "mlag_domains": {
+    "added": 0,
+    "removed": 0,
+    "changed": 0
+   },
+   "ha_clusters": {
+    "added": 0,
+    "removed": 1,
+    "changed": 1
+   },
+   "checks": {
+    "appeared": 15,
+    "resolved": 8,
+    "persisted": 79
+   },
+   "coverage": {
+    "changed": 4
+   },
+   "events": {
+    "rebooted": 0,
+    "flapped": 0
+   },
+   "volatile_changes": 279
+  },
+  "changed_devices": [
+   {
+    "hostname": "dc01-acc-07",
+    "fields": [
+     {
+      "path": "collection",
+      "before": "unreachable",
+      "after": "success"
+     }
+    ]
+   },
+   {
+    "hostname": "dc01-fw-01",
+    "fields": [
+     {
+      "path": "collection",
+      "before": "success",
+      "after": "unreachable"
+     }
+    ]
+   },
+   {
+    "hostname": "dc01-fw-02",
+    "fields": [
+     {
+      "path": "collection",
+      "before": "success",
+      "after": "unreachable"
+     }
+    ]
+   },
+   {
+    "hostname": "dc02-fw-02",
+    "fields": [
+     {
+      "path": "collection",
+      "before": "unreachable",
+      "after": "success"
+     }
+    ]
+   }
+  ],
+  "removed_cables": [
+   {
+    "a": {
+     "hostname": "dc01-fw-01",
+     "interface": "ha1"
+    },
+    "b": {
+     "hostname": "dc01-fw-02",
+     "interface": "ha1"
+    },
+    "status": "documented_only"
+   }
+  ],
+  "added_cables_to_hidden_stubs": 2,
+  "degraded_aggregates": [
+   {
+    "hostname": "dc01-core-01",
+    "name": "port-channel20"
+   },
+   {
+    "hostname": "dc01-core-01",
+    "name": "port-channel21"
+   },
+   {
+    "hostname": "dc01-core-02",
+    "name": "port-channel20"
+   },
+   {
+    "hostname": "dc01-core-02",
+    "name": "port-channel21"
+   }
+  ],
+  "checks": {
+   "appeared": 15,
+   "resolved": 8,
+   "persisted": 79
+  }
+ },
+ "runs": [
+  {
+   "id": "b835eac0a9329f863a3317a9",
+   "start": "2026-01-05T02:00:00Z",
+   "status": "completed"
+  },
+  {
+   "id": "701f3378d37c9c13acd8b104",
+   "start": "2026-01-12T02:00:00Z",
+   "status": "completed"
+  },
+  {
+   "id": "805d6f2e191320f663ba39b6",
+   "start": "2026-01-19T02:00:00Z",
+   "status": "completed"
+  }
+ ],
+ "current_run": "805d6f2e191320f663ba39b6",
+ "compared_run": "701f3378d37c9c13acd8b104",
+ "counts": {
+  "devices": 32,
+  "cables": 61,
+  "stubs_hidden": 34,
+  "checks": {
+   "error": 6,
+   "warning": 21,
+   "info": 67
+  }
+ },
+ "diff": {
+  "added_devices": [
+   "dc01-acc-07",
+   "dc01-fw-01",
+   "dc01-fw-02",
+   "dc02-fw-02"
+  ],
+  "removed_devices": [],
+  "added_cables": 9,
+  "removed_cables": [
+   {
+    "a": {
+     "hostname": "dc01-fw-01",
+     "interface": "ha1"
+    },
+    "b": {
+     "hostname": "dc01-fw-02",
+     "interface": "ha1"
+    }
+   }
+  ],
+  "changed": 0
+ },
+ "nodes": [
+  {
+   "hostname": "dc01-acc-01",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -154,
+   "y": -627,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 3
+   }
+  },
+  {
+   "hostname": "dc01-acc-02",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": 10,
+   "y": -543,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 4
+   }
+  },
+  {
+   "hostname": "dc01-acc-03",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -446,
+   "y": -307,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 12,
+    "info": 6
+   }
+  },
+  {
+   "hostname": "dc01-acc-04",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": -430,
+   "y": -200,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 3
+   }
+  },
+  {
+   "hostname": "dc01-acc-05",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": -372,
+   "y": -404,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 4,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc01-acc-06",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": 47,
+   "y": -434,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc01-acc-07",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -292,
+   "y": -562,
+   "cables": 2,
+   "diff": "changed",
+   "checks": {
+    "error": 0,
+    "warning": 1,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc01-acc-08",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": -120,
+   "y": -514,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 3
+   }
+  },
+  {
+   "hostname": "dc01-acc-09",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -57,
+   "y": -202,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 1
+   }
+  },
+  {
+   "hostname": "dc01-acc-10",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": -322,
+   "y": -185,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc01-core-01",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "N9K-C93180YC-FX",
+   "os": "NX-OS 10.4.2",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -174,
+   "y": -349,
+   "cables": 16,
+   "diff": null,
+   "checks": {
+    "error": 2,
+    "warning": 5,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc01-core-02",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "N9K-C93180YC-FX",
+   "os": "NX-OS 10.4.2",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -187,
+   "y": -307,
+   "cables": 16,
+   "diff": null,
+   "checks": {
+    "error": 2,
+    "warning": 4,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc01-fw-01",
+   "kind": "device",
+   "type": "firewall",
+   "vendor": "fortinet",
+   "model": "FGT-600F",
+   "os": "FortiOS 7.4.5",
+   "site": "dc01",
+   "collection": "unreachable",
+   "stack_members": null,
+   "ha": null,
+   "x": 64,
+   "y": -257,
+   "cables": 2,
+   "diff": "changed",
+   "checks": {
+    "error": 1,
+    "warning": 0,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc01-fw-02",
+   "kind": "device",
+   "type": "firewall",
+   "vendor": "fortinet",
+   "model": "FGT-600F",
+   "os": "FortiOS 7.4.5",
+   "site": "dc01",
+   "collection": "unreachable",
+   "stack_members": null,
+   "ha": null,
+   "x": 91,
+   "y": -343,
+   "cables": 2,
+   "diff": "changed",
+   "checks": {
+    "error": 1,
+    "warning": 0,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc01-rt-01",
+   "kind": "device",
+   "type": "router",
+   "vendor": "cisco",
+   "model": "ASR1001-X",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -452,
+   "y": -503,
+   "cables": 3,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 0
+   }
+  },
+  {
+   "hostname": "dc02-acc-01",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -234,
+   "y": 317,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 4
+   }
+  },
+  {
+   "hostname": "dc02-acc-02",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": -373,
+   "y": 196,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 4,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc02-acc-03",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": 35,
+   "y": 298,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc02-acc-04",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -47,
+   "y": 441,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc02-acc-05",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": 160,
+   "y": 245,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 3
+   }
+  },
+  {
+   "hostname": "dc02-acc-06",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": 42,
+   "y": -12,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 4,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc02-acc-07",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": 113,
+   "y": 86,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 6
+   }
+  },
+  {
+   "hostname": "dc02-acc-08",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": 2,
+   "ha": null,
+   "x": -177,
+   "y": 430,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 3
+   }
+  },
+  {
+   "hostname": "dc02-acc-09",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": 100,
+   "y": 390,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 4,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc02-acc-10",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "C9300-24P",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -343,
+   "y": 320,
+   "cables": 2,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 4,
+    "info": 4
+   }
+  },
+  {
+   "hostname": "dc02-core-01",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "N9K-C93180YC-FX",
+   "os": "NX-OS 10.4.2",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -86,
+   "y": 141,
+   "cables": 16,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc02-core-02",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "N9K-C93180YC-FX",
+   "os": "NX-OS 10.4.2",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -98,
+   "y": 186,
+   "cables": 16,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 2
+   }
+  },
+  {
+   "hostname": "dc02-fw-01",
+   "kind": "device",
+   "type": "firewall",
+   "vendor": "fortinet",
+   "model": "FGT-600F",
+   "os": "FortiOS 7.4.5",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": {
+    "role": "primary",
+    "state": "up",
+    "cluster": "DC02-EDGE"
+   },
+   "x": -256,
+   "y": 47,
+   "cables": 3,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 3
+   }
+  },
+  {
+   "hostname": "dc02-fw-02",
+   "kind": "device",
+   "type": "firewall",
+   "vendor": "fortinet",
+   "model": "FGT-600F",
+   "os": "FortiOS 7.4.5",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": {
+    "role": "secondary",
+    "state": "up",
+    "cluster": "DC02-EDGE"
+   },
+   "x": -323,
+   "y": 106,
+   "cables": 3,
+   "diff": "changed",
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 3
+   }
+  },
+  {
+   "hostname": "dc02-rt-01",
+   "kind": "device",
+   "type": "router",
+   "vendor": "cisco",
+   "model": "ASR1001-X",
+   "os": "IOS-XE 17.9.4a",
+   "site": "dc02",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": 228,
+   "y": 109,
+   "cables": 3,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 0
+   }
+  },
+  {
+   "hostname": "dc01-pe-01",
+   "kind": "external",
+   "type": "router",
+   "vendor": "cisco",
+   "model": "ASR-9001",
+   "os": "IOS-XR 7.9.2",
+   "site": "dc01",
+   "collection": null,
+   "stack_members": null,
+   "ha": null,
+   "x": -660,
+   "y": -650,
+   "cables": 1,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 0
+   }
+  },
+  {
+   "hostname": "dc02-pe-01",
+   "kind": "external",
+   "type": "router",
+   "vendor": "cisco",
+   "model": "ASR-9001",
+   "os": "IOS-XR 7.9.2",
+   "site": "dc02",
+   "collection": null,
+   "stack_members": null,
+   "ha": null,
+   "x": 475,
+   "y": 46,
+   "cables": 1,
+   "diff": null,
+   "checks": {
+    "error": 0,
+    "warning": 0,
+    "info": 0
+   }
+  }
+ ],
+ "links": [
+  {
+   "a": {
+    "hostname": "dc01-acc-01",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/1"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel101",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-01",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/1"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel101",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-02",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/2"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel102",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-02",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/2"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel102",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-03",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/3"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel103",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-03",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/3"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel103",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-04",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/4"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel104",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-04",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/4"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel104",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-05",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/5"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel105",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-05",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/5"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel105",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-06",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/6"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel106",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-06",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/6"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel106",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-07",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/7"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": null,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel107",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-07",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/7"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel107",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-08",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/8"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel108",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-08",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/8"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel108",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-09",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/9"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel109",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-09",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/9"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel109",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-10",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/10"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel110",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-acc-10",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/10"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel110",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/41"
+   },
+   "b": {
+    "hostname": "dc01-fw-01",
+    "interface": "x1"
+   },
+   "status": "documented_only",
+   "oper": "unknown",
+   "speed_mbps": null,
+   "aggregate_a": "port-channel20",
+   "aggregate_b": null,
+   "sources": [
+    "description"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/42"
+   },
+   "b": {
+    "hostname": "dc01-fw-02",
+    "interface": "x1"
+   },
+   "status": "documented_only",
+   "oper": "unknown",
+   "speed_mbps": null,
+   "aggregate_a": "port-channel21",
+   "aggregate_b": null,
+   "sources": [
+    "description"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/43"
+   },
+   "b": {
+    "hostname": "dc01-rt-01",
+    "interface": "GigabitEthernet0/0/0"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 1000,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/49"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/49"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 100000,
+   "aggregate_a": "port-channel10",
+   "aggregate_b": "port-channel10",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/50"
+   },
+   "b": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/50"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 100000,
+   "aggregate_a": "port-channel10",
+   "aggregate_b": "port-channel10",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-01",
+    "interface": "Ethernet1/54"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/53"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 100000,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/41"
+   },
+   "b": {
+    "hostname": "dc01-fw-01",
+    "interface": "x2"
+   },
+   "status": "documented_only",
+   "oper": "unknown",
+   "speed_mbps": null,
+   "aggregate_a": "port-channel20",
+   "aggregate_b": null,
+   "sources": [
+    "description"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/42"
+   },
+   "b": {
+    "hostname": "dc01-fw-02",
+    "interface": "x2"
+   },
+   "status": "documented_only",
+   "oper": "unknown",
+   "speed_mbps": null,
+   "aggregate_a": "port-channel21",
+   "aggregate_b": null,
+   "sources": [
+    "description"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/43"
+   },
+   "b": {
+    "hostname": "dc01-rt-01",
+    "interface": "GigabitEthernet0/0/1"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 1000,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-core-02",
+    "interface": "Ethernet1/54"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/53"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 100000,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc01-pe-01",
+    "interface": "GigabitEthernet0/0/0/1"
+   },
+   "b": {
+    "hostname": "dc01-rt-01",
+    "interface": "GigabitEthernet0/0/2"
+   },
+   "status": "confirmed",
+   "oper": "unknown",
+   "speed_mbps": null,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-01",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/1"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel101",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-01",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/1"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel101",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-02",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/2"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel102",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-02",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/2"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel102",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-03",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/3"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel103",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-03",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/3"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel103",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-04",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/4"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel104",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-04",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/4"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel104",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-05",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/5"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel105",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-05",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/5"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel105",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-06",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/6"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel106",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-06",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/6"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel106",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-07",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/7"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel107",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-07",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/7"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel107",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-08",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/8"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel108",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-08",
+    "interface": "TenGigabitEthernet2/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/8"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel108",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-09",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/9"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel109",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-09",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/9"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel109",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-10",
+    "interface": "TenGigabitEthernet1/1/1"
+   },
+   "b": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/10"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel110",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-acc-10",
+    "interface": "TenGigabitEthernet1/1/2"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/10"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "Port-channel1",
+   "aggregate_b": "port-channel110",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/41"
+   },
+   "b": {
+    "hostname": "dc02-fw-01",
+    "interface": "x1"
+   },
+   "status": "documented_only",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "port-channel20",
+   "aggregate_b": "agg-core",
+   "sources": [
+    "description"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/42"
+   },
+   "b": {
+    "hostname": "dc02-fw-02",
+    "interface": "x1"
+   },
+   "status": "documented_only",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "port-channel21",
+   "aggregate_b": "agg-core",
+   "sources": [
+    "description"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/43"
+   },
+   "b": {
+    "hostname": "dc02-rt-01",
+    "interface": "GigabitEthernet0/0/0"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 1000,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/49"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/49"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 100000,
+   "aggregate_a": "port-channel10",
+   "aggregate_b": "port-channel10",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-core-01",
+    "interface": "Ethernet1/50"
+   },
+   "b": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/50"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 100000,
+   "aggregate_a": "port-channel10",
+   "aggregate_b": "port-channel10",
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/41"
+   },
+   "b": {
+    "hostname": "dc02-fw-01",
+    "interface": "x2"
+   },
+   "status": "documented_only",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "port-channel20",
+   "aggregate_b": "agg-core",
+   "sources": [
+    "description"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/42"
+   },
+   "b": {
+    "hostname": "dc02-fw-02",
+    "interface": "x2"
+   },
+   "status": "documented_only",
+   "oper": "up",
+   "speed_mbps": 10000,
+   "aggregate_a": "port-channel21",
+   "aggregate_b": "agg-core",
+   "sources": [
+    "description"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc02-core-02",
+    "interface": "Ethernet1/43"
+   },
+   "b": {
+    "hostname": "dc02-rt-01",
+    "interface": "GigabitEthernet0/0/1"
+   },
+   "status": "confirmed",
+   "oper": "up",
+   "speed_mbps": 1000,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  },
+  {
+   "a": {
+    "hostname": "dc02-fw-01",
+    "interface": "ha1"
+   },
+   "b": {
+    "hostname": "dc02-fw-02",
+    "interface": "ha1"
+   },
+   "status": "documented_only",
+   "oper": "up",
+   "speed_mbps": 1000,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "description"
+   ],
+   "diff": "changed"
+  },
+  {
+   "a": {
+    "hostname": "dc02-pe-01",
+    "interface": "GigabitEthernet0/0/0/1"
+   },
+   "b": {
+    "hostname": "dc02-rt-01",
+    "interface": "GigabitEthernet0/0/2"
+   },
+   "status": "confirmed",
+   "oper": "unknown",
+   "speed_mbps": null,
+   "aggregate_a": null,
+   "aggregate_b": null,
+   "sources": [
+    "cdp",
+    "description",
+    "lldp"
+   ],
+   "diff": null
+  }
+ ],
+ "ha_clusters": [
+  {
+   "name": "DC02-EDGE",
+   "mode": "active_passive",
+   "members": [
+    "dc02-fw-01",
+    "dc02-fw-02"
+   ]
+  }
+ ],
+ "mlag_domains": [
+  {
+   "id": 20,
+   "members": [
+    "dc01-core-01",
+    "dc01-core-02"
+   ]
+  },
+  {
+   "id": 20,
+   "members": [
+    "dc02-core-01",
+    "dc02-core-02"
+   ]
+  },
+  {
+   "id": 21,
+   "members": [
+    "dc01-core-01",
+    "dc01-core-02"
+   ]
+  },
+  {
+   "id": 21,
+   "members": [
+    "dc02-core-01",
+    "dc02-core-02"
+   ]
+  }
+ ],
+ "selected": {
+  "hostname": "dc01-core-01",
+  "node": {
+   "hostname": "dc01-core-01",
+   "kind": "device",
+   "type": "switch",
+   "vendor": "cisco",
+   "model": "N9K-C93180YC-FX",
+   "os": "NX-OS 10.4.2",
+   "site": "dc01",
+   "collection": "success",
+   "stack_members": null,
+   "ha": null,
+   "x": -174,
+   "y": -349,
+   "cables": 16,
+   "diff": null,
+   "checks": {
+    "error": 2,
+    "warning": 5,
+    "info": 2
+   }
+  },
+  "interfaces": [
+   {
+    "name": "Ethernet1/1",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-01|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel101"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-01",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/2",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-02|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel102"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-02",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/3",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-03|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel103"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-03",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/4",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-04|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel104"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-04",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/5",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-05|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel105"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-05",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/6",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-06|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel106"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-06",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/7",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-07|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel107"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-07",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/8",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-08|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel108"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-08",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/9",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-09|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel109"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-09",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/10",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 10000,
+    "duplex": "full",
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-acc-10|TenGigabitEthernet1/1/1|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel110"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-acc-10",
+     "interface": "TenGigabitEthernet1/1/1",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/11",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/12",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/13",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/14",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/15",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/16",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/17",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/18",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/19",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/20",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/21",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/22",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/23",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/24",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/25",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/26",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/27",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/28",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/29",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/30",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/31",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/32",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/33",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/34",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/35",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/36",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/37",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/38",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/39",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/40",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/41",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-fw-01|x1|",
+    "aggregate": {
+     "member_status": "down",
+     "name": "port-channel20"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-fw-01",
+     "interface": "x1",
+     "status": "documented_only"
+    }
+   },
+   {
+    "name": "Ethernet1/42",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": "10Gbase-SR",
+    "description": "C1|dc01-fw-02|x1|",
+    "aggregate": {
+     "member_status": "down",
+     "name": "port-channel21"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-fw-02",
+     "interface": "x1",
+     "status": "documented_only"
+    }
+   },
+   {
+    "name": "Ethernet1/43",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 1000,
+    "duplex": "full",
+    "media": "1000base-T",
+    "description": "C2|dc01-rt-01|GigabitEthernet0/0/0|",
+    "aggregate": null,
+    "mode": "routed",
+    "neighbor": {
+     "hostname": "dc01-rt-01",
+     "interface": "GigabitEthernet0/0/0",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/44",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/45",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/46",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/47",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/48",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/49",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 100000,
+    "duplex": "full",
+    "media": "100Gbase-SR4",
+    "description": "C1|dc01-core-02|Ethernet1/49|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel10"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-core-02",
+     "interface": "Ethernet1/49",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/50",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 100000,
+    "duplex": "full",
+    "media": "100Gbase-SR4",
+    "description": "C1|dc01-core-02|Ethernet1/50|",
+    "aggregate": {
+     "member_status": "bundled",
+     "name": "port-channel10"
+    },
+    "mode": "trunk",
+    "neighbor": {
+     "hostname": "dc01-core-02",
+     "interface": "Ethernet1/50",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "Ethernet1/51",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/52",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/53",
+    "type": "physical",
+    "admin": "up",
+    "oper": "down",
+    "oper_reason": "Link not connected",
+    "speed_mbps": null,
+    "duplex": null,
+    "media": null,
+    "description": null,
+    "aggregate": null,
+    "mode": "access",
+    "neighbor": null
+   },
+   {
+    "name": "Ethernet1/54",
+    "type": "physical",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 100000,
+    "duplex": "full",
+    "media": "100Gbase-LR4",
+    "description": "C1|dc02-core-01|Ethernet1/53|",
+    "aggregate": null,
+    "mode": "routed",
+    "neighbor": {
+     "hostname": "dc02-core-01",
+     "interface": "Ethernet1/53",
+     "status": "confirmed"
+    }
+   },
+   {
+    "name": "mgmt0",
+    "type": "management",
+    "admin": "up",
+    "oper": "up",
+    "oper_reason": null,
+    "speed_mbps": 1000,
+    "duplex": "full",
+    "media": "1000base-T",
+    "description": null,
+    "aggregate": null,
+    "mode": "routed",
+    "neighbor": null
+   }
+  ],
+  "aggregates": [
+   {
+    "name": "port-channel10",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/49",
+     "Ethernet1/50"
+    ],
+    "mlag_id": null,
+    "peer_link": true
+   },
+   {
+    "name": "port-channel20",
+    "protocol": "lacp",
+    "oper": "down",
+    "members": [
+     "Ethernet1/41"
+    ],
+    "mlag_id": 20,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel21",
+    "protocol": "lacp",
+    "oper": "down",
+    "members": [
+     "Ethernet1/42"
+    ],
+    "mlag_id": 21,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel101",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/1"
+    ],
+    "mlag_id": 101,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel102",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/2"
+    ],
+    "mlag_id": 102,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel103",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/3"
+    ],
+    "mlag_id": 103,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel104",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/4"
+    ],
+    "mlag_id": 104,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel105",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/5"
+    ],
+    "mlag_id": 105,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel106",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/6"
+    ],
+    "mlag_id": 106,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel107",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/7"
+    ],
+    "mlag_id": 107,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel108",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/8"
+    ],
+    "mlag_id": 108,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel109",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/9"
+    ],
+    "mlag_id": 109,
+    "peer_link": false
+   },
+   {
+    "name": "port-channel110",
+    "protocol": "lacp",
+    "oper": "up",
+    "members": [
+     "Ethernet1/10"
+    ],
+    "mlag_id": 110,
+    "peer_link": false
+   }
+  ],
+  "checks": [
+   {
+    "code": "aggregate_below_min_links",
+    "severity": "error"
+   },
+   {
+    "code": "aggregate_below_min_links",
+    "severity": "error"
+   },
+   {
+    "code": "aggregate_member_not_bundled",
+    "severity": "warning"
+   },
+   {
+    "code": "aggregate_member_not_bundled",
+    "severity": "warning"
+   },
+   {
+    "code": "documented_not_observed",
+    "severity": "info"
+   },
+   {
+    "code": "documented_not_observed",
+    "severity": "info"
+   },
+   {
+    "code": "link_speed_mismatch",
+    "severity": "warning"
+   }
+  ]
+ },
+ "bbox": {
+  "x": [
+   -660,
+   475
+  ],
+  "y": [
+   -650,
+   441
+  ]
+ },
+ "note": "Synthetic data from ld-contracts generate. Positions come from the memorized placement (plan units, y grows downward)."
+}
