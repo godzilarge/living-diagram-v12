@@ -108,21 +108,21 @@ test("the band opens a collection compared with the one before it; the arrows wa
   await expect.poll(() => address(page)).toBe("?infrastructure=demo-dc&run_id=demo-0105");
 });
 
-test("the canvas controls: the zoom as a word, back to 100 %, the grid and the overview stored, the keys", async ({ page }) => {
+test("the canvas controls: the zoom as a word, back to 100%, the grid and the overview stored, the keys", async ({ page }) => {
   await mockApi(page);
   await open(page, AT_REST, LIGHT, { token: TOKEN });
   await drawn(page);
-  const percent = page.getByRole("button", { name: /\d+ %$/ });
+  const percent = page.getByRole("button", { name: /\d+%$/ });
   const before = Number.parseInt((await percent.textContent()) ?? "0", 10);
   expect(before).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Zoom in" }).click();
   await expect.poll(async () => Number.parseInt((await percent.textContent()) ?? "0", 10)).toBeGreaterThan(before);
   await percent.click();
-  await expect(percent).toHaveText("100 %");
+  await expect(percent).toHaveText("100%");
   await page.keyboard.press("-");
   await expect.poll(async () => Number.parseInt((await percent.textContent()) ?? "0", 10)).toBeLessThan(100);
   await page.keyboard.press("0");
-  await expect(percent).toHaveText("100 %");
+  await expect(percent).toHaveText("100%");
   const grid = page.getByRole("button", { name: "Grid" });
   const overview = page.getByRole("button", { name: "Overview" });
   await expect(grid).toHaveAttribute("aria-pressed", "true");
@@ -142,7 +142,7 @@ test("the canvas controls: the zoom as a word, back to 100 %, the grid and the o
   await expect(grid).toHaveAttribute("aria-pressed", "false");
   await page.keyboard.press("Escape");
   await page.keyboard.press("f");
-  await expect(percent).not.toHaveText("100 %");
+  await expect(percent).not.toHaveText("100%");
 });
 
 test("a device clicked is named in the address; Escape lets go; the address names a device the page shows", async ({ page }) => {
@@ -260,7 +260,7 @@ test("Escape closes an open popover and nothing else; the list of collections be
   await open(page, "/next/?infrastructure=demo-dc#mode=control", LIGHT, { token: TOKEN });
   // listing: the collection choice is busy, no controls on an empty map
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveAttribute("aria-busy", "true");
-  await expect(page.getByRole("button", { name: /\d+ %$/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /\d+%$/ })).toHaveCount(0);
   await drawn(page);
   await expect.poll(() => address(page)).toBe("?infrastructure=demo-dc&run_id=demo-0119&from=demo-0112");
   await expect(page.getByRole("tab", { name: "Diagram" })).toHaveAttribute("aria-selected", "true");

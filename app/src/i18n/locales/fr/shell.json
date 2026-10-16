@@ -1,10 +1,9 @@
 {
-  "map": "Diagramme",
   "home": "Living Diagram, accueil",
   "search": "Rechercher",
   "searchEverywhere": "Rechercher partout",
   "export": "Exporter en PNG ou SVG",
-  "exportSoon": "Exporter en PNG ou SVG : en cours",
+  "exportSoon": "Exporter en PNG ou SVG : en cours",
   "settings": "Réglages",
   "prefs": {
     "theme": "Thème",
@@ -24,6 +23,6 @@
     }
   },
   "account": "Compte",
-  "accountSoon": "Comptes : en cours",
+  "accountSoon": "Comptes : en cours",
   "user": "{{author}}, compte et langue"
 }

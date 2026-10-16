@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PREFS, HOME_CHANGES, HOME_RUNS, mergePrefs, parsePrefs } from "../src/prefs";
+import { changedPrefs, DEFAULT_PREFS, HOME_CHANGES, HOME_RUNS, mergePrefs, parsePrefs } from "../src/prefs";
 
 describe("browser preferences", () => {
   it("read tolerantly: anything unknown falls back to the default", () => {
@@ -15,12 +15,21 @@ describe("browser preferences", () => {
     expect(parsePrefs(fromV1)).toEqual({ ...DEFAULT_PREFS, language: "fr", grid: false, minimap: true });
   });
 
-  it("keep the v1's own fields on write, without touching the stored text", () => {
-    const stored = '{"grid":true,"theme":"light"}';
-    const merged = JSON.parse(mergePrefs(stored, { ...DEFAULT_PREFS, theme: "dark", homeRuns: 25 }));
-    expect(merged).toEqual({ grid: true, theme: "dark", accent: "cobalt", language: null, homeRuns: 25, homeChanges: 10, minimap: false, panel: "compact" });
-    expect(stored).toBe('{"grid":true,"theme":"light"}');
+  it("write only what changed: the v1's own fields and every field nobody chose are kept, the stored text untouched", () => {
+    const stored = '{"grid":true,"theme":"light","snap":false}';
+    const changes = changedPrefs(parsePrefs(stored), { ...parsePrefs(stored), theme: "dark", homeRuns: 25 });
+    expect(changes).toEqual({ theme: "dark", homeRuns: 25 });
+    expect(JSON.parse(mergePrefs(stored, changes))).toEqual({ grid: true, theme: "dark", snap: false, homeRuns: 25 });
+    expect(stored).toBe('{"grid":true,"theme":"light","snap":false}');
     expect(Object.isFrozen(parsePrefs(stored))).toBe(true);
+    expect(Object.isFrozen(changes)).toBe(true);
+    expect(changedPrefs(DEFAULT_PREFS, DEFAULT_PREFS)).toEqual({});
+  });
+
+  it("a language chosen alone never writes the v2's defaults over the v1's (its theme is dark, its grid off, its minimap on)", () => {
+    const stored = null;
+    const changes = changedPrefs(parsePrefs(stored), { ...parsePrefs(stored), language: "fr" });
+    expect(JSON.parse(mergePrefs(stored, changes))).toEqual({ language: "fr" });
   });
 
   it("read the rows of two home widgets tolerantly: a value outside the choices, a text or a fraction gives the default", () => {

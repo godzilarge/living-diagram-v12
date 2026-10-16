@@ -73,7 +73,7 @@
   transition: transform var(--motion-rail) var(--motion-ease);
 }
 
-.ui-rail:is([aria-pressed="true"], [aria-current="true"], [aria-current="page"], [aria-selected="true"])::after {
+.ui-rail:is([aria-pressed="true"], [aria-current="true"], [aria-current="page"], [aria-selected="true"], [aria-expanded="true"])::after {
   transform: scaleX(1);
 }
 

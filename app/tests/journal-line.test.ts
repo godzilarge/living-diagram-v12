@@ -60,10 +60,10 @@ describe("journal line", () => {
 
   it("names a group by its label as the server replayed it", () => {
     const created = entry([{ op: "group_create", label: "Core", members: ["a"] }], { created: ["g4-1"], subjects: [{ id: "g4-1", kind: "group", label: "Cœur Lyon" }] });
-    expect(say(created, "fr")).toBe("a créé le groupe « Cœur Lyon »");
+    expect(say(created, "fr")).toBe("a créé le groupe « Cœur Lyon »");
     expect(say(created, "en")).toBe("created the group “Cœur Lyon”");
     const renamed = entry([{ op: "group_update", id: "g1-1", label: "Accès RDC" }], { subjects: [{ id: "g1-1", kind: "group", label: "Accès RDC" }] });
-    expect(say(renamed, "fr")).toBe("a renommé le groupe « Accès RDC »");
+    expect(say(renamed, "fr")).toBe("a renommé le groupe « Accès RDC »");
     const changed = entry([{ op: "group_add", id: "g1-1", members: ["x"] }], { subjects: [{ id: "g1-1", kind: "group", label: "Edge" }] });
     expect(say(changed, "en")).toBe("changed the group “Edge”");
     const deleted = entry([{ op: "group_delete", id: "g1-1" }], { subjects: [{ id: "g1-1", kind: "group", label: "Edge" }] });

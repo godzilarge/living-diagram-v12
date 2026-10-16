@@ -49,14 +49,14 @@ describe("the panel's words", () => {
   });
 
   it("formats speeds, durations, ages and counts", () => {
-    expect(speedWords(t, 10000)).toBe("10 G");
-    expect(speedWords(t, 2500)).toBe("2.5 G");
-    expect(speedWords(t, 100)).toBe("100 M");
+    expect(speedWords(t, 10000)).toBe("10 G");
+    expect(speedWords(t, 2500)).toBe("2.5 G");
+    expect(speedWords(t, 100)).toBe("100 M");
     expect(speedWords(t, null)).toBeNull();
-    expect(durationWords(t, 86_400 * 12 + 3600 * 4 + 60)).toBe("12 d 4 h");
-    expect(durationWords(t, 3600 * 3 + 60 * 20)).toBe("3 h 20 min");
-    expect(durationWords(t, 45 * 60)).toBe("45 min");
-    expect(durationWords(t, 30)).toBe("30 s");
+    expect(durationWords(t, 86_400 * 12 + 3600 * 4 + 60)).toBe("12 d 4 h");
+    expect(durationWords(t, 3600 * 3 + 60 * 20)).toBe("3 h 20 min");
+    expect(durationWords(t, 45 * 60)).toBe("45 min");
+    expect(durationWords(t, 30)).toBe("30 s");
     expect(durationWords(t, null)).toBeNull();
     expect(lastChangeWords(t, "never")).toBe("never");
     expect(lastChangeWords(t, 6 * 86_400)).toBe("6 days ago");

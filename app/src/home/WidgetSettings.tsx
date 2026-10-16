@@ -23,7 +23,7 @@ export function WidgetSettings({ name, choices, value, after, onChange }: Widget
     <Popover
       name={`${name}-settings`}
       label={label}
-      trigger={(props, open) => <IconButton {...props} label={label} icon={<SlidersHorizontal />} pressed={open} tooltipPlacement="bottom-end" />}
+      trigger={(props) => <IconButton {...props} label={label} icon={<SlidersHorizontal />} tooltipPlacement="bottom-end" />}
     >
       <div className="prefs" data-layout="inline">
         <ChoiceRow

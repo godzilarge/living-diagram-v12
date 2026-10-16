@@ -328,6 +328,7 @@ test("the home: a widget's settings choose how many rows it lists, stored in the
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("group", { name: "Show the last collections" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "6" })).toHaveAttribute("aria-pressed", "true");
+  await page.waitForTimeout(400); // its rise ends before it is measured
   // under the header, aligned on the widget's right edge
   const [head, box, widget] = await Promise.all([runsWidget.locator(".ui-widget-head").boundingBox(), dialog.boundingBox(), runsWidget.boundingBox()]);
   expect(Math.round((box?.y ?? 0) - ((head?.y ?? 0) + (head?.height ?? 0)))).toBe(8);

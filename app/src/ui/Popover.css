@@ -5,8 +5,26 @@
   border-radius: var(--island-radius);
   background: var(--color-paper);
   box-shadow: var(--shadow-island);
+  /* it rises 6 px from a 98 % scale, from the corner it hangs from (the approved mockup's `.popover`) */
   opacity: 0;
-  transition: opacity var(--motion-popover) var(--motion-ease);
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: 100% 0;
+  transition:
+    opacity var(--motion-popover) var(--motion-ease),
+    transform var(--motion-popover) var(--motion-ease);
+}
+
+.ui-popover[data-placement$="start"] {
+  transform-origin: 0 0;
+}
+
+.ui-popover[data-placement^="top"] {
+  transform: translateY(6px) scale(0.98);
+  transform-origin: 100% 100%;
+}
+
+.ui-popover[data-placement="top-start"] {
+  transform-origin: 0 100%;
 }
 
 .ui-popover[data-elevation="layer"] {
@@ -15,6 +33,7 @@
 
 .ui-popover[data-status="open"] {
   opacity: 1;
+  transform: none;
 }
 
 .ui-popover:focus {

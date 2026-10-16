@@ -108,7 +108,7 @@ describe("search words", () => {
     expect(actions.map((a) => a.words)).toEqual([
       "Show everything",
       "Centre the view on dc01-core-01",
-      "Back to 100 %",
+      "Back to 100%",
       "Hide the grid",
       "Show the overview",
       "Open the collection of 12 Jan",
@@ -118,7 +118,7 @@ describe("search words", () => {
     ]);
     expect(actions.filter((a) => a.runId).map((a) => a.runId)).toEqual(["r2", "r1", "r2", "r1"]);
     const bare = inFrench(() => actionSources(t, { selected: null, grid: false, minimap: true, runs: [], current: "", compare: [], now: NOW }));
-    expect(bare.map((a) => a.words)).toEqual(["Tout afficher", "Revenir à 100 %", "Afficher la grille", "Masquer la vue d'ensemble"]);
+    expect(bare.map((a) => a.words)).toEqual(["Tout afficher", "Revenir à 100 %", "Afficher la grille", "Masquer la vue d'ensemble"]);
   });
 
   it("steps over the tabs a page offers, wrapping around", () => {

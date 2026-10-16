@@ -42,7 +42,7 @@ export function SettingsPopover() {
     <Popover
       name="settings"
       label={t("shell:settings")}
-      trigger={(props, open) => <IconButton {...props} label={t("shell:settings")} icon={<Settings />} pressed={open} tooltipPlacement="bottom-end" />}
+      trigger={(props) => <IconButton {...props} label={t("shell:settings")} icon={<Settings />} tooltipPlacement="bottom-end" />}
     >
       <PrefsControls prefs={prefs} language={language} onChange={setPrefs} />
     </Popover>

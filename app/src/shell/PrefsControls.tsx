@@ -2,6 +2,7 @@
 // settings (design/comps/shell/shell-settings-1440.png): the chosen value carries the rail, each accent its swatch.
 // The settings popover of the shell, the switcher of the primitives page and the settings of a home widget use the
 // same rows (`ChoiceRow`).
+import { useId } from "react";
 import { Button } from "../ui";
 import type { Language } from "../i18n";
 import { useText } from "../i18n";
@@ -36,13 +37,13 @@ export type ChoiceRowProps = {
 /** One row of rail buttons: the label, the choices (the chosen one with the rail), optionally the words after them.
  *  The settings of the shell and the settings of a home widget are rows of this. */
 export function ChoiceRow({ id, label, choices, value, onPick, after }: ChoiceRowProps) {
-  const labelId = `prefs-${id}`;
+  const labelId = `${useId()}-${id}`; // unique: the primitives page shows these rows twice
   return (
     <div className="prefs-row">
       <span className="prefs-label" id={labelId}>
         {label}
       </span>
-      <div className="prefs-choices" role="group" aria-labelledby={after ? `${labelId} ${labelId}-after` : labelId} data-bar={labelId}>
+      <div className="prefs-choices" role="group" aria-labelledby={after ? `${labelId} ${labelId}-after` : labelId} data-bar={`prefs-${id}`}>
         {choices.map((choice) => (
           <Button
             key={choice.value}

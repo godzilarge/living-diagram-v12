@@ -12,10 +12,10 @@
     "infrastructures": "Infrastructures",
     "actions": "Actions"
   },
-  "results_one": "{{count}} result",
-  "results_other": "{{count}} results",
-  "more_one": "… and {{count}} more",
-  "more_other": "… and {{count}} more",
+  "results_one": "{{count, number}} result",
+  "results_other": "{{count, number}} results",
+  "more_one": "… and {{count, number}} more",
+  "more_other": "… and {{count, number}} more",
   "hints": {
     "walk": "browse",
     "open": "open",
@@ -40,14 +40,14 @@
     "removed": "{{kind}}, removed",
     "port": "{{port}} of {{host}}",
     "towards": "to {{host}}",
-    "members_one": "{{count}} device",
-    "members_other": "{{count}} devices",
+    "members_one": "{{count, number}} device",
+    "members_other": "{{count, number}} devices",
     "clusterOf": "HA cluster of {{hosts}}",
     "note": "Note",
     "code": "Code block",
     "current": "current infrastructure",
-    "devices_one": "{{count}} device",
-    "devices_other": "{{count}} devices"
+    "devices_one": "{{count, number}} device",
+    "devices_other": "{{count, number}} devices"
   },
   "detail": {
     "kindVendorSite": "{{kind}}, {{vendor}}, site {{site}}",
@@ -55,7 +55,7 @@
     "kindSite": "{{kind}}, site {{site}}",
     "removed": "Removed since the compared collection",
     "destinations_one": "Where its cable leads",
-    "destinations_other": "Where its {{count}} cables lead",
+    "destinations_other": "Where its {{count, number}} cables lead",
     "group": "Group",
     "present": "Present",
     "absent": "Absent",

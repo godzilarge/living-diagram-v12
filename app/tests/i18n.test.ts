@@ -13,7 +13,7 @@ function leaves(tree: Tree, prefix = ""): Map<string, string> {
   }
   return out;
 }
-const variables = (text: string) => [...text.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]).sort();
+const variables = (text: string) => [...text.matchAll(/\{\{(\w+)(?:, \w+)?\}\}/g)].map((m) => m[1]).sort();
 const bases = (keys: Iterable<string>) => new Set([...keys].map((key) => key.replace(SUFFIX, "")));
 
 describe("catalogues", () => {
@@ -31,7 +31,7 @@ describe("catalogues", () => {
       const forms = { en: new Intl.PluralRules("en").resolvedOptions().pluralCategories, fr: new Intl.PluralRules("fr").resolvedOptions().pluralCategories };
       for (const [language, map] of [["en", en], ["fr", fr]] as const)
         for (const [key, value] of map)
-          if (value.includes("{{count}}")) {
+          if (value.includes("{{count, number}}")) {
             const base = key.replace(SUFFIX, "");
             for (const form of forms[language].filter((f) => f !== "zero" && f !== "two" && f !== "few")) expect(map.has(`${base}_${form}`), `${language} ${base}_${form}`).toBe(true);
           }
@@ -44,7 +44,9 @@ describe("catalogues", () => {
     setLanguage("fr");
     expect(i18n.t("shell:settings")).toBe("Réglages");
     expect(i18n.t("primitives:panel.ports", { count: 2 })).toBe("2 ports");
+    expect(i18n.t("primitives:panel.ports", { count: 21000 }), "a count in the language's figures").toBe("21\u202f000 ports");
     setLanguage("en");
     expect(i18n.t("primitives:bars.changes", { count: 1 })).toBe("1 change");
+    expect(i18n.t("primitives:panel.ports", { count: 21000 })).toBe("21,000 ports");
   });
 });

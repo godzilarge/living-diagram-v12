@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-16** (refonte UI : brique 4, la recherche, livrée et revue ; prochaine brique : réglages et langue).
+**Dernière mise à jour : 2026-10-16** (refonte UI : brique 5, réglages et langue, livrée et revue ; prochaine brique : le mode édition).
 
 ## Fait
 
@@ -70,22 +70,37 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   (§ Traitement ; jauge 500 équipements : une lettre 5 s → 47 ms) ; `docs/13` § Done ; six points dans
   `docs/a-juger-a-l-usage.md` ; parqués : éclairer la toile à la frappe, Maj+Entrée « sélectionner les trouvés »,
   masquer / isoler, puces de champs). Suites : app check 193, e2e 58 ; engine, backend (643), contrats (637) verts ;
-  **commité 9f93548, non poussé**. Orhan n'a pas encore jugé les planches du panneau
-  (`.impeccable/planche-panneau/`) ni de la recherche (`.impeccable/planche-recherche/`) : ses retours passent avant
-  la brique 5.
+  **commité 9f93548, non poussé**. **Brique 5, réglages et langue, livrée le 2026-10-16** (le popover du squelette comparé à la maquette
+  `data-state="settings"` et trouvé **identique**, mesuré dans Chromium (`app/e2e/settings.spec.ts`) en clair, sombre,
+  cobalt, encre, français, sur le diagramme et l'accueil ; bascule de langue de bout en bout (îlots, fiche, titre de
+  l'onglet, `lang`, dates, toile v1), stockée, relue, suivie par les autres onglets ; rien de choisi ⇒ la langue du
+  navigateur ; clavier complet ; audit des catalogues : clé morte `shell:map` retirée, « 100% » en anglais, **espaces
+  insécables françaises** avant `: ; ! ? %` et dans « » (62 textes, défaut pur : la maquette et la v1 ont l'espace
+  sécable), insécable entre nombre et unité, comptes en chiffres de la langue (`{{count, number}}`) ; corrigés en
+  passant : la montée du popover à l'ouverture (maquette), Échap rend le focus sans infobulle, `app/public/boot.js`
+  peint le thème stocké avant le chargement de l'application, les préférences n'écrivent que le champ changé et
+  écoutent `storage` (jamais un choix périmé ni les défauts v2 sur ceux de la v1), un déclencheur de popover ne porte
+  que `aria-expanded` (le rail) ; revue `docs/revues/2026-10-16-reglages.md` (0 critique, 0 haut, 5 moyens, 10 bas)
+  traitée le jour même en entier, B9 parqué motivé ; `docs/13` § Done ; deux points dans `docs/a-juger-a-l-usage.md`
+  (retour à la langue du navigateur, thème du système)). Suites : app check 195, e2e 68 ; moteur, backend (643), contrats
+  (637) verts ; **non commité**. Orhan n'a pas encore jugé les planches du panneau (`.impeccable/planche-panneau/`),
+  de la recherche (`.impeccable/planche-recherche/`) ni des réglages (`.impeccable/planche-reglages/`) : ses retours
+  passent avant la brique 6.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
   la main : `cd backend && LD_API_TOKEN=demo LD_ARCHIVE_DIR=../bac-a-sable/accueil-data/archive-six uv run uvicorn
-  ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build`). **Prochaine
-  session : `/brique-ui reglages`** (brique 5 de `docs/13-migration-plan.md`, réglages et langue :
-  `design/comps/shell/index.html` à l'état `data-state="settings"`, capture `shell-settings-1440.png` : le popover
-  Réglages (thème, accent, langue) ; le catalogue fr / en complet de la coquille, garde `strings` verte avec les deux
-  catalogues complets ; `prefs.ts` et `i18n/` existent déjà). À savoir : le popover Réglages existe depuis le
-  squelette (`app/src/shell/ShellTools.tsx` `SettingsPopover`, `PrefsControls`) et les trois préférences persistent
-  déjà dans `ld-prefs` : la brique est surtout la comparaison à la maquette et l'audit des catalogues (une clé
-  manquante dans une langue, un pluriel absent) ; `closeLayers.ts` ferme les couches avant la palette ; la mesure
-  compte 4 couches sur la page vivante (`measure.spec.ts`) ; `npm run e2e` dure ~2 min ; `cd engine && npm ci` est
-  requis avant `cd app && npm run build` (polices de la toile v1). **La toile (cartes, câbles) est une autre
-  surface** : tour de directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la
+  ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build` ; il sert
+  `app/dist` tel quel, un `npm run build` suffit à le mettre à jour). **Prochaine session : `/brique-ui edition`**
+  (brique 6 de `docs/13-migration-plan.md`, le mode édition : `design/comps/shell/index.html` à `data-state="edit"`
+  et `"edit-note"`, captures `shell-edit-1440.png` et `shell-edit-note-1440.png` : la palette d'outils à gauche, la
+  barre d'équipement et ses volets (teinte, aligner et répartir), la barre de note et ses volets (taille) ; la logique
+  d'édition de la v1 derrière (`engine/src/app/state/` : commandes d'intention, annuler, presse-papiers, flottants) ;
+  fini quand chaque fonction d'édition de la v1 est atteignable depuis la palette ou une barre, Ctrl+Z marche, le tout
+  mesuré). À savoir : la toile v1 est montée **en lecture** (`app/src/diagram/Canvas.tsx`, `onContext` sans effet) ;
+  `design/comps/shell/DIRECTION.md` § Edit mode donne le placement des barres (12 px au-dessus de l'élément,
+  retournement sous 76 px) ; le volet des teintes (12 teintes, jamais de violet) demandera un jeton `swatch-size`
+  (B9 de la revue des réglages, parqué) ; `docs/11` lots 4, 8, 13, 16 décrivent les fonctions v1 à retrouver ; une
+  interaction nouvelle se prototype au banc (`bac-a-sable/`) avant le code ; `npm run e2e` dure ~4 min. **La toile
+  (cartes, câbles) est une autre surface** : tour de directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la
   refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
   fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.

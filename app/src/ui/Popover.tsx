@@ -2,7 +2,9 @@
 // surface radius (`elevation="layer"`: the layer shadow, for the search palette only). It opens 8 px under the island
 // that holds its trigger, aligned on that island (under a widget's header when the trigger sits in one:
 // `data-anchor`; 16 px under a trigger in no island); it may cover islands, never its trigger. Click opens and closes it,
-// Escape and a click outside close it. `data-layer` names it for the measurement (≥ 16 px from the viewport).
+// Escape and a click outside close it; Escape gives the focus back to the trigger quietly (no tooltip). It opens with
+// the mockup's rise (6 px, from a 98 % scale, from the corner it hangs from: `data-placement`). `data-layer` names it
+// for the measurement (≥ 16 px from the viewport). Its trigger carries `aria-expanded`, which gives it the rail.
 import {
   autoUpdate,
   flip,
@@ -21,6 +23,7 @@ import type { Placement } from "@floating-ui/react";
 import { useLayoutEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { EDGE, motionMs, POPOVER_ISLAND_OFFSET, POPOVER_OFFSET } from "./geometry";
+import { quietFocus } from "./Tooltip";
 import "./Popover.css";
 
 /** What a popover opens under: a widget's header, else the island that holds the trigger. */
@@ -46,9 +49,15 @@ export type PopoverProps = {
 export function Popover({ label, name, trigger, children, placement = "bottom-end", defaultOpen = false, role = "dialog", elevation = "island" }: PopoverProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [island, setIsland] = useState<Element | null>(null);
-  const { refs, floatingStyles, context, elements } = useFloating({
+  const { refs, floatingStyles, context, elements, placement: side } = useFloating({
     open,
-    onOpenChange: setOpen,
+    transform: false, // positioned by top / left: the CSS transform is free for the rise
+    // Escape gives the focus back to the trigger without its tooltip (the reader did not focus it); a click outside
+    // leaves the focus where the reader clicked
+    onOpenChange: (next, _event, reason) => {
+      setOpen(next);
+      if (!next && reason === "escape-key") quietFocus(refs.domReference.current as HTMLElement | null);
+    },
     placement,
     strategy: "absolute",
     middleware: [offset(island ? POPOVER_ISLAND_OFFSET : POPOVER_OFFSET), flip({ padding: EDGE }), shift({ padding: EDGE })],
@@ -74,6 +83,7 @@ export function Popover({ label, name, trigger, children, placement = "bottom-en
               style={floatingStyles}
               className="ui-popover"
               data-status={status}
+              data-placement={side}
               data-layer={name}
               data-elevation={elevation}
               aria-label={label}

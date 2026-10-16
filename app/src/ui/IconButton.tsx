@@ -1,6 +1,7 @@
 // An icon button (DESIGN.md, Buttons): 32 × 32, a 16 px icon, always a tooltip; `variant="line"` borders it (a control
 // that stands alone on an empty surface, the free slot's "+"); `pressed` makes it a toggle with the
-// rail; disabled keeps its tooltip, which says why. Extra props (`data-*`, `aria-*`, a popover's handlers) pass through.
+// rail; a popover's trigger (`aria-expanded`, one state, never `pressed` as well) carries the rail while its layer is
+// open; disabled keeps its tooltip, which says why. Extra props (`data-*`, `aria-*`, a popover's handlers) pass through.
 import { useMergeRefs } from "@floating-ui/react";
 import type { Placement } from "@floating-ui/react";
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode, Ref } from "react";
@@ -40,7 +41,7 @@ export function IconButton(props: IconButtonProps) {
     if (inert) event.preventDefault();
     else onClick?.(event);
   };
-  const toggles = pressed !== undefined || current !== undefined;
+  const toggles = pressed !== undefined || current !== undefined || rest["aria-expanded"] !== undefined;
   return (
     <>
       <button

@@ -7,6 +7,23 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Brick 5 of the v2 migration: settings and language, delivered and reviewed** (2026-10-16, `/brique-ui reglages`;
+  announced as a comparison of the skeleton's popover to the mockup and an audit of the catalogues, nothing new in
+  `DESIGN.md`): `app/e2e/settings.spec.ts` measures the popover against `data-state="settings"` (identical: 72 / 16 /
+  8 px, rows of 40, labels of 72 in ink-3 12 px, the chosen value at 600, swatches 12 / 3) in light, dark, cobalt,
+  ink and French, on the diagram and the home; a language chosen changes every word at once (islands, panel, title,
+  `lang`, dates, v1 canvas), is stored, read again and followed by the other tabs; nothing chosen gives the browser's
+  language; keyboard complete. **Catalogues**: dead key `shell:map` removed; English "100%"; **French no-break
+  spaces** before `: ; ! ? %` and inside « » (62 texts; the mockup and the v1 have a breakable one: a pure typography
+  defect, corrected without Orhan, U+00A0 everywhere for one rule); a no-break space between a number and its unit;
+  counts in the language's figures (`{{count, number}}`). **Fixed on the way**: `Popover` rises as the mockup and
+  gives the focus back quietly on Escape; `app/public/boot.js` paints the stored theme before the application loads;
+  the preferences write only the changed field and listen to `storage` (a tab never writes a stale choice, nor the
+  v2's defaults over the v1's); a popover's trigger carries `aria-expanded` alone, with the rail. Review
+  `docs/revues/2026-10-16-reglages.md` (0 critical, 0 high, 5 medium, 10 low; probes in `-sondes/`), treated the same
+  day in full, B9 parked (a surface's measures are not tokens). Captures `.impeccable/planche-reglages/`. To judge in
+  use: no way back to the browser's language, the theme not following the system (`docs/a-juger-a-l-usage.md`).
+  `docs/13` § Done. Suites: app check 195, e2e 68; engine, backend (643), contracts (637) green.
 - **Brick 4 of the v2 migration: the search, delivered and reviewed** (2026-10-16, `/brique-ui recherche`; the
   announcement validated by Orhan: the mockup's six tabs plus **Notes**, actions limited to the shell's commands, the
   typing never lights the map, Shift+Enter "select all" / hide / isolate / the field chips parked, the home's palette

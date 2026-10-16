@@ -4,8 +4,8 @@
 design drifts.** Served by the backend at `/next/` while `/` keeps the v1; it opens on the home (brick 1) and, with
 `?infrastructure=…` in the address, on the diagram shell (brick 2: the v1 canvas inside) with the panel of the
 selected element (brick 3: compact, wide with W, focus with Shift+F) and, on both pages, the search palette (brick 4:
-Ctrl+K or the tools' search button); the surfaces arrive as bricks (`/brique-ui`)
-against `design/comps/shell/`.
+Ctrl+K or the tools' search button) and the settings popover (brick 5: theme, accent, language, stored in the
+browser, followed by every open tab); the surfaces arrive as bricks (`/brique-ui`) against `design/comps/shell/`.
 
 ## Run
 
@@ -38,7 +38,8 @@ Captures of the measurement land in `e2e/captures/` (ignored).
 
 ## Layout
 
-`src/styles/` tokens (generated), font, base · `src/ui/` the primitives, the only place that renders a control ·
+`public/boot.js` the first script of both pages, served as it is: the stored theme and accent on `<html>` before the
+first paint · `src/styles/` tokens (generated), font, base · `src/ui/` the primitives, the only place that renders a control ·
 `src/api/` the API (token in `sessionStorage` under the v1's key, calls, bodies validated: the home's routes, a run
 and its parts, the placement writer, the images) · `src/state/` pure modules (time, journal line, home rows, the
 address, the band's rules, the zoom, the diff facts, the diagram reducer, the shell keys) and the hooks that load
@@ -50,8 +51,10 @@ CDP, scope, filter, sort, alerts by code, structures) · `src/search/` the searc
 its pure logic; the page opens what is chosen: `diagram/useSearch.ts`, `home/useHomeSearch.ts`) · `src/i18n/` i18next, catalogues `en` / `fr` (`ui`, `shell`,
 `home`, `diagram`, `panel`, `search`, `primitives`) · `src/prefs.ts` theme, accent, language, the rows of two home widgets (`homeRuns`
 6 · 12 · 25 · 50 · 100, `homeChanges` 10 · 25 · 50 · 100), the canvas controls `grid` / `minimap` under the v1's
-names and the panel's width `panel` (compact · wide) (`ld-prefs`; a value outside the choices reads as the default; the v1 writing its whole object drops its
-own) · `src/shell/` the settings controls, the tools and the token form shared by the surfaces · `src/primitives/`
+names and the panel's width `panel` (compact · wide) (`ld-prefs`; a value outside the choices reads as the default; only
+the field that changed is written; the v1 writing its whole object drops its own) · `src/shell/` the settings
+controls (`usePrefs`: one store, the other tabs followed through `storage`), the tools and the token form shared by
+the surfaces · `src/primitives/`
 the living primitives page · `@engine/*` → `../engine/src/*` (the pure engine, the v1 canvas and its i18n; `react`,
 `lucide-react`, `@xyflow/react`, `i18next`, `prismjs` resolve to this package's copies, `tsconfig.json` paths and
 Vite `dedupe`). The address is the view state (`?infrastructure`, `run_id`, `from`; `#node=`… and the toggles, the

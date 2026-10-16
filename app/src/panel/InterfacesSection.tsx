@@ -39,7 +39,7 @@ function ColumnChooser({ hidden, onHidden }: { hidden: ReadonlySet<ColumnKey>; o
     <Popover
       name="panel-columns"
       label={t("panel:interfaces.columns")}
-      trigger={(props, open) => <IconButton {...props} label={t("panel:interfaces.columns")} icon={<Columns3 />} variant="line" pressed={open} tooltipPlacement="bottom-end" />}
+      trigger={(props) => <IconButton {...props} label={t("panel:interfaces.columns")} icon={<Columns3 />} variant="line" tooltipPlacement="bottom-end" />}
     >
       <Checklist
         name="panel-columns"

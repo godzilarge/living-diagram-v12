@@ -1,7 +1,9 @@
 // Browser preferences of the v2 (theme, accent, language, how many rows two home widgets list): stored under `ld-prefs`, the v1's key, with the v1's field
 // names (`theme`, `language`), so a choice made in one is the choice of the other; never an intent, never in the
 // address. Applied as `data-theme` / `data-accent` / `lang` on `<html>`.
-// The v2 writes by merging: the v1's own fields (snap, panel width…) are kept. The v1 writes its whole object
+// The v2 writes **only the field that changed** (`changedPrefs`), merged into the stored text: the v1's own fields
+// (snap, panel width…) and every field nobody chose are kept, so a language chosen here never writes the v2's default
+// theme over the v1's (the v1 opens dark, the v2 light). The v1 writes its whole object
 // (`engine/src/app/state/prefs.ts`, `writePrefs`), so a write from the v1 drops `accent`, `homeRuns` and
 // `homeChanges`: the v2 then reads their defaults (cobalt, 6, 10). Parsing is pure and tolerant: an unknown or missing value falls back to the default.
 import { detectLanguage, isLanguage, setLanguage } from "./i18n";
@@ -54,8 +56,15 @@ export function parsePrefs(raw: string | null): Prefs {
   });
 }
 
-/** The stored text after a change: the v1's other fields are kept, ours are replaced. */
-export function mergePrefs(raw: string | null, prefs: Prefs): string {
+/** The fields of `next` that differ from `previous`: what a change writes. Pure. */
+export function changedPrefs(previous: Prefs, next: Prefs): Partial<Prefs> {
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(next) as (keyof Prefs)[]) if (next[key] !== previous[key]) out[key] = next[key];
+  return Object.freeze(out) as Partial<Prefs>;
+}
+
+/** The stored text after a change: every other field is kept, the changed ones are replaced. */
+export function mergePrefs(raw: string | null, changes: Partial<Prefs>): string {
   let data: Record<string, unknown> = {};
   try {
     const parsed: unknown = raw ? JSON.parse(raw) : {};
@@ -63,8 +72,7 @@ export function mergePrefs(raw: string | null, prefs: Prefs): string {
   } catch {
     data = {};
   }
-  const { theme, accent, language, homeRuns, homeChanges, grid, minimap, panel } = prefs;
-  return JSON.stringify({ ...data, theme, accent, language, homeRuns, homeChanges, grid, minimap, panel });
+  return JSON.stringify({ ...data, ...changes });
 }
 
 function storage(): Storage | null {
@@ -83,11 +91,12 @@ export function loadPrefs(): Prefs {
   }
 }
 
-export function savePrefs(prefs: Prefs): void {
+/** Writes the changed fields over the stored text, read again at that moment (another tab may have written). */
+export function savePrefs(changes: Partial<Prefs>): void {
   const store = storage();
-  if (!store) return;
+  if (!store || !Object.keys(changes).length) return;
   try {
-    store.setItem(STORAGE_KEY, mergePrefs(store.getItem(STORAGE_KEY), prefs));
+    store.setItem(STORAGE_KEY, mergePrefs(store.getItem(STORAGE_KEY), changes));
   } catch {
     // a full or blocked storage keeps the page working with the preferences in memory
   }

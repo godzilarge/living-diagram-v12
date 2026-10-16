@@ -134,6 +134,27 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   collection actions, the "more" row. To judge in use:
   `docs/a-juger-a-l-usage.md` (Enter without moving the view, the kept text, the map not lit, the fields not
   offered, the home palette, the actions offered).
+- **Brick 5, Settings and language** (2026-10-16): the settings popover of the skeleton (theme, accent, language as
+  rows of rail buttons, `app/src/shell/PrefsControls.tsx`) compared to the mockup at `data-state="settings"` and
+  found identical, measured in Chromium (`e2e/settings.spec.ts`: 72 px under the tools island, 16 px from the edge,
+  8 px of padding, three rows of 40 px, labels of 72 px in ink-3 at 12 px, the chosen value at 600 in ink, swatches
+  of 12 px) in light, dark, cobalt, ink and French, on the diagram and on the home; the gear says nothing more while
+  it is open; a language chosen changes every word at once (islands, panel, the tab's title, `lang`, the dates, the
+  v1 canvas), is stored in `ld-prefs` and read again, and the other tabs follow; nothing chosen gives the browser's
+  language; the keyboard reaches each choice, Escape gives the focus back without a tooltip. Nothing new in
+  `DESIGN.md`. **Catalogue audit**: parity, variables and plurals already guarded; the dead key `shell:map`
+  removed; English "100%"; French no-break spaces before `: ; ! ? %` and inside « » (62 texts: the mockup and the
+  v1 have a breakable one, a pure typography defect); a no-break space between a number and its unit in both
+  languages; counts in the language's figures (`{{count, number}}`, "21 000" / "21,000"). **Three defects of the
+  skeleton fixed on the way**: `Popover` opens with the mockup's rise (6 px from a 98 % scale) and gives the focus
+  back quietly on Escape; `public/boot.js`, the first script of both pages, puts the stored theme and accent on
+  `<html>` before the first paint (a dark theme never shows a white page first); the preferences write only the
+  field that changed and listen to the other tabs (`storage`), so a tab never writes a stale choice back nor the
+  v2's defaults over the v1's. A popover's trigger carries `aria-expanded` alone, which gives it the rail. Review
+  `docs/revues/2026-10-16-reglages.md` (0 critical, 0 high, 5 medium, 10 low; probes in `-sondes/`), treated the
+  same day in full, one low parked (the surface's own measures are not tokens). Captures
+  `.impeccable/planche-reglages/`. To judge in use: `docs/a-juger-a-l-usage.md` (no way back to the browser's
+  language once one is chosen; the theme does not follow the system).
 
 ## Rules every brick obeys
 

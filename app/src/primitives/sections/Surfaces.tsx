@@ -128,7 +128,7 @@ export function Surfaces() {
             defaultOpen
             elevation="layer"
             placement="bottom-start"
-            trigger={(props, open) => <IconButton {...props} label={t("primitives:panel.palette")} icon={<Search />} pressed={open} />}
+            trigger={(props) => <IconButton {...props} label={t("primitives:panel.palette")} icon={<Search />} />}
           >
             <p className="page-layer-note">{t("primitives:panel.layerNote")}</p>
           </Popover>
@@ -141,7 +141,7 @@ export function Surfaces() {
             label={t("shell:settings")}
             defaultOpen
             placement="bottom-start"
-            trigger={(props, open) => <IconButton {...props} label={t("shell:settings")} icon={<Settings />} pressed={open} />}
+            trigger={(props) => <IconButton {...props} label={t("shell:settings")} icon={<Settings />} />}
           >
             <PrefsControls prefs={prefs} language={language} onChange={setPrefs} />
           </Popover>

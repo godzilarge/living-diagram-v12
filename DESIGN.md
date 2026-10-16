@@ -452,7 +452,7 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 ### Islands, panels, widgets
 - **Corner Style:** 10 px.
 - **Background:** paper.
-- **Shadow Strategy:** island shadow; layer shadow for popovers.
+- **Shadow Strategy:** island shadow, popovers included (they are islands that float higher); the layer shadow for the search palette only.
 - **Border:** 1 px line.
 - **Internal Padding:** 8 px (bars), 16 px (panels, widgets).
 - **Header:** the element's name at headline size (17 px, 600) with a 12 px subtitle in ink-3; icon buttons on

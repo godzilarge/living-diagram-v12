@@ -1,0 +1,31 @@
+== maquette vs app (écarts seulement), clair/sombre x cobalt/encre, fr
+light cobalt pop mock {'x': 1178, 'y': 72, 'w': 246, 'h': 146, 'transition': 'opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'} app {'x': 1178, 'y': 72, 'w': 246, 'h': 146, 'transition': 'opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1)'}
+  gear mock {'bg': 'rgba(0, 0, 0, 0)', 'color': 'rgb(20, 20, 20)', 'pressed': 'true'} app {'bg': 'rgba(0, 0, 0, 0)', 'color': 'rgb(20, 20, 20)', 'pressed': 'true', 'expanded': 'true'}
+dark ink pop mock {'x': 1177, 'y': 72, 'w': 247, 'h': 146, 'transition': 'opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'} app {'x': 1177, 'y': 72, 'w': 247, 'h': 146, 'transition': 'opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1)'}
+  gear mock {'bg': 'rgba(0, 0, 0, 0)', 'color': 'rgb(238, 239, 241)', 'pressed': 'true'} app {'bg': 'rgba(0, 0, 0, 0)', 'color': 'rgb(238, 239, 241)', 'pressed': 'true', 'expanded': 'true'}
+dark cobalt pop mock {'x': 1178, 'y': 72, 'w': 246, 'h': 146, 'transition': 'opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'} app {'x': 1178, 'y': 72, 'w': 246, 'h': 146, 'transition': 'opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1)'}
+  gear mock {'bg': 'rgba(0, 0, 0, 0)', 'color': 'rgb(238, 239, 241)', 'pressed': 'true'} app {'bg': 'rgba(0, 0, 0, 0)', 'color': 'rgb(238, 239, 241)', 'pressed': 'true', 'expanded': 'true'}
+light ink pop mock {'x': 1177, 'y': 72, 'w': 247, 'h': 146, 'transition': 'opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'} app {'x': 1177, 'y': 72, 'w': 247, 'h': 146, 'transition': 'opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1)'}
+  gear mock {'bg': 'rgba(0, 0, 0, 0)', 'color': 'rgb(20, 20, 20)', 'pressed': 'true'} app {'bg': 'rgba(0, 0, 0, 0)', 'color': 'rgb(20, 20, 20)', 'pressed': 'true', 'expanded': 'true'}
+== contraste (minimums) et anneau
+light cobalt ring solid 2px rgb(33, 80, 232) 2px
+light ink ring solid 2px rgb(20, 20, 20) 2px
+dark cobalt ring solid 2px rgb(113, 147, 255) 2px
+dark ink ring solid 2px rgb(238, 239, 241) 2px
+{"pop":"0.001s","rail":"0.001s","control":"0.001s","gearRail":"0.001s","openMs":92,"closeMs":24}
+{"before":{"lang":"fr","title":"Diagramme de demo-dc","stored":null},"pressedLang":["Clair","cobalt","Français"],"after":"{\"theme\":\"dark\",\"accent\":\"cobalt\",\"language\":null,\"homeRuns\":6,\"homeChanges\":10,\"grid\":true,\"minimap\":false,\"panel\":\"compact\"}"}
+{"kept":{"panel":true,"hash":"#node=dc01-acc-03","focus":"Settings"},"second":{"hash":""},"past":{"open":0,"focus":"BUTTON Account"}}
+{"leftAfterSwitch":[],"leftFresh":[],"leftHome":[],"bandBefore":"19 Jan 2026, 02:00","bandAfter":"19 janv. 2026, 02:00","canvasChanged":[["bundle Port-channel1 ⇄ port-channel101 · MLAG 101","faisceau Port-channel1 ⇄ port-channel101 · MLAG 101"],["bundle Port-channel1 ⇄ port-channel101 · MLAG 101","faisceau Port-channel1 ⇄ port-channel101 · MLAG 101"],["bundle Port-channel1 ⇄ port-channel103 · MLAG 103","faisceau Port-channel1 ⇄ port-channel103 · MLAG 103"],["bundle Port-channel1 ⇄ port-channel103 · MLAG 103","faisceau Port-channel1 ⇄ port-channel103 · MLAG 103"],["bundle port-channel20 ⇄ agg-core · MLAG 20","faisceau port-channel20 ⇄ agg-core · MLAG 20"],["bundle port-channel21 ⇄ agg-core · MLAG 21","faisceau port-channel21 ⇄ agg-core · MLAG 21"],["bundle port-channel10 ⇄ port-channel10 · peer-link","faisceau port-channel10 ⇄ port-channel10 · peer-link"],["bundle port-channel20 ⇄ agg-core · MLAG 20","faisceau port-channel20 ⇄ agg-core · MLAG 20"],["bundle port-channel21 ⇄ agg-core · MLAG 21","faisceau port-channel21 ⇄ agg-core · MLAG 21"],["cable dc01-acc-01 · TenGigabitEthernet1/1/1 – dc01-core-01 · Ethernet1/1","câble dc01-acc-01 · TenGigabitEthernet1/1/1 – dc01-core-01 · Ethernet1/1"],["cable dc01-acc-01 · TenGigabitEthernet1/1/2 – dc01-core-02 · Ethernet1/1","câble dc01-acc-01 · TenGigabitEthernet1/1/2 – dc01-core-02 · Ethernet1/1"],["cable dc01-acc-03 · TenGigabitEthernet1/1/1 – dc01-core-01 · Et
+== deux onglets (onglets-clic-dehors.spec.ts)
+afterA language fr ; afterB (G dans l'onglet B) language en, grid false ; onglet rouvert : lang=en
+== clic dehors : popover fermé, focus sur le fond, aucune infobulle
+== premières images, thème sombre et fr stockés (premieres-images.spec.ts)
+/next/ : 66 ms light, 82 ms light fond #FFFFFF, 249 ms dark fond #161719
+diagramme : 49 ms light, 68 ms light fond #FFFFFF, 239 ms dark
+== partage v1 (partage-v1-nombres.test.ts)
+v2 n'a choisi que fr : écrit theme light, grid true, minimap false ; v1 (défauts dark / false / true) lit light / true / false
+== nombres : fr ["21000 ports","1200 interfaces","1500 équipements"], en ["21000 ports","1200 interfaces","1500 devices"]
+== ids dupliqués sur primitives.html : prefs-theme, prefs-accent, prefs-language
+== contraste mesuré (minimums, repos et survol de chaque bouton) : clair cobalt texte 5,60 (ink-3 « Thème »), rail 5,45 ;
+   clair encre texte 5,60, rail 16,16 ; sombre cobalt texte 6,27, rail 4,93 (sur survol) ; sombre encre texte 6,27, rail 12,30.
+   Pastilles sur papier / survol : cobalt 6,22 / 5,45, encre 18,42 / 16,16 ; sombre cobalt 5,88 / 4,93, encre 14,66 / 12,30.
