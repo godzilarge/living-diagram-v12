@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && printf '%s\\n' '--- docs/etat.md (injecté au démarrage par .claude/settings.json : première lecture de toute session) ---' && cat docs/etat.md"
+          }
+        ]
+      }
+    ]
+  }
+}
