@@ -70,7 +70,7 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   (§ Traitement ; jauge 500 équipements : une lettre 5 s → 47 ms) ; `docs/13` § Done ; six points dans
   `docs/a-juger-a-l-usage.md` ; parqués : éclairer la toile à la frappe, Maj+Entrée « sélectionner les trouvés »,
   masquer / isoler, puces de champs). Suites : app check 193, e2e 58 ; engine, backend (643), contrats (637) verts ;
-  **commité 9f93548, non poussé**. **Brique 5, réglages et langue, livrée le 2026-10-16** (le popover du squelette comparé à la maquette
+  **commité 9f93548, poussé**. **Brique 5, réglages et langue, livrée le 2026-10-16** (le popover du squelette comparé à la maquette
   `data-state="settings"` et trouvé **identique**, mesuré dans Chromium (`app/e2e/settings.spec.ts`) en clair, sombre,
   cobalt, encre, français, sur le diagramme et l'accueil ; bascule de langue de bout en bout (îlots, fiche, titre de
   l'onglet, `lang`, dates, toile v1), stockée, relue, suivie par les autres onglets ; rien de choisi ⇒ la langue du
@@ -83,7 +83,7 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   que `aria-expanded` (le rail) ; revue `docs/revues/2026-10-16-reglages.md` (0 critique, 0 haut, 5 moyens, 10 bas)
   traitée le jour même en entier, B9 parqué motivé ; `docs/13` § Done ; deux points dans `docs/a-juger-a-l-usage.md`
   (retour à la langue du navigateur, thème du système)). Suites : app check 195, e2e 68 ; moteur, backend (643), contrats
-  (637) verts ; **commité f978c87, non poussé**. Orhan n'a pas encore jugé les planches du panneau (`.impeccable/planche-panneau/`),
+  (637) verts ; **commité f978c87, poussé (a87cae7)**. Orhan n'a pas encore jugé les planches du panneau (`.impeccable/planche-panneau/`),
   de la recherche (`.impeccable/planche-recherche/`) ni des réglages (`.impeccable/planche-reglages/`) : ses retours
   passent avant la brique 6.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
