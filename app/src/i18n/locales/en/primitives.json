@@ -34,7 +34,10 @@
     "fit": "Fit to screen",
     "grid": "Grid",
     "minimap": "Minimap",
-    "edit": "Edit the diagram"
+    "edit": "Edit the diagram",
+    "l1": "L1",
+    "l2": "L2",
+    "l3": "L3"
   },
   "controls": {
     "iconTitle": "Icon button",
@@ -79,7 +82,10 @@
     "retry": "Retry",
     "scrimTitle": "Search palette",
     "scrimBody": "It rises over the scrim, centred in the upper third of the map.",
-    "scrim": "Scrim"
+    "scrim": "Scrim",
+    "collected": "Collection complete for demo-dc",
+    "partial": "Partial collection: 2 devices did not answer",
+    "show": "Show a toast"
   },
   "tooltip": {
     "title": "Tooltip",
@@ -107,6 +113,12 @@
     "none": "None seen",
     "widen": "Widen the panel",
     "focus": "Focus mode",
-    "more": "More: history, copy, pin"
+    "more": "More: history, copy, pin",
+    "width": "Panel width",
+    "compact": "Compact",
+    "wide": "Wide",
+    "focusWidth": "Focus",
+    "palette": "Search palette",
+    "layerNote": "The layer shadow: the search palette and the focus panel only."
   }
 }

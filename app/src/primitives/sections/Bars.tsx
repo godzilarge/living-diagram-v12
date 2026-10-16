@@ -17,9 +17,10 @@ export function Bars() {
   const [grid, setGrid] = useState(true);
   const [minimap, setMinimap] = useState(false);
   const [edit, setEdit] = useState(false);
+  const [layer, setLayer] = useState("l1");
   const ctrlK = [t("ui:keys.ctrl"), "K"];
   return (
-    <Section id="bars" title={t("primitives:bars.title")} note={t("primitives:bars.note")}>
+    <Section id="bars" heading={t("primitives:bars.title")} note={t("primitives:bars.note")}>
       <Row>
         <Island name="brand" layout="bar">
           <IconButton label={t("shell:home")} icon={<LogoMark />} tooltipPlacement="bottom-start" />
@@ -46,9 +47,9 @@ export function Bars() {
           />
           <Separator />
           <div className="page-layers" role="group" aria-label={t("primitives:bars.layer")} data-bar="layers">
-            <Button pressed>{"L1"}</Button>
-            <Button pressed={false} disabled tooltip={t("primitives:bars.l2Soon")}>{"L2"}</Button>
-            <Button pressed={false} disabled tooltip={t("primitives:bars.l3Soon")}>{"L3"}</Button>
+            <Button pressed={layer === "l1"} onClick={() => setLayer("l1")}>{t("primitives:bars.l1")}</Button>
+            <Button pressed={layer === "l2"} onClick={() => setLayer("l2")} disabled tooltip={t("primitives:bars.l2Soon")}>{t("primitives:bars.l2")}</Button>
+            <Button pressed={layer === "l3"} onClick={() => setLayer("l3")} disabled tooltip={t("primitives:bars.l3Soon")}>{t("primitives:bars.l3")}</Button>
           </div>
         </Island>
         <Island name="tools" layout="bar">

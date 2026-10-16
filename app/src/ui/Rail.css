@@ -21,6 +21,7 @@
 .ui-tab.ui-rail::after {
   left: var(--space-md);
   right: var(--space-md);
+  bottom: -1px; /* on the island's hairline */
 }
 
 .ui-tab[aria-selected="true"] {

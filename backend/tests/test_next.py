@@ -57,6 +57,17 @@ def test_the_build_files_are_served_with_their_type_and_an_etag(tmp_path: Path, 
     assert again.status_code == 304 and again.content == b""
 
 
+def test_a_conditional_request_reads_if_none_match_as_the_rfc_does_and_head_answers(tmp_path: Path, dist: Path):
+    client = _client(tmp_path, dist)
+    etag = client.get("/next/assets/main.js").headers["etag"]
+    for header in (etag, "W/" + etag, '"other", ' + etag, "*"):
+        assert client.get("/next/assets/main.js", headers={"If-None-Match": header}).status_code == 304, header
+    assert client.get("/next/assets/main.js", headers={"If-None-Match": '"other"'}).status_code == 200
+    head = client.head("/next/")
+    assert head.status_code == 200 and head.content == b"" and head.headers["content-security-policy"] == NEXT_CSP
+    assert client.head("/next/missing.js").status_code == 404
+
+
 def test_files_are_read_at_request_time(tmp_path: Path, dist: Path):
     client = _client(tmp_path, dist)
     assert client.get("/next/assets/main.js").text == "console.log(1);\n"

@@ -18,7 +18,7 @@ export function Inputs() {
     { value: "down", label: t("primitives:inputs.down"), disabled: true },
   ];
   return (
-    <Section id="inputs" title={t("primitives:inputs.title")} note={t("primitives:inputs.note")} room="popover">
+    <Section id="inputs" heading={t("primitives:inputs.title")} note={t("primitives:inputs.note")} room="popover">
       <Row>
         <Specimen name="field-rest" caption={t("primitives:states.rest")}>
           <Field label={t("primitives:inputs.filter")} placeholder={t("primitives:inputs.filter")} icon={<ListFilter />} />

@@ -36,7 +36,10 @@
     "fit": "Ajuster à l'écran",
     "grid": "Grille",
     "minimap": "Minicarte",
-    "edit": "Modifier le diagramme"
+    "edit": "Modifier le diagramme",
+    "l1": "L1",
+    "l2": "L2",
+    "l3": "L3"
   },
   "controls": {
     "iconTitle": "Bouton icône",
@@ -81,7 +84,10 @@
     "retry": "Réessayer",
     "scrimTitle": "Palette de recherche",
     "scrimBody": "Elle monte au-dessus du voile, centrée dans le tiers haut de la carte.",
-    "scrim": "Voile"
+    "scrim": "Voile",
+    "collected": "Collecte terminée pour demo-dc",
+    "partial": "Collecte partielle : 2 équipements n'ont pas répondu",
+    "show": "Montrer une notification"
   },
   "tooltip": {
     "title": "Infobulle",
@@ -110,6 +116,12 @@
     "none": "Aucun vu",
     "widen": "Élargir la fiche",
     "focus": "Mode focus",
-    "more": "Plus : historique, copier, épingler"
+    "more": "Plus : historique, copier, épingler",
+    "width": "Largeur de la fiche",
+    "compact": "Compacte",
+    "wide": "Large",
+    "focusWidth": "Focus",
+    "palette": "Palette de recherche",
+    "layerNote": "L'ombre de calque : la palette de recherche et la fiche en focus seulement."
   }
 }

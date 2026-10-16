@@ -45,6 +45,15 @@
   background: var(--color-ground);
 }
 
+.ui-table tbody tr[data-clickable] {
+  cursor: pointer;
+}
+
+.ui-table tbody tr:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
+  outline-offset: calc(-1 * var(--focus-ring-width));
+}
+
 .ui-table tbody tr[aria-current="true"] td {
   background: var(--color-accent-weak);
 }

@@ -227,3 +227,14 @@ body:has(.page) {
   justify-content: center;
   width: 260px;
 }
+
+.page-layer-note {
+  max-width: 260px;
+  margin: 0;
+  padding: var(--space-xs);
+  color: var(--color-ink-2);
+}
+
+.page-popover-slot {
+  width: 360px;
+}

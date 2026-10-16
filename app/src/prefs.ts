@@ -1,6 +1,9 @@
-// Browser preferences of the v2 (theme, accent, language): stored under `ld-prefs` next to the v1's own fields,
-// which a write keeps; never an intent, never in the address. Applied as `data-theme` / `data-accent` / `lang` on
-// `<html>`. Parsing is pure and tolerant: an unknown or missing value falls back to the default.
+// Browser preferences of the v2 (theme, accent, language): stored under `ld-prefs`, the v1's key, with the v1's field
+// names (`theme`, `language`), so a choice made in one is the choice of the other; never an intent, never in the
+// address. Applied as `data-theme` / `data-accent` / `lang` on `<html>`.
+// The v2 writes by merging: the v1's own fields (grid, panel width…) are kept. The v1 writes its whole object
+// (`engine/src/app/state/prefs.ts`, `writePrefs`), so a write from the v1 drops `accent`: the v2 then reads the
+// default accent (cobalt). Parsing is pure and tolerant: an unknown or missing value falls back to the default.
 import { detectLanguage, isLanguage, setLanguage } from "./i18n";
 import type { Language } from "./i18n";
 
@@ -28,7 +31,7 @@ export function parsePrefs(raw: string | null): Prefs {
   return Object.freeze({
     theme: oneOf(THEMES, data.theme, DEFAULT_PREFS.theme),
     accent: oneOf(ACCENTS, data.accent, DEFAULT_PREFS.accent),
-    language: isLanguage(data.lang) ? data.lang : null,
+    language: isLanguage(data.language) ? data.language : null,
   });
 }
 
@@ -41,7 +44,7 @@ export function mergePrefs(raw: string | null, prefs: Prefs): string {
   } catch {
     data = {};
   }
-  return JSON.stringify({ ...data, theme: prefs.theme, accent: prefs.accent, lang: prefs.language });
+  return JSON.stringify({ ...data, theme: prefs.theme, accent: prefs.accent, language: prefs.language });
 }
 
 function storage(): Storage | null {

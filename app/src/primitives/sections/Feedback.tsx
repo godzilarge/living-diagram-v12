@@ -1,6 +1,6 @@
 // Counts, shortcuts, toasts, the scrim; then the tooltip in its placements.
 import { Crosshair, Download, Layers, Settings } from "lucide-react";
-import { Count, IconButton, Island, Rail, Scrim, Shortcut, Toast } from "../../ui";
+import { Button, Count, IconButton, Island, Rail, Scrim, Shortcut, showToast, Toast } from "../../ui";
 import { useText } from "../../i18n";
 import { Row, Section, Specimen } from "../Specimen";
 
@@ -9,7 +9,7 @@ const noop = () => undefined;
 export function Feedback() {
   const t = useText();
   return (
-    <Section id="feedback" title={t("primitives:feedback.title")} note={t("primitives:feedback.note")}>
+    <Section id="feedback" heading={t("primitives:feedback.title")} note={t("primitives:feedback.note")}>
       <Row>
         <Specimen name="counts" caption={t("primitives:feedback.counts")} layout="panel">
           <span className="page-group">
@@ -37,8 +37,17 @@ export function Feedback() {
         </Specimen>
       </Row>
       <Row>
-        <Toast name="toast-neutral" message={t("primitives:feedback.saved")} action={{ label: t("primitives:feedback.undo"), onClick: noop }} closeLabel={t("ui:close")} onClose={noop} />
-        <Toast name="toast-error" tone="error" message={t("primitives:feedback.failed")} action={{ label: t("primitives:feedback.retry"), onClick: noop }} closeLabel={t("ui:close")} onClose={noop} />
+        <Toast name="toast-neutral" duration={null} message={t("primitives:feedback.saved")} action={{ label: t("primitives:feedback.undo"), onClick: noop }} closeLabel={t("ui:close")} onClose={noop} />
+        <Toast name="toast-error" duration={null} tone="error" message={t("primitives:feedback.failed")} action={{ label: t("primitives:feedback.retry"), onClick: noop }} closeLabel={t("ui:close")} onClose={noop} />
+      </Row>
+      <Row>
+        <Toast name="toast-ok" duration={null} tone="ok" message={t("primitives:feedback.collected")} closeLabel={t("ui:close")} onClose={noop} />
+        <Toast name="toast-warning" duration={null} tone="warning" message={t("primitives:feedback.partial")} closeLabel={t("ui:close")} onClose={noop} />
+        <Island name="toast-live" layout="bar">
+          <Button variant="line" onClick={() => showToast({ message: t("primitives:feedback.saved"), action: { label: t("primitives:feedback.undo"), onClick: noop } })}>
+            {t("primitives:feedback.show")}
+          </Button>
+        </Island>
       </Row>
       <Row>
         <figure className="page-specimen">
@@ -61,7 +70,7 @@ export function Feedback() {
 export function Tooltips() {
   const t = useText();
   return (
-    <Section id="tooltip" title={t("primitives:tooltip.title")} note={t("primitives:tooltip.note")} room="tooltip">
+    <Section id="tooltip" heading={t("primitives:tooltip.title")} note={t("primitives:tooltip.note")} room="tooltip">
       <Row>
         <Specimen name="tip-plain" caption={t("primitives:tooltip.plain")} captionAbove>
           <IconButton label={t("primitives:tooltip.centre")} icon={<Crosshair />} tooltipOpen />
@@ -81,8 +90,8 @@ export function Tooltips() {
             onChange={noop}
             tooltipOpen
             items={[
-              { id: "l1", label: "L1" },
-              { id: "l2", label: "L2", disabled: true, disabledReason: t("primitives:bars.l2Soon") },
+              { id: "l1", label: t("primitives:bars.l1") },
+              { id: "l2", label: t("primitives:bars.l2"), disabled: true, disabledReason: t("primitives:bars.l2Soon") },
             ]}
           />
         </Island>

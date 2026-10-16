@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { Island } from "../ui";
 import type { IslandLayout } from "../ui";
 
-export function Section({ id, title, note, children, room }: { id: string; title: string; note: string; children: ReactNode; room?: "popover" | "tooltip" }) {
+export function Section({ id, heading, note, children, room }: { id: string; heading: string; note: string; children: ReactNode; room?: "popover" | "tooltip" }) {
   return (
     <section className="page-section" id={id} aria-labelledby={`${id}-title`} data-room={room}>
-      <h2 id={`${id}-title`}>{title}</h2>
+      <h2 id={`${id}-title`}>{heading}</h2>
       <p className="page-note">{note}</p>
       {children}
     </section>

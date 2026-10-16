@@ -1,5 +1,5 @@
 // The one tooltip of the application (DESIGN.md, Tooltip): black, white label text, a shortcut in tip-sub, below the
-// control and centred, toward the inside when against an edge; 350 ms delay, 150 ms fade. Nothing else may render a
+// control and centred, 8 px away, toward the inside when against an edge; 350 ms delay, a 150 ms fade and a 3 px rise. Nothing else may render a
 // `[role="tooltip"]`. Positioned by floating-ui (styles through the CSSOM, CSP-safe).
 import {
   autoUpdate,
@@ -18,7 +18,7 @@ import {
 import type { Placement } from "@floating-ui/react";
 import { cloneElement, isValidElement, useState } from "react";
 import type { HTMLProps, ReactElement, ReactNode, Ref } from "react";
-import { EDGE, TOOLTIP_DELAY, TOOLTIP_FADE, TOOLTIP_OFFSET } from "./geometry";
+import { EDGE, motionMs, TOOLTIP_OFFSET } from "./geometry";
 import "./Tooltip.css";
 
 export type TooltipOptions = {
@@ -40,23 +40,24 @@ export type TooltipHandle = {
 export function useTooltip({ label, shortcut, placement = "bottom", open: forced }: TooltipOptions): TooltipHandle {
   const [open, setOpen] = useState(false);
   const controlled = forced !== undefined;
-  const { refs, floatingStyles, context } = useFloating({
+  const { refs, floatingStyles, context, placement: side } = useFloating({
     open: controlled ? forced : open,
     onOpenChange: setOpen,
     placement,
     strategy: "absolute",
+    transform: false, // positioned by top / left: the CSS transform is free for the 3 px rise
     middleware: [offset(TOOLTIP_OFFSET), flip({ padding: EDGE }), shift({ padding: EDGE })],
     whileElementsMounted: autoUpdate,
   });
-  const hover = useHover(context, { enabled: !controlled, delay: { open: TOOLTIP_DELAY, close: 0 }, move: false });
+  const hover = useHover(context, { enabled: !controlled, delay: { open: motionMs("tooltip-delay"), close: 0 }, move: false });
   const focus = useFocus(context, { enabled: !controlled });
   const dismiss = useDismiss(context, { enabled: !controlled });
   const role = useRole(context, { role: "tooltip" });
   const { getReferenceProps, getFloatingProps } = useInteractions([hover, focus, dismiss, role]);
-  const { isMounted, status } = useTransitionStatus(context, { duration: TOOLTIP_FADE });
+  const { isMounted, status } = useTransitionStatus(context, { duration: motionMs("tooltip") });
   const node = isMounted ? (
     <FloatingPortal>
-      <div ref={refs.setFloating} style={floatingStyles} className="ui-tooltip" data-status={status} {...getFloatingProps()}>
+      <div ref={refs.setFloating} style={floatingStyles} className="ui-tooltip" data-status={status} data-side={side.split("-")[0]} {...getFloatingProps()}>
         {label}
         {shortcut ? <span className="ui-tooltip-shortcut">{shortcut}</span> : null}
       </div>

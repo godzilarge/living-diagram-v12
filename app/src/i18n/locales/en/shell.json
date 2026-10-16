@@ -15,8 +15,8 @@
     },
     "accent": "Accent",
     "accents": {
-      "cobalt": "Cobalt",
-      "ink": "Ink"
+      "cobalt": "cobalt",
+      "ink": "ink"
     },
     "language": "Language",
     "languages": {

@@ -1,12 +1,13 @@
 // The measurement of DESIGN.md on the rendered pages: light and dark, cobalt and ink (and French once, whose words
 // run longer). Every bar's controls equal in height (0.5 px), centred (1 px), at most two gaps; every island ≥ 16 px
 // from the page's edges and ≥ 12 px from the others; every popover ≥ 16 px from the edges and off its trigger; every
-// tooltip one computed style; every text ≥ 4.5:1 against its rendered background; Archivo loaded; no CSP refusal.
+// tooltip one computed style, 8 px from its control; every text ≥ 4.5:1 against its rendered background and fully
+// opaque; Archivo loaded; no CSP refusal. Keyboard, toasts and reduced motion: interaction.spec.ts.
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
 import { audit } from "./audit";
+import { open } from "./helpers";
 
-const LIMITS = { edge: 16, gap: 12, contrast: 4.5 };
+const LIMITS = { edge: 16, gap: 12, contrast: 4.5, tooltip: 8 };
 const CAPTURES = "e2e/captures";
 const VARIANTS = [
   { theme: "light", accent: "cobalt", lang: "en" },
@@ -16,23 +17,6 @@ const VARIANTS = [
   { theme: "light", accent: "cobalt", lang: "fr" },
 ] as const;
 
-/** Opens a page with its preferences stored, collects console errors and CSP refusals. */
-async function open(page: Page, path: string, prefs: (typeof VARIANTS)[number]) {
-  const problems: string[] = [];
-  page.on("console", (message) => {
-    if (message.type() === "error" || /Content Security Policy/i.test(message.text())) problems.push(message.text());
-  });
-  page.on("pageerror", (error) => problems.push(error.message));
-  await page.addInitScript((stored) => localStorage.setItem("ld-prefs", JSON.stringify(stored)), { theme: prefs.theme, accent: prefs.accent, lang: prefs.lang });
-  await page.goto(path);
-  await page.evaluate(() => document.fonts.ready);
-  // the whole page in the viewport: forced tooltips and lists are placed against the real page, not a 900 px window
-  const height = await page.evaluate(() => document.documentElement.scrollHeight);
-  if (height > 900) await page.setViewportSize({ width: 1440, height });
-  await page.waitForTimeout(600); // forced tooltips and popovers finish their fade
-  return problems;
-}
-
 function expectClean(report: Awaited<ReturnType<typeof audit>>) {
   expect(report.font.archivo, "Archivo is loaded").toBe(true);
   expect(report.bars.flatMap((bar) => bar.flags), "bars").toEqual([]);
@@ -40,6 +24,7 @@ function expectClean(report: Awaited<ReturnType<typeof audit>>) {
   expect(report.layers.flags, "popovers and lists").toEqual([]);
   expect(report.tooltips.flags, "tooltips").toEqual([]);
   expect(report.contrast.flags, "text contrast").toEqual([]);
+  expect(report.opacity.flags, "text opacity").toEqual([]);
 }
 
 for (const variant of VARIANTS) {
@@ -55,7 +40,7 @@ for (const variant of VARIANTS) {
     expect(problems, "console errors and CSP refusals").toEqual([]);
     expect(report.bars.length, "bars measured").toBeGreaterThanOrEqual(30);
     expect(report.floats.count, "islands measured").toBeGreaterThanOrEqual(30);
-    expect(report.layers.count, "the open popover and list").toBe(2);
+    expect(report.layers.count, "the open list and the two popovers").toBe(3);
     expect(report.tooltips.count, "the forced tooltips").toBeGreaterThanOrEqual(5);
     expect(report.contrast.checked, "texts measured").toBeGreaterThanOrEqual(100);
     expectClean(report);
@@ -90,10 +75,11 @@ test("a hovered control shows the one tooltip after its delay", async ({ page })
 
 test("the settings choices change the theme and the accent of the page", async ({ page }) => {
   await open(page, "/next/primitives.html", VARIANTS[0]);
-  await page.getByRole("radiogroup", { name: "Theme" }).first().getByRole("radio", { name: "Dark" }).click();
-  await page.getByRole("radiogroup", { name: "Accent" }).first().getByRole("radio", { name: "Ink" }).click();
+  await page.getByRole("group", { name: "Theme" }).first().getByRole("button", { name: "Dark" }).click();
+  await page.getByRole("group", { name: "Accent" }).first().getByRole("button", { name: "ink" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("html")).toHaveAttribute("data-accent", "ink");
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("ld-prefs") || "{}"));
   expect(stored).toMatchObject({ theme: "dark", accent: "ink" });
+  await expect(page.getByRole("group", { name: "Theme" }).first().getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
 });

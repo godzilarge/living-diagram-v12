@@ -42,6 +42,12 @@
   background: var(--color-hover);
 }
 
+/* the keyboard position in an open list: the one focus ring, inside the row (the list clips) */
+.ui-option:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
+  outline-offset: calc(-1 * var(--focus-ring-width));
+}
+
 .ui-option[aria-selected="true"] {
   background: var(--color-accent-weak);
 }

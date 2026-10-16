@@ -1,6 +1,7 @@
 // The tab strip (DESIGN.md, Navigation): body-size words at 500, ink-2; the current one in ink at 600 with the 2 px
 // accent rail; a count in
-// its state colour; a tab that is not ready yet is disabled and says why in its tooltip. Arrow keys move between tabs.
+// its state colour; a tab that is not ready yet is disabled and says why in its tooltip. Arrow keys move the focus over
+// every tab and select the enabled ones: a disabled tab is reached (its reason is read), never selected.
 import type { KeyboardEvent } from "react";
 import { Count } from "./Count";
 import type { Tone } from "./Count";
@@ -54,14 +55,14 @@ function Tab({ item, selected, onSelect, tooltipOpen }: { item: RailItem; select
 }
 
 export function Rail({ label, name, items, value, onChange, tooltipOpen }: RailProps) {
-  const enabled = items.filter((item) => !item.disabled);
   const move = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-    if (!step || !enabled.length) return;
+    if (!step || !items.length) return;
     event.preventDefault();
-    const at = enabled.findIndex((item) => item.id === value);
-    const next = enabled[(at + step + enabled.length) % enabled.length];
-    onChange(next.id);
+    const focused = (event.target as HTMLElement).closest("[data-tab]")?.getAttribute("data-tab") ?? value;
+    const at = items.findIndex((item) => item.id === focused);
+    const next = items[(at + step + items.length) % items.length];
+    if (!next.disabled) onChange(next.id);
     event.currentTarget.querySelector<HTMLElement>(`[data-tab="${CSS.escape(next.id)}"]`)?.focus();
   };
   return (

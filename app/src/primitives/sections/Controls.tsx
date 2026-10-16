@@ -33,7 +33,7 @@ export function IconButtons() {
   const iconOf = (state: State) => (state === "danger" ? <Trash2 /> : state === "current" ? <Grid3x3 /> : <Download />);
   const labelOf = (state: State) => (state === "danger" ? t("primitives:controls.delete") : state === "current" ? t("primitives:bars.grid") : t("shell:export"));
   return (
-    <Section id="icon-button" title={t("primitives:controls.iconTitle")} note={t("primitives:controls.iconNote")}>
+    <Section id="icon-button" heading={t("primitives:controls.iconTitle")} note={t("primitives:controls.iconNote")}>
       <Row>
         {STATES.map((state) => (
           <Specimen key={state} name={`icon-${state}`} caption={t(STATE_KEYS[state])}>
@@ -54,7 +54,7 @@ export function Buttons() {
   const t = useText();
   const primary: readonly State[] = ["rest", "hover", "focus", "disabled", "loading"];
   return (
-    <Section id="button" title={t("primitives:controls.buttonTitle")} note={t("primitives:controls.buttonNote")}>
+    <Section id="button" heading={t("primitives:controls.buttonTitle")} note={t("primitives:controls.buttonNote")}>
       <Row>
         {STATES.map((state) => (
           <Specimen key={state} name={`button-${state}`} caption={t(STATE_KEYS[state])}>

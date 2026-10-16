@@ -4,6 +4,7 @@
   height: var(--shortcut-height);
   padding: var(--shortcut-padding);
   border: 1px solid var(--color-line-2);
+  border-bottom-width: 2px;
   border-radius: var(--shortcut-radius);
   background: var(--color-paper);
   color: var(--shortcut-text-color);

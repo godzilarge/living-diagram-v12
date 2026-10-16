@@ -25,5 +25,6 @@ export type { SelectOption } from "./Select";
 export { Shortcut } from "./Shortcut";
 export { Table } from "./Table";
 export type { Column, Row, Sort } from "./Table";
-export { Toast } from "./Toast";
+export { currentToast, dismissToast, showToast, Toast, ToastHost } from "./Toast";
+export type { ToastSpec } from "./Toast";
 export { Tooltip, useTooltip } from "./Tooltip";

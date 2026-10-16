@@ -43,5 +43,5 @@
 
 .ui-segment:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
-  outline-offset: 0;
+  outline-offset: var(--focus-ring-offset);
 }

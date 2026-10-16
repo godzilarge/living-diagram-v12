@@ -12,7 +12,6 @@
 .prefs-row {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
   min-height: 40px;
 }
 
@@ -21,8 +20,39 @@
   padding-left: var(--space-sm);
 }
 
+.prefs[data-layout="inline"] .prefs-label {
+  padding-right: var(--space-sm);
+}
+
 .prefs-label {
+  flex: none;
   color: var(--color-ink-3);
   font-size: var(--text-label-size);
   line-height: var(--text-label-leading);
+}
+
+.prefs-choices {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.prefs-choices .ui-control[aria-pressed="true"] {
+  font-weight: var(--text-headline-weight);
+}
+
+/* the swatch of an accent: 12 px, the accent's own colour in the current theme */
+.prefs-swatch {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-swatch);
+}
+
+.prefs-swatch[data-swatch="cobalt"] {
+  background: var(--swatch-cobalt);
+}
+
+.prefs-swatch[data-swatch="ink"] {
+  background: var(--swatch-ink);
 }

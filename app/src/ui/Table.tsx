@@ -1,6 +1,7 @@
 // A table (DESIGN.md, Layout): body text, a label-size head in ink-3 with sortable headers (`aria-sort`), 44 px rows
 // (32 in a compact panel) with a hairline rule, the hovered row on ground, the current row on accent-weak. The head
-// sticks when the table scrolls inside a panel. Cells are text or nodes: never HTML from data.
+// sticks when the table scrolls inside a panel. A clickable row takes the focus (Tab) and answers Enter and Space.
+// Cells are text or nodes: never HTML from data.
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -58,7 +59,19 @@ export function Table({ label, columns, rows, sort, onSort, density = "regular",
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.id} aria-current={row.current ? "true" : undefined} onClick={onRowClick ? () => onRowClick(row.id) : undefined}>
+          <tr
+            key={row.id}
+            aria-current={row.current ? "true" : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
+            data-clickable={onRowClick ? "" : undefined}
+            onClick={onRowClick ? () => onRowClick(row.id) : undefined}
+            onKeyDown={onRowClick ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onRowClick(row.id);
+              }
+            } : undefined}
+          >
             {columns.map((column) => (
               <td key={column.key} data-align={column.align ?? "start"}>
                 {row.cells[column.key] ?? null}

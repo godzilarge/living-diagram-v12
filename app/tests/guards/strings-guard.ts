@@ -1,7 +1,8 @@
 // The strings guard: no visible French or English text outside the i18n catalogues (src/i18n/locales). Read with
 // the TypeScript parser on every .ts / .tsx of src/ (the catalogues and the i18n module aside):
-//   1. JSX text with a letter;
-//   2. a literal value on an attribute that is read aloud or shown (aria-label, placeholder, label, tooltip…);
+//   1. JSX text with a letter, and a string with a letter written as a JSX child (`{"Topology"}`);
+//   2. a literal value on an attribute or an object property that is read aloud or shown (aria-label, placeholder,
+//      label, tooltip…), as `label="…"`, `label={"…"}` or `{ label: "…" }`;
 //   3. any other string literal that reads as words: French (an accented letter, French typography, a French
 //      function word), English prose (a capitalised word followed by others, or three words), or a value of the
 //      catalogues spelt in code.
@@ -22,6 +23,7 @@ export const ALLOWED: ReadonlyMap<string, string> = new Map([
 const VISIBLE_ATTRIBUTES = new Set([
   "aria-label", "aria-description", "aria-valuetext", "aria-roledescription", "aria-placeholder", "placeholder", "alt",
   "label", "title", "subtitle", "tooltip", "caption", "message", "note", "disabledReason", "closeLabel", "countLabel",
+  "heading", "subheading", "ariaLabel", "text",
 ]);
 const LETTER = /\p{L}/u;
 const FRENCH_LETTER = /[àâæçéèêëîïôœùûüÿÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ]/;
@@ -73,10 +75,20 @@ export function stringFindings(source: Source): Finding[] {
     if (ALLOWED.has(`${source.path}:${text.trim()}`)) return;
     found.push({ path: source.path, line: file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1, text: text.trim() });
   };
+  const literal = (node: ts.Node | undefined) => {
+    const inner = node && ts.isJsxExpression(node) ? node.expression : node;
+    return inner && (ts.isStringLiteral(inner) || ts.isNoSubstitutionTemplateLiteral(inner)) && LETTER.test(inner.text) ? inner.text : null;
+  };
   const visit = (node: ts.Node) => {
     if (ts.isJsxText(node) && LETTER.test(node.text)) push(node, node.text);
-    else if (ts.isJsxAttribute(node) && node.initializer && ts.isStringLiteral(node.initializer) && VISIBLE_ATTRIBUTES.has(node.name.getText(file)) && LETTER.test(node.initializer.text)) {
-      push(node, `${node.name.getText(file)}="${node.initializer.text}"`);
+    else if (ts.isJsxExpression(node) && (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent)) && literal(node) !== null) {
+      push(node, literal(node) as string);
+      return;
+    } else if (ts.isJsxAttribute(node) && VISIBLE_ATTRIBUTES.has(node.name.getText(file)) && literal(node.initializer) !== null) {
+      push(node, `${node.name.getText(file)}="${literal(node.initializer)}"`);
+      return;
+    } else if (ts.isPropertyAssignment(node) && VISIBLE_ATTRIBUTES.has(node.name.getText(file).replace(/["']/g, "")) && literal(node.initializer) !== null) {
+      push(node, `${node.name.getText(file)}: "${literal(node.initializer)}"`);
       return;
     }
     else if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && !notText(node) && looksLikeWords(node.text)) push(node, node.text);

@@ -85,12 +85,14 @@ typography:
     fontFamily: "Archivo, system-ui, sans-serif"
     fontSize: "12px"
     fontWeight: 500
-    lineHeight: 1.2
+    lineHeight: "16px"
 rounded:
   control: "6px"
   surface: "10px"
   tooltip: "5px"
   chip: "4px"
+  tile: "8px"
+  swatch: "3px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -259,7 +261,7 @@ ratio 1.125. Sentence case everywhere; no uppercase labels, no tracked-out eyebr
 - **Subtitle** (500, 15 px, 1.35): a device name on a card, the label of a choice in the top bar.
 - **Body** (400, 13.5 px, 1.45): everything one reads: table cells, lists, facts. Tables run denser than prose.
 - **Label** (500, 12 px, 1.3): column headers, captions, the secondary line under a fact, keyboard shortcuts.
-- **Tooltip** (500, 12 px, 1.2): white on black.
+- **Tooltip** (500, 12 px, 16 px line): white on black, 28 px high with its padding.
 
 ### Named Rules
 **The Tabular Rule.** Every number that can align with another is set with tabular figures.
@@ -310,7 +312,7 @@ do the work of separating surfaces.
 ## Shapes
 
 Rectangles with small, consistent radii: **6 px** for controls, fields and chips; **10 px** for islands, panels,
-widgets and popovers; **5 px** for tooltips. Swatches are 14 px squares with the control radius; the user avatar is
+widgets and popovers; **5 px** for tooltips. Swatches are 12 px squares with a 3 px radius; the type tile of a panel header is 40 px with an 8 px radius; the user avatar is
 a 24 px square with initials. Nothing is pill-shaped; nothing is a circle except a state dot (8 px) and a canvas
 handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 
@@ -346,9 +348,13 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 ### Inputs / Fields
 - **Style:** paper fill, 1 px line-2 border, 6 px radius, 32 px high, body text, placeholder ink-3.
 - **Focus:** border becomes the accent, plus the focus ring.
+- **Contrast:** hairline borders are decorative; the fill, the placeholder and the focus ring carry the affordance
+  (the line-2 border is 1.55:1 on paper, the chosen segment 1.09:1 on its track: accepted, from the approved
+  mockup; text, placeholder and focus ring hold 4.5:1 / 3:1).
 - **Search:** a discreet icon button with the `Ctrl K` shortcut chip in the tools island; it opens the palette.
-- **Segmented choice:** a ground track, 6 px radius, the chosen segment on paper with the island shadow (theme,
-  layer in settings); the current segment never uses the accent fill.
+- **Segmented choice:** a ground track, 6 px radius, the chosen segment on paper with the island shadow (a filter
+  over a list); the current segment never uses the accent fill. The settings (theme, accent, language) are rail
+  buttons, as in the approved mockup, with a 12 px swatch before each accent.
 
 ### Navigation
 - **View switch** (Diagramme / Contrôle / Journal): body-size words (13.5 px) at 500, ink-2; the current one in

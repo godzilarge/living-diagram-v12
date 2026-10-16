@@ -1,5 +1,7 @@
 // A popover (DESIGN.md, Layout and Elevation): an island that floats higher, paper, a hairline, the island shadow, the
-// surface radius (`elevation="layer"`: the layer shadow, for the search palette only); it opens under its trigger and may cover islands, never its trigger. Click opens and closes it,
+// surface radius (`elevation="layer"`: the layer shadow, for the search palette only). It opens 8 px under the island
+// that holds its trigger, aligned on that island (16 px under a trigger in no island); it may cover islands, never its
+// trigger. Click opens and closes it,
 // Escape and a click outside close it. `data-layer` names it for the measurement (≥ 16 px from the viewport).
 import {
   autoUpdate,
@@ -16,9 +18,9 @@ import {
   useTransitionStatus,
 } from "@floating-ui/react";
 import type { Placement } from "@floating-ui/react";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { EDGE, POPOVER_FADE, POPOVER_OFFSET } from "./geometry";
+import { EDGE, motionMs, POPOVER_ISLAND_OFFSET, POPOVER_OFFSET } from "./geometry";
 import "./Popover.css";
 
 export type TriggerProps = Record<string, unknown> & { ref: (node: HTMLElement | null) => void };
@@ -40,16 +42,23 @@ export type PopoverProps = {
 
 export function Popover({ label, name, trigger, children, placement = "bottom-end", defaultOpen = false, role = "dialog", elevation = "island" }: PopoverProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const { refs, floatingStyles, context } = useFloating({
+  const [island, setIsland] = useState<Element | null>(null);
+  const { refs, floatingStyles, context, elements } = useFloating({
     open,
     onOpenChange: setOpen,
     placement,
     strategy: "absolute",
-    middleware: [offset(POPOVER_OFFSET), flip({ padding: EDGE }), shift({ padding: EDGE })],
+    middleware: [offset(island ? POPOVER_ISLAND_OFFSET : POPOVER_OFFSET), flip({ padding: EDGE }), shift({ padding: EDGE })],
     whileElementsMounted: autoUpdate,
   });
+  // positioned against the island that holds the trigger, when there is one (the settings popover of the mockup)
+  useLayoutEffect(() => {
+    const holder = elements.domReference instanceof Element ? elements.domReference.closest("[data-float]") : null;
+    setIsland(holder);
+    refs.setPositionReference(holder);
+  }, [elements.domReference, refs]);
   const { getReferenceProps, getFloatingProps } = useInteractions([useClick(context), useDismiss(context), useRole(context, { role })]);
-  const { isMounted, status } = useTransitionStatus(context, { duration: POPOVER_FADE });
+  const { isMounted, status } = useTransitionStatus(context, { duration: motionMs("popover") });
   const close = () => setOpen(false);
   return (
     <>

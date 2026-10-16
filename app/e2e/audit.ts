@@ -6,10 +6,11 @@ export type AuditReport = {
   layers: { count: number; flags: string[] };
   tooltips: { count: number; styles: string[]; flags: string[] };
   contrast: { checked: number; flags: string[] };
+  opacity: { flags: string[] };
   font: { archivo: boolean };
 };
 
-export function audit(limits: { edge: number; gap: number; contrast: number }): AuditReport {
+export function audit(limits: { edge: number; gap: number; contrast: number; tooltip: number }): AuditReport {
   type Box = { name: string; x: number; y: number; r: number; b: number };
   const docW = document.documentElement.scrollWidth;
   const docH = document.documentElement.scrollHeight;
@@ -87,7 +88,7 @@ export function audit(limits: { edge: number; gap: number; contrast: number }): 
   const tips = [...document.querySelectorAll('[role="tooltip"]')];
   const styleOf = (el: Element) => {
     const cs = getComputedStyle(el);
-    return [cs.backgroundColor, cs.color, cs.fontFamily, cs.fontSize, cs.fontWeight, cs.lineHeight, cs.borderRadius, cs.paddingTop, cs.paddingLeft, cs.boxShadow, cs.outlineColor, cs.outlineWidth].join(" | ");
+    return [cs.backgroundColor, cs.color, cs.fontFamily, cs.fontSize, cs.fontWeight, cs.lineHeight, cs.borderRadius, cs.paddingTop, cs.paddingLeft, cs.boxShadow, cs.outlineColor, cs.outlineWidth, cs.letterSpacing, cs.height].join(" | ");
   };
   const styles = [...new Set(tips.map(styleOf))];
   const tipFlags = [
@@ -99,7 +100,8 @@ export function audit(limits: { edge: number; gap: number; contrast: number }): 
   for (const { el, own } of tipBoxes) {
     const control = el.id ? document.querySelector(`[aria-describedby~="${CSS.escape(el.id)}"]`) : null;
     if (!control) tipFlags.push(`${own.name}: no control names it (aria-describedby)`);
-    else if (separation(own, box(control, "control")) < 0) tipFlags.push(`${own.name} covers its control`);
+    else if (separation(own, box(control, "control")) < limits.tooltip - 0.5)
+      tipFlags.push(`${own.name}: ${separation(own, box(control, "control")).toFixed(1)} px from its control (< ${limits.tooltip})`);
   }
   const layerBoxes = layerEls.map((el) => box(el, el.getAttribute("data-layer") || ""));
   for (const { own } of tipBoxes)
@@ -143,6 +145,8 @@ export function audit(limits: { edge: number; gap: number; contrast: number }): 
   };
   let checked = 0;
   const contrastFlags: string[] = [];
+  const opacityFlags: string[] = [];
+  const opacity = (el: Element | null): number => (el ? Number(getComputedStyle(el).opacity) * opacity(el.parentElement) : 1);
   for (const el of document.querySelectorAll("body *")) {
     const own = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent || "").trim());
     if (!own || !visible(el) || el.closest('[aria-disabled="true"], :disabled, [aria-hidden="true"], script, style')) continue;
@@ -151,6 +155,8 @@ export function audit(limits: { edge: number; gap: number; contrast: number }): 
       contrastFlags.push(`unreadable colour ${getComputedStyle(el).color} on "${label(el)}"`);
       continue;
     }
+    const seen = opacity(el);
+    if (seen < 1) opacityFlags.push(`"${label(el)}": rendered at opacity ${seen.toFixed(2)}`);
     const bg = background(el);
     const value = ratio(over(fg, bg), bg);
     checked += 1;
@@ -164,6 +170,7 @@ export function audit(limits: { edge: number; gap: number; contrast: number }): 
     layers: { count: layerEls.length, flags: layerFlags },
     tooltips: { count: tips.length, styles, flags: tipFlags },
     contrast: { checked, flags: contrastFlags },
+    opacity: { flags: opacityFlags },
     font: { archivo },
   };
 }

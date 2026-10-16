@@ -42,7 +42,8 @@ export function Select({ label, name, options, value, onChange, disabled, defaul
   const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const elements = useRef<Array<HTMLElement | null>>([]);
-  const labels = useRef<Array<string | null>>(options.map((option) => option.label));
+  const labels = useRef<Array<string | null>>([]);
+  labels.current = options.map((option) => option.label);
   const { refs, floatingStyles, context } = useFloating({
     open,
     onOpenChange: (next) => setOpen(disabled ? false : next),

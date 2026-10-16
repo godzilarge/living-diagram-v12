@@ -1,5 +1,5 @@
 import { LogoMark } from "../ui";
-import { Island } from "../ui";
+import { Island, ToastHost } from "../ui";
 import { useText } from "../i18n";
 import { PrefsControls } from "../shell/PrefsControls";
 import { usePrefs } from "../shell/usePrefs";
@@ -32,6 +32,7 @@ export function Page() {
       <Feedback />
       <Tooltips />
       <Surfaces />
+      <ToastHost name="toast" closeLabel={t("ui:close")} />
     </div>
   );
 }

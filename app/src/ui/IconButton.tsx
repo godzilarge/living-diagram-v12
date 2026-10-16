@@ -8,7 +8,7 @@ import { useTooltip } from "./Tooltip";
 import "./control.css";
 import "./IconButton.css";
 
-export type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "disabled" | "title"> & {
+export type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "disabled" | "title" | "style"> & {
   /** The words of the action: the accessible name and the tooltip. */
   label: string;
   icon: ReactNode;

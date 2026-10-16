@@ -1,7 +1,8 @@
 // The panel with its header actions and a sortable table, and a popover open under its trigger.
-import { ChevronsLeftRight, Crosshair, Ellipsis, ListFilter, Maximize2, Settings, X } from "lucide-react";
+import { ArrowLeftRight, ChevronsLeftRight, Crosshair, Ellipsis, ListFilter, Maximize2, Search, Settings, X } from "lucide-react";
 import { useState } from "react";
-import { Button, Count, Field, IconButton, Island, Panel, PanelSection, Popover, Table } from "../../ui";
+import { Button, Count, Field, IconButton, Island, Panel, PanelSection, Popover, Segmented, Table } from "../../ui";
+import type { PanelWidth } from "../../ui";
 import type { Sort } from "../../ui";
 import { useText } from "../../i18n";
 import { PrefsControls } from "../../shell/PrefsControls";
@@ -40,6 +41,7 @@ export function Surfaces() {
   const t = useText();
   const { prefs, language, setPrefs } = usePrefs();
   const [scope, setScope] = useState("cabled");
+  const [width, setWidth] = useState<PanelWidth>("compact");
   const actions = (
     <>
       <IconButton label={t("primitives:panel.widen")} icon={<ChevronsLeftRight />} pressed={false} shortcut="W" />
@@ -50,10 +52,10 @@ export function Surfaces() {
     </>
   );
   return (
-    <Section id="surfaces" title={t("primitives:panel.title")} note={t("primitives:panel.note")} room="popover">
+    <Section id="surfaces" heading={t("primitives:panel.title")} note={t("primitives:panel.note")} room="popover">
       <Row>
-        <Panel name="panel" title={DEVICE} subtitle={MODEL} actions={actions}>
-          <PanelSection title={t("primitives:panel.interfaces")} aside={t("primitives:panel.ports", { count: PORTS.length })}>
+        <Panel name="panel" heading={DEVICE} subheading={MODEL} tile={<ArrowLeftRight />} actions={actions} width={width}>
+          <PanelSection heading={t("primitives:panel.interfaces")} aside={t("primitives:panel.ports", { count: PORTS.length })}>
             <div className="page-panel-tools">
               <div className="page-scope" role="group" aria-label={t("primitives:inputs.scope")} data-bar="panel-scope">
                 <Button pressed={scope === "cabled"} onClick={() => setScope("cabled")}>
@@ -68,6 +70,36 @@ export function Surfaces() {
             <PortTable />
           </PanelSection>
         </Panel>
+        <Island name="panel-width" layout="bar">
+          <Segmented
+            name="panel-width-choice"
+            label={t("primitives:panel.width")}
+            value={width}
+            onChange={(value) => setWidth(value as PanelWidth)}
+            options={[
+              { value: "compact", label: t("primitives:panel.compact") },
+              { value: "wide", label: t("primitives:panel.wide") },
+              { value: "focus", label: t("primitives:panel.focusWidth") },
+            ]}
+          />
+        </Island>
+      </Row>
+      <Row>
+        <div className="page-popover-slot">
+        <Island name="popover-layer-host" layout="bar">
+          <Popover
+            name="layer-popover"
+            label={t("primitives:panel.palette")}
+            defaultOpen
+            elevation="layer"
+            placement="bottom-start"
+            trigger={(props, open) => <IconButton {...props} label={t("primitives:panel.palette")} icon={<Search />} pressed={open} />}
+          >
+            <p className="page-layer-note">{t("primitives:panel.layerNote")}</p>
+          </Popover>
+        </Island>
+        </div>
+        <div className="page-popover-slot">
         <Island name="popover-host" layout="bar">
           <Popover
             name="settings-popover"
@@ -79,6 +111,7 @@ export function Surfaces() {
             <PrefsControls prefs={prefs} language={language} onChange={setPrefs} />
           </Popover>
         </Island>
+        </div>
       </Row>
     </Section>
   );

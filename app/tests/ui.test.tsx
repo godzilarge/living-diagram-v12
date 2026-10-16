@@ -55,6 +55,8 @@ describe("primitives", () => {
   it("counts, shortcuts and panels render their parts", () => {
     expect(html(<Count value={6} tone="error" />)).toContain('data-tone="error"');
     expect(html(<Shortcut keys={["Ctrl", "K"]} />)).toContain("<kbd");
-    expect(html(<Panel name="p" title="t" actions={<span />}>{null}</Panel>)).toContain('data-bar="p-actions"');
+    const panel = html(<Panel name="p" heading="t" tile={<Download />} actions={<span />}>{null}</Panel>);
+    expect(panel).toContain('data-bar="p-actions"');
+    expect(panel).toContain("ui-panel-tile");
   });
 });

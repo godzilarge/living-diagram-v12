@@ -11,7 +11,7 @@ import "./Button.css";
 
 export type ButtonVariant = "plain" | "line" | "primary";
 
-export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "disabled" | "title"> & {
+export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "disabled" | "title" | "style"> & {
   children: ReactNode;
   variant?: ButtonVariant;
   icon?: ReactNode;

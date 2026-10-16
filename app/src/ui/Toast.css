@@ -32,3 +32,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* bottom centre, 12 px above the run band's line (the band: 16 px from the edge, 48 px high) */
+.ui-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-lg) + var(--control-height) + 2 * var(--island-padding) + var(--space-md));
+  z-index: 50;
+  transform: translateX(-50%);
+}

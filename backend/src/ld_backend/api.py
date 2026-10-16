@@ -56,7 +56,7 @@ from ld_backend.placement import (
 from ld_backend.problems import PROBLEMS, ApiError, body
 from ld_backend.render import render_shell
 from ld_backend.render.app import APP_ASSET_PREFIX, APP_CSP, APP_ROUTE, read_app_asset, render_app
-from ld_backend.render.next import NEXT_CSP, NEXT_FILE, NEXT_INDEX, NEXT_ROUTE, read_next_file
+from ld_backend.render.next import NEXT_CSP, NEXT_FILE, NEXT_INDEX, NEXT_ROUTE, etag_matches, read_next_file
 from ld_backend.schemas import AssetReceipt, Health, IngestReport, IntentOps, RunEntry, RunList
 
 # Une run s'adresse par paramètres de requête, jamais par le chemin : `infrastructure` est un libellé libre et
@@ -217,15 +217,15 @@ def _next_pages(app: FastAPI, dist: Path) -> None:
             raise ApiError(404, "file_unknown")
         content, media_type, etag = found
         headers = {"ETag": etag, "Cache-Control": "no-cache", "Content-Security-Policy": NEXT_CSP}
-        if request.headers.get("if-none-match") == etag:
+        if etag_matches(request.headers.get("if-none-match"), etag):
             return Response(status_code=304, headers=headers)
         return Response(content=content, media_type=media_type, headers=headers)
 
-    @app.get(NEXT_ROUTE, include_in_schema=False)
+    @app.api_route(NEXT_ROUTE, methods=["GET", "HEAD"], include_in_schema=False)
     def next_page(request: Request) -> Response:
         return serve(NEXT_INDEX, request)
 
-    @app.get(NEXT_FILE, include_in_schema=False)
+    @app.api_route(NEXT_FILE, methods=["GET", "HEAD"], include_in_schema=False)
     def next_file(name: str, request: Request) -> Response:
         return serve(name, request)
 

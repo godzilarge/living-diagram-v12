@@ -52,3 +52,11 @@ def read_next_file(root: Path, name: str) -> tuple[bytes, str, str] | None:
     content = (root / name).read_bytes()
     etag = '"' + base64.urlsafe_b64encode(hashlib.sha256(content).digest()).decode("ascii").rstrip("=") + '"'
     return content, media_type, etag
+
+
+def etag_matches(header: str | None, etag: str) -> bool:
+    """`If-None-Match` as RFC 9110 reads it: `*`, or a list of tags compared weakly (`W/"x"` matches `"x"`)."""
+    if not header:
+        return False
+    tags = [tag.strip().removeprefix("W/") for tag in header.split(",")]
+    return "*" in tags or etag in tags

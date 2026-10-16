@@ -16,11 +16,31 @@
   outline: 1px solid var(--color-tip-line);
   pointer-events: none;
   opacity: 0;
-  transition: opacity var(--motion-tooltip) var(--motion-ease);
+  transition:
+    opacity var(--motion-tooltip) var(--motion-ease),
+    transform var(--motion-tooltip) var(--motion-ease);
+}
+
+/* it rises 3 px toward its place, from the side of its control */
+.ui-tooltip[data-side="bottom"] {
+  transform: translateY(-3px);
+}
+
+.ui-tooltip[data-side="top"] {
+  transform: translateY(3px);
+}
+
+.ui-tooltip[data-side="right"] {
+  transform: translateX(-3px);
+}
+
+.ui-tooltip[data-side="left"] {
+  transform: translateX(3px);
 }
 
 .ui-tooltip[data-status="open"] {
   opacity: 1;
+  transform: none;
 }
 
 .ui-tooltip-shortcut {
