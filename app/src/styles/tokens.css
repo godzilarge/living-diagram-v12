@@ -170,6 +170,13 @@
   --run-band-compared-gap: 6px;
   --run-band-dash: 4px;
   --run-band-dash-gap: 3px;
+  --facts-label-width: 104px;
+  --facts-row-gap: 6px;
+  --facts-column-gap: 12px;
+  --facts-strip-gap: 32px;
+  --facts-strip-padding: 12px 16px;
+  --alerts-gap: 12px;
+  --panel-row-leading: 18px;
 }
 
 :root[data-accent="ink"] {

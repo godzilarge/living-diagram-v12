@@ -169,7 +169,6 @@ body:has(.page) {
 
 .page-scope .ui-control {
   padding: 0 var(--space-sm);
-  gap: 6px;
 }
 
 .page-specimen[data-caption="above"] {

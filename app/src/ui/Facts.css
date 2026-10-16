@@ -1,0 +1,53 @@
+/* a label column of 104 px and the value, 6 px between rows, 12 px between the columns (the mockup's `.facts`) */
+.ui-facts {
+  display: grid;
+  grid-template-columns: var(--facts-label-width) minmax(0, 1fr);
+  row-gap: var(--facts-row-gap);
+  column-gap: var(--facts-column-gap);
+  margin: 0;
+}
+
+.ui-facts[data-columns="2"] {
+  grid-template-columns: var(--facts-label-width) minmax(0, 1fr) var(--facts-label-width) minmax(0, 1fr);
+}
+
+.ui-fact {
+  display: contents;
+}
+
+.ui-facts dt {
+  color: var(--color-ink-3);
+}
+
+.ui-facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+/* the strip: the facts side by side, a 12 px label over each value, under the panel's header (the mockup's `.strip`) */
+.ui-facts[data-layout="strip"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--facts-strip-gap);
+  padding: var(--facts-strip-padding);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.ui-facts[data-layout="strip"] .ui-fact {
+  display: block;
+  min-width: 0;
+}
+
+.ui-facts[data-layout="strip"] dt {
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+}
+
+.ui-facts[data-layout="strip"] dd {
+  margin-top: var(--space-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

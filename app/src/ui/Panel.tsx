@@ -12,6 +12,8 @@ export type PanelProps = {
   name: string;
   /** The element's name (a hostname, a port): data, never a word of the interface. */
   heading: string;
+  /** The panel's accessible name ("Details of dc01-core-01"); the heading alone when left out. */
+  label?: string;
   subheading?: string;
   /** The icon of the element's type, shown in the 40 px tile. */
   tile?: ReactNode;
@@ -21,9 +23,9 @@ export type PanelProps = {
   children: ReactNode;
 };
 
-export function Panel({ name, heading, subheading, tile, actions, width = "compact", children }: PanelProps) {
+export function Panel({ name, heading, label, subheading, tile, actions, width = "compact", children }: PanelProps) {
   return (
-    <Island name={name} as="aside" className="ui-panel" data-width={width} aria-label={heading}>
+    <Island name={name} as="aside" className="ui-panel" data-width={width} aria-label={label ?? heading}>
       <header className="ui-panel-head">
         {tile ? (
           <span className="ui-panel-tile" aria-hidden="true">

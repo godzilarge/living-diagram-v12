@@ -18,11 +18,15 @@ export const HOME_CHANGES = [10, 25, 50, 100] as const;
 export type HomeRuns = (typeof HOME_RUNS)[number];
 export type HomeChanges = (typeof HOME_CHANGES)[number];
 /** `grid`, `minimap`: the canvas controls of the diagram shell, under the v1's names (a choice made in one is the
- *  choice of the other); the approved mockup's defaults: the grid shown, the minimap hidden. */
-export type Prefs = Readonly<{ theme: Theme; accent: Accent; language: Language | null; homeRuns: HomeRuns; homeChanges: HomeChanges; grid: boolean; minimap: boolean }>;
+ *  choice of the other); the approved mockup's defaults: the grid shown, the minimap hidden. `panel`: the width the
+ *  panel opens at (compact or wide; focus is a mode, never stored), under its own name: the v1's `panelWidth` is a
+ *  number of pixels and stays the v1's. */
+export const PANEL_WIDTHS = ["compact", "wide"] as const;
+export type PanelPref = (typeof PANEL_WIDTHS)[number];
+export type Prefs = Readonly<{ theme: Theme; accent: Accent; language: Language | null; homeRuns: HomeRuns; homeChanges: HomeChanges; grid: boolean; minimap: boolean; panel: PanelPref }>;
 
 export const STORAGE_KEY = "ld-prefs";
-export const DEFAULT_PREFS: Prefs = Object.freeze({ theme: "light", accent: "cobalt", language: null, homeRuns: 6, homeChanges: 10, grid: true, minimap: false });
+export const DEFAULT_PREFS: Prefs = Object.freeze({ theme: "light", accent: "cobalt", language: null, homeRuns: 6, homeChanges: 10, grid: true, minimap: false, panel: "compact" });
 
 const flag = (value: unknown, fallback: boolean): boolean => (typeof value === "boolean" ? value : fallback);
 
@@ -46,6 +50,7 @@ export function parsePrefs(raw: string | null): Prefs {
     homeChanges: oneOf(HOME_CHANGES, data.homeChanges, DEFAULT_PREFS.homeChanges),
     grid: flag(data.grid, DEFAULT_PREFS.grid),
     minimap: flag(data.minimap, DEFAULT_PREFS.minimap),
+    panel: oneOf(PANEL_WIDTHS, data.panel, DEFAULT_PREFS.panel),
   });
 }
 
@@ -58,8 +63,8 @@ export function mergePrefs(raw: string | null, prefs: Prefs): string {
   } catch {
     data = {};
   }
-  const { theme, accent, language, homeRuns, homeChanges, grid, minimap } = prefs;
-  return JSON.stringify({ ...data, theme, accent, language, homeRuns, homeChanges, grid, minimap });
+  const { theme, accent, language, homeRuns, homeChanges, grid, minimap, panel } = prefs;
+  return JSON.stringify({ ...data, theme, accent, language, homeRuns, homeChanges, grid, minimap, panel });
 }
 
 function storage(): Storage | null {

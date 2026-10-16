@@ -1,0 +1,237 @@
+/* The panel on the diagram page (design/comps/shell/index.html, `.panel`): 16 px from the right edge, 76 px from the
+   top (16 + the 48 px islands + 12), its height at most the window's less the top and bottom rows; in focus it takes
+   the width of the map over the scrim and rises above it. The panel is the Panel primitive; this sheet places it
+   and sets what its contents need beyond the primitives: the ports bar, the second lines of the focus cells, the
+   muted values, the column widths of the focus table. */
+.diagram-panel {
+  position: absolute;
+  top: calc(2 * var(--space-lg) + var(--control-height) + 2 * var(--island-padding) - var(--space-xs));
+  right: var(--space-lg);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2 * (2 * var(--space-lg) + var(--control-height) + 2 * var(--island-padding) - var(--space-xs)));
+  max-width: calc(100vw - 2 * var(--space-lg));
+}
+
+.diagram-panel > .ui-panel {
+  min-height: 0;
+  max-height: none;
+  max-width: 100%;
+}
+
+/* in focus the panel takes the map's height over the scrim, above every island */
+.diagram-panel[data-width="focus"] {
+  z-index: 3;
+  height: calc(100vh - 2 * (2 * var(--space-lg) + var(--control-height) + 2 * var(--island-padding) - var(--space-xs)));
+}
+
+.diagram-panel[data-width="focus"] > .ui-panel {
+  flex: 1;
+}
+
+.panel-note {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-ink-3);
+  text-wrap: pretty;
+}
+
+.panel-note:last-child {
+  margin-bottom: 0;
+}
+
+.panel-muted {
+  color: var(--color-ink-3);
+}
+
+/* the ports bar: the scope's rail buttons, the filter on the right, the column chooser in focus */
+.panel-ports-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.panel-scope {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.panel-scope .ui-control {
+  padding: 0 var(--space-sm);
+}
+
+.panel-filter {
+  margin-left: auto;
+}
+
+.panel-filter .ui-field-input {
+  width: 148px;
+}
+
+/* the line that names the hidden columns, its icons inline at 12 px */
+.panel-more {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--panel-row-leading);
+  text-wrap: pretty;
+}
+
+.panel-more-icon {
+  display: inline-flex;
+  vertical-align: -2px;
+  color: var(--color-ink-2);
+}
+
+.panel-more-icon .ui-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* the interface table: the port at 500; the raw description in label size, ink-3, cut */
+.panel-port {
+  font-weight: var(--text-label-weight);
+}
+
+.panel-description {
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+}
+
+.panel-neighbour {
+  white-space: nowrap;
+}
+
+/* a second line under a value (focus): label size, ink-3 */
+.panel-line {
+  display: block;
+  overflow: hidden;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-line .ui-state {
+  gap: var(--space-xs);
+}
+
+.panel-line .ui-state[data-tone="ok"],
+.panel-line .ui-state[data-tone="neutral"] {
+  color: var(--color-ink-3);
+}
+
+.panel-reason {
+  color: var(--color-ink-3);
+}
+
+/* the focus table takes the width its facts need and slides to the right inside the panel (Orhan, 2026-10-16: a
+   description or a list of VLANs is never cut nor broken); every row stays 44 px, one value and one second line; the
+   port column stays in place while the rest slides, the head while the rows scroll. Column floors from DIRECTION.md
+   (128 / 104 / 104 / 104 / 168 / 112 / 128 / 152 / 144 / 232), speed and duplex 120 so its header and sort icon fit. */
+.panel-ports[data-width="focus"] .ui-table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.panel-ports[data-width="focus"] [data-key="port"] { min-width: 128px; }
+.panel-ports[data-width="focus"] [data-key="state"] { min-width: 104px; }
+.panel-ports[data-width="focus"] [data-key="speed"] { min-width: 120px; }
+.panel-ports[data-width="focus"] [data-key="media"] { min-width: 104px; }
+.panel-ports[data-width="focus"] [data-key="mode"] { min-width: 168px; }
+.panel-ports[data-width="focus"] [data-key="addresses"] { min-width: 112px; }
+.panel-ports[data-width="focus"] [data-key="mac"] { min-width: 128px; }
+.panel-ports[data-width="focus"] [data-key="lastChange"] { min-width: 152px; }
+.panel-ports[data-width="focus"] [data-key="neighbour"] { min-width: 144px; }
+.panel-ports[data-width="focus"] [data-key="description"] { min-width: 232px; }
+
+/* a cell is as wide as its longest line, the second one included: nothing to cut, nothing to spill */
+.panel-ports[data-width="focus"] td .panel-line {
+  overflow: visible;
+  text-overflow: clip;
+  width: max-content;
+}
+
+/* the port column stays while the table slides: on paper, over the sliding cells; its head over both */
+.panel-ports[data-width="focus"] :is(th, td)[data-key="port"] {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding-right: var(--space-lg);
+  background: var(--color-paper);
+}
+
+/* its right edge: a hairline drawn by hand (a collapsed border would not travel with a sticky cell) */
+.panel-ports[data-width="focus"] :is(th, td)[data-key="port"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-line);
+}
+
+.panel-ports[data-width="focus"] th[data-key="port"] {
+  z-index: 2;
+}
+
+.panel-ports[data-width="focus"] tbody tr:hover td[data-key="port"] {
+  background: var(--color-ground);
+}
+
+/* compact and wide: the description and the neighbour cut with an ellipsis, the table never widens the panel */
+.panel-ports:not([data-width="focus"]) .ui-table {
+  table-layout: fixed;
+}
+
+.panel-ports[data-width="compact"] [data-key="port"] { width: 100px; }
+.panel-ports[data-width="compact"] [data-key="state"] { width: 108px; }
+.panel-ports[data-width="compact"] [data-key="speed"] { width: 56px; }
+.panel-ports[data-width="wide"] [data-key="port"] { width: 100px; }
+.panel-ports[data-width="wide"] [data-key="state"] { width: 104px; }
+.panel-ports[data-width="wide"] [data-key="speed"] { width: 64px; }
+.panel-ports[data-width="wide"] [data-key="mode"] { width: 212px; }
+.panel-ports[data-width="wide"] [data-key="neighbour"] { width: 152px; }
+
+/* in focus the table is the panel: padded like a section, no heading above the scope bar; the table is the one
+   scroller of the panel (down and to the right), so its head and its port column can stay in place */
+.diagram-panel[data-width="focus"] .ui-panel-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-focus-ports {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--panel-padding);
+}
+
+.panel-focus-ports .panel-ports {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel-focus-ports .panel-ports .ui-table {
+  flex: none;
+}
+
+.panel-focus-ports .panel-ports-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* a row under the pointer, as the mockup's `.ports tr:hover td` */
+.panel-ports tbody tr:hover td {
+  background: var(--color-ground);
+}

@@ -7,6 +7,41 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **The column chooser of the focus panel: a checklist, chosen at the bench** (2026-10-16, Orhan: the chooser of
+  rail buttons was "heavy, ugly"; four directions shown side by side in `bac-a-sable/colonnes/` (rail words in a
+  row, a list with the rail on the left, a checklist, framed words); he chose **C, the checklist**; the resizable
+  panel is noted for later, parked in `etat.md`). Primitive `Checklist` added to `DESIGN.md` and the primitives page
+  before use (32 px rows, a 16 px slot with the accent check mark, the word in ink-3 when off, never a rail: an item
+  is on or off, not current; checkboxes in a named group); the chooser's popover is built from it.
+- **Panel retouch after Orhan's first look: the focus table slides, the column chooser under its bar** (2026-10-16,
+  Orhan: the column chooser's popover fell under the panel, off screen; descriptions broken on two lines in focus;
+  "the table is not yet at the level of the rest, people will consult it most"; asked about a resizable panel or a
+  slide to the right). Done the same day as a retouch under `DESIGN.md` (no prototype, no review): the chooser's
+  popover anchors on the ports bar (`data-anchor`), under it and aligned on its end; in focus the table takes the
+  width its facts need and **slides to the right** inside the panel (the table is the panel's one scroller, its head
+  and its port column stay in place), every row back to 44 px, no fact cut or broken (`DESIGN.md` § Panel rows). The
+  resizable panel is a new interaction, a design decision for the bench: proposed to Orhan with an opinion, not
+  coded. Captures `.impeccable/planche-panneau/panel-focus-slide-*.png`, `panel-focus-chooser.png`.
+- **Brick 3 of the v2 migration: the panel, delivered and reviewed** (2026-10-16, `/brique-ui panneau`; the
+  announcement's decisions stand, Orhan has the capture sheet to judge). The panel of the selected element on the
+  diagram page at the mockup's three widths: compact (To check, Identity, Interfaces, MLAG pair, Aggregates, HA,
+  stack, changes), wide (W, a browser preference `panel` in `ld-prefs`: mode and VLANs, description, two-column
+  identity), focus (Shift+F, a mode over the scrim: a strip of facts, every column, a column chooser; Escape leaves
+  it, Escape closes). **Every fact of the contract on an interface is readable**, the neighbour is the one LLDP or CDP
+  saw (a quiet link that selects it), the raw description in ink-3; **the alerts are B1's checks in words**, one
+  sentence per code in both languages, grouped by code, naming what they concern, never a code (`docs/13` § Done).
+  A cable, an aggregate, a bundle and an HA cluster have a panel in the same grammar; groups, annotations and
+  connectors wait for edit mode. Two primitives from the approved mockup: `Facts` and `Alerts` (`DESIGN.md`, the
+  primitives page); `Table` gains `data-key` and `wrap`; `Panel` a `label`. Logic in `app/src/state/panel.ts` with
+  Node tests; the chrome insets follow the panel; "centre the view" on the selection. Review
+  `docs/revues/2026-10-16-panel.md` (0 critical, 2 high, 11 medium, 8 low; probes in `-sondes/`), **treated the
+  same day**: every port fact in the focus line (H1), green for a port or a bundled member only (H2), the filter
+  matches the shown words (M1), changed values in words (M2), sources in words (M3), one rule for the pressed word
+  (M9), words tested against the contract's codes (M10), "To check" on a cable and an aggregate (M11); assumed: the
+  parsed description and a cable's status and sources belong to Contrôle, a focus row may grow to keep a fact whole.
+  Suites: app check 161, e2e 46 (panel 5); engine, backend, contracts green. Captures `.impeccable/planche-panneau/`.
+  To judge in use: `docs/a-juger-a-l-usage.md` (Escape in focus, the scrim under the islands, the cut description,
+  cabled by default, alerts split by severity, the neighbour link).
 - **Brick 2 of the v2 migration: the diagram shell, delivered and reviewed** (2026-10-16, `/brique-ui diagramme`;
   Orhan validated the seven decisions of the announcement, asking only that the grid never be aggressive, and, seeing
   the first build, kept the plan: the magnet and the plan grid wait for edit mode, "I do not want us to degrade and

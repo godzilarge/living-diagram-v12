@@ -36,6 +36,8 @@ export type DiagramCommands = Readonly<{
   /** The canvas reports its viewport. */
   setZoom: (zoom: number) => void;
   setHandle: (handle: CanvasHandle | null) => void;
+  /** Centres the canvas on the selected element (the panel's "centre the view"). */
+  center: () => void;
   fit: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -50,7 +52,8 @@ function startState(): DiagramState {
   return initialState(readToken() ? "present" : "missing", address, shownView(parsed.view), parsed.selection);
 }
 
-export function useDiagram(insets: Insets): Readonly<{ state: DiagramState; session: () => Session; commands: DiagramCommands; handle: CanvasHandle | null }> {
+/** `insetsOf` says what the shell lays over the canvas at the moment a command runs (the panel comes and goes). */
+export function useDiagram(insetsOf: () => Insets): Readonly<{ state: DiagramState; session: () => Session; commands: DiagramCommands; handle: CanvasHandle | null }> {
   const [state, dispatch] = useReducer(reducer, undefined, startState);
   const [handle, setHandleState] = useState<CanvasHandle | null>(null);
   const stateRef = useRef(state);
@@ -162,21 +165,25 @@ export function useDiagram(insets: Insets): Readonly<{ state: DiagramState; sess
         handleRef.current = next;
         setHandleState(next);
       },
+      center: () => {
+        const { selection } = stateRef.current;
+        if (selection) handleRef.current?.toile.reveal(selection);
+      },
       fit: () => handleRef.current?.toile.fit(),
       zoomIn: () => {
         const view = viewOf();
-        if (view) apply(zoomIn(view, area(), insets));
+        if (view) apply(zoomIn(view, area(), insetsOf()));
       },
       zoomOut: () => {
         const view = viewOf();
-        if (view) apply(zoomOut(view, area(), insets));
+        if (view) apply(zoomOut(view, area(), insetsOf()));
       },
       zoomReset: () => {
         const view = viewOf();
-        if (view) apply(zoomTo(view, 1, area(), insets));
+        if (view) apply(zoomTo(view, 1, area(), insetsOf()));
       },
     };
-  }, [open, insets]);
+  }, [open, insetsOf]);
 
   return { state, session, commands, handle };
 }

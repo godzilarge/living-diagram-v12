@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { Avatar, Button, Count, Field, IconButton, IconLink, initialOf, Island, Link, Mark, Panel, Rail, Segmented, Shortcut, Table, Widget } from "../src/ui";
+import { Alerts, Avatar, Button, Checklist, Count, Facts, Field, IconButton, IconLink, initialOf, Island, Link, Mark, Panel, Rail, Segmented, Shortcut, Table, Widget } from "../src/ui";
 
 const html = (node: React.ReactNode) => renderToStaticMarkup(<>{node}</>);
 
@@ -51,6 +51,25 @@ describe("primitives", () => {
     );
     expect(out).toContain('aria-sort="ascending"');
     expect(out).toContain('aria-current="true"');
+  });
+
+  it("facts and alerts render their parts, a detail sets its sentence strong", () => {
+    const facts = html(<Facts columns={2} items={[{ label: "a", value: "1" }, { label: "b", value: <Mark tone="ok">{"x"}</Mark> }]} />);
+    expect(facts).toContain('data-columns="2"');
+    expect(facts.match(/<dt>/g)).toHaveLength(2);
+    expect(html(<Facts layout="strip" items={[]} />)).toContain('data-layout="strip"');
+    const alerts = html(<Alerts label="l" items={[{ id: "1", tone: "error", text: "t", detail: "d" }, { id: "2", tone: "neutral", text: "u" }]} />);
+    expect(alerts.match(/<li /g)).toHaveLength(2);
+    expect(alerts.match(/data-strong=""/g)).toHaveLength(1);
+    expect(alerts).toContain('data-tone="error"');
+  });
+
+  it("a checklist is a group of checkboxes, each saying its state", () => {
+    const out = html(<Checklist name="c" label="l" items={[{ id: "a", label: "A", checked: true }, { id: "b", label: "B", checked: false }]} onToggle={() => undefined} />);
+    expect(out).toContain('role="group"');
+    expect(out.match(/role="checkbox"/g)).toHaveLength(2);
+    expect(out).toMatch(/aria-checked="true"[^>]*data-value="a"/);
+    expect(out.match(/<svg/g)).toHaveLength(1);
   });
 
   it("counts, shortcuts and panels render their parts", () => {

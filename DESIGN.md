@@ -243,6 +243,16 @@ components:
     compared-gap: "6px"
     dash: "4px"
     dash-gap: "3px"
+  facts:
+    label-width: "104px"
+    row-gap: "6px"
+    column-gap: "12px"
+    strip-gap: "32px"
+    strip-padding: "12px 16px"
+  alerts:
+    gap: "12px"
+  panel-row:
+    leading: "18px"
 ---
 
 # Design System: Living Diagram
@@ -405,7 +415,8 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   always a tooltip; `aria-pressed` when it toggles.
 - **Primary:** accent fill, on-accent text, 0 14px padding; one per surface at most (export, "Ouvrir la fiche").
 - **Hover / Focus:** hover fill 120 ms; focus ring 2 px accent, offset 2 px, on keyboard focus only.
-- **Current / on:** the 2 px accent rail (bottom of a tab, left of a vertical tool, under a run), ink text; no fill.
+- **Current / on:** the 2 px accent rail (bottom of a tab, left of a vertical tool, under a run), ink text at 600 for
+  a word (a layer, a scope, a setting); no fill. One definition, in the primitive.
 - **Disabled:** ink-4, no hover, cursor default; a tooltip still says why (L2, L3: "en cours").
 - **Danger:** error text on hover, no fill (the error red on the dark hover fill would fall under 4.5:1).
 - **Outlined icon button:** the icon button with a line-2 border on paper, for a control alone on an empty surface (the
@@ -466,6 +477,13 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   over a list, a count after each word when it filters a list); the current segment never uses the accent fill. The settings (theme, accent, language) are rail
   buttons, as in the approved mockup, with a 12 px swatch before each accent.
 
+### Checklist
+What is shown or kept (the columns of the focus table; later what an export shows): a column of 32 px rows, each a
+word with a 16 px slot before it, a check mark in the accent (stroke 2) when the item is on, nothing when it is off,
+the word then in ink-3. Never a rail: an item is on or off, not "current" (Orhan, 2026-10-16, chosen at the bench
+among four directions); never a pill. Each row is a checkbox the keyboard reaches; the list is a named group, in a
+popover under the control that opens it.
+
 ### Navigation
 - **View switch** (Diagramme / Contrôle / Journal): body-size words (13.5 px) at 500, ink-2; the current one in
   ink at 600 with the 2 px accent rail; counts next to Contrôle in the state colour.
@@ -502,6 +520,32 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   label position | below, above (rail on the current layer) | lock, duplicate, delete.
 - **Placement:** 12 px above the element, centred; a volet 12 px above the bar under its trigger; never over the
   element; flips below the element when it would come within 12 px of the top islands.
+
+### Facts
+A list of labels and values, from the approved mockup (`.facts`, `.strip`): the label in ink-3 on a 104 px column,
+the value in body text (a long one breaks on a second line, never cut), 6 px between rows and 12 px between the
+columns; the compact panel reads it in one column, the wide panel in two. As a **strip** (the focus panel, under its header): the facts side by side, 32 px apart, a 12 px
+label over its value, padded 12 × 16 with a hairline below. A value is text, a Mark with its words, or a Link; a
+fact without a value is left out, never shown blank. The only way to lay out facts in the shell.
+
+### Alerts
+What is to be checked on the selected element, in words, from the approved mockup (`.alerts`): a list, 12 px between
+lines, each starting with the state mark of its severity (error, the warning mark, grey for a note) 12 px before its
+sentence; a line with a detail sets its sentence in body strong and the detail under it in label size, ink-3. The
+sentences come from the catalogue, one per check code; the detail names the ports, aggregates or devices concerned.
+**Never a check code** (the Diagram view's rule); the verdicts with their codes live in Contrôle.
+
+### Panel rows
+The interface table of the panel: 32 px rows in compact and wide (the Table's `compact` density, port names at 500);
+44 px rows in focus, where a cell may carry a second line in label size, ink-3, on an 18 px leading (duplex under the
+speed, the native VLAN under the trunk, the aggregate under the port with its member mark, else the port's type,
+parent, context and roles; the vendor reason under the state); the raw description in ink-3 label size, cut with an
+ellipsis in compact and wide. In focus the table takes the width its facts need and **slides to the right** inside
+the panel: no fact is cut or broken, every row stays 44 px, the port column stays in place while the rest slides and
+the head while the rows scroll (Orhan, 2026-10-16: the table is what people consult most). The columns follow the
+width: port, state, speed and neighbour in compact; mode and VLANs and the description in wide; everything in focus
+(media, addresses, MAC, last change too), with a column chooser. A line above the table says what the hidden
+columns are and which icon shows them.
 
 ### Avatar
 A 22 px square, 5 px radius, sunken fill with a 1 px line-2 inset, the author's initial at 11.5 px / 650 in ink-2;

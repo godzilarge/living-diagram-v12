@@ -5,7 +5,8 @@
 // answers Enter and Space; a row with one (`href`) shows it as a quiet Link in its `link` column, which Tab reaches,
 // and a click elsewhere on the row follows the same address through `onRowClick`. A `cut` column takes a quarter of
 // the table and cuts its text with an ellipsis. Each row carries its id (`data-row`), for what reports the rows on
-// screen. Cells are text or nodes: never HTML from data.
+// screen; each cell its column's key (`data-key`), for a surface that sizes its columns. Cells are text or nodes:
+// never HTML from data. `wrap` lets the cells of a table break on two lines (the focus panel) instead of cutting.
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { Icon } from "./Icon";
@@ -39,6 +40,8 @@ export type TableProps = {
   /** `widget`: the 32 px head of a home widget. */
   head?: "regular" | "widget";
   onRowClick?: (id: string) => void;
+  /** The cells may break on a second line (the focus panel's 44 px rows). */
+  wrap?: boolean;
 };
 
 function SortIcon({ state }: { state: SortDirection | null }) {
@@ -67,6 +70,7 @@ function Head({ column, sort, onSort }: { column: Column; sort?: Sort; onSort?: 
 }
 
 const cellData = (column: Column) => ({
+  "data-key": column.key,
   "data-align": column.align ?? "start",
   "data-fit": column.fit ? "" : undefined,
   "data-cut": column.cut ? "" : undefined,
@@ -112,9 +116,9 @@ function BodyRow({ row, columns, onRowClick }: { row: Row; columns: readonly Col
   );
 }
 
-export function Table({ label, columns, rows, sort, onSort, density = "regular", head = "regular", onRowClick }: TableProps) {
+export function Table({ label, columns, rows, sort, onSort, density = "regular", head = "regular", onRowClick, wrap }: TableProps) {
   return (
-    <table className="ui-table" aria-label={label} data-density={density} data-head={head}>
+    <table className="ui-table" aria-label={label} data-density={density} data-head={head} data-wrap={wrap ? "" : undefined}>
       <thead>
         <tr>
           {columns.map((column) => (

@@ -1,14 +1,14 @@
 // The panel with its header actions and a sortable table, and a popover open under its trigger.
 import { ArrowLeftRight, ChevronsLeftRight, Crosshair, Ellipsis, ListFilter, Maximize2, Search, Settings, X } from "lucide-react";
 import { useState } from "react";
-import { Button, Count, Field, IconButton, Island, Mark, Panel, PanelSection, Popover, Segmented, Table } from "../../ui";
+import { Alerts, Button, Count, Facts, Field, IconButton, Island, Mark, Panel, PanelSection, Popover, Segmented, Table } from "../../ui";
 import type { PanelWidth } from "../../ui";
 import type { Sort } from "../../ui";
 import { useText } from "../../i18n";
 import { PrefsControls } from "../../shell/PrefsControls";
 import { usePrefs } from "../../shell/usePrefs";
 import { DEVICE, MODEL, PORTS } from "../sample";
-import { Row, Section } from "../Specimen";
+import { Row, Section, Specimen } from "../Specimen";
 
 function PortTable() {
   const t = useText();
@@ -37,6 +37,15 @@ function PortTable() {
   return <Table label={t("primitives:panel.interfaces")} columns={columns} rows={rows} sort={sort} onSort={setSort} density="compact" onRowClick={setCurrent} />;
 }
 
+const identity = (t: ReturnType<typeof useText>) => [
+  { label: t("primitives:panel.vendor"), value: "Cisco" },
+  { label: t("primitives:panel.model"), value: MODEL },
+  { label: t("primitives:panel.system"), value: "NX-OS 10.4.2" },
+  { label: t("primitives:panel.site"), value: "dc01" },
+  { label: t("primitives:panel.collection"), value: t("primitives:panel.collected") },
+  { label: t("primitives:panel.cables"), value: "16" },
+];
+
 export function Surfaces() {
   const t = useText();
   const { prefs, language, setPrefs } = usePrefs();
@@ -55,6 +64,19 @@ export function Surfaces() {
     <Section id="surfaces" heading={t("primitives:panel.title")} note={t("primitives:panel.note")} room="popover">
       <Row>
         <Panel name="panel" heading={DEVICE} subheading={MODEL} tile={<ArrowLeftRight />} actions={actions} width={width}>
+          <PanelSection heading={t("primitives:panel.toCheck")} aside={t("primitives:panel.alertCounts")}>
+            <Alerts
+              label={t("primitives:panel.toCheck")}
+              items={[
+                { id: "a1", tone: "error", text: t("primitives:panel.alert1"), detail: t("primitives:panel.alert1Detail") },
+                { id: "a2", tone: "warning", text: t("primitives:panel.alert2") },
+                { id: "a3", tone: "neutral", text: t("primitives:panel.alert3") },
+              ]}
+            />
+          </PanelSection>
+          <PanelSection heading={t("primitives:panel.identity")}>
+            <Facts columns={width === "compact" ? 1 : 2} items={identity(t)} />
+          </PanelSection>
           <PanelSection heading={t("primitives:panel.interfaces")} aside={t("primitives:panel.ports", { count: PORTS.length })}>
             <div className="page-panel-tools">
               <div className="page-scope" role="group" aria-label={t("primitives:inputs.scope")} data-bar="panel-scope">
@@ -83,6 +105,19 @@ export function Surfaces() {
             ]}
           />
         </Island>
+      </Row>
+      <Row>
+        <Specimen name="facts-strip" caption={t("primitives:panel.strip")} layout="plain">
+          <Facts
+            layout="strip"
+            items={[
+              ...identity(t).slice(1, 4),
+              { label: t("primitives:panel.mlagPair"), value: "dc01-core-02" },
+              { label: t("primitives:panel.aggregates"), value: "13" },
+              { label: t("primitives:panel.toCheck"), value: <Mark tone="error">{t("primitives:panel.alertCounts")}</Mark> },
+            ]}
+          />
+        </Specimen>
       </Row>
       <Row>
         <div className="page-popover-slot">

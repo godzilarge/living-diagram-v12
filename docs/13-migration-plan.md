@@ -76,6 +76,31 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   named without its compared run, the right click, the placement toast, the canvas bubble's role, the scrolling
   band, the fixed grid).
 
+- **Brick 3, Panel** (2026-10-16): the panel of the selected element on the diagram page, at the three widths of the
+  approved mockup: compact (440: To check, Identity, Interfaces with port, state, speed and neighbour, MLAG pair,
+  aggregates, HA cluster, stack, changes since the compared collection), wide (864, W: mode and VLANs, description,
+  identity in two columns) and focus (1408, Shift+F: a strip of facts under the header, every column of the contract
+  with a column chooser, the map faded behind the scrim, the canvas controls hidden; Escape leaves it, Escape closes).
+  Compact or wide is a browser preference (`panel` in `ld-prefs`); focus is a mode. **Every fact of the contract on an
+  interface is readable**: state (the vendor reason under it in focus), speed and duplex, media, mode and VLANs (the
+  native one apart), addresses and VRF, MAC, last change, aggregate and membership, the neighbour **seen by LLDP or
+  CDP only** (a quiet link that selects it), the raw description in ink-3 (cut, two lines in focus). The alerts are
+  B1's checks on the device **in words**, one sentence per code in both languages (`panel:checks`), grouped by code in
+  severity order, naming the ports, aggregates and cables concerned; **never a code** (a code the page does not know
+  falls back to the server's own meaning). The interface table is scoped (cabled ports by default, every port one
+  click away), filtered (every word typed, short port names included), sorted by any column (a missing value last).
+  A cable, an aggregate, a bundle and an HA cluster have a panel in the same grammar; groups, annotations and
+  connectors wait for edit mode. Three primitives written into `DESIGN.md` and the primitives page before use: `Facts`
+  (label / value list, one or two columns, the focus strip) and `Alerts` (mark, sentence, detail) from the approved
+  mockup, `Checklist` (the column chooser, chosen by Orhan at the bench among four directions); `Table` gained
+  `data-key` on its cells and `wrap`. After Orhan's first look: the focus table slides to the right at its natural
+  width (port column and head fixed, rows at 44 px), the chooser opens under its bar. Logic moved into `app/src/`: `state/panel.ts` (rows,
+  neighbours, scope, filter, sort, alerts, aggregates, MLAG, HA, a cable), the keys (W, Shift+F, C), the chrome insets
+  that follow the panel (`diagram/chrome.ts`, the canvas frames inside what the panel leaves, "centre the view" on the
+  selection). Measured in Chromium (`e2e/panel.spec.ts`: the three widths in light, dark and French, the table, the
+  neighbour link, the column chooser, a cable from the address). Captures `.impeccable/planche-panneau/`. "More"
+  (history, copy, pin) and "See all in Check" wait for bricks 6 and 7. To judge in use: `docs/a-juger-a-l-usage.md`.
+
 ## Rules every brick obeys
 
 - The approved mockup state is the comp; the `relecteur-ui` compares to it, never to a score.

@@ -33,3 +33,8 @@
   background: var(--color-sunken);
   color: var(--color-ink-4);
 }
+
+/* a pressed rail button (a choice that is on: a layer, a scope, a setting) sets its word at 600, once for the shell */
+.ui-button.ui-rail[aria-pressed="true"] .ui-button-text {
+  font-weight: var(--text-headline-weight);
+}

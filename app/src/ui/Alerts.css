@@ -1,0 +1,40 @@
+.ui-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--alerts-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* the mark 12 px before the words, on the first line's x-height (the mockup's `.alerts li`) */
+.ui-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.ui-alert > .ui-mark {
+  margin-top: calc(var(--space-sm) - var(--space-2xs));
+}
+
+.ui-alert-body {
+  min-width: 0;
+}
+
+.ui-alert-text {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.ui-alert-text[data-strong] {
+  font-weight: var(--text-body-strong-weight);
+}
+
+.ui-alert-detail {
+  margin: var(--space-2xs) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+  text-wrap: pretty;
+}

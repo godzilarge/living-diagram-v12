@@ -1,7 +1,7 @@
 // Fields, choices that open a list, segmented choices: rest, focus, filled, invalid, disabled, open.
 import { ListFilter } from "lucide-react";
 import { useState } from "react";
-import { Field, Segmented, Select } from "../../ui";
+import { Checklist, Field, Segmented, Select } from "../../ui";
 import { useText } from "../../i18n";
 import { INFRASTRUCTURES } from "../sample";
 import { Row, Section, Specimen } from "../Specimen";
@@ -11,6 +11,7 @@ export function Inputs() {
   const [filter, setFilter] = useState("Ethernet1/4");
   const [infrastructure, setInfrastructure] = useState(INFRASTRUCTURES[0]);
   const [scope, setScope] = useState("cabled");
+  const [shown, setShown] = useState<Record<string, boolean>>({ state: true, speed: true, media: false, neighbour: true });
   const options = INFRASTRUCTURES.map((value) => ({ value, label: value }));
   const scopes = [
     { value: "cabled", label: t("primitives:inputs.cabled") },
@@ -45,6 +46,21 @@ export function Inputs() {
         </Specimen>
         <Specimen name="select-open" caption={t("primitives:inputs.open")} captionAbove>
           <Select name="select-open-list" label={t("primitives:bars.infrastructure")} options={options} value={infrastructure} onChange={setInfrastructure} defaultOpen />
+        </Specimen>
+      </Row>
+      <Row>
+        <Specimen name="checklist" caption={t("primitives:inputs.checklist")} layout="plain">
+          <Checklist
+            name="checklist-columns"
+            label={t("primitives:inputs.shown")}
+            items={[
+              { id: "state", label: t("primitives:panel.state"), checked: shown.state },
+              { id: "speed", label: t("primitives:panel.speed"), checked: shown.speed },
+              { id: "media", label: t("primitives:inputs.columns"), checked: shown.media },
+              { id: "neighbour", label: t("primitives:panel.neighbour"), checked: shown.neighbour },
+            ]}
+            onToggle={(id, checked) => setShown({ ...shown, [id]: checked })}
+          />
         </Specimen>
       </Row>
     </Section>

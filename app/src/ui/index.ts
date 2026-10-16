@@ -1,9 +1,15 @@
 // The primitives: the only place that renders a control (DESIGN.md, Do's). A surface composes these; a control that
 // cannot be built from them is a design decision for the owner, not an improvisation.
+export { Alerts } from "./Alerts";
+export type { Alert } from "./Alerts";
 export { Avatar, initialOf } from "./Avatar";
 export { Button } from "./Button";
+export { Checklist } from "./Checklist";
+export type { ChecklistItem, ChecklistProps } from "./Checklist";
 export type { ButtonProps, ButtonVariant } from "./Button";
 export { Count } from "./Count";
+export { Facts } from "./Facts";
+export type { Fact, FactsProps } from "./Facts";
 export type { Tone } from "./Count";
 export { Field } from "./Field";
 export { Icon, Spinner } from "./Icon";

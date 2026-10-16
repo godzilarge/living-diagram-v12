@@ -23,7 +23,7 @@ import type { Language } from "../i18n";
 import { useText } from "../i18n";
 import type { SelectionToken, ViewState } from "../state/address";
 import type { CanvasHandle } from "../state/useDiagram";
-import { CHROME } from "./chrome";
+import type { Insets } from "../state/zoom";
 import "./Canvas.css";
 
 export type CanvasPrefs = Readonly<{ grid: boolean; minimap: boolean; theme: "light" | "dark" }>;
@@ -35,6 +35,8 @@ export type CanvasProps = {
   remembered: boolean;
   session: () => Session;
   view: ViewState;
+  /** What the shell lays over the map (its islands, the panel): fitting and centring frame inside the rest. */
+  insets: Insets;
   prefs: CanvasPrefs;
   language: Language;
   selection: Selection | null;
@@ -73,12 +75,12 @@ function pushView(toile: Toile, view: ViewState): boolean {
 }
 
 export function Canvas(props: CanvasProps) {
-  const { model, infrastructure, remembered, session, view, prefs, language, selection, hosts, wanted, onSelect, onWantedMissing, onView, onHandle, onNote } = props;
+  const { model, infrastructure, remembered, session, view, insets, prefs, language, selection, hosts, wanted, onSelect, onWantedMissing, onView, onHandle, onNote } = props;
   const t = useText();
   const host = useRef<HTMLDivElement>(null);
   // what the mount effect reads without depending on it: one canvas per run, never per render
-  const latest = useRef({ view, wanted, onSelect, onNote, onWantedMissing, session, t });
-  latest.current = { view, wanted, onSelect, onNote, onWantedMissing, session, t };
+  const latest = useRef({ view, insets, wanted, onSelect, onNote, onWantedMissing, session, t });
+  latest.current = { view, insets, wanted, onSelect, onNote, onWantedMissing, session, t };
   const [toile, setToile] = useState<Toile | null>(null);
 
   // the v1 catalogues speak the page's language
@@ -105,7 +107,7 @@ export function Canvas(props: CanvasProps) {
         return () => window.clearTimeout(timer);
       },
     });
-    created.state.insets = { ...CHROME };
+    created.state.insets = { ...latest.current.insets };
     pushView(created, latest.current.view);
     created.render(false);
     // the selection the address asks for: shown, or said missing before the canvas answers "nothing selected" (which
@@ -125,6 +127,11 @@ export function Canvas(props: CanvasProps) {
       onHandle(null);
     };
   }, [model, infrastructure, remembered, onHandle]);
+
+  // The insets follow the panel: what "show everything" and "centre" frame around.
+  useEffect(() => {
+    if (toile) toile.state.insets = { ...insets };
+  }, [toile, insets]);
 
   // The view (toggles, rules): a new layout, framing kept; the port names: a repaint.
   useEffect(() => {
@@ -154,7 +161,7 @@ export function Canvas(props: CanvasProps) {
   const flowPrefs = useMemo(() => ({ grid: false, snap: false, minimap: prefs.minimap, theme: prefs.theme, guides: false }), [prefs]);
   const runKey = `${model.source.infrastructure}\u0000${model.source.collector_run_id}`;
   return (
-    <div className="diagram-canvas" ref={host} data-canvas="" data-grid={prefs.grid ? "" : undefined}>
+    <div className="diagram-canvas" ref={host} data-canvas="" data-grid={prefs.grid ? "" : undefined} tabIndex={-1}>
       {toile ? (
         <I18nextProvider i18n={canvasI18n}>
           <Flow

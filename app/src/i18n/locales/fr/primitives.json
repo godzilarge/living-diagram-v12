@@ -68,7 +68,10 @@
     "ruleError": "Parenthèse non fermée dans la règle",
     "segmented": "Segmenté, une option désactivée",
     "scope": "Ports montrés",
-    "open": "Ouvert"
+    "open": "Ouvert",
+    "checklist": "Liste à coches, un élément décoché",
+    "columns": "Colonnes",
+    "shown": "Colonnes montrées"
   },
   "feedback": {
     "title": "Comptes, raccourcis, notifications, voile",
@@ -102,7 +105,7 @@
   },
   "panel": {
     "title": "Fiche, tableau, popover",
-    "note": "La fiche compacte avec ses actions d'en-tête et un tableau triable ; un popover s'ouvre sous son déclencheur et peut couvrir des îlots.",
+    "note": "La fiche compacte avec ses actions d'en-tête, ses alertes en mots, ses faits et un tableau triable ; un popover s'ouvre sous son déclencheur et peut couvrir des îlots.",
     "interfaces": "Interfaces",
     "ports_one": "{{count}} port",
     "ports_many": "{{count}} ports",
@@ -122,7 +125,25 @@
     "wide": "Large",
     "focusWidth": "Focus",
     "palette": "Palette de recherche",
-    "layerNote": "L'ombre de calque : la palette de recherche et la fiche en focus seulement."
+    "layerNote": "L'ombre de calque : la palette de recherche et la fiche en focus seulement.",
+    "toCheck": "À vérifier",
+    "alertCounts": "2 erreurs, 3 avertissements",
+    "alert1": "Deux agrégats hors service",
+    "alert1Detail": "port-channel20 et port-channel21 n'ont plus aucun membre actif",
+    "alert2": "Vitesse différente aux deux bouts d'un câble",
+    "alert3": "Deux câbles décrits mais jamais observés",
+    "identity": "Identité",
+    "vendor": "Constructeur",
+    "model": "Modèle",
+    "system": "Système",
+    "site": "Site",
+    "collection": "Collecte",
+    "collected": "Réussie le 19 janv. 2026 à 02:00",
+    "cables": "Câbles",
+    "mlagPair": "Paire MLAG",
+    "aggregates": "Agrégats",
+    "strip": "Les faits en bandeau : la bande d'en-tête de la fiche en focus",
+    "alertsCaption": "Alertes : un repère, une phrase, un détail"
   },
   "widgets": {
     "title": "Widgets, avatars, repères",

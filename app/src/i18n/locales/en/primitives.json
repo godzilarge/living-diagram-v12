@@ -66,7 +66,10 @@
     "ruleError": "Unclosed parenthesis in the rule",
     "segmented": "Segmented, one option disabled",
     "scope": "Ports shown",
-    "open": "Open"
+    "open": "Open",
+    "checklist": "Checklist, one item off",
+    "columns": "Columns",
+    "shown": "Shown columns"
   },
   "feedback": {
     "title": "Counts, shortcuts, toasts, scrim",
@@ -100,7 +103,7 @@
   },
   "panel": {
     "title": "Panel, table, popover",
-    "note": "The compact panel with its header actions and a sortable table; a popover opens under its trigger and may cover islands.",
+    "note": "The compact panel with its header actions, its alerts in words, its facts and a sortable table; a popover opens under its trigger and may cover islands.",
     "interfaces": "Interfaces",
     "ports_one": "{{count}} port",
     "ports_other": "{{count}} ports",
@@ -119,7 +122,25 @@
     "wide": "Wide",
     "focusWidth": "Focus",
     "palette": "Search palette",
-    "layerNote": "The layer shadow: the search palette and the focus panel only."
+    "layerNote": "The layer shadow: the search palette and the focus panel only.",
+    "toCheck": "To check",
+    "alertCounts": "2 errors, 3 warnings",
+    "alert1": "Two aggregates out of service",
+    "alert1Detail": "port-channel20 and port-channel21 have no active member left",
+    "alert2": "Different speed at the two ends of a cable",
+    "alert3": "Two cables documented but never observed",
+    "identity": "Identity",
+    "vendor": "Vendor",
+    "model": "Model",
+    "system": "System",
+    "site": "Site",
+    "collection": "Collection",
+    "collected": "Succeeded on 19 Jan 2026 at 02:00",
+    "cables": "Cables",
+    "mlagPair": "MLAG pair",
+    "aggregates": "Aggregates",
+    "strip": "Facts as a strip: the focus panel's header band",
+    "alertsCaption": "Alerts: a mark, a sentence, a detail"
   },
   "widgets": {
     "title": "Widgets, avatars, marks",

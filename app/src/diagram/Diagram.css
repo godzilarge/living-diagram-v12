@@ -15,7 +15,7 @@
 .diagram-top {
   position: absolute;
   top: var(--space-lg);
-  z-index: 1;
+  z-index: 2;
   display: flex;
   gap: var(--space-md);
 }
@@ -30,6 +30,11 @@
 
 .diagram-state {
   position: absolute;
+  z-index: 2;
+}
+
+/* the focus panel's scrim: over the map, under the islands (the mockup fades the map alone) */
+.diagram > .ui-scrim {
   z-index: 1;
 }
 
@@ -40,7 +45,7 @@
   left: var(--space-lg);
   right: var(--space-lg);
   bottom: var(--space-lg);
-  z-index: 1;
+  z-index: 2;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;

@@ -18,7 +18,7 @@ describe("browser preferences", () => {
   it("keep the v1's own fields on write, without touching the stored text", () => {
     const stored = '{"grid":true,"theme":"light"}';
     const merged = JSON.parse(mergePrefs(stored, { ...DEFAULT_PREFS, theme: "dark", homeRuns: 25 }));
-    expect(merged).toEqual({ grid: true, theme: "dark", accent: "cobalt", language: null, homeRuns: 25, homeChanges: 10, minimap: false });
+    expect(merged).toEqual({ grid: true, theme: "dark", accent: "cobalt", language: null, homeRuns: 25, homeChanges: 10, minimap: false, panel: "compact" });
     expect(stored).toBe('{"grid":true,"theme":"light"}');
     expect(Object.isFrozen(parsePrefs(stored))).toBe(true);
   });
@@ -30,6 +30,12 @@ describe("browser preferences", () => {
     expect(parsePrefs('{"homeRuns":12.5,"homeChanges":-1}')).toMatchObject({ homeRuns: 6, homeChanges: 10 });
     expect(HOME_RUNS[0]).toBe(DEFAULT_PREFS.homeRuns);
     expect(HOME_CHANGES[0]).toBe(DEFAULT_PREFS.homeChanges);
+  });
+
+  it("read the panel's width under its own name: compact or wide, never the v1's pixels", () => {
+    expect(parsePrefs('{"panel":"wide","panelWidth":348}')).toMatchObject({ panel: "wide" });
+    expect(parsePrefs('{"panel":"focus"}')).toMatchObject({ panel: "compact" });
+    expect(parsePrefs('{"panelWidth":864}')).toMatchObject({ panel: "compact" });
   });
 
   it("read the canvas controls under the v1's names, a non-boolean giving the mockup's default", () => {

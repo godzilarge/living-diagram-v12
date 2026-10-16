@@ -33,6 +33,15 @@
   text-overflow: ellipsis;
 }
 
+/* wrap: the cells may hold two lines (a value and its caption), aligned at the top; a cell stays on one line and
+   cuts unless its surface lets it break */
+.ui-table[data-wrap] td {
+  padding-top: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  vertical-align: top;
+  line-height: var(--panel-row-leading);
+}
+
 .ui-table[data-density="compact"] td {
   height: var(--control-height);
 }
@@ -139,4 +148,9 @@ th[aria-sort="descending"] .ui-th {
 
 .ui-sort[data-on] {
   color: var(--color-accent-ink);
+}
+
+/* a link in a cell: the cell cuts what overflows, so the ring is drawn inside the link's box, never cut */
+.ui-table td .ui-link:focus-visible {
+  outline-offset: calc(-1 * var(--focus-ring-width));
 }
