@@ -11,6 +11,24 @@
         ],
         "createdAt": "2026-09-20T13:46:06.288Z",
         "reason": "Claude (design) : les seuls textes en capitales sont des libellés courts (pastilles d'état ≤ 26 caractères, en-têtes de tableau, surtitre de 3 mots), aucun passage long ; usage conforme à la règle"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "roboto",
+        "files": [
+          "bac-a-sable/directions/index.html"
+        ],
+        "createdAt": "2026-10-16T07:06:33.288Z",
+        "reason": "orchestrator: the bench decision page (gitignored, not the product) uses the system font stack by design"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "menlo",
+        "files": [
+          "bac-a-sable/directions/index.html"
+        ],
+        "createdAt": "2026-10-16T07:06:33.304Z",
+        "reason": "orchestrator: the bench decision page (gitignored, not the product) shows file paths in the system monospace stack"
       }
     ]
   }
