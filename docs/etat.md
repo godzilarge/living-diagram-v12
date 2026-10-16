@@ -83,7 +83,7 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   que `aria-expanded` (le rail) ; revue `docs/revues/2026-10-16-reglages.md` (0 critique, 0 haut, 5 moyens, 10 bas)
   traitée le jour même en entier, B9 parqué motivé ; `docs/13` § Done ; deux points dans `docs/a-juger-a-l-usage.md`
   (retour à la langue du navigateur, thème du système)). Suites : app check 195, e2e 68 ; moteur, backend (643), contrats
-  (637) verts ; **non commité**. Orhan n'a pas encore jugé les planches du panneau (`.impeccable/planche-panneau/`),
+  (637) verts ; **commité f978c87, non poussé**. Orhan n'a pas encore jugé les planches du panneau (`.impeccable/planche-panneau/`),
   de la recherche (`.impeccable/planche-recherche/`) ni des réglages (`.impeccable/planche-reglages/`) : ses retours
   passent avant la brique 6.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
