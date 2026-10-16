@@ -7,6 +7,29 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Step 2 of the UI redesign: the `app/` skeleton, delivered and committed** (2026-10-16, d3937c3; Opus agent on
+  `docs/12-app-skeleton.md`, verified by the orchestrator). The package: Vite, React 19.2.7, TypeScript strict, Vitest
+  4.1.11 (5 needs Node 22), `@playwright/test`, pinned versions, lock committed. `tokens.css` **generated** from the
+  frontmatter of `DESIGN.md` (`scripts/tokens.mjs --check` refuses a hand edit or a drift). **Fifteen primitives**
+  in `app/src/ui/` (Island, IconButton, Button, Tooltip, Field, Select, Segmented, Rail, Table, Panel, Popover,
+  Scrim, Count, Shortcut, Toast), every state; the living page `app/primitives.html`; a minimal shell. **Guards
+  proved by mutation**: tokens (a raw colour, radius, shadow, font or size outside `tokens.css`), primitives
+  (`<button>`, `<input>`, `<select>`, `<a>`, `style=`, `title=` in JSX outside `ui/`), strings (any visible literal,
+  French or English), engine (`@engine/canvas/model` under Node without a DOM), measure (Playwright on the
+  primitives page and the shell, light / dark, cobalt / ink, fr / en: heights, centres, gaps, islands ≥ 16 / 12 px,
+  popovers never over their trigger, one tooltip style and tooltips never over a control or a popover, contrast
+  ≥ 4.5:1 computed on rendered colours, Archivo loaded, no CSP refusal; hardened after a first green pass that the
+  captures contradicted). Backend: `GET /next/` serves `app/dist/` (`LD_APP_DIST`), CSP `'self'`, ETag, 7 tests.
+  **Arbitrations**: the agent's completion of the `DESIGN.md` frontmatter accepted (shadows, motion, chip radius,
+  ink-accent variants); danger on hover without a fill (error red on the dark hover fill is 4.18:1); `file_unknown`
+  for an absent build; where the mockup and `DESIGN.md` diverged, **the approved mockup wins** and `DESIGN.md` was
+  corrected (view tabs 13.5 px, 500 / 600 + rail; tooltip 8 px from its control; panel header 17 px; popovers keep
+  the island shadow, the layer shadow only for the search palette and the focus panel); a Toast section written for
+  the agent's drawing (auto-hide and single-toast left to the surface that uses it). Found and cleaned on the way:
+  an uncommitted hack in `backend/archive.py` (`has_snapshot` forced to true, the real code commented out) and a
+  stray `backend/widths.json`, both left by a round-1 bench agent, which made four backend tests fail; reverted,
+  the four pass. `prompts.md`, deleted in the tree by an unknown hand, restored. Independent review launched
+  (`relecteur-ui`), report to `docs/revues/2026-10-16-squelette-app.md`.
 - **Step 4 of the UI redesign: `DESIGN.md` written, the approved mockups versioned, the `app/` skeleton launched**
   (2026-10-16, "Coquille validée" from Orhan). `DESIGN.md` at the root in Impeccable's `document` format: tokens in
   the frontmatter (light and dark, cobalt and ink accents, ok / error / warning states, Archivo scale 12–19, radii

@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-16** (refonte UI : coquille validée, DESIGN.md écrit, squelette `app/` en cours).
+**Dernière mise à jour : 2026-10-16** (refonte UI : coquille validée, DESIGN.md écrit, squelette `app/` livré, revue en cours).
 
 ## Fait
 
@@ -24,8 +24,9 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   coquille validée le 2026-10-16** (base = le standard + la vivacité suisse ; îlots flottants, un accent cobalt ou
   encre en préférence, vert = état actif, rail fin pour « courant », icônes + infobulle noire, palette Ctrl+K, accueil
   à widgets, panneau à trois largeurs, mode édition avec barres contextuelles) → **4 `DESIGN.md` écrit et maquettes
-  versionnées dans `design/` (fabd1ee)** → **2 squelette `app/` en cours** (`docs/12-app-skeleton.md` : paquet Vite,
-  jetons générés de `DESIGN.md`, primitives, page vivante, gardes, mesure Playwright, route `/next/`) → 5 migration
+  versionnées dans `design/` (fabd1ee)** → **2 squelette `app/` livré (d3937c3)** : paquet Vite, jetons générés de `DESIGN.md`, 15 primitives,
+  page vivante `app/primitives.html`, gardes par mutation, mesure Playwright, route `/next/` ; revue indépendante
+  en cours (`docs/revues/2026-10-16-squelette-app.md`) → 5 migration
   surface par surface par bricks `brique-ui` (accueil, coquille du diagramme, panneau, recherche, réglages, édition),
   chacune revue contre `design/comps/shell/`. **La toile (cartes, câbles) est une autre surface** : tour de
   directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la refonte.**
