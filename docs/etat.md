@@ -70,7 +70,7 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   (§ Traitement ; jauge 500 équipements : une lettre 5 s → 47 ms) ; `docs/13` § Done ; six points dans
   `docs/a-juger-a-l-usage.md` ; parqués : éclairer la toile à la frappe, Maj+Entrée « sélectionner les trouvés »,
   masquer / isoler, puces de champs). Suites : app check 193, e2e 58 ; engine, backend (643), contrats (637) verts ;
-  **non commité** (commit proposé en fin de session). Orhan n'a pas encore jugé les planches du panneau
+  **commité 9f93548, non poussé**. Orhan n'a pas encore jugé les planches du panneau
   (`.impeccable/planche-panneau/`) ni de la recherche (`.impeccable/planche-recherche/`) : ses retours passent avant
   la brique 5.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
