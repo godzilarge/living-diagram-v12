@@ -1,6 +1,7 @@
 // The one tooltip of the application (DESIGN.md, Tooltip): black, white label text, a shortcut in tip-sub, below the
 // control and centred, 8 px away, toward the inside when against an edge; 350 ms delay, a 150 ms fade and a 3 px rise. Nothing else may render a
-// `[role="tooltip"]`. Positioned by floating-ui (styles through the CSSOM, CSP-safe).
+// `[role="tooltip"]`. Positioned by floating-ui (styles through the CSSOM, CSP-safe). A focus the page gives back
+// (`quietFocus`: a layer closing returns the focus to its trigger) opens no tooltip: only the reader's own focus does.
 import {
   autoUpdate,
   flip,
@@ -31,6 +32,22 @@ export type TooltipOptions = {
   open?: boolean;
 };
 
+const QUIET = "data-quiet-focus";
+
+/** Gives the focus back to a control without opening its tooltip: the mark is lifted on its blur or the next key. */
+export function quietFocus(element: HTMLElement | null | undefined): void {
+  if (!element) return;
+  element.setAttribute(QUIET, "");
+  const lift = (): void => {
+    element.removeAttribute(QUIET);
+    element.removeEventListener("blur", lift);
+    window.removeEventListener("keydown", lift, true);
+  };
+  element.addEventListener("blur", lift);
+  window.addEventListener("keydown", lift, true);
+  element.focus();
+}
+
 export type TooltipHandle = {
   setReference: (node: HTMLElement | null) => void;
   getReferenceProps: (props?: HTMLProps<Element>) => Record<string, unknown>;
@@ -42,7 +59,8 @@ export function useTooltip({ label, shortcut, placement = "bottom", open: forced
   const controlled = forced !== undefined;
   const { refs, floatingStyles, context, placement: side } = useFloating({
     open: controlled ? forced : open,
-    onOpenChange: setOpen,
+    // a focus the page gave back (quietFocus) is not the reader's: it opens nothing
+    onOpenChange: (next, _event, reason) => setOpen(next && reason === "focus" && refs.domReference.current?.hasAttribute(QUIET) ? false : next),
     placement,
     strategy: "absolute",
     transform: false, // positioned by top / left: the CSS transform is free for the 3 px rise

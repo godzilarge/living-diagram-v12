@@ -17,3 +17,19 @@ export const DEVICE = "dc01-core-01";
 /** Declared authors (the home's feed): names, never words of the interface. */
 export const AUTHORS = Object.freeze(["orhan", "camille.r", "t.martin"]);
 export const MODEL = "N9K-C93180YC-FX";
+
+/** The search palette's specimen: what "core" finds (identifiers only; the words come from the catalogue). */
+export const PALETTE_QUERY = "core";
+export const PALETTE_DEVICES = Object.freeze(["dc01-core-01", "dc01-core-02", "dc02-core-01"]);
+export const PALETTE_PORTS = Object.freeze([
+  { port: "Ethernet1/54", host: "dc01-core-01", to: "dc02-core-01" },
+  { port: "Ethernet1/53", host: "dc02-core-01", to: "dc01-core-01" },
+]);
+export const PALETTE_DESTINATIONS = Object.freeze([
+  { ports: "Eth1/49, 1/50", host: "dc01-core-02" },
+  { ports: "Eth1/54", host: "dc02-core-01" },
+  { ports: "Eth1/41, 1/42", host: "dc01-fw-01" },
+]);
+export const PALETTE_SITE = "dc01";
+/** The ports beyond the window of All, said by the "more" row. */
+export const PALETTE_MORE = 24;

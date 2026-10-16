@@ -7,6 +7,30 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Brick 4 of the v2 migration: the search, delivered and reviewed** (2026-10-16, `/brique-ui recherche`; the
+  announcement validated by Orhan: the mockup's six tabs plus **Notes**, actions limited to the shell's commands, the
+  typing never lights the map, Shift+Enter "select all" / hide / isolate / the field chips parked, the home's palette
+  over the infrastructures alone, "N results" in the foot). The Ctrl+K palette of `index.html` at `data-state="search"`
+  on the diagram page and the home: 752 px (the mockup's `.palette`; `DESIGN.md` said 720, corrected), over a scrim
+  that covers the map and the islands; a field without border, the tabs by kind with their counts, the results
+  grouped with the matched part at 650, the current row on accent-weak with the Enter chip, the detail column (tile,
+  name, snug facts, the first alert in words, "Where its N cables lead" by destination, "Open the panel" and "Centre
+  the view"), the foot with the shortcuts. Enter opens without moving the view (a removed device or a neighbour never
+  collected is centred), Shift+Enter centres, Tab changes the tab, Escape closes and keeps the text. The v1's
+  `state/search.ts` moved into `app/src/state/` with its cases as Node tests, extended with infrastructures, actions,
+  the scopes, the matched segments, the detail as values; words in `app/src/search/words.ts`, catalogues `search`.
+  Primitive `Palette` written into `DESIGN.md` and the primitives page before use (tokens `palette.*`); `Shortcut`
+  gains a drawn key, `Facts` and `Alerts` a `snug` size, `Rail` `controls`, `Scrim` a fade when mounted open;
+  `shellKeyOf` answers Ctrl+K from anywhere; `useDiagram` gains `openElement` and `reveal`. Review
+  `docs/revues/2026-10-16-recherche.md` (0 critical, 1 high, 7 medium, 13 low; probes in `-sondes/`), **treated the
+  same day** (its § Traitement): a window per group with "… and N more" (never a ceiling; a letter at the gauge of
+  500 devices 5 s → 47 ms, a Node gauge test), one option row for `Select` and `Palette` (the keyboard position in a
+  list is the accent-weak row: `DESIGN.md`), the alert by `Alerts`, the mockup's 17 px, a lost port said, an open
+  list closed first, no tooltip on the returned focus, a live region, the tabs' panel, the infrastructures' counts,
+  e2e for the centre, the collection actions and the "more" row. Suites: app check 193, e2e 58; engine, backend (643),
+  contracts (637) green. Captures `.impeccable/planche-recherche/`. `docs/13` § Done. To judge in use:
+  `docs/a-juger-a-l-usage.md` (Enter without moving the view, the kept text, the map not lit, the fields not
+  offered, the home palette, the actions offered).
 - **The column chooser of the focus panel: a checklist, chosen at the bench** (2026-10-16, Orhan: the chooser of
   rail buttons was "heavy, ugly"; four directions shown side by side in `bac-a-sable/colonnes/` (rail words in a
   row, a list with the rail on the left, a checklist, framed words); he chose **C, the checklist**; the resizable

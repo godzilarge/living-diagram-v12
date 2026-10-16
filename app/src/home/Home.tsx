@@ -3,11 +3,14 @@
 // over the free slot (one third); the grid never scrolls, its widgets do. It renders the home's state; `useHome`
 // reads the API, with as many collections and modifications as the browser's preferences say (`homeRuns`,
 // `homeChanges`, chosen in each widget's settings). The logo is a link to the home itself (the base of the v2:
-// `/next/` served, `/` in development).
+// `/next/` served, `/` in development). Ctrl+K and the search button open the palette over the infrastructures.
 import { IconLink, Island, LogoMark } from "../ui";
 import { useText } from "../i18n";
 import { useHome } from "../state/useHome";
 import { usePrefs } from "../shell/usePrefs";
+import { useShellKeys } from "../diagram/useShellKeys";
+import { SearchPalette } from "../search/SearchPalette";
+import { useHomeSearch } from "./useHomeSearch";
 import { ChangesWidget } from "./ChangesWidget";
 import { FreeSlot } from "./FreeSlot";
 import { HomeTools } from "./HomeTools";
@@ -21,6 +24,8 @@ export function Home() {
   const { state, connect, see } = useHome({ runs: prefs.homeRuns, changes: prefs.homeChanges });
   const setRuns = (rows: number) => setPrefs({ ...prefs, homeRuns: rows as typeof prefs.homeRuns });
   const setChanges = (rows: number) => setPrefs({ ...prefs, homeChanges: rows as typeof prefs.homeChanges });
+  const search = useHomeSearch(state);
+  useShellKeys((key) => (key === "search" ? search.control.onOpen() : undefined));
   return (
     <div className="home">
       <div className="home-top home-top-start">
@@ -29,7 +34,7 @@ export function Home() {
         </Island>
       </div>
       <div className="home-top home-top-end">
-        <HomeTools />
+        <HomeTools search={search.control} />
       </div>
       <main className="home-space" aria-label={t("home:page")}>
         <div className="home-col">
@@ -41,6 +46,7 @@ export function Home() {
           <FreeSlot />
         </div>
       </main>
+      <SearchPalette {...search.palette} />
     </div>
   );
 }

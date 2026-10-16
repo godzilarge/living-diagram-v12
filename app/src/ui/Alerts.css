@@ -38,3 +38,13 @@
   line-height: var(--text-label-leading);
   text-wrap: pretty;
 }
+
+/* snug: the search palette's detail column, label size, the mark on the first line */
+.ui-alerts[data-size="snug"] {
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+}
+
+.ui-alerts[data-size="snug"] .ui-alert > .ui-mark {
+  margin-top: calc((1lh - var(--mark-size)) / 2);
+}

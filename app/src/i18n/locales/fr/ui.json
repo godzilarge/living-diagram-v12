@@ -4,6 +4,7 @@
   "keys": {
     "ctrl": "Ctrl",
     "shift": "Maj",
-    "escape": "Échap"
+    "escape": "Échap",
+    "tab": "Tab"
   }
 }

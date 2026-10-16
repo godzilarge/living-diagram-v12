@@ -21,35 +21,9 @@
   outline: 0;
 }
 
-.ui-option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  height: var(--control-height);
-  padding: 0 var(--space-sm);
-  border-radius: var(--control-radius);
-  color: var(--color-ink);
-  cursor: pointer;
-  outline: 0;
-}
-
 .ui-option-text {
   flex: 1;
   white-space: nowrap;
-}
-
-.ui-option[data-active] {
-  background: var(--color-hover);
-}
-
-/* the keyboard position in an open list: the one focus ring, inside the row (the list clips) */
-.ui-option:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
-  outline-offset: calc(-1 * var(--focus-ring-width));
-}
-
-.ui-option[aria-selected="true"] {
-  background: var(--color-accent-weak);
 }
 
 .ui-option-check {

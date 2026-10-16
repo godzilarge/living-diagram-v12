@@ -38,6 +38,10 @@ export type DiagramCommands = Readonly<{
   setHandle: (handle: CanvasHandle | null) => void;
   /** Centres the canvas on the selected element (the panel's "centre the view"). */
   center: () => void;
+  /** Selects an element chosen elsewhere (a search result): the panel opens, the view stays. */
+  openElement: (selection: Selection) => void;
+  /** Selects an element chosen elsewhere and centres the view on it (the canvas shows it whatever hides it). */
+  reveal: (selection: Selection) => void;
   fit: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -169,6 +173,8 @@ export function useDiagram(insetsOf: () => Insets): Readonly<{ state: DiagramSta
         const { selection } = stateRef.current;
         if (selection) handleRef.current?.toile.reveal(selection);
       },
+      openElement: (selection) => handleRef.current?.toile.select(selection),
+      reveal: (selection) => void handleRef.current?.toile.reveal(selection),
       fit: () => handleRef.current?.toile.fit(),
       zoomIn: () => {
         const view = viewOf();

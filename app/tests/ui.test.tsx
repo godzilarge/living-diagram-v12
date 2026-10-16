@@ -3,7 +3,8 @@ import { Download } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { Alerts, Avatar, Button, Checklist, Count, Facts, Field, IconButton, IconLink, initialOf, Island, Link, Mark, Panel, Rail, Segmented, Shortcut, Table, Widget } from "../src/ui";
+import { Alerts, Avatar, Button, Checklist, Count, Facts, Field, IconButton, IconLink, initialOf, Island, Link, Mark, Palette, Panel, Rail, Segmented, Shortcut, Table, Widget } from "../src/ui";
+import type { PaletteProps } from "../src/ui";
 
 const html = (node: React.ReactNode) => renderToStaticMarkup(<>{node}</>);
 
@@ -145,5 +146,43 @@ describe("primitives", () => {
     expect(html(<Widget name="w" heading="h" foot="2 archive entries could not be read">{null}</Widget>)).toContain('<p class="ui-widget-foot">2 archive entries could not be read</p>');
     expect(html(<Widget name="w" heading="h">{null}</Widget>)).not.toContain("ui-widget-foot");
     expect(readFileSync(new URL("../src/ui/Widget.css", import.meta.url), "utf8")).not.toMatch(/\.ui-table|\.ui-th/);
+  });
+  it("the search palette is a named modal layer: a combobox naming its current option, grouped options, the tabs", () => {
+    const none = () => undefined;
+    const props: PaletteProps = {
+      id: "p", label: "l", open: true, inline: true, query: "co", onQuery: none, inputLabel: "i", escapeKey: "e", scopesLabel: "s",
+      scopes: [{ id: "all", label: "a", count: 2 }, { id: "ports", label: "p", count: 0 }], scope: "all", onScope: none, onScopeStep: none,
+      groups: [{ id: "g", label: "g", count: 2, rows: [{ id: "r1", icon: <Download />, name: [{ text: "x", hit: false }, { text: "co", hit: true }], detail: "d" }, { id: "r2", icon: <Download />, name: "y", detail: "d2" }, { id: "more", icon: <Download />, name: "m", variant: "more" }] }],
+      active: "r2", onMove: none, onChoose: none, onClose: none, hints: [{ id: "h", keys: [<Shortcut key="k" keys={["k"]} />], label: "h" }], total: "t", status: "2 found",
+    };
+    const out = html(<Palette {...props} />);
+    expect(out).toMatch(/id="p"[^>]*role="dialog"[^>]*aria-label="l"[^>]*data-layer="palette"/);
+    expect(out).toMatch(/role="combobox"[^>]*aria-controls="p-list"[^>]*aria-activedescendant="p-option-1"/);
+    expect(out).toContain('id="p-list" role="listbox"');
+    expect(out.match(/role="option"/g)).toHaveLength(3);
+    // the keyboard position: the option row of a list, accent-weak by `data-active` (Option.css, one definition)
+    expect(out).toMatch(/id="p-option-1" class="ui-option ui-palette-row" role="option" aria-selected="true" data-active=""/);
+    expect(out).toMatch(/id="p-option-2"[^>]*data-variant="more"/);
+    // the tabs command the list's tab panel, named by the current tab; the listbox inside it
+    expect(out).toMatch(/id="p-panel-tab-all" aria-controls="p-panel"/);
+    expect(out).toMatch(/id="p-panel" role="tabpanel" aria-labelledby="p-panel-tab-all"><div id="p-list" role="listbox"/);
+    expect(out).toContain('<div class="ui-visually-hidden" aria-live="polite">2 found</div>');
+    expect(out).toMatch(/role="group" aria-labelledby="([^"]+)".*id="\1"/);
+    expect(out).toContain("<b>co</b>");
+    expect(out).toContain('role="tablist"');
+    // the current row trades its detail for the Enter chip
+    expect(out).not.toContain(">d2<");
+    expect(out).toContain(">d<");
+    expect(html(<Palette {...props} active={null} />)).not.toContain("aria-activedescendant");
+    expect(html(<Palette {...props} open={false} />)).toBe("");
+    // modal when it floats: the inline specimen is not
+    expect(out).not.toContain("aria-modal");
+  });
+
+  it("a shortcut may be a drawn key; snug facts take the palette's label column", () => {
+    expect(html(<Shortcut icon={<Download />} />)).toMatch(/<kbd class="ui-shortcut"><span class="ui-icon" aria-hidden="true"><svg/);
+    expect(html(<Facts size="snug" items={[{ label: "a", value: "1" }]} />)).toContain('data-size="snug"');
+    expect(html(<Facts items={[]} />)).not.toContain("data-size");
+    expect(html(<Alerts size="snug" label="a" items={[{ id: "1", tone: "error", text: "x" }]} />)).toContain('data-size="snug"');
   });
 });

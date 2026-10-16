@@ -1,0 +1,268 @@
+/* The search palette (DESIGN.md, Search palette; the mockup's `.palette`, `.pal-*`): a layer over the scrim, four
+   bands under a hairline each. It rises 8 px in 240 ms as it appears (`@starting-style`) and closes at once. */
+.ui-palette {
+  position: fixed;
+  z-index: 70;
+  top: var(--palette-top);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  width: var(--palette-width);
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--palette-radius);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-layer);
+  transform: translateX(-50%);
+  transition:
+    opacity var(--motion-layer) var(--motion-ease),
+    transform var(--motion-layer) var(--motion-ease);
+}
+
+@starting-style {
+  .ui-palette {
+    opacity: 0;
+    transform: translate(-50%, var(--space-sm));
+  }
+}
+
+/* in the flow of a page (the primitives page): no position of its own, no motion */
+.ui-palette[data-inline] {
+  position: relative;
+  z-index: auto;
+  top: auto;
+  left: auto;
+  transform: none;
+  transition: none;
+}
+
+/* the input row: the icon, a field without border at subtitle size with the accent caret, the Escape chip */
+.ui-palette-input {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-md);
+  height: var(--palette-input-height);
+  padding: 0 var(--space-lg);
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-ink-3);
+}
+
+.ui-palette-input-icon {
+  display: inline-flex;
+}
+
+.ui-palette-input-icon svg {
+  width: var(--palette-input-icon);
+  height: var(--palette-input-icon);
+}
+
+.ui-palette-field {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-ink);
+  caret-color: var(--color-accent);
+  font-family: inherit;
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-label-weight);
+}
+
+/* floating, the focus never leaves the field and the caret says it; in the flow of a page the field is reached
+   among other controls and shows the ring */
+.ui-palette[data-inline] .ui-palette-field:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.ui-palette-field::placeholder {
+  color: var(--color-ink-3);
+}
+
+/* the scope row: the tab strip, its rail on the band's hairline, the first word 20 px from the edge */
+.ui-palette-scopes {
+  flex: none;
+  height: var(--palette-scope-height);
+  padding: 0 var(--space-sm);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.ui-palette-scopes .ui-tab {
+  height: calc(var(--palette-scope-height) - 1px);
+}
+
+/* the palette's counts: at the tab's size, 500, in ink-3, quieter than the views' state counts */
+.ui-palette-scopes .ui-count {
+  font-size: inherit;
+  font-weight: var(--text-label-weight);
+  line-height: inherit;
+}
+
+/* the body: the list on the left, scrolling inside; the detail column behind a hairline */
+.ui-palette-body {
+  display: grid;
+  flex: none;
+  grid-template-columns: minmax(0, 1fr) var(--palette-detail-width);
+  height: var(--palette-body-height);
+}
+
+.ui-palette-list {
+  overflow: auto;
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+  border-right: 1px solid var(--color-line);
+  overscroll-behavior: contain;
+}
+
+.ui-palette-group {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-sm) var(--space-xs);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-leading);
+}
+
+.ui-palette-group-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* a result row is the option row of a list (Option.css), 36 px high */
+.ui-palette-row {
+  height: var(--palette-row-height);
+}
+
+/* "… and N more": the row that opens the next page of a cut group */
+.ui-palette-row[data-variant="more"] {
+  color: var(--color-ink-3);
+}
+
+.ui-palette-row > .ui-icon {
+  color: var(--color-ink-3);
+}
+
+.ui-palette-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-palette-name b {
+  font-weight: var(--palette-match-weight);
+}
+
+.ui-palette-detail {
+  flex: none;
+  max-width: var(--palette-row-detail-max);
+  overflow: hidden;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-palette-enter {
+  display: inline-flex;
+  flex: none;
+}
+
+.ui-palette-message {
+  padding: var(--space-md) var(--space-sm);
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-caption-leading);
+  text-wrap: pretty;
+}
+
+/* the detail column: the heading, facts at label size, a sub-heading, the actions at its foot */
+.ui-palette-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+  overflow: auto;
+  padding: var(--space-lg) var(--space-lg) 0;
+  overscroll-behavior: contain;
+}
+
+.ui-palette-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.ui-palette-heading-text {
+  min-width: 0;
+}
+
+.ui-palette-heading p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-palette-heading-name {
+  font-size: var(--text-headline-size);
+  font-weight: var(--text-headline-weight);
+  line-height: var(--text-headline-leading);
+}
+
+.ui-palette-heading-sub {
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+}
+
+.ui-palette-subheading {
+  margin: var(--space-xs) 0 calc(-1 * var(--space-xs));
+  color: var(--color-ink-2);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-body-strong-weight);
+  line-height: var(--text-label-leading);
+}
+
+.ui-palette-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: auto;
+  padding: var(--space-xs) 0 var(--space-lg);
+  background: var(--color-paper);
+}
+
+/* the foot: on ground, each shortcut a chip and its word in caption ink-3, the total on the right */
+.ui-palette-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-lg);
+  height: var(--palette-foot-height);
+  padding: 0 var(--space-lg);
+  border-top: 1px solid var(--color-line);
+  background: var(--color-ground);
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+}
+
+.ui-palette-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  white-space: nowrap;
+}
+
+.ui-palette-total {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

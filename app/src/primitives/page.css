@@ -226,3 +226,11 @@ body:has(.page) {
   font-size: var(--text-subtitle-size);
   font-weight: var(--text-headline-weight);
 }
+
+/* the search palette's specimen, in the flow under its trigger */
+.page-palette {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}

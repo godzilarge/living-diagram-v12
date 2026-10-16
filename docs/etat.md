@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-16** (refonte UI : brique 3, le panneau, livrée et revue ; prochaine brique : la recherche).
+**Dernière mise à jour : 2026-10-16** (refonte UI : brique 4, la recherche, livrée et revue ; prochaine brique : réglages et langue).
 
 ## Fait
 
@@ -56,21 +56,37 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   à 44 px ; le redimensionnement du panneau à la souris est **parqué** (Orhan, 2026-10-16 : « plus tard ») ; le
   sélecteur de colonnes du focus, jugé « lourd, laid », a été tranché au banc (`bac-a-sable/colonnes/`, quatre
   directions) : une **liste à coches**, primitive `Checklist` ajoutée à `DESIGN.md` et à la page vivante).
-  Suites : app check 162, e2e 46 ; engine check vert ; backend et contrats verts ; **commité bc3ecff, non poussé**.
+  Suites : app check 162, e2e 46 ; engine check vert ; backend et contrats verts ; commité bc3ecff. **Brique 4, la
+  recherche, livrée le 2026-10-16** (la palette Ctrl+K de la maquette, état `search`, sur le diagramme et sur
+  l'accueil : 752 px sur un scrim qui couvre carte et îlots, champ nu, sept onglets avec comptes (Tout, Équipements,
+  Ports, Groupes, **Notes** ajouté, Infrastructures, Actions), résultats groupés avec la partie trouvée en gras, ligne
+  courante sur accent-weak, colonne de détail (tuile, nom, faits `snug`, première alerte en mots, « où mènent ses
+  câbles », « Ouvrir la fiche », « Centrer la vue »), pied de raccourcis ; ↑ ↓ parcourent, Entrée ouvre sans bouger la
+  vue, Maj+Entrée centre, Tab change d'onglet, Échap ferme et garde le texte ; une fenêtre par groupe (8 dans Tout,
+  100 dans un onglet, « … et N de plus » page par page, jamais un plafond) ; `state/search.ts` déplacé de la v1 avec
+  ses cas, étendu (infrastructures, actions de la coquille, détail) ; primitive `Palette` dans `DESIGN.md` et la page
+  vivante ; rangée d'option unique `Select` / `Palette` (position clavier = accent-weak, écrit dans `DESIGN.md`) ;
+  revue `docs/revues/2026-10-16-recherche.md` (0 critique, 1 haut, 7 moyens, 13 bas) traitée le jour même en entier
+  (§ Traitement ; jauge 500 équipements : une lettre 5 s → 47 ms) ; `docs/13` § Done ; six points dans
+  `docs/a-juger-a-l-usage.md` ; parqués : éclairer la toile à la frappe, Maj+Entrée « sélectionner les trouvés »,
+  masquer / isoler, puces de champs). Suites : app check 193, e2e 58 ; engine, backend (643), contrats (637) verts ;
+  **non commité** (commit proposé en fin de session). Orhan n'a pas encore jugé les planches du panneau
+  (`.impeccable/planche-panneau/`) ni de la recherche (`.impeccable/planche-recherche/`) : ses retours passent avant
+  la brique 5.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
   la main : `cd backend && LD_API_TOKEN=demo LD_ARCHIVE_DIR=../bac-a-sable/accueil-data/archive-six uv run uvicorn
   ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build`). **Prochaine
-  session : `/brique-ui recherche`** (brique 4 de `docs/13-migration-plan.md` : `design/comps/shell/index.html` à
-  l'état `data-state="search"`, capture `shell-search-1440.png` : palette Ctrl+K sur le scrim, 720 px, onglets par
-  sorte, résultats groupés, colonne de détail, pied de raccourcis ; `state/search.ts` de la v1 à déplacer avec ses
-  tests ; rien de nouveau côté API). À savoir : le bouton de recherche existe, désactivé « en cours »
-  (`app/src/shell/ShellTools.tsx`, `SearchButton`) ; la primitive `Popover` a une élévation `layer` et le `Scrim`
-  existe ; le panneau se ferme sur Échap et la palette devra prendre Échap avant lui (`useShellKeys` ignore les
-  touches quand un `[data-layer]` est ouvert) ; ouvrir un résultat = écrire la sélection dans l'adresse (`#node=`…,
-  `formatHash`), que la toile résout ; Orhan n'a pas encore jugé la planche du panneau (`.impeccable/planche-panneau/`) :
-  ses retours passent avant la brique 4 ; `npm run e2e` dure ~1,5 min ; `cd engine && npm ci` est requis avant
-  `cd app && npm run build` (polices de la toile v1). **La toile (cartes, câbles) est une autre surface** : tour de
-  directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la refonte.**
+  session : `/brique-ui reglages`** (brique 5 de `docs/13-migration-plan.md`, réglages et langue :
+  `design/comps/shell/index.html` à l'état `data-state="settings"`, capture `shell-settings-1440.png` : le popover
+  Réglages (thème, accent, langue) ; le catalogue fr / en complet de la coquille, garde `strings` verte avec les deux
+  catalogues complets ; `prefs.ts` et `i18n/` existent déjà). À savoir : le popover Réglages existe depuis le
+  squelette (`app/src/shell/ShellTools.tsx` `SettingsPopover`, `PrefsControls`) et les trois préférences persistent
+  déjà dans `ld-prefs` : la brique est surtout la comparaison à la maquette et l'audit des catalogues (une clé
+  manquante dans une langue, un pluriel absent) ; `closeLayers.ts` ferme les couches avant la palette ; la mesure
+  compte 4 couches sur la page vivante (`measure.spec.ts`) ; `npm run e2e` dure ~2 min ; `cd engine && npm ci` est
+  requis avant `cd app && npm run build` (polices de la toile v1). **La toile (cartes, câbles) est une autre
+  surface** : tour de directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la
+  refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
   fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.
 

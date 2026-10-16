@@ -1,5 +1,5 @@
 // A choice that opens a list (DESIGN.md, Navigation: context choices): the value as a word with a chevron; the list is
-// a popover layer of options, the current one with the rail of a list (accent-weak row). Keyboard: arrows, Enter,
+// a popover layer of options (`Option.css`): the keyboard position on accent-weak, the chosen one with its check. Keyboard: arrows, Enter,
 // typeahead, Escape. The trigger is a 32 px control; `triggerLabel` puts fixed words on it ("Compare with…") in place
 // of the chosen option's label; `loading` turns it busy (the list stays shut until the answer comes).
 import {
@@ -23,6 +23,7 @@ import { useRef, useState } from "react";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
 import { EDGE, POPOVER_OFFSET } from "./geometry";
+import "./Option.css";
 import "./Select.css";
 
 export type SelectOption = Readonly<{ value: string; label: string }>;

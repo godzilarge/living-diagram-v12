@@ -3,7 +3,8 @@
 **The React v2, built only from the tokens and primitives of `DESIGN.md`, with guards that fail the suite when the
 design drifts.** Served by the backend at `/next/` while `/` keeps the v1; it opens on the home (brick 1) and, with
 `?infrastructure=…` in the address, on the diagram shell (brick 2: the v1 canvas inside) with the panel of the
-selected element (brick 3: compact, wide with W, focus with Shift+F); the surfaces arrive as bricks (`/brique-ui`)
+selected element (brick 3: compact, wide with W, focus with Shift+F) and, on both pages, the search palette (brick 4:
+Ctrl+K or the tools' search button); the surfaces arrive as bricks (`/brique-ui`)
 against `design/comps/shell/`.
 
 ## Run
@@ -45,8 +46,9 @@ address, the band's rules, the zoom, the diff facts, the diagram reducer, the sh
 the run band, and `Canvas.tsx`, the only component that mounts the v1 canvas (`@engine/app/canvas`, React Flow, its
 own styles and i18n instance; read only until brick 6) · `src/panel/` the panel of the selected element (a device, a
 cable, an aggregate, a bundle, an HA cluster; `state/panel.ts` holds its pure logic: rows, neighbours seen by LLDP or
-CDP, scope, filter, sort, alerts by code, structures) · `src/i18n/` i18next, catalogues `en` / `fr` (`ui`, `shell`,
-`home`, `diagram`, `panel`, `primitives`) · `src/prefs.ts` theme, accent, language, the rows of two home widgets (`homeRuns`
+CDP, scope, filter, sort, alerts by code, structures) · `src/search/` the search palette (`state/search.ts` holds
+its pure logic; the page opens what is chosen: `diagram/useSearch.ts`, `home/useHomeSearch.ts`) · `src/i18n/` i18next, catalogues `en` / `fr` (`ui`, `shell`,
+`home`, `diagram`, `panel`, `search`, `primitives`) · `src/prefs.ts` theme, accent, language, the rows of two home widgets (`homeRuns`
 6 · 12 · 25 · 50 · 100, `homeChanges` 10 · 25 · 50 · 100), the canvas controls `grid` / `minimap` under the v1's
 names and the panel's width `panel` (compact · wide) (`ld-prefs`; a value outside the choices reads as the default; the v1 writing its whole object drops its
 own) · `src/shell/` the settings controls, the tools and the token form shared by the surfaces · `src/primitives/`

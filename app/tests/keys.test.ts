@@ -34,4 +34,12 @@ describe("shell keys", () => {
     expect(shellKeyOf(press("g", { altKey: true }), false)).toBeNull();
     expect(shellKeyOf(press("Escape"), true)).toBeNull();
   });
+
+  it("answers Ctrl+K and Cmd+K with the search, from a field or an open layer too, never with Alt (AltGr)", () => {
+    expect(shellKeyOf(press("k", { ctrlKey: true }), false)).toBe("search");
+    expect(shellKeyOf(press("K", { ctrlKey: true, shiftKey: true }), true)).toBe("search");
+    expect(shellKeyOf(press("k", { metaKey: true }), true)).toBe("search");
+    expect(shellKeyOf(press("k", { ctrlKey: true, altKey: true }), false)).toBeNull();
+    expect(shellKeyOf(press("k"), false)).toBeNull();
+  });
 });

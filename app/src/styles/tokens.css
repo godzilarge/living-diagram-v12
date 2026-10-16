@@ -171,12 +171,25 @@
   --run-band-dash: 4px;
   --run-band-dash-gap: 3px;
   --facts-label-width: 104px;
+  --facts-label-width-snug: 88px;
   --facts-row-gap: 6px;
   --facts-column-gap: 12px;
   --facts-strip-gap: 32px;
   --facts-strip-padding: 12px 16px;
   --alerts-gap: 12px;
   --panel-row-leading: 18px;
+  --palette-width: 752px;
+  --palette-top: 104px;
+  --palette-input-height: 56px;
+  --palette-scope-height: 44px;
+  --palette-body-height: 372px;
+  --palette-detail-width: 288px;
+  --palette-row-height: 36px;
+  --palette-foot-height: 40px;
+  --palette-radius: 12px;
+  --palette-match-weight: 650;
+  --palette-input-icon: 18px;
+  --palette-row-detail-max: 200px;
 }
 
 :root[data-accent="ink"] {

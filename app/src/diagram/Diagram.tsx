@@ -3,8 +3,9 @@
 // right. Bottom left the canvas controls, bottom right the run band. On the right, the panel of the selected element
 // (brick 3) at the width the browser prefers (compact or wide) or in focus over the scrim; the canvas frames inside
 // what the panel leaves. In place of the canvas, a centred island when there is no diagram to show (the token, a
-// refusal, no collection). It renders `useDiagram`'s state and sends its commands; the canvas is mounted by `Canvas`
-// alone, once a collection is read.
+// refusal, no collection). Ctrl+K and the tools island's button open the search palette (brick 4) over everything;
+// a result chosen there is opened here (`useSearch`). It renders `useDiagram`'s state and sends its commands; the
+// canvas is mounted by `Canvas` alone, once a collection is read.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconLink, Island, LogoMark, Scrim, ToastHost } from "../ui";
 import { useText } from "../i18n";
@@ -17,6 +18,7 @@ import type { DiagramState, RunState } from "../state/diagram";
 import type { Insets } from "../state/zoom";
 import type { Session } from "../api/run";
 import { useInfrastructures } from "../state/useInfrastructures";
+import { SearchPalette } from "../search/SearchPalette";
 import { usePrefs } from "../shell/usePrefs";
 import type { Prefs } from "../prefs";
 import { INITIAL_TABLE } from "../panel/InterfacesSection";
@@ -31,6 +33,7 @@ import { StateIsland } from "./StateIsland";
 import { ToolsIsland } from "./ToolsIsland";
 import { useNotices } from "./useNotices";
 import type { Notices } from "./useNotices";
+import { useSearch } from "./useSearch";
 import { useShellKeys } from "./useShellKeys";
 import { ViewsIsland } from "./ViewsIsland";
 import { blockedOf } from "./words";
@@ -42,7 +45,7 @@ function openInfrastructure(infrastructure: string): void {
   window.location.assign(import.meta.env.BASE_URL + formatSearch({ infrastructure, runId: "", from: "" }));
 }
 
-type PanelControl = Readonly<{ shown: boolean; focus: boolean; setFocus: (focus: boolean) => void }>;
+type PanelControl = Readonly<{ shown: boolean; focus: boolean; setFocus: (focus: boolean) => void; onSearch: () => void }>;
 
 function keyAction(key: ShellKey, commands: DiagramCommands, prefs: Prefs, setPrefs: (next: Prefs) => void, panel: PanelControl): void {
   switch (key) {
@@ -62,6 +65,8 @@ function keyAction(key: ShellKey, commands: DiagramCommands, prefs: Prefs, setPr
     case "center":
       if (panel.shown) commands.center();
       return;
+    case "search":
+      return panel.onSearch();
     default:
       return commands[key]();
   }
@@ -114,7 +119,8 @@ export function Diagram() {
   const width: Width | null = shown ? (focus ? "focus" : prefs.panel) : null;
   const insets = useMemo(() => chromeWith(width), [width]);
   insetsRef.current = insets;
-  const panel: PanelControl = { shown, focus, setFocus };
+  const search = useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure: openInfrastructure });
+  const panel: PanelControl = { shown, focus, setFocus, onSearch: search.control.onOpen };
   useShellKeys((key) => keyAction(key, commands, prefs, setPrefs, panel));
   const title = t("diagram:page", { infrastructure: state.address.infrastructure });
   useEffect(() => {
@@ -157,7 +163,7 @@ export function Diagram() {
         </Island>
         <ContextIsland
           state={state}
-          infrastructures={infrastructures}
+          infrastructures={infrastructures.map((item) => item.name)}
           now={now}
           onInfrastructure={openInfrastructure}
           onRun={commands.openFromBand}
@@ -166,7 +172,7 @@ export function Diagram() {
         <ViewsIsland model={model} onView={(mode) => commands.setView({ mode })} />
       </div>
       <div className="diagram-top diagram-top-end">
-        <ToolsIsland />
+        <ToolsIsland search={search.control} />
       </div>
       {blocked ? <StateIsland blocked={blocked} onConnect={commands.connect} /> : null}
       {/* the panel of the selected element, before the canvas in the DOM: Tab reaches it before the cards */}
@@ -192,6 +198,7 @@ export function Diagram() {
       </div>
       <ToastHost name="toast" closeLabel={t("ui:close")} />
       <Scrim open={width === "focus"} onDismiss={() => setFocus(false)} />
+      <SearchPalette {...search.palette} />
       {/* the canvas last in the DOM: Tab reaches every island before the cards; it paints under them (z-index) */}
       {run.kind === "ready" ? <ShownCanvas state={state} run={run} session={session} commands={commands} notices={notices} insets={insets} /> : null}
     </div>

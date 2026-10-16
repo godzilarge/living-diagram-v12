@@ -2,3 +2,8 @@
 .shell-search {
   padding: 0 calc((var(--control-height) - var(--shortcut-height)) / 2) 0 var(--space-sm);
 }
+
+/* open: the hover fill while its palette is up (the mockup's `.search-trigger` at `data-state="search"`) */
+.shell-search[aria-expanded="true"] {
+  background: var(--control-hover-background-color);
+}

@@ -25,3 +25,9 @@
   border-color: transparent;
   background: transparent;
 }
+
+/* a key drawn as an icon sits at the label's size, like a letter of the chip */
+.ui-shortcut .ui-icon svg {
+  width: var(--text-label-size);
+  height: var(--text-label-size);
+}

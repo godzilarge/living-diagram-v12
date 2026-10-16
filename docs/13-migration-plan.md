@@ -101,6 +101,40 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   neighbour link, the column chooser, a cable from the address). Captures `.impeccable/planche-panneau/`. "More"
   (history, copy, pin) and "See all in Check" wait for bricks 6 and 7. To judge in use: `docs/a-juger-a-l-usage.md`.
 
+- **Brick 4, Search** (2026-10-16): the Ctrl+K palette of the mockup's `search` state, on the diagram page and on the
+  home (the tools island's button opens it too). The layer is 752 px (the mockup's `.palette`; `DESIGN.md` said 720),
+  104 px from the top, over a scrim that covers the map and the islands: a field without border, the tab strip by
+  kind with its counts (All, Devices, Ports, Groups, **Notes** added to the mockup's six since the v1 finds notes and
+  code blocks, Infrastructures, Actions), the results grouped by kind with the matched part at 650, the current row
+  on accent-weak with the Enter chip, the detail column (the kind's tile and name, snug facts on an 88 px label
+  column, the first alert in words, "Where its N cables lead" by destination with the local ports folded, "Open the
+  panel" and the outlined "Centre the view"), the foot with the shortcuts and the total. ↑ ↓ walk every kind, Enter
+  opens (selection and panel, the view stays; a removed device or a neighbour never collected is centred), Tab and
+  Shift+Tab change the tab, Escape closes and keeps the text, the focus goes back to the button; the palette takes
+  its keys before the page and never closes the panel behind. **Logic moved** from the v1 into `app/src/state/search.ts`
+  (terms, `field:` prefixes, port abbreviations, ports by name then by description, groups and HA clusters, notes at
+  the line that carries the words) and extended with the infrastructures the page knows and the shell's actions
+  (show everything, centre the view on the selection, back to 100 %, grid, overview, open or compare with a
+  collection), the scopes, the matched segments and the detail as values; the words in `app/src/search/words.ts`,
+  catalogues `search` in both languages. One primitive from the approved mockup written into `DESIGN.md` and the
+  primitives page before use: `Palette` (`app/src/ui/Palette.tsx`); `Shortcut` gained a drawn key, `Facts` a `snug`
+  size (88 px labels), `Scrim` a fade when mounted open; `shellKeyOf` answers Ctrl+K from anywhere; `useDiagram`
+  gained `openElement` and `reveal`. The typing never lights the map; Shift+Enter, hide, isolate and the field chips
+  of the v1 are parked. Measured in Chromium (`e2e/search.spec.ts`: Ctrl+K, the groups and counts, ↓ ↓ Enter and the
+  address, Tab, Escape and the kept text, the panel behind, nothing found, an unreadable expression, an action, the
+  home) in light, dark and French; captures `.impeccable/planche-recherche/`. Review
+  `docs/revues/2026-10-16-recherche.md` (0 critical, 1 high, 7 medium, 13 low; probes in `-sondes/`), **treated the
+  same day**: the list shows a window per group (8 rows in All, 100 in a kind's tab, "… and N more" that the arrows
+  reach and Enter opens by a page; a letter at the gauge of 500 devices went from 5 s to 47 ms), the detail's alert
+  by `Alerts` (snug), the field and the detail name at the mockup's 17 px, one option row shared by `Select` and
+  `Palette` (the keyboard position in a list is the accent-weak row, written into `DESIGN.md`), a port the run lost
+  says so, Shift+Enter centres the view (the foot says it), an open list closes before the palette opens, the focus
+  returned to the button opens no tooltip, a live region says the total, the tabs name their panel, the counts of
+  the other infrastructures on the diagram page; e2e for a neighbour never collected, the centre button, the
+  collection actions, the "more" row. To judge in use:
+  `docs/a-juger-a-l-usage.md` (Enter without moving the view, the kept text, the map not lit, the fields not
+  offered, the home palette, the actions offered).
+
 ## Rules every brick obeys
 
 - The approved mockup state is the comp; the `relecteur-ui` compares to it, never to a score.

@@ -11,6 +11,13 @@
   grid-template-columns: var(--facts-label-width) minmax(0, 1fr) var(--facts-label-width) minmax(0, 1fr);
 }
 
+/* snug: the search palette's detail column, label size on an 88 px label column */
+.ui-facts[data-size="snug"] {
+  grid-template-columns: var(--facts-label-width-snug) minmax(0, 1fr);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+}
+
 .ui-fact {
   display: contents;
 }

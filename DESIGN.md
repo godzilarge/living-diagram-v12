@@ -245,6 +245,7 @@ components:
     dash-gap: "3px"
   facts:
     label-width: "104px"
+    label-width-snug: "88px"
     row-gap: "6px"
     column-gap: "12px"
     strip-gap: "32px"
@@ -253,6 +254,19 @@ components:
     gap: "12px"
   panel-row:
     leading: "18px"
+  palette:
+    width: "752px"
+    top: "104px"
+    input-height: "56px"
+    scope-height: "44px"
+    body-height: "372px"
+    detail-width: "288px"
+    row-height: "36px"
+    foot-height: "40px"
+    rounded: "12px"
+    match-weight: 650
+    input-icon: "18px"
+    row-detail-max: "200px"
 ---
 
 # Design System: Living Diagram
@@ -293,8 +307,8 @@ White paper, black ink, one accent, and three state colours that mean exactly on
 - **Cobalt** (#2150E8, dark #7193FF): the accent. The rail under the current view, layer or run; the selection
   outline on the canvas; the primary button; links; the focus ring; the square of the logo mark. Nothing decorative.
   Text set in the accent uses **accent-ink** (#1B43C6, dark #93AEFF) to hold 4.5:1 on paper, ground and hover.
-- **Accent-weak** (#EBF0FE, dark #222C47): the only tinted fill, for the current row of a list and the selected
-  result of the palette.
+- **Accent-weak** (#EBF0FE, dark #222C47): the only tinted fill, for the keyboard position in a list (a choice's
+  options, the palette's results).
 - **Ink as accent** (#141414, dark #EEEFF1): the second accent option, chosen in Réglages. The chrome then carries no
   colour at all; links keep an underline. The accent is a **browser preference** (`ld-prefs`), never an intent and
   never in the address. Any new accent must pass 4.5:1 in both themes and collide with no state colour.
@@ -508,9 +522,32 @@ popover under the control that opens it.
   150 ms fade; `[role="tooltip"]`, one class for the whole application, nothing else may render a tooltip.
 
 ### Search palette
-- **Style:** a layer 720 px wide centred in the upper third over the scrim; a field without border at 15 px; tabs by
-  kind (Tout, Équipements, Ports, Groupes, Infrastructures, Actions) with the rail; grouped results, the current one
-  on accent-weak with an Enter hint; a detail column for the current result; a footer of shortcuts.
+- **Style:** a layer **752 px** wide (the approved mockup's `.palette`; 720 was a rounding), 104 px from the top of the
+  viewport, centred, 12 px radius, the layer shadow, over the scrim, which covers the map **and** the islands (the
+  mockup's `.scrim` sits above every island; the focus panel's scrim fades the map alone). Four bands under
+  a hairline each: the input row (56 px: the search icon at 18 px in ink-3, a field without border at headline size
+  and label weight (17 px, 500) with the accent caret, the `Échap` shortcut chip on the right); the scope row (44 px:
+  the tab strip by kind, Tout, Équipements, Ports, Groupes, Notes, Infrastructures, Actions, the first word 20 px from
+  the edge, each with its count at the tab's size, 500, in ink-3, quieter than the state counts of the views, the
+  rail under the current one); the body (372 px: the list on the left, scrolling inside, the detail column of 288 px on the right
+  behind a hairline); the foot (40 px on ground: the shortcuts, each a chip and its word in caption ink-3, the total
+  on the right).
+- **Rows:** a group heading in label size ink-3 with its count on the right (12 px above, 4 px below); result rows
+  36 px high, the option row of a list (one definition with a choice's options: **the keyboard position in a list is
+  the accent-weak row, its icon in accent-ink; the pointer gives the hover fill; a choice's chosen value carries the
+  check**), an icon in ink-3 for the kind, the name with the matched part at 650, the detail in label size ink-3 on
+  the right (200 px at most); the current row's detail replaced by the Enter chip; no rail: the current row is a
+  position, not a view. A group shows a window (8 rows in Tout, 100 in its own tab); a cut group ends with a row
+  "… and N more" in ink-3, which the arrows reach and Enter opens by a page of 100.
+- **Detail column:** the kind tile (40 px) and the name at headline size (17 px, 600) with its kind words in caption
+  ink-3; facts at label size on an 88 px label column; one alert in words (Alerts, snug: label size, the sentence in
+  ink, the mark in the state colour); a sub-heading at label size 600; the primary button "Ouvrir la fiche" and the
+  outlined "Centrer la vue" icon at the bottom. A "more" row has no detail.
+- **Keys:** Ctrl+K opens (the tools island's button too, which takes the hover fill while the palette is open; an
+  open list or popover closes first), ↑ ↓ walk every group, Enter opens, **Shift+Enter centres the view on the
+  result**, Tab and Shift+Tab change the scope, Escape closes (the text stays for the next opening) and gives the
+  focus back to the button without its tooltip; the palette takes the keys before the page. The foot says four of
+  them, 8 px between a chip and its word; a hidden live region says the total or the message after each keystroke.
 - **Motion:** scrim fade 200 ms, panel rises 8 px in 240 ms; closes immediately.
 
 ### Contextual bars
@@ -524,7 +561,8 @@ popover under the control that opens it.
 ### Facts
 A list of labels and values, from the approved mockup (`.facts`, `.strip`): the label in ink-3 on a 104 px column,
 the value in body text (a long one breaks on a second line, never cut), 6 px between rows and 12 px between the
-columns; the compact panel reads it in one column, the wide panel in two. As a **strip** (the focus panel, under its header): the facts side by side, 32 px apart, a 12 px
+columns; the compact panel reads it in one column, the wide panel in two; **snug** (the search palette's detail
+column), the facts at label size on an 88 px label column. As a **strip** (the focus panel, under its header): the facts side by side, 32 px apart, a 12 px
 label over its value, padded 12 × 16 with a hairline below. A value is text, a Mark with its words, or a Link; a
 fact without a value is left out, never shown blank. The only way to lay out facts in the shell.
 
@@ -533,6 +571,7 @@ What is to be checked on the selected element, in words, from the approved mocku
 lines, each starting with the state mark of its severity (error, the warning mark, grey for a note) 12 px before its
 sentence; a line with a detail sets its sentence in body strong and the detail under it in label size, ink-3. The
 sentences come from the catalogue, one per check code; the detail names the ports, aggregates or devices concerned.
+**Snug** (the search palette's detail column): label size, the mark on the first line.
 **Never a check code** (the Diagram view's rule); the verdicts with their codes live in Contrôle.
 
 ### Panel rows

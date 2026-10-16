@@ -22,6 +22,7 @@ export const ALLOWED: ReadonlyMap<string, string> = new Map([
   ["src/api/run.ts:/api/ingest/bundles", "an API route, never shown"],
   ["src/api/run.ts:/api/ingest/report", "an API route, never shown"],
   ["src/api/assets.ts:/api/intent/assets", "an API route, never shown"],
+  ["src/ui/Palette.tsx:Tab", "a KeyboardEvent key name compared, never shown (the chip's word comes from ui:keys.tab)"],
 ]);
 
 const VISIBLE_ATTRIBUTES = new Set([

@@ -29,15 +29,21 @@ export type RailProps = {
   onChange: (id: string) => void;
   /** Forces the tooltip of a disabled tab open (the primitives page). */
   tooltipOpen?: boolean;
+  /** The tab panel the strip commands (`aria-controls`); each tab is then `${controls}-tab-${id}`, which names it. */
+  controls?: string;
 };
 
-function Tab({ item, selected, onSelect, tooltipOpen }: { item: RailItem; selected: boolean; onSelect: () => void; tooltipOpen?: boolean }) {
+export const tabIdOf = (controls: string, id: string): string => `${controls}-tab-${id}`;
+
+function Tab({ item, selected, onSelect, tooltipOpen, controls }: { item: RailItem; selected: boolean; onSelect: () => void; tooltipOpen?: boolean; controls?: string }) {
   const tip = useTooltip({ label: item.disabledReason ?? item.label, open: item.disabled && item.disabledReason ? tooltipOpen : false });
   return (
     <>
       <button
         type="button"
         role="tab"
+        id={controls ? tabIdOf(controls, item.id) : undefined}
+        aria-controls={controls}
         {...tip.getReferenceProps({ onClick: () => (item.disabled ? undefined : onSelect()) })}
         ref={tip.setReference}
         className="ui-control ui-rail ui-tab"
@@ -54,7 +60,7 @@ function Tab({ item, selected, onSelect, tooltipOpen }: { item: RailItem; select
   );
 }
 
-export function Rail({ label, name, items, value, onChange, tooltipOpen }: RailProps) {
+export function Rail({ label, name, items, value, onChange, tooltipOpen, controls }: RailProps) {
   const move = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (!step || !items.length) return;
@@ -68,7 +74,7 @@ export function Rail({ label, name, items, value, onChange, tooltipOpen }: RailP
   return (
     <div className="ui-tabs" role="tablist" aria-label={label} data-bar={name} onKeyDown={move}>
       {items.map((item) => (
-        <Tab key={item.id} item={item} selected={item.id === value} onSelect={() => onChange(item.id)} tooltipOpen={tooltipOpen} />
+        <Tab key={item.id} item={item} selected={item.id === value} onSelect={() => onChange(item.id)} tooltipOpen={tooltipOpen} controls={controls} />
       ))}
     </div>
   );

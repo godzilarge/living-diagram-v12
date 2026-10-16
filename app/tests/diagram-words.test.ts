@@ -80,9 +80,10 @@ describe("diagram words", () => {
   });
 
   it("always offers the current infrastructure", () => {
-    expect(withCurrent(["a", "b"], "b")).toEqual(["a", "b"]);
-    expect(withCurrent(["a"], "c")).toEqual(["c", "a"]);
-    expect(withCurrent([], "c")).toEqual(["c"]);
-    expect(withCurrent(["a"], "")).toEqual(["a"]);
+    const a = { name: "a", devices: 3 }, b = { name: "b", devices: null };
+    expect(withCurrent([a, b], "b")).toEqual([a, b]);
+    expect(withCurrent([a], "c")).toEqual([{ name: "c", devices: null }, a]);
+    expect(withCurrent([], "c")).toEqual([{ name: "c", devices: null }]);
+    expect(withCurrent([a], "")).toEqual([a]);
   });
 });

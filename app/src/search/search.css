@@ -1,0 +1,46 @@
+/* The search palette's own content (the primitive draws the layer): the muted words of the detail column, the
+   lines of a note around the one found, what the list says without a row. */
+.search-muted {
+  color: var(--color-ink-3);
+}
+
+.search-gone {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+}
+
+.search-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+}
+
+.search-lines p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.search-lines p[data-hit] {
+  color: var(--color-ink);
+}
+
+.search-message p {
+  margin: 0;
+}
+
+.search-message p + p {
+  margin-top: var(--space-xs);
+}
+
+.search-message-hint {
+  color: var(--color-ink-3);
+}
+
+.search-message-main[data-error] {
+  color: var(--color-ink);
+}

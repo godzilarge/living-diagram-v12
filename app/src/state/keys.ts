@@ -3,9 +3,10 @@
 // + or = zooms in, − zooms out, 0 goes back to 100 %; with a panel open, W widens or narrows it, Shift+F enters or
 // leaves its focus mode, C centres the view on the selected element. A key held with Ctrl, Meta or Alt belongs to
 // the browser or another command; typing in a field and an open list or popover keep their keys (the page decides
-// that, `editable`). Pure, tested under Node.
+// that, `editable`). Ctrl+K (Cmd+K) opens the search palette from anywhere, a field or an open layer included:
+// the one shortcut with a modifier. Pure, tested under Node.
 
-export type ShellKey = "deselect" | "fit" | "grid" | "minimap" | "zoomIn" | "zoomOut" | "zoomReset" | "panelWide" | "panelFocus" | "center";
+export type ShellKey = "deselect" | "fit" | "grid" | "minimap" | "zoomIn" | "zoomOut" | "zoomReset" | "panelWide" | "panelFocus" | "center" | "search";
 
 export type KeyPress = Readonly<{ key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey?: boolean }>;
 
@@ -30,6 +31,7 @@ const KEYS: Readonly<Record<string, ShellKey>> = {
 
 /** The shortcut a key press asks for, or null; nothing while the focus is in a field or an open layer. */
 export function shellKeyOf(press: KeyPress, editable: boolean): ShellKey | null {
+  if ((press.ctrlKey || press.metaKey) && !press.altKey && (press.key === "k" || press.key === "K")) return "search";
   if (editable || press.ctrlKey || press.metaKey || press.altKey) return null;
   if (press.shiftKey && (press.key === "F" || press.key === "f")) return "panelFocus";
   return Object.hasOwn(KEYS, press.key) ? KEYS[press.key] : null;

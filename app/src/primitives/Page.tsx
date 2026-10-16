@@ -7,6 +7,7 @@ import { Bars } from "./sections/Bars";
 import { Buttons, IconButtons } from "./sections/Controls";
 import { Feedback, Tooltips } from "./sections/Feedback";
 import { Inputs } from "./sections/Inputs";
+import { SearchSection } from "./sections/Search";
 import { Surfaces } from "./sections/Surfaces";
 import { Widgets } from "./sections/Widgets";
 import "./page.css";
@@ -33,6 +34,7 @@ export function Page() {
       <Feedback />
       <Tooltips />
       <Surfaces />
+      <SearchSection />
       <Widgets />
       <ToastHost name="toast" closeLabel={t("ui:close")} />
     </div>

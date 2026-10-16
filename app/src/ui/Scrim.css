@@ -15,3 +15,10 @@
   visibility: visible;
   transition: opacity var(--motion-popover) var(--motion-ease);
 }
+
+/* mounted open (the search palette's scrim): it fades in all the same */
+@starting-style {
+  .ui-scrim[data-open] {
+    opacity: 0;
+  }
+}
