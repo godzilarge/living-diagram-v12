@@ -66,6 +66,10 @@ Confirmed, existing:
   colors, groups, annotations including tables, images and code blocks, connectors), journaled; Log view (who
   changed what, when); bilingual interface; dark and light themes.
 - V1 scope: **the infrastructure, never the endpoints** (phones, servers, access points hidden).
+- **Every fact of the contract about the selected device is readable in the diagram view** (Orhan, 2026-10-16: "the
+  richness of the collection must not get lost in the bundle"): identity, every interface with its description,
+  mode and VLANs, addresses, MAC, media and transceiver, speed, duplex, last change, neighbor; aggregates, HA, stack.
+  Plain words, never a check code there; a compact panel by default, an enlarged and a focus mode for the rest.
 
 Confirmed, upcoming, which the interface must **already anticipate**:
 
