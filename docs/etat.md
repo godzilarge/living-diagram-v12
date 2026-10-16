@@ -22,9 +22,10 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 - **Refonte UI v2** (décidée le 2026-10-15). Socle en étapes : **0 gouvernance (faite, 45d2a21)** → **1 entretien produit
   fait, `PRODUCT.md` validé (en anglais : tout ce que la v2 crée s'écrit en anglais)** ; références d'Orhan à
   recueillir → **3 tour de directions : tour 1 jugé le 16 (base = le standard + la vivacité du graphique suisse ; la toile est
-  une autre surface, session à part, repartir des cartes v1 ; accueil à widgets ajouté) ; tour 2 livré : la coquille
-  seule au banc (`bac-a-sable/directions/shell/`, diagramme + accueil, clair / sombre, accents A cobalt / B vert, six états
-  mesurés), **en attente du verdict d'Orhan et du choix de l'accent** → 2 squelette `app/` (paquet séparé, Vite, moteur extrait de `engine/src/app/`, après le choix) → 4
+  une autre surface, session à part, repartir des cartes v1 ; accueil à widgets ajouté) ; tour 2 bis livré : la coquille
+  au banc (`bac-a-sable/directions/shell/`, diagramme + accueil, panneau à trois largeurs avec tous les faits du
+  contrat, mode édition, réglages ; clair / sombre ; accent = préférence parmi cobalt (défaut) / vert / encre ; 13 états
+  mesurés), **en attente de la validation d'Orhan, puis `DESIGN.md`** → 2 squelette `app/` (paquet séparé, Vite, moteur extrait de `engine/src/app/`, après le choix) → 4
   `DESIGN.md` + page vivante des primitives → 5 migration surface par surface (barre, toile et cartes, inspecteur, barre contextuelle, journal),
   chaque surface revue contre la maquette. **Aucune fonctionnalité nouvelle pendant la refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais

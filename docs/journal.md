@@ -7,6 +7,25 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Round 2 bis: the shell corrected on Orhan's five points, the accent becomes a preference** (2026-10-16, same agent
+  resumed with its context). Orhan on round 2: "I like the direction"; tooltip grammar kept for the whole application;
+  home page "exactly what I had in mind". Changes: the Recherche widget removed from the home (Ctrl+K does it), grid
+  rebalanced; **the panel gets three widths** (compact 440, wide 864, focus 1408 over a faded canvas) and the
+  interfaces table exposes **every fact of the `interfaces` topic** (port and aggregate, state, speed and duplex,
+  media, mode and VLANs, IP, MAC, last change, neighbor with the raw description; sortable, filter, column choice;
+  values absent from the dataset derived from its pattern and listed in `DIRECTION.md`); the run band moves to the
+  bottom right; **edit mode** (`data-state="edit"`): a vertical palette on the left (select, declare a cable,
+  connector, note, shape, table, image, code block, group) and a small contextual bar above the selected device
+  (hue, pin, align, more), panel and run band hidden meanwhile. **Accent = a browser preference like the theme**
+  (Orhan's idea), among a short calibrated list: A cobalt `#2150E8` (default, what `DESIGN.md` will record), B signal
+  green `#00804E`, C ink (black on light, chalk on dark: a chrome with no colour at all, links keep an underline);
+  all ≥ 4.5:1 in both themes, no collision with error red, warning amber or the diff. Settings popover rendered
+  (`data-state="settings"`: theme, accent, language), a layer above the islands like the search. 13 states measured
+  by the agent, 11 re-measured by the orchestrator: 17 bars, 8 floating surfaces, 38 / 9 tooltips in one style,
+  nothing flagged. Agent's risks: with ink the selection weighs as much as text; in compact the interfaces table
+  starts below the fold; the contextual bar can cover neighbouring cables. `PRODUCT.md`: every fact of the contract
+  about the selected device is readable in the Diagram view (3304a3f). Governance: `SessionStart` hook injects
+  `docs/etat.md` into every session (d89ee37). **Awaiting Orhan's validation of the shell, then `DESIGN.md`.**
 - **Round 2 of the direction round: the shell, one direction, on the bench** (2026-10-16, Orhan's verdict on round 1
   then "go": the UI he judges is the shell, the canvas is another surface for a later session and the v1 cards are
   the better base there; base = the category standard improved with `netzgrafik`'s liveliness; floating, airy
