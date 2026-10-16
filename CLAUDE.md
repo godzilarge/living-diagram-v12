@@ -13,7 +13,9 @@ pointe sont la direction globale de toute session, humaine ou agent.
    `docs/13-migration-plan.md`) et, pour l'interface, `PRODUCT.md`, `DESIGN.md` et `design/comps/shell/`.
 4. `docs/journal.md` : l'histoire des décisions (2026-08 → aujourd'hui), à consulter par recherche, jamais à relire.
 
-Une session = **un lot**. Elle finit par le skill `livraison` (suites, captures, docs, entrée de journal, `etat.md`).
+Une session = **un lot**. Elle finit par le skill `livraison` (suites, captures, docs, entrée de journal, `etat.md`,
+**prompt de reprise**), aussi quand Orhan dit qu'on arrête au milieu d'un lot : on livre ce qui est fait, on note ce
+qui reste, on écrit le relais.
 
 ## Règles non négociables
 

@@ -1,11 +1,15 @@
 ---
 name: livraison
-description: Clore un lot - suites complètes, reconstruction des bundles, captures, documentation, entrée de journal, docs/etat.md, message de commit. À charger à la fin de toute session qui a modifié du code ou des documents. Ne commite pas sans demande.
+description: Clore un lot ou une session - suites complètes, captures, documentation, entrée de journal, docs/etat.md, prompt de reprise, message de commit. À charger à la fin de tout lot, et DÈS QU'ORHAN DIT QU'ON ARRÊTE (« on arrête », « on s'arrête là », « à demain », « stop »), même au milieu d'un lot. Ne commite pas sans demande.
 ---
 
-# Livraison d'un lot
+# Livraison d'un lot, ou clôture d'une session
 
 Rien n'est livré tant que cette liste n'est pas vide. Dire explicitement ce qui n'a pas pu être fait.
+
+**Déclencheurs** : la fin d'un lot ; ou Orhan qui dit qu'on arrête, à n'importe quel moment. Dans ce second cas, on ne
+finit pas le lot : on livre ce qui est fait (suites vertes sur ce qui existe), on note ce qui reste **au milieu**, et on
+écrit le relais. Un agent de lot en cours est laissé finir s'il est à quelques minutes, sinon arrêté et noté.
 
 ## 1. Vérifier
 
@@ -37,7 +41,15 @@ cd contracts && uv run pytest --cov=ld_contracts && uv run ruff check src tests
 - Mémoire de l'agent : seulement ce qui concerne Orhan (préférence, correction de méthode). Un fait de projet va dans
   le dépôt, jamais dans la mémoire.
 
-## 4. Proposer le commit
+## 4. Passer le relais
+
+- Dans `docs/etat.md`, une ligne **« Prochaine session : `…` »** avec le prompt exact à coller, de la forme
+  `/brique-ui <surface>` ou `<la tâche en une phrase>. Finis par /livraison.`, suivi de ce que cette session doit
+  savoir et que les docs ne disent pas encore (un agent interrompu, un test instable, un choix en attente d'Orhan).
+- Le même prompt, dans le dernier message à Orhan, dans un bloc de code qu'il peut copier tel quel.
+- Ce qui attend sa décision est dit en une ligne, jamais enfoui dans un paragraphe.
+
+## 5. Proposer le commit
 
 Message conventionnel en français (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`), un lot par commit,
 corps = les décisions en une ligne chacune, **sans ligne d'attribution**. Le proposer ; ne commiter ni pousser que sur
