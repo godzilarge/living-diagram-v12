@@ -120,5 +120,15 @@
     "focusWidth": "Focus",
     "palette": "Search palette",
     "layerNote": "The layer shadow: the search palette and the focus panel only."
+  },
+  "widgets": {
+    "title": "Widgets, avatars, marks",
+    "note": "A widget is an island of the home: a 56 px header (title, count, then on the right a segmented filter and the icon buttons, the settings last) over a table or a feed. An avatar is a declared author's initial; a mark is a state's 8 px square, alone or before its words.",
+    "widget": "Widget, with its filter and its settings, sortable headers",
+    "widgetPlain": "Widget without controls, snug table, a foot note",
+    "avatars": "Avatars, and in the user button",
+    "marks": "Marks, alone and with their words",
+    "outlined": "Outlined icon button (the free slot)",
+    "links": "Links: inline (accent-ink, underlined under the ink accent), focused, quiet (a name that opens its row), the logo"
   }
 }

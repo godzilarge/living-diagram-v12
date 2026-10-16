@@ -1,15 +1,32 @@
 // A table (DESIGN.md, Layout): body text, a label-size head in ink-3 with sortable headers (`aria-sort`), 44 px rows
-// (32 in a compact panel) with a hairline rule, the hovered row on ground, the current row on accent-weak. The head
-// sticks when the table scrolls inside a panel. A clickable row takes the focus (Tab) and answers Enter and Space.
-// Cells are text or nodes: never HTML from data.
+// (32 in a compact panel; 40 `snug` and 56 `relaxed` on the home widgets) with a hairline rule; the head is 28 px, 32
+// in a widget (`head="widget"`), and sticks when the table scrolls inside its surface. A clickable row takes the hover
+// fill (ground) and the pointer; the current row is on accent-weak. A row without an address takes the focus (Tab) and
+// answers Enter and Space; a row with one (`href`) shows it as a quiet Link in its `link` column, which Tab reaches,
+// and a click elsewhere on the row follows the same address through `onRowClick`. A `cut` column takes a quarter of
+// the table and cuts its text with an ellipsis. Each row carries its id (`data-row`), for what reports the rows on
+// screen. Cells are text or nodes: never HTML from data.
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { Icon } from "./Icon";
+import { Link } from "./Link";
 import "./Table.css";
 
 export type SortDirection = "ascending" | "descending";
-export type Column = Readonly<{ key: string; label: string; align?: "start" | "end"; sortable?: boolean }>;
-export type Row = Readonly<{ id: string; cells: Readonly<Record<string, ReactNode>>; current?: boolean }>;
+/** `fit`: as narrow as its content (a chevron); `hideLabel`: the label is said, not shown; `link`: the cell is the
+ *  row's address; `cut`: a quarter of the table, the text cut with an ellipsis (a name of any length). */
+export type Column = Readonly<{
+  key: string;
+  label: string;
+  align?: "start" | "end";
+  sortable?: boolean;
+  fit?: boolean;
+  hideLabel?: boolean;
+  link?: boolean;
+  cut?: boolean;
+}>;
+export type Density = "compact" | "snug" | "regular" | "relaxed";
+export type Row = Readonly<{ id: string; cells: Readonly<Record<string, ReactNode>>; current?: boolean; href?: string }>;
 export type Sort = Readonly<{ key: string; direction: SortDirection }>;
 
 export type TableProps = {
@@ -18,7 +35,9 @@ export type TableProps = {
   rows: readonly Row[];
   sort?: Sort;
   onSort?: (sort: Sort) => void;
-  density?: "regular" | "compact";
+  density?: Density;
+  /** `widget`: the 32 px head of a home widget. */
+  head?: "regular" | "widget";
   onRowClick?: (id: string) => void;
 };
 
@@ -34,22 +53,68 @@ function Head({ column, sort, onSort }: { column: Column; sort?: Sort; onSort?: 
   const state = sort?.key === column.key ? sort.direction : null;
   const next: SortDirection = state === "ascending" ? "descending" : "ascending";
   return (
-    <th scope="col" aria-sort={column.sortable ? (state ?? "none") : undefined} data-align={column.align ?? "start"}>
+    <th scope="col" aria-sort={column.sortable ? (state ?? "none") : undefined} {...cellData(column)}>
       {column.sortable && onSort ? (
         <button type="button" className="ui-th" onClick={() => onSort({ key: column.key, direction: next })}>
           {column.label}
           <SortIcon state={state} />
         </button>
       ) : (
-        <span className="ui-th">{column.label}</span>
+        <span className={column.hideLabel ? "ui-th ui-visually-hidden" : "ui-th"}>{column.label}</span>
       )}
     </th>
   );
 }
 
-export function Table({ label, columns, rows, sort, onSort, density = "regular", onRowClick }: TableProps) {
+const cellData = (column: Column) => ({
+  "data-align": column.align ?? "start",
+  "data-fit": column.fit ? "" : undefined,
+  "data-cut": column.cut ? "" : undefined,
+});
+
+/** A plain click on a row (a link inside follows itself; a modified click is the link's, a new tab). */
+function rowClick(event: MouseEvent<HTMLTableRowElement>, open: () => void) {
+  const target = event.target as Element | null;
+  if (target?.closest("a") || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  open();
+}
+
+function rowKey(event: KeyboardEvent<HTMLTableRowElement>, open: () => void) {
+  if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
+  event.preventDefault();
+  open();
+}
+
+function BodyRow({ row, columns, onRowClick }: { row: Row; columns: readonly Column[]; onRowClick?: (id: string) => void }) {
+  const open = onRowClick ? () => onRowClick(row.id) : undefined;
+  const focusable = !!open && !row.href;
   return (
-    <table className="ui-table" aria-label={label} data-density={density}>
+    <tr
+      aria-current={row.current ? "true" : undefined}
+      data-row={row.id}
+      tabIndex={focusable ? 0 : undefined}
+      data-clickable={open ? "" : undefined}
+      onClick={open ? (event) => rowClick(event, open) : undefined}
+      onKeyDown={focusable ? (event) => rowKey(event, open) : undefined}
+    >
+      {columns.map((column) => (
+        <td key={column.key} {...cellData(column)}>
+          {column.link && row.href ? (
+            <Link href={row.href} variant="quiet">
+              {row.cells[column.key] ?? null}
+            </Link>
+          ) : (
+            (row.cells[column.key] ?? null)
+          )}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+export function Table({ label, columns, rows, sort, onSort, density = "regular", head = "regular", onRowClick }: TableProps) {
+  return (
+    <table className="ui-table" aria-label={label} data-density={density} data-head={head}>
       <thead>
         <tr>
           {columns.map((column) => (
@@ -59,25 +124,7 @@ export function Table({ label, columns, rows, sort, onSort, density = "regular",
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr
-            key={row.id}
-            aria-current={row.current ? "true" : undefined}
-            tabIndex={onRowClick ? 0 : undefined}
-            data-clickable={onRowClick ? "" : undefined}
-            onClick={onRowClick ? () => onRowClick(row.id) : undefined}
-            onKeyDown={onRowClick ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onRowClick(row.id);
-              }
-            } : undefined}
-          >
-            {columns.map((column) => (
-              <td key={column.key} data-align={column.align ?? "start"}>
-                {row.cells[column.key] ?? null}
-              </td>
-            ))}
-          </tr>
+          <BodyRow key={row.id} row={row} columns={columns} onRowClick={onRowClick} />
         ))}
       </tbody>
     </table>

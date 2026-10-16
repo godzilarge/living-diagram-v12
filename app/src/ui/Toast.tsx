@@ -9,6 +9,7 @@ import type { Tone } from "./Count";
 import { TOAST_DURATION } from "./geometry";
 import { IconButton } from "./IconButton";
 import { Island } from "./Island";
+import { Mark } from "./Mark";
 import "./Toast.css";
 
 export type ToastProps = {
@@ -51,7 +52,7 @@ export function Toast({ name, message, tone = "neutral", action, closeLabel, onC
       onFocus={() => setFocused(true)}
       onBlur={(event) => setFocused(event.currentTarget.contains(event.relatedTarget as Node | null))}
     >
-      <span className="ui-toast-mark" data-tone={tone} aria-hidden="true" />
+      <Mark tone={tone} />
       <span className="ui-toast-text">{message}</span>
       {action ? <Button onClick={action.onClick}>{action.label}</Button> : null}
       <IconButton label={closeLabel} icon={<X />} onClick={onClose} />

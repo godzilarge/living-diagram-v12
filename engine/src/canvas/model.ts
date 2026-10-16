@@ -188,7 +188,7 @@ function indexDiff(diff: Diff | null): Record<DiffKind, Map<string, Change>> {
 }
 
 // Ce que l'onglet Diff compte : tout ce qui est listé, sections, contrôles apparus ou résolus, couverture, événements.
-function diffCount(diff: Diff | null): number {
+export function diffCount(diff: Pick<Diff, "summary"> | null): number {
   if (!diff) return 0;
   const s = diff.summary;
   const sections = DIFF_SECTIONS.reduce((sum, name) => sum + s[name].added + s[name].removed + s[name].changed, 0);

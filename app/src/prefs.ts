@@ -1,9 +1,9 @@
-// Browser preferences of the v2 (theme, accent, language): stored under `ld-prefs`, the v1's key, with the v1's field
+// Browser preferences of the v2 (theme, accent, language, how many rows two home widgets list): stored under `ld-prefs`, the v1's key, with the v1's field
 // names (`theme`, `language`), so a choice made in one is the choice of the other; never an intent, never in the
 // address. Applied as `data-theme` / `data-accent` / `lang` on `<html>`.
 // The v2 writes by merging: the v1's own fields (grid, panel width…) are kept. The v1 writes its whole object
-// (`engine/src/app/state/prefs.ts`, `writePrefs`), so a write from the v1 drops `accent`: the v2 then reads the
-// default accent (cobalt). Parsing is pure and tolerant: an unknown or missing value falls back to the default.
+// (`engine/src/app/state/prefs.ts`, `writePrefs`), so a write from the v1 drops `accent`, `homeRuns` and
+// `homeChanges`: the v2 then reads their defaults (cobalt, 6, 10). Parsing is pure and tolerant: an unknown or missing value falls back to the default.
 import { detectLanguage, isLanguage, setLanguage } from "./i18n";
 import type { Language } from "./i18n";
 
@@ -11,13 +11,19 @@ export const THEMES = ["light", "dark"] as const;
 export const ACCENTS = ["cobalt", "ink"] as const;
 export type Theme = (typeof THEMES)[number];
 export type Accent = (typeof ACCENTS)[number];
-export type Prefs = Readonly<{ theme: Theme; accent: Accent; language: Language | null }>;
+/** The rows "Latest collections" (`homeRuns`) and "Latest modifications" (`homeChanges`) may list: each widget's
+ *  default first, so the default carries the rail of its settings. */
+export const HOME_RUNS = [6, 12, 25, 50, 100] as const;
+export const HOME_CHANGES = [10, 25, 50, 100] as const;
+export type HomeRuns = (typeof HOME_RUNS)[number];
+export type HomeChanges = (typeof HOME_CHANGES)[number];
+export type Prefs = Readonly<{ theme: Theme; accent: Accent; language: Language | null; homeRuns: HomeRuns; homeChanges: HomeChanges }>;
 
 export const STORAGE_KEY = "ld-prefs";
-export const DEFAULT_PREFS: Prefs = Object.freeze({ theme: "light", accent: "cobalt", language: null });
+export const DEFAULT_PREFS: Prefs = Object.freeze({ theme: "light", accent: "cobalt", language: null, homeRuns: 6, homeChanges: 10 });
 
-const oneOf = <T extends string>(values: readonly T[], value: unknown, fallback: T): T =>
-  typeof value === "string" && (values as readonly string[]).includes(value) ? (value as T) : fallback;
+const oneOf = <T extends string | number>(values: readonly T[], value: unknown, fallback: T): T =>
+  (values as readonly unknown[]).includes(value) ? (value as T) : fallback;
 
 /** The preferences read from a stored JSON text; anything unreadable gives the defaults. */
 export function parsePrefs(raw: string | null): Prefs {
@@ -32,6 +38,8 @@ export function parsePrefs(raw: string | null): Prefs {
     theme: oneOf(THEMES, data.theme, DEFAULT_PREFS.theme),
     accent: oneOf(ACCENTS, data.accent, DEFAULT_PREFS.accent),
     language: isLanguage(data.language) ? data.language : null,
+    homeRuns: oneOf(HOME_RUNS, data.homeRuns, DEFAULT_PREFS.homeRuns),
+    homeChanges: oneOf(HOME_CHANGES, data.homeChanges, DEFAULT_PREFS.homeChanges),
   });
 }
 
@@ -44,7 +52,8 @@ export function mergePrefs(raw: string | null, prefs: Prefs): string {
   } catch {
     data = {};
   }
-  return JSON.stringify({ ...data, theme: prefs.theme, accent: prefs.accent, language: prefs.language });
+  const { theme, accent, language, homeRuns, homeChanges } = prefs;
+  return JSON.stringify({ ...data, theme, accent, language, homeRuns, homeChanges });
 }
 
 function storage(): Storage | null {

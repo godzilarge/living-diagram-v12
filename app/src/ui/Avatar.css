@@ -1,0 +1,21 @@
+.ui-avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: var(--avatar-radius);
+  background: var(--avatar-background-color);
+  /* the 1 px line-2 inset of the mockup, drawn as an outline: a shadow length would be a raw value */
+  outline: 1px solid var(--color-line-2);
+  outline-offset: -1px;
+  color: var(--avatar-text-color);
+  font-size: var(--avatar-font-size);
+  font-weight: var(--avatar-font-weight);
+  line-height: var(--avatar-font-leading);
+}
+
+/* in a disabled control the initial turns ink-4, like the control's icon */
+[aria-disabled="true"] .ui-avatar {
+  color: var(--color-ink-4);
+}

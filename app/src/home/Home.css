@@ -1,0 +1,202 @@
+/* The home (design/comps/shell/home.html): the ground, the two top islands, the grid of widgets from y = 80
+   (16 + a 48 px island + 16), two thirds and one third (928 / 464 at 1440), 16 px between widgets and to the edges.
+   The page never scrolls: the grid is the window less 96 px (804 at 900, as the mockup's `.space`), each widget
+   scrolls inside its body. */
+.home {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-ground);
+}
+
+.home-top {
+  position: absolute;
+  top: var(--space-lg);
+  display: flex;
+  gap: var(--space-md);
+}
+
+.home-top-start {
+  left: var(--space-lg);
+}
+
+.home-top-end {
+  right: var(--space-lg);
+}
+
+/* the shortcut chip sits centred in the control's height: as much room on its right as above and below it */
+.home-search {
+  padding: 0 calc((var(--control-height) - var(--shortcut-height)) / 2) 0 var(--space-sm);
+}
+
+.home-space {
+  position: absolute;
+  inset: calc(2 * var(--space-lg) + var(--control-height) + 2 * var(--island-padding)) var(--space-lg) var(--space-lg);
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+}
+
+.home-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-height: 0;
+}
+
+/* Infrastructures: its content's height up to 60 % of the column, then it scrolls; Latest collections the rest */
+.home-col > [data-float="infrastructures"] {
+  flex: 0 1 auto;
+  max-height: 60%;
+}
+
+/* a sentence in place of a widget's content */
+.home-note {
+  margin: 0 0 var(--space-xs);
+  color: var(--color-ink-3);
+}
+
+/* infrastructures */
+.home-name {
+  font-size: var(--text-subtitle-strong-size);
+  font-weight: var(--text-subtitle-strong-weight);
+  line-height: var(--text-subtitle-strong-leading);
+}
+
+.home-checks,
+.home-checks-shown {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: var(--space-lg);
+}
+
+.home-check {
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: var(--count-slot-width);
+}
+
+.home-zero {
+  color: var(--color-ink-4);
+}
+
+.home-go {
+  display: inline-flex;
+  color: var(--color-ink-3);
+  opacity: 0;
+  transition: opacity var(--motion-hover) var(--motion-ease);
+}
+
+tr:is(:hover, :focus-within) .home-go,
+.home-go[data-recent] {
+  opacity: 1;
+}
+
+/* the token, in place of the table */
+.home-token {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-bottom: var(--space-sm);
+}
+
+.home-token-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+/* 280 px: a token of about forty characters shows whole; no token field in the mockup to measure */
+.home-token-field .ui-field-input {
+  width: 280px;
+}
+
+/* latest collections */
+.home-quiet {
+  color: var(--color-ink-2);
+}
+
+.home-muted {
+  color: var(--color-ink-3);
+}
+
+.home-strong {
+  font-weight: var(--text-body-strong-weight);
+}
+
+/* latest modifications */
+.home-feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-feed-item {
+  display: grid;
+  grid-template-columns: var(--avatar-size) minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--space-md);
+  padding: var(--feed-item-padding);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.home-feed-item:first-child {
+  padding-top: 0;
+}
+
+.home-feed-item:last-child {
+  border-bottom: 0;
+}
+
+.home-feed-what {
+  margin: 0;
+  line-height: var(--text-body-line-leading);
+  text-wrap: pretty;
+}
+
+.home-feed-what b {
+  font-weight: var(--text-body-strong-weight);
+}
+
+.home-feed-where {
+  margin: var(--space-2xs) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-caption-leading);
+}
+
+.home-feed-when {
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-body-line-leading);
+  white-space: nowrap;
+}
+
+/* the free slot: a line-2 frame on the ground, no fill, no shadow */
+.home-slot {
+  display: grid;
+  flex: none;
+  grid-template-columns: var(--control-height) minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--radius-surface);
+}
+
+.home-slot h2 {
+  margin: 0;
+  font-size: var(--text-body-strong-size);
+  font-weight: var(--text-body-strong-weight);
+  line-height: var(--text-body-strong-leading);
+}
+
+.home-slot p {
+  margin: var(--space-2xs) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-caption-leading);
+}

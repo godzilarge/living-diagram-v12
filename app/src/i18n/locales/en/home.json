@@ -1,0 +1,140 @@
+{
+  "page": "Home",
+  "arrange": "Arrange widgets",
+  "arrangeSoon": "Arrange widgets: in progress",
+  "account": "Account",
+  "accountSoon": "Accounts: in progress",
+  "loading": "Reading the archive…",
+  "failed": "The archive could not be read (error {{status}}). Reload the page to try again.",
+  "unreachable": "The API does not answer. Check that the service runs, then reload the page.",
+  "invalid": "The API answered outside its contract. Reload the page; if it persists, check the version of the service.",
+  "unreadable_one": "{{count}} archive entry could not be read",
+  "unreadable_other": "{{count}} archive entries could not be read",
+  "token": {
+    "intro": "The archive asks for the API token of this service.",
+    "label": "API token",
+    "connect": "Connect",
+    "refused": "The API refused this token. Check it and try again.",
+    "waiting": "Waiting for the API token."
+  },
+  "infrastructures": {
+    "title": "Infrastructures",
+    "columns": {
+      "name": "Name",
+      "devices": "Devices",
+      "last": "Last collection",
+      "status": "Collection status",
+      "check": "To check",
+      "open": "Open"
+    },
+    "errors_one": "{{count}} error",
+    "errors_other": "{{count}} errors",
+    "warnings_one": "{{count}} warning",
+    "warnings_other": "{{count}} warnings",
+    "unread": "Checks not read",
+    "empty": "No infrastructure in the archive yet: push a collection bundle to start.",
+    "checksSaid": "{{errors}}, {{warnings}}",
+    "none": "No infrastructure matches."
+  },
+  "status": {
+    "completed": "Succeeded",
+    "partial": "Partial",
+    "partialUnreachable_one": "Partial, {{count}} unreachable",
+    "partialUnreachable_other": "Partial, {{count}} unreachable",
+    "failed": "Failed",
+    "failedOn": "Failed on {{date}}",
+    "running": "Running",
+    "unknown": "Unknown",
+    "stale_one": "No collection for {{count}} day",
+    "stale_other": "No collection for {{count}} days"
+  },
+  "runs": {
+    "title": "Latest collections",
+    "columns": {
+      "date": "Date",
+      "infrastructure": "Infrastructure",
+      "result": "Result",
+      "devices": "Devices",
+      "compared": "Compared with the previous"
+    },
+    "devices_one": "{{count}} device",
+    "devices_other": "{{count}} devices",
+    "answered_one": "{{count}} of {{devices}} answered",
+    "answered_other": "{{count}} of {{devices}} answered",
+    "answeredOnly_one": "{{count}} answered",
+    "answeredOnly_other": "{{count}} answered",
+    "unavailable": "unavailable",
+    "noChange": "no change",
+    "changes_one": "{{count}} change since {{date}}",
+    "changes_other": "{{count}} changes since {{date}}",
+    "empty": "No collection yet.",
+    "none": "No collection matches."
+  },
+  "changes": {
+    "title": "Latest modifications",
+    "openLog": "Open the log",
+    "openLogSoon": "Open the log: in progress",
+    "empty": "Nobody has changed a diagram yet."
+  },
+  "journal": {
+    "moved_one": "moved {{count}} device",
+    "moved_other": "moved {{count}} devices",
+    "unpinned_one": "unpinned {{count}} device",
+    "unpinned_other": "unpinned {{count}} devices",
+    "colouredDevices_one": "coloured {{count}} device",
+    "colouredDevices_other": "coloured {{count}} devices",
+    "resetDevices_one": "reset the colour of {{count}} device",
+    "resetDevices_other": "reset the colour of {{count}} devices",
+    "colouredTypes_one": "coloured {{count}} type",
+    "colouredTypes_other": "coloured {{count}} types",
+    "resetTypes_one": "reset the colour of {{count}} type",
+    "resetTypes_other": "reset the colour of {{count}} types",
+    "groupCreated": "created the group “{{label}}”",
+    "groupRenamed": "renamed the group “{{label}}”",
+    "groupChanged": "changed the group “{{label}}”",
+    "groupDeleted": "deleted the group “{{label}}”",
+    "annotationAdded_one": "added an annotation",
+    "annotationAdded_other": "added {{count}} annotations",
+    "annotationChanged_one": "changed an annotation",
+    "annotationChanged_other": "changed {{count}} annotations",
+    "annotationDeleted_one": "deleted an annotation",
+    "annotationDeleted_other": "deleted {{count}} annotations",
+    "connectorAdded_one": "added a connector",
+    "connectorAdded_other": "added {{count}} connectors",
+    "connectorChanged_one": "changed a connector",
+    "connectorChanged_other": "changed {{count}} connectors",
+    "connectorDeleted_one": "deleted a connector",
+    "connectorDeleted_other": "deleted {{count}} connectors",
+    "mixed_one": "made a change",
+    "mixed_other": "made {{count}} changes",
+    "andMore_one": "{{phrase}} and {{count}} other change",
+    "andMore_other": "{{phrase}} and {{count}} other changes",
+    "byAuthor": "{{author}} {{phrase}}",
+    "unknownAuthor": "unknown"
+  },
+  "filter": {
+    "byStatus": "Filter by collection status",
+    "byResult": "Filter by result",
+    "all": "All",
+    "completed": "Succeeded",
+    "partial": "Partial",
+    "failed": "Failed",
+    "stale": "Late",
+    "said": "{{label}}, {{value}}"
+  },
+  "settings": {
+    "label": "Widget settings",
+    "showLast": "Show the last",
+    "runs": "collections",
+    "changes": "modifications"
+  },
+  "time": {
+    "dayAt": "{{day}}, {{time}}"
+  },
+  "slot": {
+    "title": "Free slot",
+    "text": "The home grows with the product: checks of an infrastructure, recent exports, collection coverage.",
+    "add": "Add a widget",
+    "addSoon": "Add a widget: in progress"
+  }
+}

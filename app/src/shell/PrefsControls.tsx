@@ -1,6 +1,7 @@
 // The three browser preferences (theme, accent, language) as rows of rail buttons, as the approved mockup draws the
 // settings (design/comps/shell/shell-settings-1440.png): the chosen value carries the rail, each accent its swatch.
-// The settings popover of the shell and the switcher of the primitives page use the same rows.
+// The settings popover of the shell, the switcher of the primitives page and the settings of a home widget use the
+// same rows (`ChoiceRow`).
 import { Button } from "../ui";
 import type { Language } from "../i18n";
 import { useText } from "../i18n";
@@ -19,16 +20,29 @@ export type PrefsControlsProps = {
   layout?: "rows" | "inline";
 };
 
-type Choice = Readonly<{ value: string; text: TextKey; swatch?: string }>;
+export type Choice = Readonly<{ value: string; label: string; swatch?: string }>;
 
-function Row({ id, label, choices, value, onPick }: { id: string; label: string; choices: readonly Choice[]; value: string; onPick: (value: string) => void }) {
-  const t = useText();
+export type ChoiceRowProps = {
+  id: string;
+  /** The words before the choices ("Theme", "Show the last"). */
+  label: string;
+  choices: readonly Choice[];
+  value: string;
+  onPick: (value: string) => void;
+  /** The words after the choices ("collections"), read with the label as the group's name. */
+  after?: string;
+};
+
+/** One row of rail buttons: the label, the choices (the chosen one with the rail), optionally the words after them.
+ *  The settings of the shell and the settings of a home widget are rows of this. */
+export function ChoiceRow({ id, label, choices, value, onPick, after }: ChoiceRowProps) {
+  const labelId = `prefs-${id}`;
   return (
     <div className="prefs-row">
-      <span className="prefs-label" id={`prefs-${id}`}>
+      <span className="prefs-label" id={labelId}>
         {label}
       </span>
-      <div className="prefs-choices" role="group" aria-labelledby={`prefs-${id}`} data-bar={`prefs-${id}`}>
+      <div className="prefs-choices" role="group" aria-labelledby={after ? `${labelId} ${labelId}-after` : labelId} data-bar={labelId}>
         {choices.map((choice) => (
           <Button
             key={choice.value}
@@ -36,36 +50,44 @@ function Row({ id, label, choices, value, onPick }: { id: string; label: string;
             icon={choice.swatch ? <span className="prefs-swatch" data-swatch={choice.swatch} /> : undefined}
             onClick={() => onPick(choice.value)}
           >
-            {t(choice.text)}
+            {choice.label}
           </Button>
         ))}
       </div>
+      {after ? (
+        <span className="prefs-label prefs-after" id={`${labelId}-after`}>
+          {after}
+        </span>
+      ) : null}
     </div>
   );
 }
+
+const choicesOf = (t: (key: TextKey) => string, values: readonly string[], text: (value: string) => TextKey, swatch = false): Choice[] =>
+  values.map((value) => ({ value, label: t(text(value)), swatch: swatch ? value : undefined }));
 
 export function PrefsControls({ prefs, language, onChange, layout = "rows" }: PrefsControlsProps) {
   const t = useText();
   return (
     <div className="prefs" data-layout={layout}>
-      <Row
+      <ChoiceRow
         id="theme"
         label={t("shell:prefs.theme")}
-        choices={THEMES.map((value) => ({ value, text: `shell:prefs.themes.${value}` as const }))}
+        choices={choicesOf(t, THEMES, (value) => `shell:prefs.themes.${value as Prefs["theme"]}`)}
         value={prefs.theme}
         onPick={(value) => onChange({ ...prefs, theme: value as Prefs["theme"] })}
       />
-      <Row
+      <ChoiceRow
         id="accent"
         label={t("shell:prefs.accent")}
-        choices={ACCENTS.map((value) => ({ value, text: `shell:prefs.accents.${value}` as const, swatch: value }))}
+        choices={choicesOf(t, ACCENTS, (value) => `shell:prefs.accents.${value as Prefs["accent"]}`, true)}
         value={prefs.accent}
         onPick={(value) => onChange({ ...prefs, accent: value as Prefs["accent"] })}
       />
-      <Row
+      <ChoiceRow
         id="language"
         label={t("shell:prefs.language")}
-        choices={LANGUAGE_ORDER.map((value) => ({ value, text: `shell:prefs.languages.${value}` as const }))}
+        choices={choicesOf(t, LANGUAGE_ORDER, (value) => `shell:prefs.languages.${value as Language}`)}
         value={language}
         onPick={(value) => onChange({ ...prefs, language: value as Language })}
       />

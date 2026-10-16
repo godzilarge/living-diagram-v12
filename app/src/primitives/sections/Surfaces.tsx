@@ -1,7 +1,7 @@
 // The panel with its header actions and a sortable table, and a popover open under its trigger.
 import { ArrowLeftRight, ChevronsLeftRight, Crosshair, Ellipsis, ListFilter, Maximize2, Search, Settings, X } from "lucide-react";
 import { useState } from "react";
-import { Button, Count, Field, IconButton, Island, Panel, PanelSection, Popover, Segmented, Table } from "../../ui";
+import { Button, Count, Field, IconButton, Island, Mark, Panel, PanelSection, Popover, Segmented, Table } from "../../ui";
 import type { PanelWidth } from "../../ui";
 import type { Sort } from "../../ui";
 import { useText } from "../../i18n";
@@ -29,7 +29,7 @@ function PortTable() {
     current: port.port === current,
     cells: {
       port: port.port,
-      state: <span className="page-state" data-state={port.state}>{t(`primitives:panel.${port.state}`)}</span>,
+      state: <Mark tone={port.state === "up" ? "ok" : "error"}>{t(`primitives:panel.${port.state}`)}</Mark>,
       speed: port.speed,
       neighbour: port.neighbour || <span className="page-muted">{t("primitives:panel.none")}</span>,
     },

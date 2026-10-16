@@ -73,3 +73,4 @@ bac-a-sable/
 
 # Captures de mesure des maquettes (regénérées par design/scripts/measure.py)
 design/comps/captures/
+docs/revues/*-sondes/captures/

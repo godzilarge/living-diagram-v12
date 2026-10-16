@@ -1,0 +1,85 @@
+// Talking to the API: the token in `Authorization` (never in the address), the answer read into one of five outcomes.
+// The token lives in `sessionStorage` under the v1's key (`ld-api-token`: one tab, never the disk), the declared author
+// in `localStorage` (`ld-author`): a token typed in the v1 opens the v2 and back. Pure: the storage and `fetch` are
+// parameters (the browser's by default), so Node tests every path.
+
+export const TOKEN_KEY = "ld-api-token";
+export const AUTHOR_KEY = "ld-author";
+
+export type KeyStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+export type Fetch = (input: string, init: RequestInit) => Promise<Pick<Response, "status" | "ok" | "json">>;
+
+/** What a call gives: the parsed data, or why not. `invalid`: a 2xx whose body is not what the contract says. */
+export type Answer<T> =
+  | Readonly<{ kind: "ok"; data: T }>
+  | Readonly<{ kind: "unauthorized" }>
+  | Readonly<{ kind: "failed"; status: number }>
+  | Readonly<{ kind: "invalid" }>
+  | Readonly<{ kind: "unreachable" }>;
+
+function browserStore(name: "sessionStorage" | "localStorage"): KeyStore | null {
+  try {
+    return globalThis[name] ?? null;
+  } catch {
+    return null; // a blocked storage: the value lives as long as the page
+  }
+}
+
+function read(store: KeyStore | null, key: string): string {
+  try {
+    return store?.getItem(key)?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function readToken(store: KeyStore | null = browserStore("sessionStorage")): string {
+  return read(store, TOKEN_KEY);
+}
+
+/** Stores the token; an empty one removes it (a refused token is worth nothing). */
+export function writeToken(token: string, store: KeyStore | null = browserStore("sessionStorage")): void {
+  try {
+    if (token.trim()) store?.setItem(TOKEN_KEY, token.trim());
+    else store?.removeItem(TOKEN_KEY);
+  } catch {
+    // a full or blocked storage: the token lives as long as the page
+  }
+}
+
+export function readAuthor(store: KeyStore | null = browserStore("localStorage")): string {
+  return read(store, AUTHOR_KEY);
+}
+
+export function withParams(route: string, params: Readonly<Record<string, string | number>>): string {
+  const query = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)])).toString();
+  return query ? `${route}?${query}` : route;
+}
+
+const browserFetch: Fetch = (input, init) => fetch(input, init);
+
+/** A GET of the API with the token; `parse` validates the body at the boundary (null = not the contract's shape). */
+export async function getJson<T>(
+  route: string,
+  params: Readonly<Record<string, string | number>>,
+  token: string,
+  parse: (body: unknown) => T | null,
+  fetchFn: Fetch = browserFetch,
+): Promise<Answer<T>> {
+  let response: Awaited<ReturnType<Fetch>>;
+  try {
+    response = await fetchFn(withParams(route, params), { headers: { Authorization: `Bearer ${token}` }, credentials: "omit" });
+  } catch {
+    return { kind: "unreachable" };
+  }
+  if (response.status === 401) return { kind: "unauthorized" };
+  if (!response.ok) return { kind: "failed", status: response.status };
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return { kind: "invalid" };
+  }
+  const data = parse(body);
+  return data === null ? { kind: "invalid" } : { kind: "ok", data };
+}

@@ -1,0 +1,24 @@
+.ui-link {
+  border-radius: var(--radius-chip);
+  color: var(--link-text-color);
+  font-weight: var(--link-font-weight);
+  text-decoration: none;
+}
+
+/* under the ink accent a link loses its hue: it keeps an underline (the mockup's `lnk`) */
+:root[data-accent="ink"] .ui-link[data-variant="inline"] {
+  text-decoration: underline;
+  text-decoration-color: var(--link-underline-color);
+  text-underline-offset: var(--link-underline-offset);
+}
+
+.ui-link[data-variant="quiet"] {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.ui-link:focus-visible,
+.ui-link[data-force="focus"] {
+  outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
+  outline-offset: var(--focus-ring-offset);
+}

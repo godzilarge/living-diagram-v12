@@ -34,7 +34,7 @@ et le skill `brique-ui`**, jamais par une retouche à la main de l'orchestrateur
 
 - Jamais de style en ligne, jamais de HTML construit depuis une donnée (`dangerouslySetInnerHTML` interdit) : CSP
   `'self'` partout, aucune ressource externe, polices embarquées.
-- Aucune chaîne visible en dur : tout texte passe par les catalogues `fr` / `en` (`engine/strings.mjs` le vérifie) ;
+- Aucune chaîne visible en dur : tout texte passe par les catalogues `fr` / `en` (`app/tests/guards/strings-guard.ts` le vérifie dans la v2, `engine/strings.mjs` dans la v1) ;
   une clé avec `{{count}}` porte ses pluriels dans les deux langues.
 - Icônes plutôt que mots dans les commandes, le mot dans l'infobulle ; capitales réservées aux pastilles.
 - `/view` et `ld render` sont gelés : correctifs seulement, jamais une fonction nouvelle.

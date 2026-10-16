@@ -40,6 +40,7 @@ from ld_backend.bodies import (
 from ld_backend.config import Settings
 from ld_backend.diff import DiffError, diff
 from ld_backend.diffs import CacheKey, DiffCache, SnapshotUnavailableError, load_archived_snapshot
+from ld_backend.home import MAX_RECENT_RUNS, RECENT_RUNS, SnapshotCache, infrastructures
 from ld_backend.ingest import ingest_bundle, result_payload
 from ld_backend.intent import AssetInUseError, IntentCorruptError, IntentGroupError, IntentLimitError, IntentStore
 from ld_backend.journal import MAX_LIMIT, Category, JournalCursorError, JournalPage, JournalQuery, JournalReader
@@ -57,13 +58,14 @@ from ld_backend.problems import PROBLEMS, ApiError, body
 from ld_backend.render import render_shell
 from ld_backend.render.app import APP_ASSET_PREFIX, APP_CSP, APP_ROUTE, read_app_asset, render_app
 from ld_backend.render.next import NEXT_CSP, NEXT_FILE, NEXT_INDEX, NEXT_ROUTE, etag_matches, read_next_file
-from ld_backend.schemas import AssetReceipt, Health, IngestReport, IntentOps, RunEntry, RunList
+from ld_backend.schemas import AssetReceipt, Health, InfrastructureList, IngestReport, IntentOps, RunEntry, RunList
 
 # Une run s'adresse par paramètres de requête, jamais par le chemin : `infrastructure` est un libellé libre et
 # `run_id` vient de l'amont ; un `/` dans l'un ou l'autre rendait la run archivée illisible (404).
 BUNDLES = "/api/ingest/bundles"
 BUNDLE = "/api/ingest/bundle"
 REPORT = "/api/ingest/report"
+INFRASTRUCTURES = "/api/infrastructures"
 SNAPSHOT = "/api/snapshot"
 DIFF = "/api/diff"
 INTENT = "/api/intent"
@@ -288,6 +290,29 @@ def _run_routes(router: APIRouter, store: BundleArchive) -> None:
         if not raw:
             raise ApiError(404, "snapshot_missing")
         return _json(raw)
+
+
+def _home_routes(router: APIRouter, store: BundleArchive, cache: SnapshotCache) -> None:
+    @router.get(
+        INFRASTRUCTURES,
+        tags=[doc.RUNS],
+        operation_id="list_infrastructures",
+        responses=doc.INFRASTRUCTURES_RESPONSES,
+        summary="Lister les infrastructures archivées, vues de l'accueil",
+    )
+    def list_infrastructures(
+        recent: Annotated[
+            int,
+            Query(ge=1, le=MAX_RECENT_RUNS, description="dernières runs par infrastructure, la plus récente d'abord"),
+        ] = RECENT_RUNS,
+    ) -> InfrastructureList:
+        """Chaque infrastructure avec sa dernière run, sa dernière run utile, ses équipements (dans le périmètre, ayant
+        répondu), les contrôles de son snapshot par sévérité et ses `recent` dernières runs (6 par défaut, 100 au
+        plus) ; la dernière collecte en tête. Une entrée ou un dossier illisible est sauté et compté."""
+        try:
+            return infrastructures(store, cache, recent)
+        except OSError as exc:
+            raise ApiError(500, "archive_corrupt") from exc
 
 
 def _diff_routes(router: APIRouter, store: BundleArchive, cache: DiffCache) -> None:
@@ -541,6 +566,7 @@ def create_app(settings: Settings, archive: BundleArchive | None = None) -> Fast
     protected = APIRouter(dependencies=[Depends(_bearer_guard(settings))], responses=doc.PROTECTED)
     _ingestion_routes(protected, store, settings)
     _run_routes(protected, store)
+    _home_routes(protected, store, SnapshotCache())
     _diff_routes(protected, store, DiffCache())
     _intent_routes(protected, store, intents, settings)
     _asset_routes(protected, store, assets, intents, settings)

@@ -10,6 +10,9 @@
 }
 
 .ui-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px; /* a word and its count, as in a tab ("Contrôle 6") */
   height: 100%;
   padding: 0 var(--space-md);
   border: 0;
@@ -44,4 +47,13 @@
 .ui-segment:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
   outline-offset: var(--focus-ring-offset);
+}
+
+.ui-segment-count {
+  display: inline-flex;
+}
+
+/* zero is decorative: the segment's name says it */
+.ui-segment-count[data-zero] .ui-count {
+  color: var(--color-ink-4);
 }

@@ -4,11 +4,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+.ui-table {
+  --ui-table-head: var(--table-head-height);
+}
+
+.ui-table[data-head="widget"] {
+  --ui-table-head: var(--table-head-height-widget);
+}
+
 .ui-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  height: 28px;
+  height: var(--ui-table-head);
   padding: 0 var(--space-md) 0 0;
   border-bottom: 1px solid var(--color-line);
   background: var(--color-paper);
@@ -29,6 +37,42 @@
   height: var(--control-height);
 }
 
+.ui-table[data-density="snug"] td {
+  height: var(--table-row-height-snug);
+}
+
+/* relaxed: a list of things one opens (the infrastructures); the hovered row reads as one shape */
+.ui-table[data-density="relaxed"] td {
+  height: var(--table-row-height-relaxed);
+  transition: background-color var(--motion-hover) var(--motion-ease);
+}
+
+/* cut: a quarter of the table (the mockup's name column, 215 of 894 px); `max-width: 0` lets the cell shrink under
+   its text, which the ellipsis then cuts */
+.ui-table [data-cut] {
+  width: 25%;
+  max-width: 0;
+}
+
+.ui-table[data-density="relaxed"] :is(th, td):first-child {
+  padding-left: var(--space-sm);
+}
+
+.ui-table[data-density="relaxed"] td:first-child {
+  border-start-start-radius: var(--radius-control);
+  border-end-start-radius: var(--radius-control);
+}
+
+.ui-table[data-density="relaxed"] td:last-child {
+  padding-right: var(--space-xs);
+  border-start-end-radius: var(--radius-control);
+  border-end-end-radius: var(--radius-control);
+}
+
+.ui-table [data-fit] {
+  width: 1%;
+}
+
 .ui-table [data-align="end"] {
   text-align: right;
 }
@@ -41,12 +85,12 @@
   border-bottom: 0;
 }
 
-.ui-table tbody tr:hover td {
-  background: var(--color-ground);
-}
-
 .ui-table tbody tr[data-clickable] {
   cursor: pointer;
+}
+
+.ui-table tbody tr[data-clickable]:hover td {
+  background: var(--color-ground);
 }
 
 .ui-table tbody tr:focus-visible {
@@ -58,11 +102,12 @@
   background: var(--color-accent-weak);
 }
 
+/* the label fills the head less its hairline: the head measures its token, rule included */
 .ui-th {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  height: 28px;
+  height: calc(var(--ui-table-head) - 1px);
   padding: 0;
   border: 0;
   background: none;

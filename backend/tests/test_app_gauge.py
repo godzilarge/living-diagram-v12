@@ -4,8 +4,9 @@ Bornes larges (la machine qui lance la suite n'est pas celle des mesures) : une 
 glissé sans image de plus de 100 ms. Et ce que la performance a changé, vérifié : React Flow ne monte que ce qui se voit
 (`onlyRenderVisibleElements`) sans rien perdre (un nœud arrive en vue, tout est là après « cadrer tout » et une bascule
 de couche, un connecteur dont le coin est hors champ reste dessiné), un nœud remonté ne rejoue pas une demande
-d'édition, un champ d'édition qui sort de la vue enregistre, Tab va à un élément hors champ, une pastille montée à sa
-première apparition garde son fondu, et les pastilles replacées après un déplacement sont celles d'un calcul immédiat."""
+d'édition, un champ d'édition qui sort de la vue enregistre, Tab va à un élément hors champ, une pastille montée à
+sa première apparition garde son fondu, et les pastilles replacées après un déplacement sont celles d'un calcul
+immédiat."""
 
 from __future__ import annotations
 

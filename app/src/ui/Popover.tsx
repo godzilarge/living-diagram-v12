@@ -1,7 +1,7 @@
 // A popover (DESIGN.md, Layout and Elevation): an island that floats higher, paper, a hairline, the island shadow, the
 // surface radius (`elevation="layer"`: the layer shadow, for the search palette only). It opens 8 px under the island
-// that holds its trigger, aligned on that island (16 px under a trigger in no island); it may cover islands, never its
-// trigger. Click opens and closes it,
+// that holds its trigger, aligned on that island (under a widget's header when the trigger sits in one:
+// `data-anchor`; 16 px under a trigger in no island); it may cover islands, never its trigger. Click opens and closes it,
 // Escape and a click outside close it. `data-layer` names it for the measurement (≥ 16 px from the viewport).
 import {
   autoUpdate,
@@ -22,6 +22,9 @@ import { useLayoutEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { EDGE, motionMs, POPOVER_ISLAND_OFFSET, POPOVER_OFFSET } from "./geometry";
 import "./Popover.css";
+
+/** What a popover opens under: a widget's header, else the island that holds the trigger. */
+const HOLDERS = ["[data-anchor]", "[data-float]"].join(", ");
 
 export type TriggerProps = Record<string, unknown> & { ref: (node: HTMLElement | null) => void };
 
@@ -53,7 +56,7 @@ export function Popover({ label, name, trigger, children, placement = "bottom-en
   });
   // positioned against the island that holds the trigger, when there is one (the settings popover of the mockup)
   useLayoutEffect(() => {
-    const holder = elements.domReference instanceof Element ? elements.domReference.closest("[data-float]") : null;
+    const holder = elements.domReference instanceof Element ? elements.domReference.closest(HOLDERS) : null;
     setIsland(holder);
     refs.setPositionReference(holder);
   }, [elements.domReference, refs]);

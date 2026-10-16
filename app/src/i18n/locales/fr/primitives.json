@@ -123,5 +123,15 @@
     "focusWidth": "Focus",
     "palette": "Palette de recherche",
     "layerNote": "L'ombre de calque : la palette de recherche et la fiche en focus seulement."
+  },
+  "widgets": {
+    "title": "Widgets, avatars, repères",
+    "note": "Un widget est un îlot de l'accueil : un en-tête de 56 px (titre, compte, puis à droite un filtre segmenté et les boutons d'icône, les réglages en dernier) au-dessus d'une table ou d'un fil. Un avatar est l'initiale d'un auteur déclaré ; un repère est le carré de 8 px d'un état, seul ou devant ses mots.",
+    "widget": "Widget, avec son filtre et ses réglages, en-têtes triables",
+    "widgetPlain": "Widget sans commande, tableau resserré, une note au pied",
+    "avatars": "Avatars, et dans le bouton utilisateur",
+    "marks": "Repères, seuls et avec leurs mots",
+    "outlined": "Bouton d'icône encadré (l'emplacement libre)",
+    "links": "Liens : en ligne (encre d'accent, souligné sous l'accent encre), avec le focus, discret (un nom qui ouvre sa ligne), le logo"
   }
 }

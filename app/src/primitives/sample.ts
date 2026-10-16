@@ -14,4 +14,6 @@ export const PORTS: readonly SamplePort[] = Object.freeze([
 
 export const INFRASTRUCTURES = Object.freeze(["demo-dc", "lab-paris", "site-lyon"]);
 export const DEVICE = "dc01-core-01";
+/** Declared authors (the home's feed): names, never words of the interface. */
+export const AUTHORS = Object.freeze(["orhan", "camille.r", "t.martin"]);
 export const MODEL = "N9K-C93180YC-FX";

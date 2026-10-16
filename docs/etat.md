@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-16** (refonte UI : socle complet, squelette `app/` livré et revu ; prochaine brique : l'accueil).
+**Dernière mise à jour : 2026-10-16** (refonte UI : brique 1 accueil livrée et revue ; prochaine brique : la coquille du diagramme).
 
 ## Fait
 
@@ -29,11 +29,20 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   (`docs/revues/2026-10-16-squelette-app.md` : 4 hauts, 10 moyens faits ; contours sous 3:1 assumés) → **5 migration par
   briques, plan dans `docs/13-migration-plan.md`** : 1 accueil → 2 coquille du diagramme (toile v1 dedans) → 3 panneau →
   4 recherche → 5 réglages et langue → 6 édition → 7 vues Contrôle et Journal → 8 bascule de `/` et suppression de
-  `engine/src/app/`. **Prochaine session : `/brique-ui accueil`** (brique 1 de `docs/13-migration-plan.md` : `design/comps/shell/home.html`,
-  widgets Infrastructures / Dernières modifications / Dernières collectes / emplacement libre, sur l'archive réelle ;
-  seule route nouvelle admise : la liste des infrastructures avec dernière collecte, statut et comptes). À savoir :
-  `app/` se lance par `cd app && npm ci && npm run dev` (proxy `/api` vers uvicorn sur 8000) ; `npm run check` et
-  `npm run e2e` doivent rester verts ; la v1 à `/` reste intacte ; la toile n'est pas à redessiner. **La toile (cartes, câbles) est une autre surface** : tour de
+  `engine/src/app/`. **Brique 1 accueil livrée le 2026-10-16** (route `GET /api/infrastructures`, quatre widgets sur
+  l'archive réelle, primitives `Widget` / `Avatar` / `Mark` / `Link` ajoutées à `DESIGN.md` ; revue
+  `docs/revues/2026-10-16-accueil.md` traitée, M5 parqué vers la brique 7 ; `docs/13` § Done ; retouche du même jour
+  après le premier regard d'Orhan : tri, filtre par état, réglage par widget du nombre de lignes, `?recent=N` ; **règle :
+  la page ne bride jamais l'utilisateur, un défaut n'est pas un plafond**). **Prochaine session :
+  `/brique-ui diagramme`** (brique 2 de `docs/13-migration-plan.md` : `design/comps/shell/index.html` au repos : îlots
+  contexte (infrastructure, run, résumé du diff), vues + couches, outils ; contrôles de la toile ; bande des runs ; la
+  toile v1 (`engine/src/app/canvas/`, React Flow) montée dedans, inchangée ; `state/` adresse, run, prefs et `api/`
+  déplacés avec leurs tests ; rien de nouveau côté API). À savoir : l'accueil ouvre encore une infrastructure dans la
+  v1 à `/` (`openHref` dans `app/src/state/home.ts`) : la brique 2 fait pointer ce lien vers `/next/` ; `app/` se
+  lance par `cd app && npm ci && npm run dev` (proxy `/api` vers uvicorn sur 8000, jeton de session de la v1
+  `ld-api-token`) ; `npm run check`, `npm run e2e` (fuseau UTC fixé dans `playwright.config.ts`) et
+  `cd engine && npm run check` doivent rester verts ; la v1 à `/` reste intacte ; la toile n'est pas à redessiner ;
+  deux tests Chromium de la v1 (`test_app_gauge`, `test_app_code`) ont échoué une fois sous charge puis passé seuls. **La toile (cartes, câbles) est une autre surface** : tour de
   directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
   fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.

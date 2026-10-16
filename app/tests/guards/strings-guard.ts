@@ -18,6 +18,7 @@ import { SRC } from "./files";
 export const I18N_DIR = "src/i18n/";
 export const ALLOWED: ReadonlyMap<string, string> = new Map([
   // `path:text` → reason
+  ["src/api/home.ts:/api/intent/journal", "an API route (three path segments read as three words), never shown"],
 ]);
 
 const VISIBLE_ATTRIBUTES = new Set([

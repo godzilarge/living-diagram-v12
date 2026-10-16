@@ -2,3 +2,8 @@
   width: var(--control-height);
   padding: 0;
 }
+
+.ui-icon-button-line {
+  border-color: var(--color-line-2);
+  background: var(--color-paper);
+}

@@ -428,6 +428,53 @@ class RunList(ApiModel):
     runs: list[RunEntry] = Field(description="Triées par début de collecte, puis par `run_id`.")
 
 
+class LastRun(ApiModel):
+    run_id: str
+    run_start: str = Field(description="Début de la collecte.")
+    run_end: str | None
+    run_status: str = Field(description="`completed`, `partial`, `failed` ou `running`, tel que l'exportateur l'a dit.")
+
+
+class RecentRun(LastRun):
+    devices: int | None = Field(
+        description="Équipements dans le périmètre d'après le rapport d'ingestion ; null s'il ne se lit pas."
+    )
+    answered: int | None = Field(
+        description="Équipements qui ont répondu (nœuds du snapshot en `success` ou `partial`) ; null sans snapshot."
+    )
+    previous_run_id: str | None = Field(
+        description="La run qui précède dans l'ordre des collectes (le `from` du diff N-1) ; null pour la première."
+    )
+
+
+class InfrastructureEntry(ApiModel):
+    """Une infrastructure archivée, vue de l'accueil : sa dernière run, ses comptes, ses dernières runs."""
+
+    infrastructure: str
+    runs: int = Field(description="Runs archivées lisibles.")
+    last_run: LastRun
+    last_good_run: LastRun | None = Field(
+        description="La run la plus récente en `completed` ou `partial` : celle qu'on ouvre ; null s'il n'y en a pas."
+    )
+    devices: int | None = Field(
+        description="Équipements dans le périmètre de `last_good_run` (de `last_run` à défaut) ; null si le rapport ne "
+        "se lit pas."
+    )
+    answered: int | None = Field(description="Équipements qui ont répondu à cette même run ; null sans snapshot.")
+    checks: dict[str, int] | None = Field(
+        description="Contrôles du snapshot de cette même run par sévérité (`error`, `warning`, `info`) ; null sans "
+        "snapshot."
+    )
+    recent_runs: list[RecentRun] = Field(description="Les `recent` dernières (6 par défaut), la plus récente d'abord.")
+
+
+class InfrastructureList(ApiModel):
+    infrastructures: list[InfrastructureEntry] = Field(
+        description="Triées par dernière collecte, la plus récente d'abord."
+    )
+    unreadable: int = Field(description="Entrées d'archive sautées (illisibles) ; rien d'elles n'est dit.")
+
+
 class ProblemField(ApiModel):
     path: str = Field(description="Chemin du paramètre ou du champ fautif, en identifiants pointés (`ops.0.x`).")
     code: str = Field(

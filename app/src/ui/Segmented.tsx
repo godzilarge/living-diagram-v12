@@ -1,9 +1,12 @@
 // A segmented choice (DESIGN.md, Inputs): a ground track, the chosen segment on paper with the island shadow, never
-// the accent fill. A radio group: arrow keys move the choice. The track is one 32 px control in its bar.
+// the accent fill. A radio group: arrow keys move the choice. The track is one 32 px control in its bar. A filter over
+// a list gives each segment its count (neutral, ink-4 at zero, decorative): the segment is then said by `said`
+// ("Failed, 2"), and a segment at zero stays a choice.
 import type { KeyboardEvent } from "react";
+import { Count } from "./Count";
 import "./Segmented.css";
 
-export type SegmentedOption = Readonly<{ value: string; label: string; disabled?: boolean }>;
+export type SegmentedOption = Readonly<{ value: string; label: string; disabled?: boolean; count?: number; said?: string }>;
 
 export type SegmentedProps = {
   label: string;
@@ -46,11 +49,17 @@ export function Segmented({ label, name, options, value, onChange, disabled }: S
             className="ui-segment"
             aria-checked={checked}
             aria-disabled={off ? "true" : undefined}
+            aria-label={option.count !== undefined ? option.said : undefined}
             tabIndex={checked ? 0 : -1}
             data-value={option.value}
             onClick={() => (off ? undefined : onChange(option.value))}
           >
             {option.label}
+            {option.count !== undefined ? (
+              <span className="ui-segment-count" aria-hidden="true" data-zero={option.count === 0 ? "" : undefined}>
+                <Count value={option.count} />
+              </span>
+            ) : null}
           </button>
         );
       })}

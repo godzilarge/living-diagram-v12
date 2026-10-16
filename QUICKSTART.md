@@ -193,6 +193,7 @@ backend : Python n'a jamais besoin de Node pour fonctionner.
 | son snapshot JSON, sans rien archiver | `ld correlate bundle.json --out snapshot.json` |
 | archiver et corréler | `ld ingest bundle.json --archive ./archive` ou `POST /api/ingest/bundles` |
 | lister les runs | `ld runs --infrastructure X` ou `GET /api/ingest/bundles?infrastructure=X` |
+| lister les infrastructures archivées (dernière run, équipements, contrôles) | `GET /api/infrastructures` (`?recent=N` dernières runs chacune, 6 par défaut ; l'accueil de la v2, `/next/`) |
 | récupérer le snapshot (JSON) | `GET /api/snapshot?infrastructure=X&run_id=Y`, ou `archive/X/Y/snapshot.json` |
 | épingler un équipement (B4) | glisser dans `/view` avec un nom saisi ; ou `POST /api/intent/patches?infrastructure=X` `{"author","ops":[{"op":"pin","hostname","x","y"}]}` |
 | lire les épingles, couleurs, groupes, annotations | `ld intent --infrastructure X`, `GET /api/intent?infrastructure=X`, onglet **Intentions** |

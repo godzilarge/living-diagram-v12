@@ -6,14 +6,4 @@
   color: var(--color-ink-3);
 }
 
-.ui-count[data-tone="ok"] {
-  color: var(--color-ok);
-}
-
-.ui-count[data-tone="warning"] {
-  color: var(--color-warning);
-}
-
-.ui-count[data-tone="error"] {
-  color: var(--color-error);
-}
+/* a count in a state takes the state colours of the mark's words (Mark.css): one definition */

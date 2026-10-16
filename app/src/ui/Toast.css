@@ -3,26 +3,6 @@
   padding-left: var(--space-lg);
 }
 
-.ui-toast-mark {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 0;
-  background: var(--color-ink-3);
-}
-
-.ui-toast-mark[data-tone="ok"] {
-  background: var(--color-ok);
-}
-
-.ui-toast-mark[data-tone="warning"] {
-  background: var(--color-warning-mark);
-}
-
-.ui-toast-mark[data-tone="error"] {
-  background: var(--color-error);
-}
-
 .ui-toast-text {
   flex: 1;
   min-width: 0;

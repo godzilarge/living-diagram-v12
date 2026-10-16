@@ -1,0 +1,349 @@
+{
+  "entries": [
+    {
+      "infrastructure": "demo-dc",
+      "revision": 41,
+      "at": "2026-01-19T17:30:00Z",
+      "author": "orhan",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [],
+      "ops": [
+        {
+          "op": "pin",
+          "hostname": "dc01-acc-01",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "dc01-acc-02",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "dc01-acc-03",
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "demo-dc",
+      "revision": 40,
+      "at": "2026-01-19T16:20:00Z",
+      "author": "camille.r",
+      "categories": [],
+      "actions": [],
+      "created": [
+        "a40-1"
+      ],
+      "subjects": [
+        {
+          "id": "a40-1",
+          "kind": "annotation",
+          "label": "",
+          "form": "note",
+          "unnamed": "note"
+        }
+      ],
+      "ops": [
+        {
+          "op": "annotation_create",
+          "content": {
+            "kind": "note",
+            "text": "Baie 12"
+          },
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "site-lyon",
+      "revision": 12,
+      "at": "2026-01-18T17:42:00Z",
+      "author": "orhan",
+      "categories": [],
+      "actions": [],
+      "created": [
+        "g12-1"
+      ],
+      "subjects": [
+        {
+          "id": "g12-1",
+          "kind": "group",
+          "label": "Cœur Lyon",
+          "form": ""
+        }
+      ],
+      "ops": [
+        {
+          "op": "group_create",
+          "label": "Cœur Lyon",
+          "members": [
+            "ly-core-01",
+            "ly-core-02"
+          ]
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "wan-core",
+      "revision": 8,
+      "at": "2026-01-18T16:05:00Z",
+      "author": "t.martin",
+      "categories": [],
+      "actions": [],
+      "created": [
+        "c8-1"
+      ],
+      "subjects": [],
+      "ops": [
+        {
+          "op": "connector_create",
+          "start": {
+            "kind": "device",
+            "ref": "wan-pe-02"
+          },
+          "end": {
+            "kind": "device",
+            "ref": "wan-rt-01"
+          }
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "site-nantes",
+      "revision": 5,
+      "at": "2026-01-18T11:20:00Z",
+      "author": "camille.r",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [],
+      "ops": [
+        {
+          "op": "color",
+          "hostname": "na-acc-01",
+          "hue": "amber"
+        },
+        {
+          "op": "color",
+          "hostname": "na-acc-02",
+          "hue": "amber"
+        },
+        {
+          "op": "color",
+          "hostname": "na-acc-03",
+          "hue": "amber"
+        },
+        {
+          "op": "color",
+          "hostname": "na-acc-04",
+          "hue": "amber"
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "demo-dc",
+      "revision": 39,
+      "at": "2026-01-17T09:15:00Z",
+      "author": "orhan",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [],
+      "ops": [
+        {
+          "op": "pin",
+          "hostname": "dc02-fw-01",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "color_type",
+          "type": "firewall",
+          "hue": "red"
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "lab-sec",
+      "revision": 3,
+      "at": "2026-01-16T14:00:00Z",
+      "author": "t.martin",
+      "categories": [],
+      "actions": [],
+      "created": [
+        "a3-1"
+      ],
+      "subjects": [],
+      "ops": [
+        {
+          "op": "annotation_create",
+          "content": {
+            "kind": "table",
+            "rows": [
+              [
+                "a"
+              ]
+            ]
+          },
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "demo-dc",
+      "revision": 38,
+      "at": "2026-01-15T10:00:00Z",
+      "author": "camille.r",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [],
+      "ops": [
+        {
+          "op": "annotation_update",
+          "id": "a30-1",
+          "x": 4
+        },
+        {
+          "op": "annotation_update",
+          "id": "a30-2",
+          "x": 4
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "site-lyon",
+      "revision": 11,
+      "at": "2026-01-14T08:30:00Z",
+      "author": "orhan",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [],
+      "ops": [
+        {
+          "op": "pin",
+          "hostname": "ly-acc-01",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-02",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-03",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-04",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-05",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-06",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-07",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-08",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-09",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-10",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-11",
+          "x": 0,
+          "y": 0
+        },
+        {
+          "op": "pin",
+          "hostname": "ly-acc-12",
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "site-nantes",
+      "revision": 4,
+      "at": "2026-01-13T15:45:00Z",
+      "author": "t.martin",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [
+        {
+          "id": "g2-1",
+          "kind": "group",
+          "label": "Accès RDC",
+          "form": ""
+        }
+      ],
+      "ops": [
+        {
+          "op": "group_update",
+          "id": "g2-1",
+          "label": "Accès RDC"
+        }
+      ],
+      "group": null
+    }
+  ],
+  "total": 10,
+  "next": null,
+  "authors": [],
+  "categories": [],
+  "infrastructures": [],
+  "actions": [],
+  "unreadable": 0,
+  "start_missing": false
+}

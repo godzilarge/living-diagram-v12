@@ -24,6 +24,12 @@
   padding-right: var(--space-sm);
 }
 
+/* the words after the choices: as far from them as the label before */
+.prefs .prefs-after {
+  width: auto;
+  padding: 0 var(--space-sm);
+}
+
 .prefs-label {
   flex: none;
   color: var(--color-ink-3);

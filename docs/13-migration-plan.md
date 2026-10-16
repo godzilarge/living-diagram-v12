@@ -33,6 +33,20 @@ After the cut-over, in this order: **export PNG / SVG with anonymization** (cruc
 direction round** (its own bench, starting from the v1 cards), then the lots parked in `docs/etat.md` (16 bis, 4 bis,
 7, 9…) on the new shell.
 
+## Done
+
+- **Brick 1, Home** (2026-10-16): the home at `/next/`, four widgets from `home.html` over the real archive, in both
+  themes and both accents; `GET /api/infrastructures` (last run, last good run, devices, answered, checks by
+  severity, six recent runs, unreadable entries counted); the journal through `GET /api/intent/journal`, the diffs
+  read after the page shows. Four primitives from the approved mockup written into `DESIGN.md` before use: `Widget`,
+  `Avatar`, `Mark`, `Link`. Review `docs/revues/2026-10-16-accueil.md` (0 critical, 3 high, 11 medium, 12 low), all
+  treated but M5 (the journal wording moves with brick 7). One click opens the infrastructure in the v1 at `/` until
+  brick 2. Decisions to judge in use: `docs/a-juger-a-l-usage.md` (late collection after 7 days, deferred diffs, no
+  second line under the name, the feed names the count). Retouched the same day after Orhan's first look: every
+  column sorts, a segmented status filter in each table header, a per-widget setting for how many rows
+  (`?recent=N`, browser preference), diffs read for the rows on screen only. **Rule for every brick: the page never
+  caps what the user can see; a default is a default, and a widget setting lets him ask for more.**
+
 ## Rules every brick obeys
 
 - The approved mockup state is the comp; the `relecteur-ui` compares to it, never to a score.

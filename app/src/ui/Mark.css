@@ -1,0 +1,41 @@
+.ui-mark {
+  display: inline-block;
+  flex: none;
+  width: var(--mark-size);
+  height: var(--mark-size);
+  border-radius: var(--mark-radius);
+  background: var(--color-ink-3);
+}
+
+.ui-mark[data-tone="ok"] {
+  background: var(--color-ok);
+}
+
+.ui-mark[data-tone="warning"] {
+  background: var(--color-warning-mark);
+}
+
+.ui-mark[data-tone="error"] {
+  background: var(--color-error);
+}
+
+/* the mark before its words: 8 px apart, the words in the state colour (neutral keeps the ink); a Count takes the
+   same state colours (one definition) */
+.ui-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  white-space: nowrap;
+}
+
+:is(.ui-state, .ui-count)[data-tone="ok"] {
+  color: var(--color-ok);
+}
+
+:is(.ui-state, .ui-count)[data-tone="warning"] {
+  color: var(--color-warning);
+}
+
+:is(.ui-state, .ui-count)[data-tone="error"] {
+  color: var(--color-error);
+}

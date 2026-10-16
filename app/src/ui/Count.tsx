@@ -1,5 +1,6 @@
 // A count next to its word (DESIGN.md, Chips and counts): a label-size number in the state colour, no pill.
 import "./Count.css";
+import "./Mark.css";
 
 export type Tone = "neutral" | "ok" | "warning" | "error";
 

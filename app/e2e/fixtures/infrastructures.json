@@ -1,0 +1,1154 @@
+{
+  "infrastructures": [
+    {
+      "infrastructure": "campus-rennes",
+      "runs": 2,
+      "last_run": {
+        "run_id": "rennes-0119",
+        "run_start": "2026-01-19T04:00:00Z",
+        "run_end": null,
+        "run_status": "failed"
+      },
+      "last_good_run": {
+        "run_id": "rennes-0118",
+        "run_start": "2026-01-18T04:00:00Z",
+        "run_end": null,
+        "run_status": "completed"
+      },
+      "devices": 64,
+      "answered": null,
+      "checks": {
+        "error": 2,
+        "warning": 7,
+        "info": 1
+      },
+      "recent_runs": [
+        {
+          "run_id": "rennes-0119",
+          "run_start": "2026-01-19T04:00:00Z",
+          "run_end": null,
+          "run_status": "failed",
+          "devices": 64,
+          "answered": null,
+          "previous_run_id": "rennes-0118"
+        },
+        {
+          "run_id": "rennes-0118",
+          "run_start": "2026-01-18T04:00:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 64,
+          "answered": 64,
+          "previous_run_id": null
+        }
+      ]
+    },
+    {
+      "infrastructure": "wan-core",
+      "runs": 2,
+      "last_run": {
+        "run_id": "wan-0119",
+        "run_start": "2026-01-19T03:00:00Z",
+        "run_end": "2026-01-19T03:04:00Z",
+        "run_status": "completed"
+      },
+      "last_good_run": {
+        "run_id": "wan-0119",
+        "run_start": "2026-01-19T03:00:00Z",
+        "run_end": "2026-01-19T03:04:00Z",
+        "run_status": "completed"
+      },
+      "devices": 14,
+      "answered": 14,
+      "checks": {
+        "error": 0,
+        "warning": 1,
+        "info": 0
+      },
+      "recent_runs": [
+        {
+          "run_id": "wan-0119",
+          "run_start": "2026-01-19T03:00:00Z",
+          "run_end": "2026-01-19T03:04:00Z",
+          "run_status": "completed",
+          "devices": 14,
+          "answered": 14,
+          "previous_run_id": "wan-0118"
+        },
+        {
+          "run_id": "wan-0118",
+          "run_start": "2026-01-18T03:00:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 14,
+          "answered": 14,
+          "previous_run_id": null
+        }
+      ]
+    },
+    {
+      "infrastructure": "demo-dc",
+      "runs": 3,
+      "last_run": {
+        "run_id": "demo-0119",
+        "run_start": "2026-01-19T02:00:00Z",
+        "run_end": "2026-01-19T02:12:00Z",
+        "run_status": "partial"
+      },
+      "last_good_run": {
+        "run_id": "demo-0119",
+        "run_start": "2026-01-19T02:00:00Z",
+        "run_end": "2026-01-19T02:12:00Z",
+        "run_status": "partial"
+      },
+      "devices": 30,
+      "answered": 28,
+      "checks": {
+        "error": 6,
+        "warning": 21,
+        "info": 2
+      },
+      "recent_runs": [
+        {
+          "run_id": "demo-0119",
+          "run_start": "2026-01-19T02:00:00Z",
+          "run_end": "2026-01-19T02:12:00Z",
+          "run_status": "partial",
+          "devices": 30,
+          "answered": 28,
+          "previous_run_id": "demo-0112"
+        },
+        {
+          "run_id": "demo-0112",
+          "run_start": "2026-01-12T02:00:00Z",
+          "run_end": null,
+          "run_status": "partial",
+          "devices": 30,
+          "answered": 28,
+          "previous_run_id": "demo-0105"
+        },
+        {
+          "run_id": "demo-0105",
+          "run_start": "2026-01-05T02:00:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 30,
+          "answered": 30,
+          "previous_run_id": null
+        }
+      ]
+    },
+    {
+      "infrastructure": "site-lyon",
+      "runs": 2,
+      "last_run": {
+        "run_id": "lyon-0119",
+        "run_start": "2026-01-19T01:30:00Z",
+        "run_end": null,
+        "run_status": "completed"
+      },
+      "last_good_run": {
+        "run_id": "lyon-0119",
+        "run_start": "2026-01-19T01:30:00Z",
+        "run_end": null,
+        "run_status": "completed"
+      },
+      "devices": 48,
+      "answered": 48,
+      "checks": {
+        "error": 0,
+        "warning": 4,
+        "info": 0
+      },
+      "recent_runs": [
+        {
+          "run_id": "lyon-0119",
+          "run_start": "2026-01-19T01:30:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 48,
+          "answered": 48,
+          "previous_run_id": "lyon-0118"
+        },
+        {
+          "run_id": "lyon-0118",
+          "run_start": "2026-01-18T01:30:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 48,
+          "answered": 48,
+          "previous_run_id": null
+        }
+      ]
+    },
+    {
+      "infrastructure": "site-nantes",
+      "runs": 2,
+      "last_run": {
+        "run_id": "nantes-0118",
+        "run_start": "2026-01-18T23:10:00Z",
+        "run_end": null,
+        "run_status": "partial"
+      },
+      "last_good_run": {
+        "run_id": "nantes-0118",
+        "run_start": "2026-01-18T23:10:00Z",
+        "run_end": null,
+        "run_status": "partial"
+      },
+      "devices": 27,
+      "answered": 24,
+      "checks": {
+        "error": 3,
+        "warning": 9,
+        "info": 0
+      },
+      "recent_runs": [
+        {
+          "run_id": "nantes-0118",
+          "run_start": "2026-01-18T23:10:00Z",
+          "run_end": null,
+          "run_status": "partial",
+          "devices": 27,
+          "answered": 24,
+          "previous_run_id": "nantes-0111"
+        },
+        {
+          "run_id": "nantes-0111",
+          "run_start": "2026-01-11T23:10:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 27,
+          "answered": 27,
+          "previous_run_id": null
+        }
+      ]
+    },
+    {
+      "infrastructure": "lab-sec",
+      "runs": 100,
+      "last_run": {
+        "run_id": "lab-0112",
+        "run_start": "2026-01-12T14:20:00Z",
+        "run_end": null,
+        "run_status": "completed"
+      },
+      "last_good_run": {
+        "run_id": "lab-0112",
+        "run_start": "2026-01-12T14:20:00Z",
+        "run_end": null,
+        "run_status": "completed"
+      },
+      "devices": 9,
+      "answered": 9,
+      "checks": {
+        "error": 0,
+        "warning": 0,
+        "info": 0
+      },
+      "recent_runs": [
+        {
+          "run_id": "lab-0112",
+          "run_start": "2026-01-12T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-099"
+        },
+        {
+          "run_id": "lab-099",
+          "run_start": "2026-01-12T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-098"
+        },
+        {
+          "run_id": "lab-098",
+          "run_start": "2026-01-12T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-097"
+        },
+        {
+          "run_id": "lab-097",
+          "run_start": "2026-01-11T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-096"
+        },
+        {
+          "run_id": "lab-096",
+          "run_start": "2026-01-11T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-095"
+        },
+        {
+          "run_id": "lab-095",
+          "run_start": "2026-01-11T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-094"
+        },
+        {
+          "run_id": "lab-094",
+          "run_start": "2026-01-11T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-093"
+        },
+        {
+          "run_id": "lab-093",
+          "run_start": "2026-01-10T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-092"
+        },
+        {
+          "run_id": "lab-092",
+          "run_start": "2026-01-10T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-091"
+        },
+        {
+          "run_id": "lab-091",
+          "run_start": "2026-01-10T08:20:00Z",
+          "run_end": null,
+          "run_status": "partial",
+          "devices": 9,
+          "answered": 7,
+          "previous_run_id": "lab-090"
+        },
+        {
+          "run_id": "lab-090",
+          "run_start": "2026-01-10T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-089"
+        },
+        {
+          "run_id": "lab-089",
+          "run_start": "2026-01-09T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-088"
+        },
+        {
+          "run_id": "lab-088",
+          "run_start": "2026-01-09T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-087"
+        },
+        {
+          "run_id": "lab-087",
+          "run_start": "2026-01-09T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-086"
+        },
+        {
+          "run_id": "lab-086",
+          "run_start": "2026-01-09T02:20:00Z",
+          "run_end": null,
+          "run_status": "failed",
+          "devices": 9,
+          "answered": null,
+          "previous_run_id": "lab-085"
+        },
+        {
+          "run_id": "lab-085",
+          "run_start": "2026-01-08T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-084"
+        },
+        {
+          "run_id": "lab-084",
+          "run_start": "2026-01-08T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-083"
+        },
+        {
+          "run_id": "lab-083",
+          "run_start": "2026-01-08T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-082"
+        },
+        {
+          "run_id": "lab-082",
+          "run_start": "2026-01-08T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-081"
+        },
+        {
+          "run_id": "lab-081",
+          "run_start": "2026-01-07T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-080"
+        },
+        {
+          "run_id": "lab-080",
+          "run_start": "2026-01-07T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-079"
+        },
+        {
+          "run_id": "lab-079",
+          "run_start": "2026-01-07T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-078"
+        },
+        {
+          "run_id": "lab-078",
+          "run_start": "2026-01-07T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-077"
+        },
+        {
+          "run_id": "lab-077",
+          "run_start": "2026-01-06T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-076"
+        },
+        {
+          "run_id": "lab-076",
+          "run_start": "2026-01-06T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-075"
+        },
+        {
+          "run_id": "lab-075",
+          "run_start": "2026-01-06T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-074"
+        },
+        {
+          "run_id": "lab-074",
+          "run_start": "2026-01-06T02:20:00Z",
+          "run_end": null,
+          "run_status": "partial",
+          "devices": 9,
+          "answered": 7,
+          "previous_run_id": "lab-073"
+        },
+        {
+          "run_id": "lab-073",
+          "run_start": "2026-01-05T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-072"
+        },
+        {
+          "run_id": "lab-072",
+          "run_start": "2026-01-05T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-071"
+        },
+        {
+          "run_id": "lab-071",
+          "run_start": "2026-01-05T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-070"
+        },
+        {
+          "run_id": "lab-070",
+          "run_start": "2026-01-05T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-069"
+        },
+        {
+          "run_id": "lab-069",
+          "run_start": "2026-01-04T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-068"
+        },
+        {
+          "run_id": "lab-068",
+          "run_start": "2026-01-04T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-067"
+        },
+        {
+          "run_id": "lab-067",
+          "run_start": "2026-01-04T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-066"
+        },
+        {
+          "run_id": "lab-066",
+          "run_start": "2026-01-04T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-065"
+        },
+        {
+          "run_id": "lab-065",
+          "run_start": "2026-01-03T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-064"
+        },
+        {
+          "run_id": "lab-064",
+          "run_start": "2026-01-03T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-063"
+        },
+        {
+          "run_id": "lab-063",
+          "run_start": "2026-01-03T08:20:00Z",
+          "run_end": null,
+          "run_status": "failed",
+          "devices": 9,
+          "answered": null,
+          "previous_run_id": "lab-062"
+        },
+        {
+          "run_id": "lab-062",
+          "run_start": "2026-01-03T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-061"
+        },
+        {
+          "run_id": "lab-061",
+          "run_start": "2026-01-02T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-060"
+        },
+        {
+          "run_id": "lab-060",
+          "run_start": "2026-01-02T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-059"
+        },
+        {
+          "run_id": "lab-059",
+          "run_start": "2026-01-02T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-058"
+        },
+        {
+          "run_id": "lab-058",
+          "run_start": "2026-01-02T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-057"
+        },
+        {
+          "run_id": "lab-057",
+          "run_start": "2026-01-01T20:20:00Z",
+          "run_end": null,
+          "run_status": "partial",
+          "devices": 9,
+          "answered": 7,
+          "previous_run_id": "lab-056"
+        },
+        {
+          "run_id": "lab-056",
+          "run_start": "2026-01-01T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-055"
+        },
+        {
+          "run_id": "lab-055",
+          "run_start": "2026-01-01T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-054"
+        },
+        {
+          "run_id": "lab-054",
+          "run_start": "2026-01-01T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-053"
+        },
+        {
+          "run_id": "lab-053",
+          "run_start": "2025-12-31T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-052"
+        },
+        {
+          "run_id": "lab-052",
+          "run_start": "2025-12-31T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-051"
+        },
+        {
+          "run_id": "lab-051",
+          "run_start": "2025-12-31T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-050"
+        },
+        {
+          "run_id": "lab-050",
+          "run_start": "2025-12-31T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-049"
+        },
+        {
+          "run_id": "lab-049",
+          "run_start": "2025-12-30T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-048"
+        },
+        {
+          "run_id": "lab-048",
+          "run_start": "2025-12-30T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-047"
+        },
+        {
+          "run_id": "lab-047",
+          "run_start": "2025-12-30T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-046"
+        },
+        {
+          "run_id": "lab-046",
+          "run_start": "2025-12-30T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-045"
+        },
+        {
+          "run_id": "lab-045",
+          "run_start": "2025-12-29T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-044"
+        },
+        {
+          "run_id": "lab-044",
+          "run_start": "2025-12-29T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-043"
+        },
+        {
+          "run_id": "lab-043",
+          "run_start": "2025-12-29T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-042"
+        },
+        {
+          "run_id": "lab-042",
+          "run_start": "2025-12-29T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-041"
+        },
+        {
+          "run_id": "lab-041",
+          "run_start": "2025-12-28T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-040"
+        },
+        {
+          "run_id": "lab-040",
+          "run_start": "2025-12-28T14:20:00Z",
+          "run_end": null,
+          "run_status": "failed",
+          "devices": 9,
+          "answered": null,
+          "previous_run_id": "lab-039"
+        },
+        {
+          "run_id": "lab-039",
+          "run_start": "2025-12-28T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-038"
+        },
+        {
+          "run_id": "lab-038",
+          "run_start": "2025-12-28T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-037"
+        },
+        {
+          "run_id": "lab-037",
+          "run_start": "2025-12-27T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-036"
+        },
+        {
+          "run_id": "lab-036",
+          "run_start": "2025-12-27T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-035"
+        },
+        {
+          "run_id": "lab-035",
+          "run_start": "2025-12-27T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-034"
+        },
+        {
+          "run_id": "lab-034",
+          "run_start": "2025-12-27T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-033"
+        },
+        {
+          "run_id": "lab-033",
+          "run_start": "2025-12-26T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-032"
+        },
+        {
+          "run_id": "lab-032",
+          "run_start": "2025-12-26T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-031"
+        },
+        {
+          "run_id": "lab-031",
+          "run_start": "2025-12-26T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-030"
+        },
+        {
+          "run_id": "lab-030",
+          "run_start": "2025-12-26T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-029"
+        },
+        {
+          "run_id": "lab-029",
+          "run_start": "2025-12-25T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-028"
+        },
+        {
+          "run_id": "lab-028",
+          "run_start": "2025-12-25T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-027"
+        },
+        {
+          "run_id": "lab-027",
+          "run_start": "2025-12-25T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-026"
+        },
+        {
+          "run_id": "lab-026",
+          "run_start": "2025-12-25T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-025"
+        },
+        {
+          "run_id": "lab-025",
+          "run_start": "2025-12-24T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-024"
+        },
+        {
+          "run_id": "lab-024",
+          "run_start": "2025-12-24T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-023"
+        },
+        {
+          "run_id": "lab-023",
+          "run_start": "2025-12-24T08:20:00Z",
+          "run_end": null,
+          "run_status": "partial",
+          "devices": 9,
+          "answered": 7,
+          "previous_run_id": "lab-022"
+        },
+        {
+          "run_id": "lab-022",
+          "run_start": "2025-12-24T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-021"
+        },
+        {
+          "run_id": "lab-021",
+          "run_start": "2025-12-23T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-020"
+        },
+        {
+          "run_id": "lab-020",
+          "run_start": "2025-12-23T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-019"
+        },
+        {
+          "run_id": "lab-019",
+          "run_start": "2025-12-23T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-018"
+        },
+        {
+          "run_id": "lab-018",
+          "run_start": "2025-12-23T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-017"
+        },
+        {
+          "run_id": "lab-017",
+          "run_start": "2025-12-22T20:20:00Z",
+          "run_end": null,
+          "run_status": "failed",
+          "devices": 9,
+          "answered": null,
+          "previous_run_id": "lab-016"
+        },
+        {
+          "run_id": "lab-016",
+          "run_start": "2025-12-22T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-015"
+        },
+        {
+          "run_id": "lab-015",
+          "run_start": "2025-12-22T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-014"
+        },
+        {
+          "run_id": "lab-014",
+          "run_start": "2025-12-22T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-013"
+        },
+        {
+          "run_id": "lab-013",
+          "run_start": "2025-12-21T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-012"
+        },
+        {
+          "run_id": "lab-012",
+          "run_start": "2025-12-21T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-011"
+        },
+        {
+          "run_id": "lab-011",
+          "run_start": "2025-12-21T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-010"
+        },
+        {
+          "run_id": "lab-010",
+          "run_start": "2025-12-21T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-009"
+        },
+        {
+          "run_id": "lab-009",
+          "run_start": "2025-12-20T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-008"
+        },
+        {
+          "run_id": "lab-008",
+          "run_start": "2025-12-20T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-007"
+        },
+        {
+          "run_id": "lab-007",
+          "run_start": "2025-12-20T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-006"
+        },
+        {
+          "run_id": "lab-006",
+          "run_start": "2025-12-20T02:20:00Z",
+          "run_end": null,
+          "run_status": "partial",
+          "devices": 9,
+          "answered": 7,
+          "previous_run_id": "lab-005"
+        },
+        {
+          "run_id": "lab-005",
+          "run_start": "2025-12-19T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-004"
+        },
+        {
+          "run_id": "lab-004",
+          "run_start": "2025-12-19T14:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-003"
+        },
+        {
+          "run_id": "lab-003",
+          "run_start": "2025-12-19T08:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-002"
+        },
+        {
+          "run_id": "lab-002",
+          "run_start": "2025-12-19T02:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": "lab-001"
+        },
+        {
+          "run_id": "lab-001",
+          "run_start": "2025-12-18T20:20:00Z",
+          "run_end": null,
+          "run_status": "completed",
+          "devices": 9,
+          "answered": 9,
+          "previous_run_id": null
+        }
+      ]
+    }
+  ],
+  "unreadable": 0
+}

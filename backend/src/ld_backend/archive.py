@@ -269,6 +269,36 @@ class BundleArchive:
             return None
         return stat.st_ino, stat.st_size, stat.st_mtime_ns
 
+    def scan(self) -> tuple[dict[str, list[StoredRun]], int]:
+        """Toutes les runs lisibles de l'archive, par nom d'infrastructure tel qu'ingéré (le nom vient de `meta.json`,
+        jamais du dossier, qui peut être haché), chaque liste dans l'ordre des collectes ; et le nombre d'entrées
+        sautées (illisibles). Un dossier sans aucune run lisible (`_intent`, `_placement`, un reste) n'est rien."""
+        found: dict[str, list[StoredRun]] = {}
+        unreadable = 0
+        if not self.root.is_dir():
+            return found, 0
+        for folder in self.root.iterdir():
+            if not folder.is_dir() or folder.name.startswith(TMP_PREFIX):
+                continue
+            try:
+                entries = [e for e in folder.iterdir() if e.is_dir() and not e.name.startswith(TMP_PREFIX)]
+            except OSError:
+                log.warning("dossier d'archive illisible ignoré : %s", folder)
+                unreadable += 1
+                continue
+            for entry in entries:
+                try:
+                    meta = self._read_meta(entry)
+                except ArchiveCorruptError, OSError:
+                    log.warning("entrée d'archive illisible ignorée : %s", entry)
+                    unreadable += 1
+                    continue
+                if meta is not None:
+                    found.setdefault(meta.infrastructure, []).append(meta)
+        for runs in found.values():
+            runs.sort(key=lambda r: (datetime.fromisoformat(r.run_start), r.run_id))
+        return found, unreadable
+
     def list_runs(self, infrastructure: str) -> list[StoredRun]:
         infra_dir = self.root / _segment(infrastructure)
         if not infra_dir.is_dir():

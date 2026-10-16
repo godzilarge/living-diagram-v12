@@ -129,6 +129,7 @@ BUNDLE_RESPONSES: dict[int | str, dict[str, Any]] = {
     **problems({404: "run inconnue pour cette infrastructure", 500: CORRUPT_RUN}),
 }
 REPORT_RESPONSES = problems({404: "run inconnue pour cette infrastructure", 500: CORRUPT_RUN})
+INFRASTRUCTURES_RESPONSES = problems({500: "racine de l'archive illisible : intervention nécessaire"})
 
 SNAPSHOT_RESPONSES: dict[int | str, dict[str, Any]] = {
     200: json_of(Snapshot, "Snapshot v1 tel qu'archivé, forme canonique ; référence : `CONTRAT.md`, partie B"),

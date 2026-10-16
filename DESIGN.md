@@ -71,21 +71,46 @@ typography:
     fontSize: "15px"
     fontWeight: 500
     lineHeight: 1.35
+  subtitle-strong:
+    fontFamily: "Archivo, system-ui, sans-serif"
+    fontSize: "15px"
+    fontWeight: 600
+    lineHeight: "20px"
   body:
     fontFamily: "Archivo, system-ui, sans-serif"
     fontSize: "13.5px"
     fontWeight: 400
     lineHeight: 1.45
+  body-line:
+    fontFamily: "Archivo, system-ui, sans-serif"
+    fontSize: "13.5px"
+    fontWeight: 400
+    lineHeight: "20px"
+  body-strong:
+    fontFamily: "Archivo, system-ui, sans-serif"
+    fontSize: "13.5px"
+    fontWeight: 600
+    lineHeight: "20px"
   label:
     fontFamily: "Archivo, system-ui, sans-serif"
     fontSize: "12px"
     fontWeight: 500
     lineHeight: 1.3
+  caption:
+    fontFamily: "Archivo, system-ui, sans-serif"
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: "16px"
   tooltip:
     fontFamily: "Archivo, system-ui, sans-serif"
     fontSize: "12px"
     fontWeight: 500
     lineHeight: "16px"
+  initial:
+    fontFamily: "Archivo, system-ui, sans-serif"
+    fontSize: "11.5px"
+    fontWeight: 650
+    lineHeight: 1
 rounded:
   control: "6px"
   surface: "10px"
@@ -93,7 +118,10 @@ rounded:
   chip: "4px"
   tile: "8px"
   swatch: "3px"
+  avatar: "5px"
+  mark: "2px"
 spacing:
+  2xs: "2px"
   xs: "4px"
   sm: "8px"
   md: "12px"
@@ -173,6 +201,35 @@ components:
     offset: "2px"
   table-row:
     height: "44px"
+    height-snug: "40px"
+    height-relaxed: "56px"
+  table-head:
+    height: "28px"
+    height-widget: "32px"
+  widget:
+    backgroundColor: "{colors.paper}"
+    rounded: "{rounded.surface}"
+    header-height: "56px"
+    padding: "0 16px 12px"
+    typography: "{typography.subtitle-strong}"
+  feed-item:
+    padding: "10px 0"
+  count-slot:
+    width: "40px"
+  link:
+    textColor: "{colors.accent-ink}"
+    fontWeight: 500
+    underlineColor: "{colors.line-2}"
+    underlineOffset: "3px"
+  avatar:
+    backgroundColor: "{colors.sunken}"
+    textColor: "{colors.ink-2}"
+    typography: "{typography.initial}"
+    rounded: "{rounded.avatar}"
+    size: "22px"
+  mark:
+    rounded: "{rounded.mark}"
+    size: "8px"
 ---
 
 # Design System: Living Diagram
@@ -256,11 +313,15 @@ ratio 1.125. Sentence case everywhere; no uppercase labels, no tracked-out eyebr
 
 ### Hierarchy
 - **Title** (600, 19 px, 1.25): a page title on the home.
-- **Headline** (600, 17 px, 1.3): the name of the selected element in a panel header, a widget title, a
-  focus-panel section.
-- **Subtitle** (500, 15 px, 1.35): a device name on a card, the label of a choice in the top bar.
+- **Headline** (600, 17 px, 1.3): the name of the selected element in a panel header, a focus-panel section.
+- **Subtitle** (500, 15 px, 1.35): a device name on a card, the label of a choice in the top bar. **Subtitle strong**
+  (600, 15 px, 20 px line): a widget title and an infrastructure's name on the home.
 - **Body** (400, 13.5 px, 1.45): everything one reads: table cells, lists, facts. Tables run denser than prose.
+  **Body line** (400, 13.5 px, 20 px line) and **body strong** (600, the same): a line of a feed and its author, the
+  title of the free slot, an infrastructure named in a list one reads.
 - **Label** (500, 12 px, 1.3): column headers, captions, the secondary line under a fact, keyboard shortcuts.
+  **Caption** (400, 12 px, 16 px line): the line under a feed entry, a widget's foot note, the sentence of the free slot.
+- **Initial** (650, 11.5 px, 1): the letter of an avatar, nothing else.
 - **Tooltip** (500, 12 px, 16 px line): white on black, 28 px high with its padding.
 
 ### Named Rules
@@ -275,8 +336,10 @@ viewport edge and **12 px** from any other island (16 px between widgets on the 
 (settings, the search palette, contextual-bar volets) are layers above the islands and may cover them, never the
 element they belong to.
 
-Inside an island: an **8 px grid**; controls are 32 px high with 8 px between them and 17 px across a separator;
-island padding 8 px for bars, 16 px for panels and widgets; table rows 44 px with a hairline rule.
+Inside an island: an **8 px grid** (2 px, `space-2xs`, only between a line and its caption; 10 px only above and
+below a feed entry, `feed-item`, the mockup's rhythm of a 20 px line and a 16 px caption); controls are 32 px high with 8 px between them and 17 px across a separator;
+island padding 8 px for bars, 16 px for panels and widgets; table rows 44 px with a hairline rule (32 in a compact
+panel; on the home widgets, a 32 px head, 56 px rows for a list one opens, 40 px for a list one reads).
 
 The panel has **three widths**: compact (440 px: alerts, identity, essential interface columns, MLAG, aggregates),
 wide (864 px: adds mode and VLANs, neighbour, description), focus (1408 px, over a faded canvas, every fact of the
@@ -312,8 +375,9 @@ do the work of separating surfaces.
 ## Shapes
 
 Rectangles with small, consistent radii: **6 px** for controls, fields and chips; **10 px** for islands, panels,
-widgets and popovers; **5 px** for tooltips. Swatches are 12 px squares with a 3 px radius; the type tile of a panel header is 40 px with an 8 px radius; the user avatar is
-a 24 px square with initials. Nothing is pill-shaped; nothing is a circle except a state dot (8 px) and a canvas
+widgets and popovers; **5 px** for tooltips. Swatches are 12 px squares with a 3 px radius; the type tile of a panel header is 40 px with an 8 px radius; the avatar is
+a 22 px square with a 5 px radius; a state mark is an 8 px square with a 2 px radius.
+Nothing is pill-shaped; nothing is a circle except a state dot (8 px) and a canvas
 handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 
 ## Components
@@ -327,6 +391,8 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 - **Current / on:** the 2 px accent rail (bottom of a tab, left of a vertical tool, under a run), ink text; no fill.
 - **Disabled:** ink-4, no hover, cursor default; a tooltip still says why (L2, L3: "en cours").
 - **Danger:** error text on hover, no fill (the error red on the dark hover fill would fall under 4.5:1).
+- **Outlined icon button:** the icon button with a line-2 border on paper, for a control alone on an empty surface (the
+  free slot's "+").
 
 ### Toast
 - **Style:** an island at the bottom centre, 12 px above the run band's line, body text with a state mark on the
@@ -334,6 +400,11 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 
 ### Chips and counts
 - **Count** (e.g. "Contrôle 6"): a label-size number in the state colour next to its word, no pill.
+  A column of counts gives each a 40 px slot (`count-slot`), right-aligned, so they align from row to row. A count and
+  a state mark's words take the same state colours (one definition).
+- **State mark:** an 8 px square (2 px radius) in the state colour (grey when neutral, the warning *mark* colour for
+  amber), alone (a toast) or 8 px before its words, which take the state colour ("Failed", "6"); the one way to show a
+  state in the shell.
 - **Shortcut** (`Ctrl K`, `E`): label size, ink-3, a 1 px line-2 border, 4 px radius, 20 px high.
 
 ### Islands, panels, widgets
@@ -344,6 +415,28 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 - **Internal Padding:** 8 px (bars), 16 px (panels, widgets).
 - **Header:** the element's name at headline size (17 px, 600) with a 12 px subtitle in ink-3; icon buttons on
   the right; a 1 px rule below. Title size (19 px) is for the home page only.
+- **Widget header** (the home, from the approved mockup, which wins over the 17 px above): 56 px high, the title at
+  15 px / 600 / 20 px, an optional count in ink-3 12 px (always the total, whatever a filter shows), icon buttons on
+  the right (measured as a bar: 32 px, centred, 8 px apart); no rule below. A segmented filter may sit right of the
+  title, before the actions, each segment with its count (neutral, ink-4 at zero; a segment at zero stays a choice
+  and the body then says in ink-3 that nothing matches). A widget with a choice of its own (how many rows) carries a
+  settings icon button (`SlidersHorizontal`) last in its header, opening a popover of rail buttons like the settings
+  popover, under the header and aligned on the widget's edge; the value is a browser preference (`ld-prefs`). A
+  table's headers may sort it (a missing value last); sort and filter are transient. The body is padded 0 16 12 and
+  scrolls inside, its table head (32 px) sticking. An optional foot note in caption ink-3 says what the body could
+  not show (archive entries unreadable). A widget grows to fill its column of
+  the home grid; **the home grid never scrolls** (its height is the window's less 96 px): Infrastructures takes its
+  content's height up to 60 % of its column, Latest collections the rest.
+- **Free slot:** not an island; a line-2 frame with the surface radius on the ground, no fill, no shadow, holding the
+  outlined "+", a 13.5 px / 600 title and a 12 px ink-3 sentence.
+
+### Link
+- **Style:** the only `<a>` of the application, a real address (Ctrl+click, middle click and the status bar work).
+  **Inline** (the mockup's `lnk`): accent-ink at 500, no underline under the cobalt accent; under the ink accent it
+  loses its hue and keeps a line-2 underline 3 px below. **Quiet**: the ink of its context, no underline, for a name
+  that opens its row (an infrastructure on the home) and for the logo; the row's hover says it opens.
+- **Focus:** the focus ring, 2 px accent, offset 2 px, on keyboard focus only.
+- **In a table:** the row stays clickable and follows the same address; Tab reaches the link, never the row.
 
 ### Inputs / Fields
 - **Style:** paper fill, 1 px line-2 border, 6 px radius, 32 px high, body text, placeholder ink-3.
@@ -353,7 +446,7 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   mockup; text, placeholder and focus ring hold 4.5:1 / 3:1).
 - **Search:** a discreet icon button with the `Ctrl K` shortcut chip in the tools island; it opens the palette.
 - **Segmented choice:** a ground track, 6 px radius, the chosen segment on paper with the island shadow (a filter
-  over a list); the current segment never uses the accent fill. The settings (theme, accent, language) are rail
+  over a list, a count after each word when it filters a list); the current segment never uses the accent fill. The settings (theme, accent, language) are rail
   buttons, as in the approved mockup, with a 12 px swatch before each accent.
 
 ### Navigation
@@ -386,6 +479,12 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   label position | below, above (rail on the current layer) | lock, duplicate, delete.
 - **Placement:** 12 px above the element, centred; a volet 12 px above the bar under its trigger; never over the
   element; flips below the element when it would come within 12 px of the top islands.
+
+### Avatar
+A 22 px square, 5 px radius, sunken fill with a 1 px line-2 inset, the author's initial at 11.5 px / 650 in ink-2;
+decorative (the name is said next to it or by its control). The user button shows the declared author's initial, the
+`User` icon without a name; a feed line starts with it. In a disabled control it turns ink-4 like the control's
+icon. An author left blank shows "?" and is said "unknown", never an empty name.
 
 ### Logo mark
 A 20 px mark of two squares, ink and accent, alone in its island; never the product name next to it.

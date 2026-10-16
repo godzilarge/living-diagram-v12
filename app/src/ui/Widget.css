@@ -1,0 +1,67 @@
+.ui-widget {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--widget-radius);
+  background: var(--widget-background-color);
+}
+
+.ui-widget[data-grow] {
+  flex: 1;
+}
+
+.ui-widget-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-sm);
+  height: var(--widget-header-height);
+  padding: 0 var(--space-md) 0 var(--space-lg);
+}
+
+.ui-widget-head h2 {
+  margin: 0;
+  font-size: var(--widget-font-size);
+  font-weight: var(--widget-font-weight);
+  line-height: var(--widget-font-leading);
+}
+
+.ui-widget-count {
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the filter and the icon buttons, on the right: 8 px between controls, as in every bar */
+.ui-widget-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.ui-widget-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--widget-padding);
+}
+
+/* under a hairline: the body may scroll and stop mid-row above it */
+.ui-widget-foot {
+  flex: none;
+  margin: 0 var(--space-lg);
+  padding: var(--space-sm) 0 var(--space-md);
+  border-top: 1px solid var(--color-line);
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-caption-leading);
+}
+
+/* a filter last in the header ends on the body's edge (16 px), as the table under it; an icon button keeps 12 px,
+   its icon then sits where the body's text ends */
+.ui-widget-tools > .ui-segmented:last-child {
+  margin-right: var(--space-xs);
+}

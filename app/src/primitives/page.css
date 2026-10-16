@@ -122,31 +122,6 @@ body:has(.page) {
   color: var(--color-ink-2);
 }
 
-.page-state {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.page-state::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  background: var(--color-ok);
-}
-
-.page-state[data-state="down"] {
-  color: var(--color-error);
-}
-
-.page-state[data-state="up"] {
-  color: var(--color-ok);
-}
-
-.page-state[data-state="down"]::before {
-  background: var(--color-error);
-}
-
 .page-muted {
   color: var(--color-ink-3);
 }
@@ -237,4 +212,18 @@ body:has(.page) {
 
 .page-popover-slot {
   width: 360px;
+}
+
+/* a widget at the width of the home's right column */
+.page-widget {
+  width: 464px;
+}
+
+.page-widget .ui-widget {
+  width: 100%;
+}
+
+.page-strong {
+  font-size: var(--text-subtitle-size);
+  font-weight: var(--text-headline-weight);
 }

@@ -7,6 +7,42 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Home retouch after Orhan's first look: sort, filter, no cap on what the user sees** (2026-10-16, Orhan: "very
+  clean work"; then "no filter or ordering on the columns?" and "only the last six runs is exactly what I do not
+  want: we bridle the user, we frustrate him; show N by default and let a small widget setting fetch more").
+  **Rule kept from it: the page never decides for the user how much he sees; a default is a default, never a
+  cap.** Done the same day, as a retouch under `DESIGN.md` (no prototype, no review): every column header sorts
+  (stable, nulls last, status by severity); a segmented filter by status in each table's header with counts (All,
+  Succeeded, Partial, Failed, Late; Late only on Infrastructures, a collection is never late); a settings icon
+  button last in the header of Latest collections and Latest modifications opens a popover of rail buttons "Show
+  the last 6 · 12 · 25 · 50 · 100 collections" (10 · 25 · 50 · 100 modifications), stored as browser preferences
+  (`ld-prefs`: `homeRuns`, `homeChanges`), never in the address; `GET /api/infrastructures?recent=N` (1 to 100,
+  default 6, 422 without the value); the diffs are requested only for the rows on screen (IntersectionObserver on
+  the widget body, one request at a time, a late answer kept). `DESIGN.md` § Widget header records the filter and
+  the settings button; `Popover` gains a `[data-anchor]`. Suites: app check 102, e2e 28, backend full 98 % (route
+  13 tests). Captures `.impeccable/planche-accueil/retouche-*.png`. Served to Orhan at `:8018/next/` on a
+  six-infrastructure generated archive (`bac-a-sable/accueil-data/archive-six`, token `demo`).
+- **Brick 1 of the v2 migration: the home, delivered and reviewed** (2026-10-16, `/brique-ui accueil`; `ui` agent
+  on `docs/13` line 1 and `design/comps/shell/home.html`, orchestrator on the backend). The home replaces the
+  minimal shell at `/next/`: logo and tools islands (search, "arrange widgets", "open the log", "open the full
+  list", accounts: disabled with the reason "in progress"), widgets Infrastructures, Latest collections, Latest
+  modifications, free slot, light and dark, cobalt and ink, fr and en. **One new route**, the only one the plan
+  allows: `GET /api/infrastructures` (`backend/src/ld_backend/home.py`: last run, last good run, devices, answered,
+  checks by severity from the snapshot read once per file and cached by stamp, six recent runs with their previous,
+  unreadable entries and folders counted, never a word of them). Journal through `GET /api/intent/journal`; diffs
+  read after the page shows, one per visible row. The token is the v1's session key (`ld-api-token`); without it the
+  Infrastructures widget shows a field. A row opens the infrastructure in the v1 at `/` until brick 2. **Four
+  primitives from the approved mockup**, written into `DESIGN.md` and the primitives page before use: `Widget`
+  (56 px header at 15 / 600, the mockup wins over the 17 px first written), `Avatar` (22 px), `Mark` (the one state
+  mark, also used by Toast), `Link` (the only `<a>`; `inline`, `quiet`, `IconLink`); `Table` gains densities, a
+  widget head, `href` rows and a `cut` column; tokens added to the frontmatter and regenerated. **Review**
+  `docs/revues/2026-10-16-accueil.md` (0 critical, 3 high, 11 medium, 12 low): the feed said the opposite of the
+  fact (`uncolor` → "coloured"), the widgets collapsed past ten infrastructures, a failed last run was opened;
+  all treated the same day (follow-up under the report), M5 parked (the v1 journal wording moves with brick 7; the
+  burst rule aligned now). Judged in use (`docs/a-juger-a-l-usage.md`): late collection after 7 days, deferred
+  diffs, no second line under the name, the feed names the count, a failed collection's words. Suites: app check
+  87, e2e 23 (UTC fixed), backend full with coverage (home route 12 tests, `home.py` 99 %), engine check, contracts.
+  `.claude/rules/app.md` now names the v2 strings guard. Captures `.impeccable/planche-accueil/`.
 - **Review of the `app/` skeleton recorded and treated** (2026-10-16, `docs/revues/2026-10-16-squelette-app.md`:
   0 critical, 4 high, 10 medium, 10 low; probes in `…-sondes/`). High: the settings popover drifted from the
   approved mockup (segmented tracks, a second way to say "current"); no focus ring on the active option of an open
