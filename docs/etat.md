@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-16** (refonte UI : coquille validée, DESIGN.md écrit, squelette `app/` livré, revue en cours).
+**Dernière mise à jour : 2026-10-16** (refonte UI : socle complet, squelette `app/` livré et revu ; prochaine brique : l'accueil).
 
 ## Fait
 
@@ -25,11 +25,15 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   encre en préférence, vert = état actif, rail fin pour « courant », icônes + infobulle noire, palette Ctrl+K, accueil
   à widgets, panneau à trois largeurs, mode édition avec barres contextuelles) → **4 `DESIGN.md` écrit et maquettes
   versionnées dans `design/` (fabd1ee)** → **2 squelette `app/` livré (d3937c3)** : paquet Vite, jetons générés de `DESIGN.md`, 15 primitives,
-  page vivante `app/primitives.html`, gardes par mutation, mesure Playwright, route `/next/` ; revue indépendante
-  en cours (`docs/revues/2026-10-16-squelette-app.md`) → **5 migration par
+  page vivante `app/primitives.html`, gardes par mutation, mesure Playwright, route `/next/` ; **revue traitée**
+  (`docs/revues/2026-10-16-squelette-app.md` : 4 hauts, 10 moyens faits ; contours sous 3:1 assumés) → **5 migration par
   briques, plan dans `docs/13-migration-plan.md`** : 1 accueil → 2 coquille du diagramme (toile v1 dedans) → 3 panneau →
   4 recherche → 5 réglages et langue → 6 édition → 7 vues Contrôle et Journal → 8 bascule de `/` et suppression de
-  `engine/src/app/`. **Prochaine session : `/brique-ui accueil`.** **La toile (cartes, câbles) est une autre surface** : tour de
+  `engine/src/app/`. **Prochaine session : `/brique-ui accueil`** (brique 1 de `docs/13-migration-plan.md` : `design/comps/shell/home.html`,
+  widgets Infrastructures / Dernières modifications / Dernières collectes / emplacement libre, sur l'archive réelle ;
+  seule route nouvelle admise : la liste des infrastructures avec dernière collecte, statut et comptes). À savoir :
+  `app/` se lance par `cd app && npm ci && npm run dev` (proxy `/api` vers uvicorn sur 8000) ; `npm run check` et
+  `npm run e2e` doivent rester verts ; la v1 à `/` reste intacte ; la toile n'est pas à redessiner. **La toile (cartes, câbles) est une autre surface** : tour de
   directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
   fusionnée ; suite complète et revue non faites. À reprendre après la refonte, sur le nouveau socle.

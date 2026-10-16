@@ -7,6 +7,22 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Review of the `app/` skeleton recorded and treated** (2026-10-16, `docs/revues/2026-10-16-squelette-app.md`:
+  0 critical, 4 high, 10 medium, 10 low; probes in `…-sondes/`). High: the settings popover drifted from the
+  approved mockup (segmented tracks, a second way to say "current"); no focus ring on the active option of an open
+  list; the primitives guard missed `style=` on components and `dangerouslySetInnerHTML`; the tokens guard missed
+  the last declaration without `;`. All treated, with the mediums: guards hardened (calc with a length, SVG and
+  named colours, weights, a lone visible word), the measurement extended (opacity, tooltip at 8 px, letter-spacing,
+  heights), a Chromium interaction suite (focus ring on every Tab stop, arrows, Esc, focus return, disabled, table
+  row, toast, reduced motion), mockup divergences fixed (panel sections 15 px, 40 × 40 tile, tooltip 28 + 3 px),
+  toast complete, preferences merged under the v1 key `language` (the v1 still writes its whole object and erases
+  the accent: documented, read tolerantly), and a real bug found on the way: Chromium serialises the delay token as
+  `0.35s`, which the tooltip read as 0.35 ms. **Assumed**: hairline borders under 3:1 come from the validated mockup;
+  Orhan has no formal accessibility requirement; fill, placeholder and focus ring carry the affordance (`DESIGN.md`
+  § Inputs). **Parked**: three values without a token (line-height 1 on controls, spinner duration, shortcut chip
+  11.5 px). Suites: check 42, e2e 19, route 8. Rule tightened the same day: `livraison` also fires when Orhan says
+  we stop, and writes the resumption prompt into `docs/etat.md` (37a8004). Migration plan written:
+  `docs/13-migration-plan.md` (eight bricks in order; next: the home).
 - **Step 2 of the UI redesign: the `app/` skeleton, delivered and committed** (2026-10-16, d3937c3; Opus agent on
   `docs/12-app-skeleton.md`, verified by the orchestrator). The package: Vite, React 19.2.7, TypeScript strict, Vitest
   4.1.11 (5 needs Node 22), `@playwright/test`, pinned versions, lock committed. `tokens.css` **generated** from the
