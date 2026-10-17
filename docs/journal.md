@@ -7,6 +7,25 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Brick 7, Check and Log views: the bench, three directions for Check and two for Log, waiting for Orhan**
+  (2026-10-17, `/brique-ui controle`; nothing decided yet). The reading found **no approved mockup** for either view
+  (`design/comps/shell/` only carries the "Contrôle 6" tab), so the skill's rule applied: a bench before any project
+  code. `bac-a-sable/controle/` (gitignored; its README says what each page is) builds five self-contained pages from
+  the mockup's CSS and `demo-dc` data, verdicts synthesized at the mockup's counts (6 / 21 / 67) with the real codes
+  and the `panel:checks` sentences: **A · the register** (a page of widgets on the ground, the map gone: Verdicts by
+  code with the code chip, rule and targets; Coverage; Cables and sources; Delivery), **B · the map and the left
+  island** (the v1 canvas in Check drawing, a left island of verdicts with tabs Verdicts · Coverage · Sources ·
+  Delivery, the chosen verdict lights its targets, the device panel with codes, cable sources, coverage, an
+  evidence), **C · the summary bands** (two bands of toggles under the top row, the v1's counts; nothing selected
+  shows **the collection's own panel**, where `/view`'s tabs land); **J1 · the feed with facets** (the v1's facets,
+  the home feed's grammar by day, folds, quiet sessions, red "deleted"), **J2 · the filtered table** (choices and a
+  period segment over a table, a row unfolded with its facts and actions). Captures light and dark
+  `.impeccable/planche-controle/`, sent to Orhan. **Decisions the chosen direction will carry into `DESIGN.md`**: a
+  `Code` chip (codes allowed in Check only), per direction a left island (B) or word-and-count toggles (C), a facet
+  list (J1); a per-code sentence catalogue (`control:codes`, "2 aggregates without enough active members") since
+  `panel:checks` speaks per device. Nothing of `app/`, `engine/`, `backend/` or `contracts/` changed: the suites of
+  the previous session stand.
+
 - **Edit mode, retouched after Orhan's first use: a still read mode, undo and redo in the palette, the hidden devices
   back, the code draft under StrictMode** (2026-10-17, `/brique-ui edition` retouch; Orhan's four points after running
   the v2 on his archive). **Read mode moves nothing** (Orhan: "a move you cannot undo outside edit mode" is an edit): the

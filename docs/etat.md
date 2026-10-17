@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-17** (refonte UI : brique 6, le mode édition, livrée, poussée et retouchée après le premier essai d'Orhan ; prochaine brique : Contrôle et Journal).
+**Dernière mise à jour : 2026-10-17** (refonte UI : brique 7, les vues Contrôle et Journal, **au banc** : trois directions pour Contrôle, deux pour Journal, en attente du choix d'Orhan ; aucun code du projet touché).
 
 ## Fait
 
@@ -135,16 +135,25 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
   la main : `cd backend && LD_API_TOKEN=demo LD_ARCHIVE_DIR=../bac-a-sable/accueil-data/archive-six uv run uvicorn
   ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build` ; il sert
-  `app/dist` tel quel, un `npm run build` suffit à le mettre à jour). **Prochaine session : `/brique-ui controle`**
-  (brique 7 de `docs/13-migration-plan.md` : les vues Contrôle et Journal sur le rail des vues ; Contrôle = les
-  verdicts de B1 dans la grammaire nouvelle, absorbant ce que `/view` montrait (couverture, constats d'ingestion,
-  descriptions non lues, sources), en lecture seule, codes autorisés là ; Journal = la logique de `Journal.tsx` v1
-  avec ses filtres ; rien de nouveau côté API). À savoir : les onglets Contrôle et Journal sont désactivés « en
+  `app/dist` tel quel, un `npm run build` suffit à le mettre à jour). **Brique 7, Contrôle et Journal, au banc (2026-10-17)** : aucune maquette approuvée n'existait pour ces deux
+  vues (`design/comps/shell/` n'a que l'onglet), donc **banc avant tout code** : `bac-a-sable/controle/` (gitignoré,
+  README dedans ; `python3 build.py`, `node capture.mjs`), cinq pages autonomes sur les données `demo-dc` de la
+  maquette, captures `.impeccable/planche-controle/` remises à Orhan. Contrôle : **A** le registre (page de widgets
+  sur fond, la carte s'efface), **B** la carte et un îlot de verdicts à gauche (la fiche de droite avec les codes),
+  **C** deux bandes de bascules sous la rangée du haut, la fiche de la collecte quand rien n'est sélectionné (là où
+  `/view` atterrit). Journal : **J1** le fil et ses facettes (grammaire du fil de l'accueil), **J2** le tableau
+  filtré. **Prochaine session : `/brique-ui controle`**, en commençant par le choix d'Orhan (une lettre pour Contrôle,
+  une pour Journal, et ses remarques) : écrire d'abord dans `DESIGN.md` et la page vivante les primitives que la
+  direction choisie demande (puce `Code` réservée à Contrôle ; îlot gauche pour B ou bascules mot + compte pour C ;
+  liste de facettes pour J1), un catalogue `control:codes` d'une phrase par code avec son compte (`panel:checks`
+  parle par équipement), puis construire. À savoir : les onglets Contrôle et Journal sont désactivés « en
   cours » dans `app/src/diagram/ViewsIsland.tsx` ; `SHOWN_MODES` de `app/src/state/diagram.ts` ne laisse passer que
   `diagram` (l'adresse se réécrit) ; `pushView` de `app/src/diagram/Canvas.tsx` force `control` à faux ; la v1
   dessinait les statuts et les contrôles sur la toile en vue Contrôle (`toile.state.control`) ; le mode édition doit
-  se fermer en passant à Contrôle ou Journal (`setView` ⇒ `edit` à faux) ; les mots des contrôles existent déjà
-  (`panel:checks`, brique 3) ; `npm run e2e` dure ~4 min. **La toile
+  se fermer en passant à Contrôle ou Journal (`setView` ⇒ `edit` à faux) ; la logique du Journal v1 à déplacer :
+  `engine/src/app/state/journal*.ts` (filtres dans l'adresse `jq`, `jau`, `jcat`, `jact`, `jobj`, `jinfra`, `jp`,
+  `jrev`, repliage, phrases, CSV) et ses tests ; `/view` reste gelé, ses onglets Contrôles, Qualité, Sources sont
+  absorbés par la vue ; rien de nouveau côté API ; `npm run e2e` dure ~4 min. **La toile
   (cartes, câbles) est une autre surface** : tour de directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la
   refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais
