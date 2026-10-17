@@ -22,7 +22,14 @@
       "fr": "Français"
     }
   },
-  "account": "Account",
-  "accountSoon": "Accounts: in progress",
-  "user": "{{author}}, account and language"
+  "name": {
+    "label": "Your name",
+    "intro": "Your name, written on every change you make",
+    "placeholder": "First name, initials…",
+    "save": "Save",
+    "hintNamed": "Your changes are saved for everyone (last writer wins, logged)",
+    "hintAnonymous": "Without a name, nothing is written",
+    "user": "{{author}}, your name",
+    "anonymous": "Your name"
+  }
 }

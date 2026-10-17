@@ -5,6 +5,7 @@ import { PrefsControls } from "../shell/PrefsControls";
 import { usePrefs } from "../shell/usePrefs";
 import { Bars } from "./sections/Bars";
 import { Buttons, IconButtons } from "./sections/Controls";
+import { EditSection } from "./sections/Edit";
 import { Feedback, Tooltips } from "./sections/Feedback";
 import { Inputs } from "./sections/Inputs";
 import { SearchSection } from "./sections/Search";
@@ -35,6 +36,7 @@ export function Page() {
       <Tooltips />
       <Surfaces />
       <SearchSection />
+      <EditSection />
       <Widgets />
       <ToastHost name="toast" closeLabel={t("ui:close")} />
     </div>

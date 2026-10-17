@@ -1,0 +1,209 @@
+Running 16 tests using 1 worker
+op écrite : {"op":"group_add","id":"add:g5-1","members":["dc01-core-01"]}
+  ✘   1 e2e/sondes.spec.ts:32:1 › H1 : « Add to <group> » de la barre d'équipement écrit group_add sur l'id du groupe (2.4s)
+infobulle de Bold : BoldCtrl B aria-keyshortcuts: null
+ops après Ctrl+B : []
+  ✘   2 e2e/sondes.spec.ts:41:1 › M : Ctrl+B sur une note sélectionnée (raccourci affiché par « Bold ») (3.5s)
+op : {"op":"annotation_update","id":"a8-1","style":{"hue":"blue"}} 
+avant : {"cls":"annotation kind-note hue-amber plane-front selected related","color":"rgb(20, 20, 20)","bg":"rgba(0, 0, 0, 0)"} 
+après : {"cls":"annotation kind-note hue-blue plane-front selected related","color":"rgb(20, 20, 20)","bg":"rgba(0, 0, 0, 0)"}
+  ✘   3 e2e/sondes.spec.ts:57:1 › M : « Text colour » de la barre de note change la teinte de la note, pas la couleur du texte (3.3s)
+{
+ "palette": {
+  "x": 16,
+  "y": 216,
+  "w": 48,
+  "h": 375
+ },
+ "paletteButtons": [
+  "24,224 32x32",
+  "24,273 32x32",
+  "24,309 32x32",
+  "24,358 32x32",
+  "24,394 32x32",
+  "24,430 32x32",
+  "24,466 32x32",
+  "24,502 32x32",
+  "24,551 32x32"
+ ],
+ "separators": [
+  {
+   "x": 30,
+   "y": 264,
+   "w": 20,
+   "h": 1
+  },
+  {
+   "x": 30,
+   "y": 349,
+   "w": 20,
+   "h": 1
+  },
+  {
+   "x": 30,
+   "y": 542,
+   "w": 20,
+   "h": 1
+  }
+ ],
+ "bar": {
+  "x": 298,
+  "y": 350,
+  "w": 392,
+  "h": 48
+ },
+ "barGaps": [
+  8,
+  8,
+  8,
+  8,
+  8,
+  8,
+  8,
+  8,
+  8,
+  8,
+  8
+ ],
+ "barKids": [
+  "ui-control 44x32",
+  "ui-separator 1x20",
+  "ui-control 32x32",
+  "ui-control 32x32",
+  "ui-separator 1x20",
+  "ui-control 48x32",
+  "ui-control 32x32",
+  "ui-separator 1x20",
+  "ui-control 32x32",
+  "ui-control 32x32",
+  "ui-separator 1x20",
+  "ui-control 32x32"
+ ]
+}
+volet forme : {"gapFromIsland":12,"firstRowTop":391,"triggerTop":394}
+  ✓   4 e2e/sondes.spec.ts:74:1 › mesures de la palette, de la barre et des volets contre la maquette (2.4s)
+light-ink audit texte : 9 éléments, []
+light-ink audit avec volet des teintes : []
+light-ink contours : {"paper":"255,255,255","icon":18.42,"rail":18.42,"railColour":"rgb(20, 20, 20)","ring":18.42,"ringColour":"rgb(20, 20, 20)","ringStyle":"solid","hover":[0,0,0]}
+light-ink ligne clavier du menu : {"text":"rgb(20, 20, 20)","fill":"rgba(0, 0, 0, 0)"} audit : []
+  ✓   5 e2e/sondes.spec.ts:110:3 › contraste mesuré, light-ink : texte (audit), icônes, rail, anneau de focus, ligne clavier du menu (2.6s)
+dark-ink audit texte : 9 éléments, []
+dark-ink audit avec volet des teintes : []
+dark-ink contours : {"paper":"28,29,31","icon":14.66,"rail":14.66,"railColour":"rgb(238, 239, 241)","ring":14.66,"ringColour":"rgb(238, 239, 241)","ringStyle":"solid","hover":[0,0,0]}
+dark-ink ligne clavier du menu : {"text":"rgb(238, 239, 241)","fill":"rgba(0, 0, 0, 0)"} audit : []
+  ✓   6 e2e/sondes.spec.ts:110:3 › contraste mesuré, dark-ink : texte (audit), icônes, rail, anneau de focus, ligne clavier du menu (2.7s)
+dark-cobalt audit texte : 9 éléments, []
+dark-cobalt audit avec volet des teintes : []
+dark-cobalt contours : {"paper":"28,29,31","icon":14.66,"rail":5.88,"railColour":"rgb(113, 147, 255)","ring":5.88,"ringColour":"rgb(113, 147, 255)","ringStyle":"solid","hover":[0,0,0]}
+dark-cobalt ligne clavier du menu : {"text":"rgb(238, 239, 241)","fill":"rgba(0, 0, 0, 0)"} audit : []
+  ✓   7 e2e/sondes.spec.ts:110:3 › contraste mesuré, dark-cobalt : texte (audit), icônes, rail, anneau de focus, ligne clavier du menu (2.5s)
+light-cobalt audit texte : 9 éléments, []
+light-cobalt audit avec volet des teintes : []
+light-cobalt contours : {"paper":"255,255,255","icon":18.42,"rail":6.22,"railColour":"rgb(33, 80, 232)","ring":6.22,"ringColour":"rgb(33, 80, 232)","ringStyle":"solid","hover":[0,0,0]}
+light-cobalt ligne clavier du menu : {"text":"rgb(20, 20, 20)","fill":"rgba(0, 0, 0, 0)"} audit : []
+  ✓   8 e2e/sondes.spec.ts:110:3 › contraste mesuré, light-cobalt : texte (audit), icônes, rail, anneau de focus, ligne clavier du menu (2.6s)
+palette après ↓ : edit-tools:Declare a cable
+barre après → : context-bar:Pin in place
+après Échap sur la barre : react-flow__node:dc01-fw-01 · collected device · firewall · collection: succeeded · HA secondary
+focus à l'ouverture du volet des teintes : context-bar:Hue: red
+focus après Échap du volet : context-bar:Hue: red
+focus sur la carte : react-flow__node:dc01-core-01 · collected device · switch · collection: succeeded
+menu contextuel après Maj+F10 : 1
+menu contextuel après la touche Menu : 1
+  ✘   9 e2e/sondes.spec.ts:154:1 › clavier : palette, barre, volet, Échap, menu contextuel au clavier (4.4s)
+infobulle : Pin in placeP
+infobulle : Hide this device and its cablesH
+ops après P : []
+adresse après H : #node=dc01-core-01
+  ✘  10 e2e/sondes.spec.ts:195:1 › M : P et H, affichés dans les infobulles de la barre d'équipement, épinglent et masquent (4.2s)
+durées sous reduced-motion : {"palette":"0.001s","bar":"0.001s"}
+  ✓  11 e2e/sondes.spec.ts:214:1 › mouvement réduit : la palette et la barre arrivent en 1 ms (2.1s)
+opacité des cartes non sélectionnées (nœud/carte) : 1/0.22 1/0.22 1/0.22 1/0.22
+  ✓  12 e2e/sondes.spec.ts:226:1 › capture : une note sélectionnée (état edit-note de la maquette), clair et sombre (2.5s)
+focus après → sur l'onglet : Diagram | ops écrites : [{"op":"pin","hostname":"dc01-core-01","x":-47,"y":68}]
+  ✘  13 e2e/sondes.spec.ts:236:1 › H : en édition, ← → sur les onglets Diagramme / Contrôle / Journal déplacent l'équipement sélectionné (2.8s)
+teintes : {"triggerX":306,"firstX":306,"gapToBar":12} plus : {"triggerX":650,"firstX":647,"gapToBar":12}
+  ✘  14 e2e/sondes.spec.ts:248:1 › B : le premier contrôle d'un volet sous son déclencheur (teintes, tailles, plus) (3.4s)
+light pastilles / papier : blue 5.17, sky 4.1, indigo 6.29, violet 5.7, pink 4.6, red 4.83, orange 3.19, amber 3.64, lime 4.99, green 3.3, teal 3.74, slate 4.76
+  ✓  15 e2e/sondes.spec.ts:273:3 › B : les douze pastilles du volet des teintes contre le papier, light (2.4s)
+dark pastilles / papier : blue 6.05, sky 7.87, indigo 5.66, violet 6.38, pink 6.37, red 6.1, orange 8.22, amber 10.1, lime 11.19, green 9.68, teal 9.06, slate 6.58
+  ✓  16 e2e/sondes.spec.ts:273:3 › B : les douze pastilles du volet des teintes contre le papier, dark (2.3s)
+  1) e2e/sondes.spec.ts:32:1 › H1 : « Add to <group> » de la barre d'équipement écrit group_add sur l'id du groupe 
+    Error: expect(received).toMatchObject(expected)
+    - Expected  - 1
+    + Received  + 1
+      Object {
+    -   "id": "g5-1",
+    +   "id": "add:g5-1",
+        "op": "group_add",
+      }
+    > 38 |   expect(api.ops[0]).toMatchObject({ op: "group_add", id: "g5-1" }); // reçu id "add:g5-1" : le backend répond unknown_group
+    Error Context: test-results/sondes-H1-«-Add-to-group-»-6889c-roup-add-sur-l-id-du-groupe/error-context.md
+  2) e2e/sondes.spec.ts:41:1 › M : Ctrl+B sur une note sélectionnée (raccourci affiché par « Bold ») 
+    Error: Ctrl+B écrit le gras
+    expect(received).toBe(expected) // Object.is equality
+    Expected: 2
+    Received: 1
+    > 54 |   expect(api.ops.length, "Ctrl+B écrit le gras").toBe(before + 1);
+    Error Context: test-results/sondes-M-Ctrl-B-sur-une-no-8f6d8-ourci-affiché-par-«-Bold-»-/error-context.md
+  3) e2e/sondes.spec.ts:57:1 › M : « Text colour » de la barre de note change la teinte de la note, pas la couleur du texte 
+    Error: la couleur du texte change
+    expect(received).not.toBe(expected) // Object.is equality
+    Expected: not "rgb(20, 20, 20)"
+    > 71 |   expect(after.color, "la couleur du texte change").not.toBe(before.color);
+    Error Context: test-results/sondes-M-«-Text-colour-»-d-b13a4-ote-pas-la-couleur-du-texte/error-context.md
+  4) e2e/sondes.spec.ts:154:1 › clavier : palette, barre, volet, Échap, menu contextuel au clavier ─
+    Error: la barre contextuelle est atteinte par Tab
+    expect(received).toBe(expected) // Object.is equality
+    Expected: true
+    Received: false
+    > 163 |   expect.soft(stops.some((s) => s.startsWith("context-bar:")), "la barre contextuelle est atteinte par Tab").toBe(true);
+    Error Context: test-results/sondes-clavier-palette-bar-6a9c1--menu-contextuel-au-clavier/error-context.md
+  5) e2e/sondes.spec.ts:195:1 › M : P et H, affichés dans les infobulles de la barre d'équipement, épinglent et masquent 
+    Error: P épingle
+    expect(received).toContain(expected) // indexOf
+    Expected value: "pin"
+    Received array: []
+    > 210 |   expect.soft(api.ops.map((op) => op.op), "P épingle").toContain("pin");
+    Error: H masque
+    expect(received).toContain(expected) // indexOf
+    Expected substring: "hide="
+    Received string:    "#node=dc01-core-01"
+    > 211 |   expect.soft(hash, "H masque").toContain("hide=");
+    Error Context: test-results/sondes-M-P-et-H-affichés-d-f5740-ement-épinglent-et-masquent/error-context.md
+  6) e2e/sondes.spec.ts:236:1 › H : en édition, ← → sur les onglets Diagramme / Contrôle / Journal déplacent l'équipement sélectionné 
+    Error: aucune écriture depuis un onglet
+    expect(received).toEqual(expected) // deep equality
+    - Expected  - 1
+    + Received  + 8
+    - Array []
+    + Array [
+    +   Object {
+    +     "hostname": "dc01-core-01",
+    +     "op": "pin",
+    +     "x": -47,
+    +     "y": 68,
+    +   },
+    + ]
+    > 244 |   expect.soft(api.ops, "aucune écriture depuis un onglet").toEqual([]);
+    Error: → passe à l'onglet suivant
+    expect(received).not.toMatch(expected)
+    Expected pattern: not /^Diagram/
+    Received string:      "Diagram"
+    > 245 |   expect.soft(after, "→ passe à l'onglet suivant").not.toMatch(/^Diagram/);
+    Error Context: test-results/sondes-H-en-édition-←-→-su-58472-nt-l-équipement-sélectionné/error-context.md
+  7) e2e/sondes.spec.ts:248:1 › B : le premier contrôle d'un volet sous son déclencheur (teintes, tailles, plus) 
+    Error: expect(received).toBe(expected) // Object.is equality
+    Expected: 650
+    Received: 647
+    > 269 |   expect.soft(more.firstX).toBe(more.triggerX);
+    Error Context: test-results/sondes-B-le-premier-contrô-a94f5-cheur-teintes-tailles-plus-/error-context.md
+  7 failed
+    e2e/sondes.spec.ts:32:1 › H1 : « Add to <group> » de la barre d'équipement écrit group_add sur l'id du groupe 
+    e2e/sondes.spec.ts:41:1 › M : Ctrl+B sur une note sélectionnée (raccourci affiché par « Bold ») 
+    e2e/sondes.spec.ts:57:1 › M : « Text colour » de la barre de note change la teinte de la note, pas la couleur du texte 
+    e2e/sondes.spec.ts:154:1 › clavier : palette, barre, volet, Échap, menu contextuel au clavier ──
+    e2e/sondes.spec.ts:195:1 › M : P et H, affichés dans les infobulles de la barre d'équipement, épinglent et masquent 
+    e2e/sondes.spec.ts:236:1 › H : en édition, ← → sur les onglets Diagramme / Contrôle / Journal déplacent l'équipement sélectionné 
+    e2e/sondes.spec.ts:248:1 › B : le premier contrôle d'un volet sous son déclencheur (teintes, tailles, plus) 
+  9 passed (1.0m)

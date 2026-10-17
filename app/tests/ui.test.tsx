@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { Alerts, Avatar, Button, Checklist, Count, Facts, Field, IconButton, IconLink, initialOf, Island, Link, Mark, Palette, Panel, Rail, Segmented, Shortcut, Table, Widget } from "../src/ui";
+import { Alerts, Avatar, Button, Checklist, Count, Facts, Field, FileInput, IconButton, IconLink, initialOf, Island, Link, Mark, Menu, Palette, Panel, Rail, Segmented, Separator, Shortcut, Swatch, Table, Widget } from "../src/ui";
 import type { PaletteProps } from "../src/ui";
 
 const html = (node: React.ReactNode) => renderToStaticMarkup(<>{node}</>);
@@ -184,5 +184,43 @@ describe("primitives", () => {
     expect(html(<Facts size="snug" items={[{ label: "a", value: "1" }]} />)).toContain('data-size="snug"');
     expect(html(<Facts items={[]} />)).not.toContain("data-size");
     expect(html(<Alerts size="snug" label="a" items={[{ id: "1", tone: "error", text: "x" }]} />)).toContain('data-size="snug"');
+  });
+  it("a menu: actions, a chosen value, a shortcut, a deleting row, a separator and a heading", () => {
+    const out = html(
+      <Menu
+        label="m"
+        onChoose={() => undefined}
+        rows={[
+          { id: "a", label: "a", shortcut: ["Ctrl", "C"], keys: "Control+C" },
+          { kind: "separator" },
+          { kind: "heading", label: "h" },
+          { id: "b", label: "b", checked: true },
+          { id: "c", label: "c", checked: false },
+          { id: "d", label: "d", danger: true },
+        ]}
+      />,
+    );
+    expect(out).toMatch(/role="menu"[^>]*aria-label="m"|aria-label="m"[^>]*role="menu"/);
+    expect(out.match(/role="menuitem"/g)).toHaveLength(2);
+    expect(out.match(/role="menuitemradio"/g)).toHaveLength(2);
+    expect(out).toContain('aria-checked="true"');
+    expect(out).toContain('aria-keyshortcuts="Control+C"');
+    expect(out).toContain("ui-shortcut");
+    expect(out.match(/ui-option-check/g)).toHaveLength(1);
+    expect(out).toContain("data-danger");
+    expect(out).toContain('role="separator"');
+    expect(out).toContain("ui-menu-heading");
+    expect(html(<Menu label="m" surface onChoose={() => undefined} rows={[]} />)).toContain("data-surface");
+  });
+
+  it("a column island is measured as a bar; its separator lies down; a swatch and a file input stay silent", () => {
+    expect(html(<Island name="edit-tools" layout="column">{null}</Island>)).toMatch(/data-float="edit-tools" data-bar="edit-tools"/);
+    expect(html(<Separator orientation="horizontal" />)).toContain('aria-orientation="horizontal"');
+    expect(html(<Separator />)).toContain('aria-orientation="vertical"');
+    expect(html(<Swatch swatch="slate" />)).toMatch(/aria-hidden="true"/);
+    const input = html(<FileInput onFile={() => undefined} accept="image/png" />);
+    expect(input).toContain('type="file"');
+    expect(input).toContain('tabindex="-1"');
+    expect(input).toContain('aria-hidden="true"');
   });
 });

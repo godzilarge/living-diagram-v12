@@ -62,8 +62,7 @@
     "fit": "Show everything",
     "grid": "Grid",
     "minimap": "Overview",
-    "edit": "Edit: editing tools",
-    "editSoon": "Edit: in progress"
+    "edit": "Edit: editing tools"
   },
   "band": {
     "label": "Collections",

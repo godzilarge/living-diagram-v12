@@ -76,8 +76,7 @@
     "fit": "Tout afficher",
     "grid": "Grille",
     "minimap": "Vue d'ensemble",
-    "edit": "Modifier : outils d'édition",
-    "editSoon": "Modifier : en cours"
+    "edit": "Modifier : outils d'édition"
   },
   "band": {
     "label": "Collectes",

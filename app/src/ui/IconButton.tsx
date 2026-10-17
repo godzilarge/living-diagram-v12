@@ -25,13 +25,16 @@ export type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "chi
   loading?: boolean;
   tooltipPlacement?: Placement;
   tooltipOpen?: boolean;
+  /** A popover's trigger that is a choice (a volet, the shape tool): open, it takes the hover fill, never the rail
+   *  (the rail says "current"; a trigger that is a toggle, the settings gear, keeps the rail while open). */
+  opener?: boolean;
   ref?: Ref<HTMLButtonElement>;
   "data-force"?: "hover" | "focus";
 };
 
 export function IconButton(props: IconButtonProps) {
   const { label, icon, variant = "plain", shortcut, disabledReason, pressed, current, disabled, danger, loading, tooltipPlacement,
-    tooltipOpen, ref, onClick, className, ...rest } = props;
+    tooltipOpen, opener, ref, onClick, className, ...rest } = props;
   // a control whose popover is open says nothing more: its tooltip would cover the popover
   const expanded = rest["aria-expanded"] === true || rest["aria-expanded"] === "true";
   const tip = useTooltip({ label: disabled && disabledReason ? disabledReason : label, shortcut, placement: tooltipPlacement, open: expanded ? false : tooltipOpen });
@@ -41,7 +44,7 @@ export function IconButton(props: IconButtonProps) {
     if (inert) event.preventDefault();
     else onClick?.(event);
   };
-  const toggles = pressed !== undefined || current !== undefined || rest["aria-expanded"] !== undefined;
+  const toggles = pressed !== undefined || current !== undefined || (rest["aria-expanded"] !== undefined && !opener);
   return (
     <>
       <button
@@ -55,6 +58,7 @@ export function IconButton(props: IconButtonProps) {
         aria-disabled={disabled ? "true" : undefined}
         aria-busy={loading ? "true" : undefined}
         data-danger={danger ? "" : undefined}
+        data-opener={opener ? "" : undefined}
       >
         {loading ? <Spinner /> : <Icon>{icon}</Icon>}
       </button>

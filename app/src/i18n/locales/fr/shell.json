@@ -22,7 +22,14 @@
       "fr": "Français"
     }
   },
-  "account": "Compte",
-  "accountSoon": "Comptes : en cours",
-  "user": "{{author}}, compte et langue"
+  "name": {
+    "label": "Votre nom",
+    "intro": "Votre nom, écrit sur chaque modification que vous faites",
+    "placeholder": "Prénom, initiales…",
+    "save": "Enregistrer",
+    "hintNamed": "Vos modifications sont enregistrées pour tous (le dernier écrit gagne, au journal)",
+    "hintAnonymous": "Sans nom, rien ne s'écrit",
+    "user": "{{author}}, votre nom",
+    "anonymous": "Votre nom"
+  }
 }

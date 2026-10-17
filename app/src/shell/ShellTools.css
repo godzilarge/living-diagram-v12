@@ -3,7 +3,33 @@
   padding: 0 calc((var(--control-height) - var(--shortcut-height)) / 2) 0 var(--space-sm);
 }
 
-/* open: the hover fill while its palette is up (the mockup's `.search-trigger` at `data-state="search"`) */
-.shell-search[aria-expanded="true"] {
-  background: var(--control-hover-background-color);
+/* the name popover: a sentence, the field and its save button on one row, the hint under them */
+.shell-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: var(--name-form-width);
+}
+
+.shell-name-intro,
+.shell-name-hint {
+  margin: 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  text-wrap: pretty;
+}
+
+.shell-name-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.shell-name-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.shell-name-field .ui-field-input {
+  width: 100%;
 }

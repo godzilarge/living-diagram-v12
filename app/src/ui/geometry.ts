@@ -10,10 +10,15 @@ export const TOOLTIP_OFFSET = 8;
 export const POPOVER_ISLAND_OFFSET = 8;
 /** …or 16 px below a trigger that sits in no island. */
 export const POPOVER_OFFSET = 16;
+/** An island's padding, its hairline included (`island.padding`): a popover hung from a trigger lines its first
+ *  control up with the trigger by moving back this much. */
+export const ISLAND_PADDING = 8;
+/** A list's padding around its rows (`.ui-listbox`, a Menu in a popover): 4 px. */
+export const LIST_PADDING = 4;
 /** A toast hides itself after this long unless hovered (Toast). */
 export const TOAST_DURATION = 6000;
 /** The fallbacks of the motion tokens (`--motion-*` in tokens.css; a test keeps them equal). */
-export const MOTION_FALLBACK = { "tooltip-delay": 350, tooltip: 150, popover: 200 } as const;
+export const MOTION_FALLBACK = { "tooltip-delay": 350, tooltip: 150, popover: 200, edit: 220 } as const;
 
 /** A motion token in milliseconds, as the page computes it (1 ms, 0 ms under reduced motion). */
 export function motionMs(name: keyof typeof MOTION_FALLBACK): number {

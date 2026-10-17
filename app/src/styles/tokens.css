@@ -89,6 +89,7 @@
   --motion-popover: 200ms;
   --motion-layer: 240ms;
   --motion-panel: 260ms;
+  --motion-edit: 220ms;
   --island-background-color: var(--color-paper);
   --island-radius: var(--radius-surface);
   --island-padding: 8px;
@@ -190,6 +191,13 @@
   --palette-match-weight: 650;
   --palette-input-icon: 18px;
   --palette-row-detail-max: 200px;
+  --swatch-size: 12px;
+  --edit-palette-top: 216px;
+  --edit-island-rise: 4px;
+  --context-bar-gap: 12px;
+  --volet-list-width: 48px;
+  --menu-min-width: 200px;
+  --name-form-width: 280px;
 }
 
 :root[data-accent="ink"] {
@@ -247,5 +255,6 @@
     --motion-popover: 1ms;
     --motion-layer: 1ms;
     --motion-panel: 1ms;
+    --motion-edit: 1ms;
   }
 }

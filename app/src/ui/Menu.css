@@ -1,0 +1,72 @@
+/* The menu (DESIGN.md, Menu): rows of the option row (`Option.css`), 2 px apart, as a choice's list. */
+.ui-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: var(--menu-min-width);
+  outline: 0;
+}
+
+/* a layer of its own (the context menu): the surface of a choice's list */
+.ui-menu[data-surface] {
+  padding: var(--space-xs);
+  border: 1px solid var(--color-line);
+  border-radius: var(--island-radius);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-island);
+}
+
+.ui-menu-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-body-size);
+  text-align: start;
+}
+
+/* sentence case, whatever the words' source (the v1's menu writes them in lower case for its own sentences) */
+.ui-menu-item .ui-option-text::first-letter {
+  text-transform: uppercase;
+}
+
+.ui-menu-item .ui-shortcut {
+  flex: none;
+}
+
+/* a row that deletes: the error text on hover or at the keyboard position, no fill (the error on a fill would fall
+   under 4.5:1 in dark; the focus ring still says where the keyboard is) */
+.ui-menu-item[data-danger]:is(:hover, [data-force="hover"], [data-active]) {
+  background: transparent;
+  color: var(--color-error);
+}
+
+.ui-menu-item[aria-disabled="true"] {
+  color: var(--color-ink-4);
+  cursor: default;
+}
+
+.ui-menu-item[aria-disabled="true"]:hover {
+  background: transparent;
+}
+
+/* 4 px above and below the hairline, the rows' 2 px gaps included */
+.ui-menu-separator {
+  flex: none;
+  height: 1px;
+  margin: var(--space-2xs) var(--space-sm);
+  background: var(--color-line);
+}
+
+/* a heading: the rows under it named in label size, ink-3, lined up with the rows' words */
+.ui-menu-heading {
+  padding: var(--space-xs) var(--space-sm) var(--space-2xs);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-leading);
+}
+
+.ui-menu-heading:not(:first-child) {
+  margin-top: var(--space-sm);
+}

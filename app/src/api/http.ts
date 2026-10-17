@@ -51,6 +51,17 @@ export function readAuthor(store: KeyStore | null = browserStore("localStorage")
   return read(store, AUTHOR_KEY);
 }
 
+/** Stores the declared author (trimmed, 80 characters at most, the contract's bound); an empty name removes it. */
+export function writeAuthor(name: string, store: KeyStore | null = browserStore("localStorage")): void {
+  const kept = name.trim().slice(0, 80);
+  try {
+    if (kept) store?.setItem(AUTHOR_KEY, kept);
+    else store?.removeItem(AUTHOR_KEY);
+  } catch {
+    // a full or blocked storage: the name lives as long as the page
+  }
+}
+
 export function withParams(route: string, params: Readonly<Record<string, string | number>>): string {
   const query = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)])).toString();
   return query ? `${route}?${query}` : route;

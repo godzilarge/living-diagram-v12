@@ -156,6 +156,43 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   `.impeccable/planche-reglages/`. To judge in use: `docs/a-juger-a-l-usage.md` (no way back to the browser's
   language once one is chosen; the theme does not follow the system).
 
+- **Brick 6, Edit mode** (2026-10-16): the mockup's `edit` and `edit-note` states on the diagram page. The pencil
+  (M) enters and leaves the mode; the panel and the band hide, the plan grid (lines every 20 units, the v1's magnet
+  and guides) replaces the screen grid; the **edit palette** at x = 16 (select V | declare a cable L, in progress |
+  connector K | note N, shape S, table T, image I, code block B | group G), the current tool on the rail, the keys in
+  the tooltips to the right; the **contextual bar** 12 px above the selected element, centred, flipped below under
+  the top islands, hidden during a gesture: the mockup's **device bar** (hue with its volet of the twelve hues and
+  "type default" | pin, lock in progress | group, align and distribute | hide, isolate | more: attach a note, draw a
+  connector, copy the name, remove from a group, remove the pin and the hue) and **note bar** (size with its list | bold, italic and
+  underline in progress | alignment, hue, text: colour, font and vertical alignment, title position in progress |
+  behind, in front | lock, duplicate, delete), and in the same grammar the shape, table, image, code block (language, font, colours, line numbers, fit,
+  size), connector, group and multiple selection bars (every function of the v1's floating bar); the v1's **context
+  menu** on a right click (insert here, paste, align, group, the table cells…); the keyboard of the v1 (Delete,
+  F2 / Enter, Tab, the arrows, Ctrl+Z / Y, Ctrl+A / C / X / V / D, Alt + letters, Alt+G); **nothing is written
+  without a name**, which the user button now takes (a popover with the v1's words, until accounts). **Logic**: the
+  v1's command factories (`intent-commands`, `clipboard-commands`, `code-commands`, `floating-commands` of
+  `engine/src/app/state/`) are reused by injection, their notes becoming toasts (they move with the cut-over); the
+  canvas mounts the v1's hosts (writer under the name, intent host, undo stack per infrastructure) and its gestures
+  write through them in edit mode only; new in `app/src/state/` with Node tests: the mode in the reducer, the bars
+  (`bars.ts`), the placement rule (`bar-place.ts`), the keys (`edit-keys.ts`), the commands against the canvas
+  (`edit-commands.ts`, `bar-actions.ts`), the author store. The v1 touched once: `CodeContext` typed on the five
+  commands the code block uses. **Primitives** written into `DESIGN.md` and the primitives page before use: `Menu`,
+  `Swatch`, `FileInput`; `Island` gains `layout="column"` and a horizontal `Separator`; `Popover` `anchor="trigger"`
+  and `gap`; `Button` `tooltipPlacement`; tokens `motion.edit`, `swatch.size`, `edit-palette.top`, `edit-island.rise`,
+  `context-bar.gap`, `volet-list.width`, `menu.min-width`, `name-form.width`. The search palette offers "Edit the
+  diagram". Measured in Chromium (`e2e/edit.spec.ts`: the mode, the bar 12 px above the card, the hue volet 12 px
+  above the bar, a note inserted by N and undone by Ctrl+Z, the keys, the context menu, the name, the bar at the
+  keyboard, hidden during a drag, waiting out of the zone, a group joined by its own id) in light, dark and French;
+  captures `.impeccable/planche-edition/`. Review `docs/revues/2026-10-16-edition.md` (0 critical, 4 high, 5 medium,
+  7 low; probes in `-sondes/`), treated the same day: the group's own id in a write (H1), Tab reaches the bar (H2),
+  the selection's keys on the map only (H3), the text's colour, font and vertical alignment in a "Text" volet and
+  "remove from a group" (H4, in part), P / H / Ctrl+B and Ctrl+Shift+V (M1, M2), one opener rule (B3, B7); **left for
+  a later brick**: the hue of a type, a group's description and frame style, a connector's bend (the v1 inspector's
+  fine settings, for the group, annotation and connector panels in edit mode). Decisions to judge in use: `docs/a-juger-a-l-usage.md` (N and G,
+  Escape, insertion at the centre, the mode not in the address, the twelve hues, no undo button, the bar over a
+  cable, one choice for a paste with secrets, the name on the user button, the plan grid's colour, the canvas's fade
+  on a selected note, Tab to the bar).
+
 ## Rules every brick obeys
 
 - The approved mockup state is the comp; the `relecteur-ui` compares to it, never to a score.

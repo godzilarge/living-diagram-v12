@@ -86,20 +86,47 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   (637) verts ; **commité f978c87, poussé (a87cae7)**. Orhan n'a pas encore jugé les planches du panneau (`.impeccable/planche-panneau/`),
   de la recherche (`.impeccable/planche-recherche/`) ni des réglages (`.impeccable/planche-reglages/`) : ses retours
   passent avant la brique 6.
+  **Brique 6, le mode édition, livrée le 2026-10-16** (prise avant la poussée des briques 4 et 5, puis rebasée dessus :
+  les états `edit` et `edit-note` de la maquette ; le crayon (M) entre et sort du mode, le panneau et la bande se
+  cachent, la grille du plan et l'aimant de la v1 ; la palette à x = 16 (V, L « en cours », K, N, S, T, I, B, G, l'outil
+  courant au rail, les touches dans les infobulles) ; la barre contextuelle 12 px au-dessus de l'élément, retournée
+  sous les îlots du haut, cachée pendant un geste : barre d'équipement et barre de note de la maquette, forme,
+  tableau, image, bloc de code, connecteur, groupe et sélection multiple dans la même grammaire, volets de teintes,
+  de listes, d'alignement, menus ; le menu du clic droit de la v1 ; son clavier (Suppr, F2, Tab, flèches, Ctrl+Z / Y,
+  Ctrl+A / C / X / V / D, Ctrl+Maj+V, Alt+lettres, P, H, Ctrl+B) ; **rien ne s'écrit sans nom**, que le bouton
+  utilisateur prend désormais (popover, mots de la v1, jusqu'aux comptes) ; la recherche offre « Modifier le
+  diagramme ». Logique dans `app/src/state/` (`diagram.ts`, `bars.ts`, `bar-place.ts`, `bar-actions.ts`,
+  `edit-keys.ts`, `edit-commands.ts`, `author.ts`) testée sous Node ; les fabriques de commandes de la v1
+  (`engine/src/app/state/{intent,clipboard,code,floating}-commands.ts`) réutilisées par injection (déplacées à la
+  bascule) ; la toile monte les hôtes v1 (écrivain, intention, pile d'annulation) ; la v1 touchée une fois
+  (`CodeContext` resserré). Primitives `Menu`, `Swatch`, `FileInput`, `Island` en colonne, `Popover` ancré au
+  déclencheur, `opener` ; `DESIGN.md` et la page vivante à jour. Revue `docs/revues/2026-10-16-edition.md` (0 critique,
+  4 hauts, 5 moyens, 7 bas) traitée le jour même (§ Traitement) ; **reste de la brique, pour une brique ultérieure** :
+  la teinte d'un type (la palette des types de la v1), la description et le style du cadre d'un groupe, la courbure
+  chiffrée d'un connecteur, réglages fins de l'inspecteur v1 à loger dans les fiches de groupe, d'annotation et de
+  connecteur en mode édition. Douze points dans `docs/a-juger-a-l-usage.md` (dont la couleur de la grille du plan,
+  choix de l'agent ui à faire juger, et l'estompage des cartes par la toile v1 quand une note est sélectionnée).
+  Suites : app check 229, `e2e/edit.spec.ts` 10 ; la suite e2e entière verte sauf cinq écarts sous-pixel (16,2 et
+  15,7 px du bord) que le Chromium 1194 de la machine de session donne aussi sur `origin/main` (Playwright 1.61
+  attend le 1228 ; `LD_CHROMIUM=<chemin>` dans `app/playwright.config.ts` choisit le binaire) ; moteur et contrats
+  verts ; backend 643 avec trois échecs propres à cette machine (Chromium cherché sous `~/.cache/ms-playwright`,
+  Node 22.22 refusant `node --test <dossier>`, un motif `tests/js/*.test.js` passe). Captures
+  `.impeccable/planche-edition/` (non versionnées : remises à Orhan). **Non commité** : le commit est proposé dans
+  le dernier message de la session. Orhan n'a pas encore jugé les planches du panneau, de la recherche, des réglages
+  ni de l'édition : ses retours passent avant la brique 7.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
   la main : `cd backend && LD_API_TOKEN=demo LD_ARCHIVE_DIR=../bac-a-sable/accueil-data/archive-six uv run uvicorn
   ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build` ; il sert
-  `app/dist` tel quel, un `npm run build` suffit à le mettre à jour). **Prochaine session : `/brique-ui edition`**
-  (brique 6 de `docs/13-migration-plan.md`, le mode édition : `design/comps/shell/index.html` à `data-state="edit"`
-  et `"edit-note"`, captures `shell-edit-1440.png` et `shell-edit-note-1440.png` : la palette d'outils à gauche, la
-  barre d'équipement et ses volets (teinte, aligner et répartir), la barre de note et ses volets (taille) ; la logique
-  d'édition de la v1 derrière (`engine/src/app/state/` : commandes d'intention, annuler, presse-papiers, flottants) ;
-  fini quand chaque fonction d'édition de la v1 est atteignable depuis la palette ou une barre, Ctrl+Z marche, le tout
-  mesuré). À savoir : la toile v1 est montée **en lecture** (`app/src/diagram/Canvas.tsx`, `onContext` sans effet) ;
-  `design/comps/shell/DIRECTION.md` § Edit mode donne le placement des barres (12 px au-dessus de l'élément,
-  retournement sous 76 px) ; le volet des teintes (12 teintes, jamais de violet) demandera un jeton `swatch-size`
-  (B9 de la revue des réglages, parqué) ; `docs/11` lots 4, 8, 13, 16 décrivent les fonctions v1 à retrouver ; une
-  interaction nouvelle se prototype au banc (`bac-a-sable/`) avant le code ; `npm run e2e` dure ~4 min. **La toile
+  `app/dist` tel quel, un `npm run build` suffit à le mettre à jour). **Prochaine session : `/brique-ui controle`**
+  (brique 7 de `docs/13-migration-plan.md` : les vues Contrôle et Journal sur le rail des vues ; Contrôle = les
+  verdicts de B1 dans la grammaire nouvelle, absorbant ce que `/view` montrait (couverture, constats d'ingestion,
+  descriptions non lues, sources), en lecture seule, codes autorisés là ; Journal = la logique de `Journal.tsx` v1
+  avec ses filtres ; rien de nouveau côté API). À savoir : les onglets Contrôle et Journal sont désactivés « en
+  cours » dans `app/src/diagram/ViewsIsland.tsx` ; `SHOWN_MODES` de `app/src/state/diagram.ts` ne laisse passer que
+  `diagram` (l'adresse se réécrit) ; `pushView` de `app/src/diagram/Canvas.tsx` force `control` à faux ; la v1
+  dessinait les statuts et les contrôles sur la toile en vue Contrôle (`toile.state.control`) ; le mode édition doit
+  se fermer en passant à Contrôle ou Journal (`setView` ⇒ `edit` à faux) ; les mots des contrôles existent déjà
+  (`panel:checks`, brique 3) ; `npm run e2e` dure ~4 min. **La toile
   (cartes, câbles) est une autre surface** : tour de directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la
   refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais

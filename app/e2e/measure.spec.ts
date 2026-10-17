@@ -42,7 +42,7 @@ for (const variant of VARIANTS) {
     expect(problems, "console errors and CSP refusals").toEqual([]);
     expect(report.bars.length, "bars measured").toBeGreaterThanOrEqual(30);
     expect(report.floats.count, "islands measured").toBeGreaterThanOrEqual(30);
-    expect(report.layers.count, "the open list, the two popovers and the search palette").toBe(4);
+    expect(report.layers.count, "the open list, the two popovers, the search palette and the two open volets of edit mode").toBe(6);
     expect(report.tooltips.count, "the forced tooltips").toBeGreaterThanOrEqual(5);
     expect(report.contrast.checked, "texts measured").toBeGreaterThanOrEqual(100);
     expectClean(report);

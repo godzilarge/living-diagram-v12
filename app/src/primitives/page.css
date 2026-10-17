@@ -1,3 +1,6 @@
+/* the canvas's own hues (`--hue-*`), which the edit mode's swatches show: the canvas's styles define them */
+@import "@engine/app/styles/tokens.css";
+
 /* The primitives page layout: a ground page, sections of specimens; islands keep 16 px from each other. */
 html:has(.page),
 body:has(.page) {

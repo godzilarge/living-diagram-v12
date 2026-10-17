@@ -20,13 +20,3 @@
 .ui-listbox:focus {
   outline: 0;
 }
-
-.ui-option-text {
-  flex: 1;
-  white-space: nowrap;
-}
-
-.ui-option-check {
-  display: inline-flex;
-  color: var(--color-accent-ink);
-}

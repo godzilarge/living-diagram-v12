@@ -7,22 +7,27 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { build } from "@engine/canvas/model";
 import type { Selection } from "@engine/canvas/types";
-import type { Toile } from "@engine/app/canvas/toile";
+import type { StackHolder } from "@engine/app/canvas/undo";
+import { emptyStack } from "@engine/app/state/history";
+import type { Stack } from "@engine/app/state/history";
 import { loadRun, loadRuns } from "../api/run";
 import type { RunEntry, Session } from "../api/run";
 import { readToken, writeToken } from "../api/http";
 import { formatHash, formatSearch, parseHash, parseSearch, sameView } from "./address";
 import type { Address, SelectionToken, ViewState } from "./address";
 import { initialState, reducer, selectionTokenOf, shownView } from "./diagram";
-import type { DiagramState } from "./diagram";
+import type { ContextMenuState, DiagramState, Tool } from "./diagram";
+import { makeEditCommands } from "./edit-commands";
+import type { EditCommands, EditHandle, Note } from "./edit-commands";
 import { latestTarget, openTarget } from "./runs";
 import type { Target } from "./runs";
 import { zoomIn, zoomOut, zoomTo } from "./zoom";
 import type { Insets } from "./zoom";
 import type { Cause } from "./useHome";
 
-/** What the shell needs of the mounted canvas: its toile and the size of its viewport. */
-export type CanvasHandle = Readonly<{ toile: Toile; area: () => Readonly<{ width: number; height: number }> }>;
+/** What the shell holds of the mounted canvas: its toile, the size of its viewport, and the v1's hosts the editing
+ *  goes through (`edit-commands.ts`). */
+export type CanvasHandle = EditHandle;
 
 export type DiagramCommands = Readonly<{
   connect: (token: string) => void;
@@ -46,6 +51,15 @@ export type DiagramCommands = Readonly<{
   zoomIn: () => void;
   zoomOut: () => void;
   zoomReset: () => void;
+  /** Edit mode (brick 6): enters or leaves it; the tool, the context menu; an intent write accepted. */
+  setEditing: (editing: boolean) => void;
+  toggleEdit: () => void;
+  setTool: (tool: Tool | null) => void;
+  openContext: (menu: ContextMenuState) => void;
+  closeContext: () => void;
+  touched: () => void;
+  /** The editing commands against the mounted canvas. */
+  edit: EditCommands;
 }>;
 
 const causeOf = (kind: "failed" | "invalid" | "unreachable", status?: number): Cause => (kind === "failed" ? (status ?? 0) : kind);
@@ -56,14 +70,18 @@ function startState(): DiagramState {
   return initialState(readToken() ? "present" : "missing", address, shownView(parsed.view), parsed.selection);
 }
 
-/** `insetsOf` says what the shell lays over the canvas at the moment a command runs (the panel comes and goes). */
-export function useDiagram(insetsOf: () => Insets): Readonly<{ state: DiagramState; session: () => Session; commands: DiagramCommands; handle: CanvasHandle | null }> {
+/** `insetsOf` says what the shell lays over the canvas at the moment a command runs (the panel comes and goes);
+ *  `notify` shows what a command says (a toast, with its offer when it has one). */
+export function useDiagram(insetsOf: () => Insets, notify: (note: Note | null) => void): Readonly<{ state: DiagramState; session: () => Session; commands: DiagramCommands; handle: CanvasHandle | null; history: StackHolder }> {
   const [state, dispatch] = useReducer(reducer, undefined, startState);
   const [handle, setHandleState] = useState<CanvasHandle | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   const handleRef = useRef<CanvasHandle | null>(null);
   const opening = useRef(0);
+  // the undo stack: one per infrastructure (the intent is), it crosses the runs; the canvas's undo controller reads it
+  const stackRef = useRef<Stack>(emptyStack());
+  const undoStack = useMemo<StackHolder>(() => ({ owner: () => stateRef.current.address.infrastructure, get: () => stackRef.current, set: (stack) => { stackRef.current = stack; } }), []);
   const session = useCallback((): Session => ({ token: readToken(), infrastructure: stateRef.current.address.infrastructure }), []);
 
   const refuse = useCallback(() => {
@@ -149,7 +167,18 @@ export function useDiagram(insetsOf: () => Insets): Readonly<{ state: DiagramSta
     const viewOf = (): Readonly<{ x: number; y: number; zoom: number }> | null => handleRef.current?.toile.viewport() ?? null;
     const apply = (next: ReturnType<typeof zoomTo>): void => handleRef.current?.toile.restoreView(next);
     const area = (): Readonly<{ width: number; height: number }> => handleRef.current?.area() ?? { width: 0, height: 0 };
+    const edit = makeEditCommands({
+      dispatch, current: () => stateRef.current, session, handle: () => handleRef.current,
+      setView: (patch) => dispatch({ type: "view", patch }), note: notify,
+    });
     return {
+      edit,
+      setEditing: (editing) => dispatch({ type: "edit", editing }),
+      toggleEdit: () => dispatch({ type: "edit", editing: !stateRef.current.editing }),
+      setTool: (tool) => edit.setTool(tool),
+      openContext: (menu) => dispatch({ type: "context", menu }),
+      closeContext: () => { if (stateRef.current.context) dispatch({ type: "context", menu: null }); },
+      touched: () => dispatch({ type: "touched" }),
       connect: (token) => {
         if (!token.trim()) return;
         writeToken(token);
@@ -189,9 +218,9 @@ export function useDiagram(insetsOf: () => Insets): Readonly<{ state: DiagramSta
         if (view) apply(zoomTo(view, 1, area(), insetsOf()));
       },
     };
-  }, [open, insetsOf]);
+  }, [open, insetsOf, session, notify]);
 
-  return { state, session, commands, handle };
+  return { state, session, commands, handle, history: undoStack };
 }
 
 export type { Address, SelectionToken };

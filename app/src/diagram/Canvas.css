@@ -23,6 +23,12 @@
   background-size: var(--grid-step) var(--grid-step);
 }
 
+/* edit mode: the plan grid (lines every 20 units, the one a drag snaps to) in the grid's colour: as lines it already
+   reads one step darker than the read grid's dots; in line-2 it competed with the cables (DESIGN.md, Colors: Grid) */
+.diagram-canvas[data-editing] .flow-host .react-flow {
+  --xy-background-pattern-color: var(--color-grid);
+}
+
 .diagram-canvas .flow-host,
 .diagram-canvas .flow-host .react-flow {
   background: transparent;

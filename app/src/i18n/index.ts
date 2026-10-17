@@ -4,6 +4,7 @@
 import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import enDiagram from "./locales/en/diagram.json";
+import enEdit from "./locales/en/edit.json";
 import enHome from "./locales/en/home.json";
 import enPanel from "./locales/en/panel.json";
 import enPrimitives from "./locales/en/primitives.json";
@@ -11,6 +12,7 @@ import enSearch from "./locales/en/search.json";
 import enShell from "./locales/en/shell.json";
 import enUi from "./locales/en/ui.json";
 import frDiagram from "./locales/fr/diagram.json";
+import frEdit from "./locales/fr/edit.json";
 import frHome from "./locales/fr/home.json";
 import frPanel from "./locales/fr/panel.json";
 import frPrimitives from "./locales/fr/primitives.json";
@@ -22,11 +24,11 @@ export const LANGUAGES = ["en", "fr"] as const;
 export type Language = (typeof LANGUAGES)[number];
 /** The language of a browser that announces none we speak. */
 export const DEFAULT_LANGUAGE: Language = "en";
-export const NAMESPACES = ["ui", "shell", "home", "diagram", "panel", "search", "primitives"] as const;
+export const NAMESPACES = ["ui", "shell", "home", "diagram", "panel", "search", "edit", "primitives"] as const;
 
 export const resources = {
-  en: { ui: enUi, shell: enShell, home: enHome, diagram: enDiagram, panel: enPanel, search: enSearch, primitives: enPrimitives },
-  fr: { ui: frUi, shell: frShell, home: frHome, diagram: frDiagram, panel: frPanel, search: frSearch, primitives: frPrimitives },
+  en: { ui: enUi, shell: enShell, home: enHome, diagram: enDiagram, panel: enPanel, search: enSearch, edit: enEdit, primitives: enPrimitives },
+  fr: { ui: frUi, shell: frShell, home: frHome, diagram: frDiagram, panel: frPanel, search: frSearch, edit: frEdit, primitives: frPrimitives },
 } as const;
 
 type Catalogue = (typeof resources)["en"];
@@ -68,6 +70,9 @@ export function setLanguage(language: Language): void {
   if (i18n.language !== language) void i18n.changeLanguage(language);
   if (typeof document !== "undefined") document.documentElement.lang = language;
 }
+
+/** The typed translate function outside React (a command's toast), in the page's language at the time of the call. */
+export const text: Translate = (key, values) => i18n.t(key, values ?? {}) as string;
 
 /** The typed translate function of a component; it re-renders when the language changes. */
 export function useText(): Translate {

@@ -43,18 +43,3 @@
   gap: 0;
 }
 
-/* the swatch of an accent: 12 px, the accent's own colour in the current theme */
-.prefs-swatch {
-  display: block;
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-swatch);
-}
-
-.prefs-swatch[data-swatch="cobalt"] {
-  background: var(--swatch-cobalt);
-}
-
-.prefs-swatch[data-swatch="ink"] {
-  background: var(--swatch-ink);
-}

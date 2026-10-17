@@ -3,6 +3,7 @@
 // that opens a list; the same states as every control. A tooltip only when `tooltip` is given.
 import { useMergeRefs } from "@floating-ui/react";
 import { ChevronDown } from "lucide-react";
+import type { Placement } from "@floating-ui/react";
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode, Ref } from "react";
 import { Icon, Spinner } from "./Icon";
 import { useTooltip } from "./Tooltip";
@@ -24,14 +25,17 @@ export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "disable
   danger?: boolean;
   loading?: boolean;
   tooltipOpen?: boolean;
+  tooltipPlacement?: Placement;
   ref?: Ref<HTMLButtonElement>;
   "data-force"?: "hover" | "focus";
 };
 
 export function Button(props: ButtonProps) {
   const { children, variant = "plain", icon, chevron, tooltip, shortcut, pressed, current, disabled, danger, loading,
-    tooltipOpen, ref, onClick, className, ...rest } = props;
-  const tip = useTooltip({ label: tooltip ?? "", shortcut, open: tooltip ? tooltipOpen : false });
+    tooltipOpen, tooltipPlacement, ref, onClick, className, ...rest } = props;
+  // a control whose popover is open says nothing more: its tooltip would cover the popover
+  const expanded = rest["aria-expanded"] === true || rest["aria-expanded"] === "true";
+  const tip = useTooltip({ label: tooltip ?? "", shortcut, placement: tooltipPlacement, open: tooltip && !expanded ? tooltipOpen : false });
   const merged = useMergeRefs([ref, tip.setReference]);
   const inert = disabled || loading;
   const click = (event: MouseEvent<HTMLButtonElement>) => {
@@ -52,6 +56,7 @@ export function Button(props: ButtonProps) {
         aria-disabled={disabled ? "true" : undefined}
         aria-busy={loading ? "true" : undefined}
         data-danger={danger ? "" : undefined}
+        data-opener={rest["aria-expanded"] !== undefined && !toggles ? "" : undefined}
       >
         {loading ? <Spinner /> : icon ? <Icon>{icon}</Icon> : null}
         <span className="ui-button-text">{children}</span>

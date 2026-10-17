@@ -182,5 +182,14 @@
     "more_one": "… and {{count, number}} more",
     "more_other": "… and {{count, number}} more",
     "centreHint": "centre"
+  },
+  "edit": {
+    "title": "Edit mode",
+    "note": "The edit palette stood up on the left (a column island: the tools 4 px apart, 17 px across a hairline, the tooltips to the right), a contextual bar over the selected element with a volet hung 12 px above it, and the menu of the right click and of a bar's choices.",
+    "palette": "Edit palette",
+    "bar": "Contextual bar, its hue volet open",
+    "menu": "Menu: actions, a chosen value, a shortcut, a deleting row",
+    "sizes": "A note bar, its size list open",
+    "device": "dc01-core-01"
   }
 }

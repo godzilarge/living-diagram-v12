@@ -34,3 +34,14 @@ describe("tokens.css", () => {
     expect(() => generate(badRef)).toThrow(/unknown reference/);
   });
 });
+
+describe("the sizes the scripts repeat", () => {
+  it("keep the bar's gap and the island padding equal to their tokens", async () => {
+    const { BAR_GAP } = await import("../src/state/bar-place");
+    const { ISLAND_PADDING, LIST_PADDING } = await import("../src/ui/geometry");
+    const css = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
+    expect(css).toContain(`--context-bar-gap: ${BAR_GAP}px;`);
+    expect(css).toContain(`--island-padding: ${ISLAND_PADDING}px;`);
+    expect(css).toContain(`--space-xs: ${LIST_PADDING}px;`);
+  });
+});

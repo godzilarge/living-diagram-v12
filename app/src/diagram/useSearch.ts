@@ -48,9 +48,9 @@ export function useSearch({ state, model, infrastructures, commands, prefs, setP
   const runs = state.runs;
   const current = state.address.runId;
   const actions = useMemo(
-    () => actionSources(t, { selected, grid: prefs.grid, minimap: prefs.minimap, runs: runs ?? [], current, compare: compareChoices(runs ?? [], current), now }),
+    () => actionSources(t, { selected, grid: prefs.grid, minimap: prefs.minimap, editing: state.editing, runs: runs ?? [], current, compare: compareChoices(runs ?? [], current), now }),
     // the words follow the language (`t` changes identity at every render)
-    [language, selected, prefs.grid, prefs.minimap, runs, current, now],
+    [language, selected, prefs.grid, prefs.minimap, state.editing, runs, current, now],
   );
   const sources = useMemo<Sources>(
     () => ({ model, infrastructures, current: state.address.infrastructure, actions }),
@@ -65,6 +65,7 @@ export function useSearch({ state, model, infrastructures, commands, prefs, setP
         case "action":
           if (hit.id === "grid") return setPrefs({ ...prefs, grid: !prefs.grid });
           if (hit.id === "minimap") return setPrefs({ ...prefs, minimap: !prefs.minimap });
+          if (hit.id === "edit") return commands.toggleEdit();
           if (hit.id === "openRun") return hit.runId ? commands.openFromBand(hit.runId) : undefined;
           if (hit.id === "compareRun") return hit.runId ? commands.compareTo(hit.runId) : undefined;
           return commands[hit.id]();

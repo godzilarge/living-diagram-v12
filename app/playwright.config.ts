@@ -1,5 +1,6 @@
 // The DOM measurement of the primitives page and the shell, in Chromium, on the built pages served by `vite preview`
-// under the backend's CSP. `npm run e2e` builds first.
+// under the backend's CSP. `npm run e2e` builds first. `LD_CHROMIUM=<path>` runs another Chromium than the one
+// Playwright downloaded (a machine that has only the system's, or a different build).
 import { defineConfig } from "@playwright/test";
 
 const PORT = 4317;
@@ -15,6 +16,7 @@ export default defineConfig({
     browserName: "chromium",
     headless: true,
     viewport: { width: 1440, height: 900 },
+    launchOptions: process.env.LD_CHROMIUM ? { executablePath: process.env.LD_CHROMIUM } : {},
     locale: "en-GB",
     // the fixtures' dates are UTC: the page shows them as written, whatever the machine's zone
     timezoneId: "UTC",

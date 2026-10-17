@@ -35,7 +35,86 @@ export type ApiMock = {
   delayRuns?: number;
   /** The placement documents written by the page (POST /api/placement), in order. */
   placements: unknown[];
+  /** The intent document, as the page's writes (POST /api/intent/patches) grow it; read back by GET /api/intent. */
+  intent?: IntentDoc;
+  /** Every operation the page wrote, in order. */
+  ops: Record<string, unknown>[];
 };
+
+type IntentDoc = {
+  intent_version: string; infrastructure: string; revision: number; updated_at: string | null;
+  pins: Record<string, unknown>[]; type_colors: Record<string, unknown>[]; device_colors: Record<string, unknown>[];
+  groups: Record<string, unknown>[]; annotations: Record<string, unknown>[]; connectors: Record<string, unknown>[];
+};
+const ANNOTATION_STYLE: Record<string, Record<string, unknown>> = {
+  note: { hue: "amber", fill_opacity: 12, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
+  shape: { hue: "slate", fill_opacity: 8, stroke_width: 2, stroke_style: "solid", radius: 12, opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue", text_align: "center", text_valign: "middle" },
+  table: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 6, opacity: 100, text_size: 12, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
+  image: { hue: "slate", fill_opacity: 0, stroke_width: 0, stroke_style: "none", radius: 8, opacity: 100, text_size: 12, text_weight: "regular", text_font: "sans", text_color: "ink", text_align: "left", text_valign: "top" },
+  code: { hue: "slate", fill_opacity: 0, stroke_width: 1, stroke_style: "solid", radius: 8, opacity: 100, text_size: 13, text_weight: "regular", text_font: "mono", text_color: "ink", text_align: "left", text_valign: "top" },
+};
+const ANNOTATION_SIZE: Record<string, { w: number; h: number }> = { note: { w: 220, h: 80 }, shape: { w: 200, h: 120 }, table: { w: 160, h: 52 }, image: { w: 320, h: 240 }, code: { w: 480, h: 240 } };
+const CONNECTOR_STYLE = { hue: "slate", stroke_width: 2, stroke_style: "solid", opacity: 100, text_size: 12, text_weight: "semibold", text_font: "sans", text_color: "hue" };
+const GROUP_STYLE = { hue: "blue", shape: "rectangle", radius: 16, fill_opacity: 8, stroke_width: 2, stroke_style: "dashed", padding: 24, label_position: "top_left", label_placement: "inside", label_size: 13, label_weight: "semibold", label_font: "sans", label_color: "hue" };
+
+/** A write that names an unknown element: refused as the backend refuses it (422, its code). */
+class Refused extends Error {}
+function known(map: Map<string, Record<string, unknown>>, id: unknown, code: string): Record<string, unknown> {
+  const found = map.get(String(id));
+  if (!found) throw new Refused(code);
+  return found;
+}
+
+/** The backend's rule for a write (backend/src/ld_backend/intent.py `_applied`): the operations in order on the
+ *  five lists, last writer wins by key, a created element gets `a<revision+1>-<n>`, the revision grows by one. */
+function applyOps(doc: IntentDoc, ops: Record<string, unknown>[], author: string, now: string): IntentDoc {
+  const by = (list: Record<string, unknown>[], key: string) => new Map(list.map((item) => [String(item[key]), item]));
+  const pins = by(doc.pins, "hostname"), typeColors = by(doc.type_colors, "type"), deviceColors = by(doc.device_colors, "hostname");
+  const groups = by(doc.groups, "id"), annotations = by(doc.annotations, "id"), connectors = by(doc.connectors, "id");
+  const revision = doc.revision + 1;
+  let created = 0, drawn = 0, linked = 0;
+  const content = (op: Record<string, unknown>) => op.content as { kind: string };
+  for (const op of ops) {
+    const { op: kind, ...rest } = op;
+    switch (kind) {
+      case "pin": pins.set(String(op.hostname), { ...rest, author, at: now }); break;
+      case "unpin": pins.delete(String(op.hostname)); break;
+      case "color": deviceColors.set(String(op.hostname), { ...rest, author, at: now }); break;
+      case "uncolor": deviceColors.delete(String(op.hostname)); break;
+      case "color_type": typeColors.set(String(op.type), { ...rest, author, at: now }); break;
+      case "uncolor_type": typeColors.delete(String(op.type)); break;
+      case "group_create": {
+        created += 1;
+        const id = `g${revision}-${created}`;
+        groups.set(id, { id, label: op.label, description: op.description ?? "", members: [...new Set(op.members as string[])].sort(), style: { ...GROUP_STYLE, ...(op.style as object) }, author, at: now });
+        break;
+      }
+      case "group_update": { const g = known(groups, op.id, "unknown_group"); groups.set(String(op.id), { ...g, ...rest, style: { ...(g.style as object), ...(op.style as object) }, author, at: now }); break; }
+      case "group_add": { const g = known(groups, op.id, "unknown_group"); groups.set(String(op.id), { ...g, members: [...new Set([...(g.members as string[]), ...(op.members as string[])])].sort(), author, at: now }); break; }
+      case "group_remove": { const g = known(groups, op.id, "unknown_group"); groups.set(String(op.id), { ...g, members: (g.members as string[]).filter((m) => !(op.members as string[]).includes(m)), author, at: now }); break; }
+      case "group_delete": known(groups, op.id, "unknown_group"); groups.delete(String(op.id)); break;
+      case "annotation_create": {
+        drawn += 1;
+        const id = `a${revision}-${drawn}`, kindOf = content(op).kind;
+        annotations.set(id, { id, anchor: { kind: "free", ref: null }, x: 0, y: 0, z: "front", locked: false, leader: false, ...rest, w: op.w ?? ANNOTATION_SIZE[kindOf].w, h: op.h ?? ANNOTATION_SIZE[kindOf].h, style: { ...ANNOTATION_STYLE[kindOf], ...(op.style as object) }, author, at: now });
+        break;
+      }
+      case "annotation_update": { const a = known(annotations, op.id, "unknown_annotation"); annotations.set(String(op.id), { ...a, ...rest, style: { ...(a.style as object), ...(op.style as object) }, author, at: now }); break; }
+      case "annotation_delete": known(annotations, op.id, "unknown_annotation"); annotations.delete(String(op.id)); break;
+      case "connector_create": {
+        linked += 1;
+        const id = `c${revision}-${linked}`;
+        connectors.set(id, { id, heads: { start: "none", end: "arrow" }, route: "straight", bend: 0, label: "", z: "front", locked: false, ...rest, style: { ...CONNECTOR_STYLE, ...(op.style as object) }, author, at: now });
+        break;
+      }
+      case "connector_update": { const c = known(connectors, op.id, "unknown_connector"); connectors.set(String(op.id), { ...c, ...rest, style: { ...(c.style as object), ...(op.style as object) }, author, at: now }); break; }
+      case "connector_delete": known(connectors, op.id, "unknown_connector"); connectors.delete(String(op.id)); break;
+      default: break;
+    }
+  }
+  const sorted = (map: Map<string, Record<string, unknown>>) => [...map.keys()].sort().map((key) => map.get(key) as Record<string, unknown>);
+  return { ...doc, revision, updated_at: now, pins: sorted(pins), type_colors: sorted(typeColors), device_colors: sorted(deviceColors), groups: sorted(groups), annotations: sorted(annotations), connectors: sorted(connectors) };
+}
 
 /** The diagram's fixtures: a synthetic series of three collections (`ld-contracts generate --seed e2e-shell --devices
  *  8 --runs 3`, correlated by `ld correlate`, its diffs by `ld diff`), served under the infrastructure the page asks
@@ -74,7 +153,7 @@ export const infrastructuresFixture = () => fixture("infrastructures.json") as {
 
 /** Answers the API from the fixtures, refusing what the mock's state says. */
 export async function mockApi(page: Page, options: Partial<ApiMock> = {}): Promise<ApiMock> {
-  const state: ApiMock = { calls: [], refuse: false, refuseDiffs: false, diffsInFlight: 0, mostDiffsInFlight: 0, placements: [], ...options };
+  const state: ApiMock = { calls: [], refuse: false, refuseDiffs: false, diffsInFlight: 0, mostDiffsInFlight: 0, placements: [], ops: [], ...options };
   const diffs = fixture("diffs.json") as Record<string, unknown>;
   await page.route("**/api/**", async (route) => {
     const url = new URL(route.request().url());
@@ -122,7 +201,21 @@ function diagramRoute(url: URL, method: string, postData: () => unknown, state: 
     case "/api/ingest/report":
       return snapshotOf(infrastructure, runId) ? { json: diagramFixture("report.json") } : notFound;
     case "/api/intent":
-      return { json: { ...(diagramFixture("intent.json") as object), infrastructure } };
+      state.intent ??= { ...(diagramFixture("intent.json") as IntentDoc), infrastructure };
+      return { json: state.intent };
+    case "/api/intent/patches": {
+      if (method !== "POST") return notFound;
+      state.intent ??= { ...(diagramFixture("intent.json") as IntentDoc), infrastructure };
+      const write = postData() as { author: string; ops: Record<string, unknown>[] };
+      state.ops.push(...write.ops);
+      try {
+        state.intent = applyOps(state.intent, write.ops, write.author, "2026-01-19T19:31:00Z");
+      } catch (error) {
+        if (error instanceof Refused) return { status: 422, json: { code: error.message, detail: error.message } };
+        throw error;
+      }
+      return { json: state.intent };
+    }
     case "/api/placement": {
       if (method === "POST") {
         const write = postData() as { places: unknown[] };
@@ -148,7 +241,7 @@ function recentOnly(body: unknown, url: URL): unknown {
 }
 
 /** Opens a page with its preferences stored, collects console errors and CSP refusals. */
-export async function open(page: Page, path: string, prefs: Prefs, options: { token?: string; prefs?: Record<string, unknown> } = {}) {
+export async function open(page: Page, path: string, prefs: Prefs, options: { token?: string; prefs?: Record<string, unknown>; author?: string } = {}) {
   const problems: string[] = [];
   page.on("console", (message) => {
     // a 401 of the API is part of the token flow, not a defect of the page
@@ -157,14 +250,15 @@ export async function open(page: Page, path: string, prefs: Prefs, options: { to
   });
   page.on("pageerror", (error) => problems.push(error.message));
   await page.addInitScript(
-    ({ stored, token }) => {
+    ({ stored, token, author }) => {
       localStorage.setItem("ld-prefs", JSON.stringify(stored));
+      if (author) localStorage.setItem("ld-author", author);
       if (token && !sessionStorage.getItem("ld-test-seeded")) {
         sessionStorage.setItem("ld-api-token", token);
         sessionStorage.setItem("ld-test-seeded", "1");
       }
     },
-    { stored: { theme: prefs.theme, accent: prefs.accent, language: prefs.lang, ...options.prefs }, token: options.token ?? "" },
+    { stored: { theme: prefs.theme, accent: prefs.accent, language: prefs.lang, ...options.prefs }, token: options.token ?? "", author: options.author ?? "" },
   );
   await page.goto(path);
   await page.evaluate(() => document.fonts.ready);

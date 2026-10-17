@@ -145,6 +145,7 @@ motion:
   popover: "200ms"
   layer: "240ms"
   panel: "260ms"
+  edit: "220ms"
 components:
   island:
     backgroundColor: "{colors.paper}"
@@ -267,6 +268,20 @@ components:
     match-weight: 650
     input-icon: "18px"
     row-detail-max: "200px"
+  swatch:
+    size: "12px"
+  edit-palette:
+    top: "216px"
+  edit-island:
+    rise: "4px"
+  context-bar:
+    gap: "12px"
+  volet-list:
+    width: "48px"
+  menu:
+    min-width: "200px"
+  name-form:
+    width: "280px"
 ---
 
 # Design System: Living Diagram
@@ -318,7 +333,7 @@ White paper, black ink, one accent, and three state colours that mean exactly on
 - **Grid** (#DCDEE2, dark #2C2E31): the dots of the map's grid, 1 px of radius every 24 px **of screen**, fixed under
   the map whatever the zoom (the approved mockup's texture), one step under the hairline so the grid never competes
   with a cable (Orhan, 2026-10-16: the v1 grid was too present). The plan grid (20 units, the one a drag snaps to)
-  belongs to edit mode, where the grid darkens one step (brick 6).
+  belongs to edit mode: lines every 20 units in the grid colour (lines read one step darker than the dots; line-2 competed with the cables).
 - **Ground** (#F4F5F6, dark #131415): the home page ground, sunken tracks, the segmented control's track.
 - **Hover** (#EFF0F2, dark #2A2B2E): a control under the pointer.
 - **Line** (#E3E4E7, dark #2F3134): hairlines, island borders, table rules. **Line-2** (#CDD0D4, dark #45484C): the
@@ -416,7 +431,8 @@ do the work of separating surfaces.
 ## Shapes
 
 Rectangles with small, consistent radii: **6 px** for controls, fields and chips; **10 px** for islands, panels,
-widgets and popovers; **5 px** for tooltips. Swatches are 12 px squares with a 3 px radius; the type tile of a panel header is 40 px with an 8 px radius; the avatar is
+widgets and popovers; **5 px** for tooltips. Swatches (`Swatch`, one primitive: the accents in Réglages, the hues of edit mode) are 12 px squares with a 3 px
+radius; the type tile of a panel header is 40 px with an 8 px radius; the avatar is
 a 22 px square with a 5 px radius; a state mark is an 8 px square with a 2 px radius.
 Nothing is pill-shaped; nothing is a circle except a state dot (8 px) and a canvas
 handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
@@ -455,6 +471,8 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
 - **Shadow Strategy:** island shadow, popovers included (they are islands that float higher); the layer shadow for the search palette only.
 - **Border:** 1 px line.
 - **Internal Padding:** 8 px (bars), 16 px (panels, widgets).
+- **Column** (the edit palette): a bar stood up, 48 px wide, its controls 4 px apart and 17 px across a horizontal
+  hairline (20 px wide, 4 px above and below it: the approved mockup's `.hsep`); 8 px padding, the hairline included.
 - **Header:** the element's name at headline size (17 px, 600) with a 12 px subtitle in ink-3; icon buttons on
   the right; a 1 px rule below. Title size (19 px) is for the home page only.
 - **Widget header** (the home, from the approved mockup, which wins over the 17 px above): 56 px high, the title at
@@ -512,8 +530,17 @@ popover under the control that opens it.
   hairline, the island shadow, 16 px from the left edge, 12 px above the controls.
 - **Layer choice** words are 36 px wide at 600; the compared run of the band carries its small word 6 px after its
   date, its rail dashed 4 px on, 3 px off, in ink-3.
-- **Edit palette** (edit mode): a vertical island at x = 16, nine icon tools (select, declare a cable, connector,
-  note, shape, table, image, code block, group), the current tool with a left rail, tooltips to the right.
+- **Edit palette** (edit mode): a column island at x = 16, 216 px from the top (the approved mockup's `.edit-tools`),
+  nine icon tools in four groups (select | declare a cable, connector | note, shape, table, image, code block | group),
+  each with its key in its tooltip, to the right. The current tool carries the rail under its icon, as every control
+  does (the approved mockup; one rail): select when no tool is armed, the connector while it is. The insertion tools
+  insert at the centre of the view; shape opens a menu (rectangle, ellipse) hung 12 px to its right; image opens the
+  file picker; a tool that cannot act yet is disabled with its reason (declare a cable: in progress; group: a device
+  of the run selected). ↑ ↓ walk the tools (one tab stop). It rises 4 px in 220 ms as edit mode opens.
+- **User button:** the declared author's initial (the `User` icon without a name) opens the name popover: a caption
+  ink-3 sentence saying what the name is for, the field (80 characters) and the primary "Save" on one row (Enter
+  saves too), and under them, in caption ink-3, whether changes are written. 280 px wide. Accounts will take its place
+  without moving it (PRODUCT.md).
 
 ### Tooltip
 - **Style:** black fill, white 12 px 500 text, 6 × 8 px padding, 5 px radius, tooltip shadow; a shortcut after the
@@ -553,10 +580,50 @@ popover under the control that opens it.
 ### Contextual bars
 - **Device bar:** hue (swatch + chevron, a volet of 12 hues, no violet), pin, lock | group, align (chevron, volet:
   left, centre, right, top, middle, bottom, distribute ×2, grid) | hide, isolate | more.
-- **Note bar:** text size (value + chevron, a vertical volet) | bold, italic, underline | alignment, text colour,
-  label position | below, above (rail on the current layer) | lock, duplicate, delete.
+- **Note bar:** text size (value + chevron, a vertical volet) | bold, italic, underline | alignment, hue, text (a
+  menu of three choices: colour in ink or in the hue, font, vertical alignment), label position | below, above (rail
+  on the current layer) | lock, duplicate, delete.
+- **The same grammar for every element** (from the v1's functions): shape (hue, fill, border, corners | label |
+  below, above | lock, duplicate, delete), table, image, code block (hue | language, font, colours, line numbers, fit,
+  size | layers | lock, duplicate, delete), connector, group, and a multiple selection; a function not ready yet is
+  there, disabled, its reason in its tooltip ("in progress").
+- **Buttons:** icon buttons with their tooltip **on the side away from the element** (above the bar when it sits
+  above); a choice that opens a volet is an **opener**: its face (a 12 px swatch, a value at 600 such as the text
+  size, or an icon) then the chevron, 2 px apart, 8 px before and 4 px after; open, it takes the hover fill (the
+  approved mockup's `.opener`; one rule for every opener of the shell, the search button and the shape tool included,
+  `[data-opener]`), never the rail, which says "current"; the "more" ellipsis opens its menu without a chevron. Every
+  button with a key carries it as `aria-keyshortcuts`. "Current" (bold on, the layer a
+  note sits on, a pin) is the rail.
+- **Volets:** a popover hung from its trigger, 12 px from the bar, its first control lined up under the trigger, the
+  island shadow; it flips with the bar and when it lacks room. Hues: a bar of the canvas's twelve swatches (its own
+  palette, violet included: the canvas's decision), the posed one on the rail, then "type default" when the element
+  can go back to it. A list of values (text sizes, fill, border, route…): a column of words, 48 px wide at least, 4 px
+  apart, the current one on the rail. Align and distribute: a bar of icons (six aligns | two distributes | snap to a
+  grid, from three elements). Choices that are words (more, group, the code block's language and font): a Menu. A
+  choice closes the volet.
+- **Keys and gestures:** the bar is a toolbar (← → walk its buttons, one tab stop; Escape gives the focus back to the
+  map and keeps the selection); it hides during a gesture on the canvas (drag, rectangle, resize) and comes back
+  120 ms after; it rises 4 px in 220 ms when it comes. No bar for a cable, a cluster, nothing selected, or while a
+  tool is armed: those come from the data or belong to the tool.
 - **Placement:** 12 px above the element, centred; a volet 12 px above the bar under its trigger; never over the
-  element; flips below the element when it would come within 12 px of the top islands.
+  element; flips below the element when it would come within 12 px of the top islands. It stays in the zone the
+  shell leaves free (right of the palette, under the top row, above the canvas controls, 16 px from the right edge);
+  an element outside it has no bar until the view brings it back.
+
+### Menu
+- **Style:** a vertical list of word rows (the right click's context menu, a bar's "more" and "group" volets, the
+  code block's languages and fonts, the shape tool): each row is the option row of a list, one definition with a
+  choice's options and the palette's results: 32 px, body text, 8 px inside; the hover fill under the pointer, the
+  keyboard position on accent-weak. A row may carry a shortcut chip on the right, or the check in accent-ink for the
+  chosen value of a choice (a `menuitemradio`). A row that deletes turns to the error text on hover and at the
+  keyboard position, without a fill (one definition with the danger control). A hairline separates groups (4 px above
+  and below it); a heading in label size ink-3 names the rows under it. 200 px wide at least; 2 px between rows.
+- **Surface:** in a popover it takes the popover's paper with 4 px around its rows (a choice's list); alone (the
+  context menu) the same surface of its own, at the click point, kept 8 px inside the viewport.
+- **Keys:** ↑ ↓ walk the rows (they wrap), Home and End go to the ends, a letter goes to the next row it starts, Enter
+  and Space choose; Escape is its holder's (the popover closes, the context menu closes and gives the focus back to
+  the map). The context menu puts the focus on its first row; in a volet the menu takes the focus and the arrows
+  start from the top. A press outside, the wheel or a resize close the context menu.
 
 ### Facts
 A list of labels and values, from the approved mockup (`.facts`, `.strip`): the label in ink-3 on a 104 px column,

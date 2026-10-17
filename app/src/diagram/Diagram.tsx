@@ -4,8 +4,10 @@
 // (brick 3) at the width the browser prefers (compact or wide) or in focus over the scrim; the canvas frames inside
 // what the panel leaves. In place of the canvas, a centred island when there is no diagram to show (the token, a
 // refusal, no collection). Ctrl+K and the tools island's button open the search palette (brick 4) over everything;
-// a result chosen there is opened here (`useSearch`). It renders `useDiagram`'s state and sends its commands; the
-// canvas is mounted by `Canvas` alone, once a collection is read.
+// a result chosen there is opened here (`useSearch`). Edit mode (brick 6, the pencil or M): the palette on the left,
+// the panel and the band hidden, the contextual bar over the selected element inside the canvas, the context menu,
+// the keyboard of edit mode before the shell's. It renders `useDiagram`'s state and sends its commands; the canvas
+// is mounted by `Canvas` alone, once a collection is read.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconLink, Island, LogoMark, Scrim, ToastHost } from "../ui";
 import { useText } from "../i18n";
@@ -15,10 +17,19 @@ import type { Width } from "../state/panel";
 import { useDiagram } from "../state/useDiagram";
 import type { DiagramCommands } from "../state/useDiagram";
 import type { DiagramState, RunState } from "../state/diagram";
+import type { EditKey } from "../state/edit-keys";
+import type { EditCommands, Note } from "../state/edit-commands";
+import { useAuthor } from "../state/author";
+import type { StackHolder } from "@engine/app/canvas/undo";
+import type { ContextRequest } from "@engine/app/canvas/Flow";
+import type { Model } from "@engine/canvas/types";
 import type { Insets } from "../state/zoom";
 import type { Session } from "../api/run";
 import { useInfrastructures } from "../state/useInfrastructures";
 import { SearchPalette } from "../search/SearchPalette";
+import { ContextBar } from "../edit/ContextBar";
+import { ContextMenu } from "../edit/ContextMenu";
+import { EditPalette } from "../edit/EditPalette";
 import { usePrefs } from "../shell/usePrefs";
 import type { Prefs } from "../prefs";
 import { INITIAL_TABLE } from "../panel/InterfacesSection";
@@ -33,12 +44,19 @@ import { StateIsland } from "./StateIsland";
 import { ToolsIsland } from "./ToolsIsland";
 import { useNotices } from "./useNotices";
 import type { Notices } from "./useNotices";
+import { useEditKeys } from "./useEditKeys";
 import { useSearch } from "./useSearch";
 import { useShellKeys } from "./useShellKeys";
 import { ViewsIsland } from "./ViewsIsland";
 import { blockedOf } from "./words";
 import "./Diagram.css";
 import "../panel/panel.css";
+
+/** A device of the run (neither an unknown neighbour nor a ghost of the diff): what a group gathers. */
+function isDevice(model: Model, host: string): boolean {
+  const node = model.nodeByHost.get(host);
+  return !!node && node.kind !== "stub" && !node.ghost;
+}
 
 /** Another infrastructure opens its own page, on its latest collection. */
 function openInfrastructure(infrastructure: string): void {
@@ -72,14 +90,68 @@ function keyAction(key: ShellKey, commands: DiagramCommands, prefs: Prefs, setPr
   }
 }
 
-type Ready = Extract<RunState, { kind: "ready" }>;
-type ShownCanvasProps = { state: DiagramState; run: Ready; session: () => Session; commands: DiagramCommands; notices: Notices; insets: Insets };
+/** The selected note, when the selection is one (Ctrl+B). */
+function selectedNote(model: Model | null, selection: DiagramState["selection"]) {
+  const a = model && selection?.kind === "annotation" ? model.annotationById.get(selection.id) : undefined;
+  return a && a.content.kind === "note" && !a.locked ? a : null;
+}
 
-/** The canvas of the collection read, with the view, the selection and the browser's preferences. */
-function ShownCanvas({ state, run, session, commands, notices, insets }: ShownCanvasProps) {
+/** What a key of edit mode does (`state/edit-keys.ts`): the palette's tools, Escape (the tool, then the selection),
+ *  the editing keys, undo and redo, the bars' keys (P, H, Ctrl+B). Tab from the map goes to the contextual bar when
+ *  one is shown (its one tab stop); without a bar it walks the selection. */
+function editKeyAction(key: EditKey, state: DiagramState, model: Model | null, commands: DiagramCommands): void {
+  const { edit } = commands;
+  switch (key.kind) {
+    case "pin": {
+      const pinned = model ? state.hosts.filter((host) => model.pinByHost.has(host)) : [];
+      if (pinned.length) edit.unpin(pinned);
+      else state.hosts.forEach((host) => edit.pinHere(host));
+      return;
+    }
+    case "hide": return edit.hideHosts(state.hosts);
+    case "bold": {
+      const note = selectedNote(model, state.selection);
+      if (note) edit.annotationUpdate(note.id, { style: { text_weight: note.style.text_weight === "bold" ? "regular" : "bold" } });
+      return;
+    }
+    case "pasteCode": return; // the paste event that follows is taken as code (`useEditKeys`)
+    case "toggleEdit": return commands.toggleEdit();
+    case "tool": return edit.usePalette(key.tool);
+    case "escape":
+      if (state.context) return commands.closeContext();
+      if (state.tool) return edit.setTool(null);
+      return commands.select(null, []);
+    case "delete": edit.deleteSelection(); return;
+    case "edit": edit.editSelection(); return;
+    case "cycle": {
+      const bar = key.direction === 1 ? document.querySelector<HTMLElement>('[data-float="context-bar"] .ui-control:not([aria-disabled="true"])') : null;
+      if (bar) return bar.focus({ preventScroll: true });
+      const next = edit.cycle(key.direction);
+      if (next) document.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape((next.kind === "node" ? "" : `${next.kind}:`) + next.id)}"]`)?.focus({ preventScroll: true });
+      return;
+    }
+    case "nudge": edit.nudge(key.dx, key.dy); return;
+    case "undo": return edit.undo();
+    case "redo": return edit.redo();
+    case "selectAll": return edit.selectAll();
+    case "duplicate": edit.duplicate(); return;
+    case "align": return edit.align(key.mode);
+    case "grid": return edit.grid();
+  }
+}
+
+type Ready = Extract<RunState, { kind: "ready" }>;
+type ShownCanvasProps = {
+  state: DiagramState; run: Ready; session: () => Session; commands: DiagramCommands; notices: Notices; insets: Insets;
+  author: string; history: StackHolder; children?: React.ReactNode;
+};
+
+/** The canvas of the collection read, with the view, the selection, the browser's preferences, and edit mode. */
+function ShownCanvas({ state, run, session, commands, notices, insets, author, history, children }: ShownCanvasProps) {
   const { prefs, language } = usePrefs();
   const { grid, minimap, theme } = prefs;
   const shown = useMemo(() => ({ grid, minimap, theme }), [grid, minimap, theme]);
+  const onContext = useCallback((request: ContextRequest) => (state.editing ? commands.openContext(request) : undefined), [commands, state.editing]);
   return (
     <Canvas
       model={run.model}
@@ -93,12 +165,22 @@ function ShownCanvas({ state, run, session, commands, notices, insets }: ShownCa
       selection={state.selection}
       hosts={state.hosts}
       wanted={state.wanted}
+      editing={state.editing}
+      author={author}
+      tool={state.tool}
+      editRequest={state.editRequest}
+      history={history}
+      edit={commands.edit}
       onSelect={commands.select}
       onWantedMissing={notices.onWantedMissing}
       onView={commands.setZoom}
       onHandle={commands.setHandle}
       onNote={notices.onNote}
-    />
+      onTouched={commands.touched}
+      onContext={onContext}
+    >
+      {children}
+    </Canvas>
   );
 }
 
@@ -107,21 +189,44 @@ export function Diagram() {
   const { prefs, setPrefs } = usePrefs();
   const insetsRef = useRef<Insets>(CHROME);
   const insetsOf = useCallback(() => insetsRef.current, []);
-  const { state, session, commands, handle } = useDiagram(insetsOf);
+  // the toasts of the edit commands are shown by `useNotices`, which needs the commands for an offer's action: a ref
+  const editRef = useRef<EditCommands | null>(null);
+  const noticesRef = useRef<Notices | null>(null);
+  const notify = useCallback((note: Note | null) => noticesRef.current?.onEdit(note), []);
+  const { state, session, commands, handle, history } = useDiagram(insetsOf, notify);
+  editRef.current = commands.edit;
+  const author = useAuthor();
   const infrastructures = useInfrastructures(state.token, state.address.infrastructure);
   const [now] = useState(Date.now);
-  const notices = useNotices(t, state.run, commands.dropWanted);
+  const notices = useNotices(t, state.run, commands.dropWanted, editRef);
+  noticesRef.current = notices;
   const [focus, setFocus] = useState(false);
   const [table, setTable] = useState<TableState>(INITIAL_TABLE);
   const run = state.run;
   const model = run.kind === "ready" ? run.model : null;
-  const shown = !!model && hasPanel(model, state.selection);
+  const editing = state.editing;
+  // the panel and the band hide while editing (DESIGN.md, Hide when empty)
+  const shown = !!model && !editing && hasPanel(model, state.selection);
   const width: Width | null = shown ? (focus ? "focus" : prefs.panel) : null;
   const insets = useMemo(() => chromeWith(width), [width]);
   insetsRef.current = insets;
   const search = useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure: openInfrastructure });
   const panel: PanelControl = { shown, focus, setFocus, onSearch: search.control.onOpen };
+  // edit mode's keys first (they stop there), then the shell's
+  const clipboard = useMemo(
+    () => ({
+      onCopy: (data: DataTransfer, cut: boolean) => commands.edit.copyEvent(data, cut),
+      onPaste: (data: DataTransfer) => commands.edit.pasteEvent(data),
+      onPasteCode: (data: DataTransfer | null) => (data ? commands.edit.pasteCodeEvent(data) : commands.edit.pasteCodeFromMenu(null)),
+    }),
+    [commands],
+  );
+  useEditKeys((key) => editKeyAction(key, state, model, commands), { editing, hasSelection: !!state.selection || state.hosts.length > 0 }, clipboard);
   useShellKeys((key) => keyAction(key, commands, prefs, setPrefs, panel));
+  // leaving edit mode closes the focus panel's scrim too
+  useEffect(() => {
+    if (editing) setFocus(false);
+  }, [editing]);
   const title = t("diagram:page", { infrastructure: state.address.infrastructure });
   useEffect(() => {
     document.title = title;
@@ -174,6 +279,8 @@ export function Diagram() {
       <div className="diagram-top diagram-top-end">
         <ToolsIsland search={search.control} />
       </div>
+      {/* edit mode's palette, on the left (DESIGN.md, Edit palette) */}
+      {editing && model && !blocked ? <EditPalette tool={state.tool} canGroup={state.hosts.some((host) => isDevice(model, host))} edit={commands.edit} /> : null}
       {blocked ? <StateIsland blocked={blocked} onConnect={commands.connect} /> : null}
       {/* the panel of the selected element, before the canvas in the DOM: Tab reaches it before the cards */}
       {model && width ? (
@@ -189,18 +296,34 @@ export function Diagram() {
             zoom={state.zoom}
             grid={prefs.grid}
             minimap={prefs.minimap}
+            editing={editing}
             commands={commands}
             onGrid={() => setPrefs({ ...prefs, grid: !prefs.grid })}
             onMinimap={() => setPrefs({ ...prefs, minimap: !prefs.minimap })}
+            onEdit={commands.toggleEdit}
           />
         ) : null}
-        <RunsIsland state={state} now={now} commands={commands} />
+        {editing ? null : <RunsIsland state={state} now={now} commands={commands} />}
       </div>
+      {state.context && handle ? (
+        <ContextMenu
+          menu={state.context}
+          toile={handle.toile}
+          hosts={state.hosts}
+          hasSelection={!!state.selection || state.hosts.length > 0}
+          edit={commands.edit}
+          onClose={commands.closeContext}
+        />
+      ) : null}
       <ToastHost name="toast" closeLabel={t("ui:close")} />
       <Scrim open={width === "focus"} onDismiss={() => setFocus(false)} />
       <SearchPalette {...search.palette} />
       {/* the canvas last in the DOM: Tab reaches every island before the cards; it paints under them (z-index) */}
-      {run.kind === "ready" ? <ShownCanvas state={state} run={run} session={session} commands={commands} notices={notices} insets={insets} /> : null}
+      {run.kind === "ready" ? (
+        <ShownCanvas state={state} run={run} session={session} commands={commands} notices={notices} insets={insets} author={author} history={history}>
+          <ContextBar edit={commands.edit} revision={state.revision} tool={state.tool} />
+        </ShownCanvas>
+      ) : null}
     </div>
   );
 }

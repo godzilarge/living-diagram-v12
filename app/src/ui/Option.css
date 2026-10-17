@@ -32,3 +32,14 @@
   outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
   outline-offset: calc(-1 * var(--focus-ring-width));
 }
+
+.ui-option-text {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* the chosen value of a choice: the check in accent-ink, on the right */
+.ui-option-check {
+  display: inline-flex;
+  color: var(--color-accent-ink);
+}

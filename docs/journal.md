@@ -7,6 +7,32 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Brick 6 of the v2 migration: edit mode, delivered and reviewed** (2026-10-16, `/brique-ui edition`, taken before
+  bricks 4 and 5 were pushed, then rebased on them; the announcement's decisions stand: N and G to the palette in the
+  mode, Escape never leaves it, insertion at the centre of the view, the mode out of the address, the contract's twelve
+  hues, no undo button, the mockup's placement rule, the name on the user button, italic / underline / title position /
+  declare a cable / a device's lock disabled "in progress", the v1 command factories reused by injection). The mockup's
+  `edit` and `edit-note` states: the pencil (M), the palette at x = 16, the panel and the band hidden, the plan grid with
+  the v1's magnet and guides; the device bar and the note bar of the mockup, the shape, table, image, code block,
+  connector, group and multiple-selection bars in the same grammar, the volets (hues, lists, align, menus), the v1's
+  context menu, its keyboard; nothing written without a name, which the user button takes. Logic in `app/src/state/`
+  (`diagram.ts` mode, `bars.ts`, `bar-place.ts`, `bar-actions.ts`, `edit-keys.ts`, `edit-commands.ts`, `author.ts`)
+  with Node tests; the canvas mounts the v1's hosts (writer, intent host, undo stack); the v1 touched once
+  (`CodeContext` typed on five commands). Primitives `Menu`, `Swatch`, `FileInput`; `Island` column and horizontal
+  separator; `Popover` `anchor="trigger"`, `gap`, `layout`; `Button` / `IconButton` `opener`; `DESIGN.md` § Edit
+  palette, Contextual bars, Menu, User button, Column, tokens (`docs/13` § Done). The ui agent's choice to judge: the
+  plan grid in the grid colour rather than line-2. The search palette offers "Edit the diagram". Review
+  `docs/revues/2026-10-16-edition.md` (0 critical, 4 high, 5 medium, 7 low; probes in `-sondes/`), treated the same day
+  (its § Traitement): a group joined by its own id, Tab reaches the bar, the selection's keys on the map only, a "Text"
+  volet (colour, font, vertical alignment) and "remove from a group", P / H / Ctrl+B / Ctrl+Shift+V, one opener rule;
+  **left for later**: the hue of a type, a group's description and frame style, a connector's bend (the v1 inspector's
+  fine settings, for the panels in edit mode). Fixed on the way: `Popover` read a stale island in its offset (floating-ui
+  compares middleware functions by source): the settings and widget popovers were 16 px off; `playwright.config.ts`
+  takes `LD_CHROMIUM`. Suites: app check 229, `e2e/edit.spec.ts` 10, the e2e suite green but five sub-pixel flags (16.2
+  and 15.7 px from the edge) that this machine's Chromium 1194 also gives on `origin/main`; engine, contracts (637)
+  green; backend 643 with three failures of this machine (Chromium looked for under `~/.cache/ms-playwright`, Node
+  22.22 refusing `node --test <dir>`). Captures `.impeccable/planche-edition/`. To judge in use:
+  `docs/a-juger-a-l-usage.md` (twelve rows "Edit: …").
 - **Brick 5 of the v2 migration: settings and language, delivered and reviewed** (2026-10-16, `/brique-ui reglages`;
   announced as a comparison of the skeleton's popover to the mockup and an audit of the catalogues, nothing new in
   `DESIGN.md`): `app/e2e/settings.spec.ts` measures the popover against `data-state="settings"` (identical: 72 / 16 /

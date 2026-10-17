@@ -24,7 +24,10 @@ import type { Commands } from "../state/store";
 
 /** Ce que la toile demande à la page pour un bloc de code : les commandes du store et le nom de l'infrastructure
  *  (l'avertissement dit qui lira le texte). Posé par `Canvas` autour de la toile. */
-export interface CodeActions { commands: Commands | null; infrastructure: string }
+/** Ce que le bloc de code demande à la page : les cinq commandes du brouillon et de l'écriture (la coquille v2 les
+ *  fournit sans le store de la v1, brique 6 de la migration). */
+export type CodeCommandsUsed = Pick<Commands, "codeCancel" | "codeCopy" | "codeCreate" | "codeSave" | "codeSay">;
+export interface CodeActions { commands: CodeCommandsUsed | null; infrastructure: string }
 export const CodeContext = createContext<CodeActions>({ commands: null, infrastructure: "" });
 
 const PILL_CH = 6.82; // la chasse des pastilles de l'application (JetBrains Mono 600 11, capitales)

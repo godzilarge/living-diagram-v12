@@ -71,7 +71,7 @@ const geometry = (page: Page) =>
     const buttons = Array.from(layer.querySelectorAll("button"));
     const text = (button: Element) => button.querySelector(".ui-button-text") ?? button;
     const say = (button: Element) => ({ weight: style(text(button)).fontWeight, color: style(button).color, height: box(button).height });
-    const swatches = Array.from(layer.querySelectorAll(".prefs-swatch"));
+    const swatches = Array.from(layer.querySelectorAll(".ui-swatch"));
     return {
       top: pop.top,
       right: innerWidth - pop.right,

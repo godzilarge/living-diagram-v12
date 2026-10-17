@@ -44,6 +44,13 @@
   color: var(--control-current-text-color);
 }
 
+/* an opener (a word or an icon that opens a choice: the search button, a volet's trigger, the shape tool): open, the
+   hover fill, as the approved mockup's `.opener`; one definition for every surface */
+.ui-control[data-opener][aria-expanded="true"] {
+  background: var(--control-hover-background-color);
+  color: var(--control-hover-text-color);
+}
+
 .ui-control[aria-disabled="true"] {
   color: var(--color-ink-4);
   cursor: default;

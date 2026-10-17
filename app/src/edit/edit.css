@@ -1,0 +1,78 @@
+/* Edit mode (design/comps/shell: `.edit-tools`, `.ctx-bar`, `.volet`, `.vlist`, `.opener`; DIRECTION.md, Edit mode):
+   the palette at x = 16 on the left, the contextual bar where `ContextBar` places it (`--bar-x`, `--bar-y`, set through
+   the CSSOM), the volets' contents, the context menu at the click point. The edit islands rise 4 px in 220 ms as they
+   come (1 ms under reduced motion: the token). */
+@keyframes edit-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--edit-island-rise));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.edit-palette {
+  position: absolute;
+  top: var(--edit-palette-top);
+  left: var(--space-lg);
+  z-index: 2;
+  animation: edit-rise var(--motion-edit) var(--motion-ease) both;
+}
+
+/* above the canvas's own layers (its hover bubble, its guides), under the shell's popovers and tooltips */
+.context-bar {
+  position: absolute;
+  top: var(--bar-y);
+  left: var(--bar-x);
+  z-index: 10;
+  animation: edit-rise var(--motion-edit) var(--motion-ease) both;
+}
+
+/* the element left the free zone: the bar waits, measured but unseen */
+.context-bar[data-offscreen] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* a button that opens a volet (the mockup's `.opener`): its swatch, value or icon, then the chevron, 2 px apart */
+.edit-opener {
+  gap: var(--space-2xs);
+  padding: 0 var(--space-xs) 0 var(--space-sm);
+}
+
+.edit-opener .ui-button-text:empty {
+  display: none;
+}
+
+.edit-opener[data-face="value"] .ui-button-text {
+  min-width: var(--space-lg);
+  font-weight: var(--text-headline-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the ellipsis alone ("more"): an icon button's square */
+.edit-opener[data-face="only"] {
+  width: var(--control-height);
+  padding: 0;
+}
+
+/* the row or column the arrows walk lays its controls straight into the volet */
+.edit-walk {
+  display: contents;
+}
+
+/* a list volet (the mockup's `.vlist`): words stacked, 48 px at least, the current one on the rail */
+.edit-volet-choice {
+  justify-content: flex-start;
+  min-width: var(--volet-list-width);
+}
+
+.context-menu {
+  position: fixed;
+  top: var(--menu-y);
+  left: var(--menu-x);
+  z-index: 60;
+}

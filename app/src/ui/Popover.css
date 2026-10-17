@@ -27,6 +27,31 @@
   transform-origin: 0 100%;
 }
 
+/* a volet: its controls laid out as an island does (a bar 48 px high, or a column 4 px apart) */
+.ui-popover[data-layout="bar"],
+.ui-popover[data-layout="column"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: calc(var(--island-padding) - 1px);
+}
+
+.ui-popover[data-layout="column"] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-xs);
+}
+
+/* a Menu: 4 px around its rows, as a choice's list (`.ui-listbox`) */
+.ui-popover[data-layout="list"] {
+  padding: var(--space-xs);
+}
+
+.ui-popover[data-placement^="right"] {
+  transform: translateX(-6px) scale(0.98);
+  transform-origin: 0 0;
+}
+
 .ui-popover[data-elevation="layer"] {
   box-shadow: var(--shadow-layer);
 }

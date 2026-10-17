@@ -3,7 +3,7 @@
 // The settings popover of the shell, the switcher of the primitives page and the settings of a home widget use the
 // same rows (`ChoiceRow`).
 import { useId } from "react";
-import { Button } from "../ui";
+import { Button, Swatch } from "../ui";
 import type { Language } from "../i18n";
 import { useText } from "../i18n";
 import type { TextKey } from "../i18n";
@@ -48,7 +48,7 @@ export function ChoiceRow({ id, label, choices, value, onPick, after }: ChoiceRo
           <Button
             key={choice.value}
             pressed={choice.value === value}
-            icon={choice.swatch ? <span className="prefs-swatch" data-swatch={choice.swatch} /> : undefined}
+            icon={choice.swatch ? <Swatch swatch={choice.swatch} /> : undefined}
             onClick={() => onPick(choice.value)}
           >
             {choice.label}

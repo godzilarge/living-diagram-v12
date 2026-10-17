@@ -88,6 +88,8 @@ export type ActionContext = Readonly<{
   selected: string | null;
   grid: boolean;
   minimap: boolean;
+  /** Edit mode on: the action leaves it. Left out (the home): no edit action. */
+  editing?: boolean;
   /** The archived runs, oldest first, and the one shown. */
   runs: readonly RunEntry[];
   current: string;
@@ -106,6 +108,7 @@ export function actionSources(t: Translate, context: ActionContext): readonly Ac
     { id: "zoomReset", words: t("diagram:controls.zoomReset") },
     { id: "grid", words: t(context.grid ? "search:actions.gridHide" : "search:actions.gridShow") },
     { id: "minimap", words: t(context.minimap ? "search:actions.minimapHide" : "search:actions.minimapShow") },
+    ...(context.editing === undefined ? [] : [{ id: "edit" as const, words: t(context.editing ? "edit:mode.actionLeave" : "edit:mode.action") }]),
   ];
   const open = [...context.runs].reverse().filter((run) => run.run_id !== context.current).map((run): ActionSource => ({ id: "openRun", runId: run.run_id, words: t("search:actions.openRun", { date: date(run) }) }));
   const compare = context.compare.map((run): ActionSource => ({ id: "compareRun", runId: run.run_id, words: t("search:actions.compareRun", { date: date(run) }) }));

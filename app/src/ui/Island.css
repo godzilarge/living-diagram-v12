@@ -13,6 +13,15 @@
   padding: calc(var(--island-padding) - 1px);
 }
 
+/* the bar stood up (the mockup's `.edit-tools`): 48 px wide, the controls 4 px apart */
+.ui-island-column {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: calc(var(--island-padding) - 1px);
+}
+
 /* 4 px before the first tab (its own 12 px padding brings its words to 16), 8 px after the last control */
 .ui-island-strip {
   display: inline-flex;
@@ -31,4 +40,11 @@
   width: 1px;
   height: 20px;
   background: var(--color-line);
+}
+
+/* in a column: 20 px wide, 4 px above and below, which the column's 4 px gaps bring to 17 px across */
+.ui-separator[aria-orientation="horizontal"] {
+  width: 20px;
+  height: 1px;
+  margin: var(--space-xs) 0;
 }

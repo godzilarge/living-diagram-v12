@@ -30,7 +30,7 @@ export type ClusterHit = Readonly<{ kind: "cluster"; key: string; id: string; na
 export type NoteHit = Readonly<{ kind: "note"; key: string; id: string; noteKind: "note" | "code"; title: string; line: number; text: string; selection: Selection }>;
 export type InfrastructureHit = Readonly<{ kind: "infrastructure"; key: string; name: string; current: boolean; devices: number | null }>;
 /** The actions the shell can run from the palette; `openRun` and `compareRun` name a collection. */
-export type ActionId = "fit" | "center" | "zoomReset" | "grid" | "minimap" | "openRun" | "compareRun";
+export type ActionId = "fit" | "center" | "zoomReset" | "grid" | "minimap" | "edit" | "openRun" | "compareRun";
 export type ActionHit = Readonly<{ kind: "action"; key: string; id: ActionId; runId: string | null; words: string }>;
 export type Hit = DeviceHit | PortHit | GroupHit | ClusterHit | NoteHit | InfrastructureHit | ActionHit;
 

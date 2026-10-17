@@ -1,0 +1,66 @@
+.ui-swatch {
+  display: block;
+  flex: none;
+  width: var(--swatch-size);
+  height: var(--swatch-size);
+  border-radius: var(--radius-swatch);
+}
+
+/* the accents of the settings, in the current theme */
+.ui-swatch[data-swatch="cobalt"] {
+  background: var(--swatch-cobalt);
+}
+
+.ui-swatch[data-swatch="ink"] {
+  background: var(--swatch-ink);
+}
+
+/* the canvas's twelve hues (`--hue-*`, defined with the canvas's styles), in the current theme */
+
+.ui-swatch[data-swatch="blue"] {
+  background: var(--hue-blue);
+}
+
+.ui-swatch[data-swatch="sky"] {
+  background: var(--hue-sky);
+}
+
+.ui-swatch[data-swatch="indigo"] {
+  background: var(--hue-indigo);
+}
+
+.ui-swatch[data-swatch="violet"] {
+  background: var(--hue-violet);
+}
+
+.ui-swatch[data-swatch="pink"] {
+  background: var(--hue-pink);
+}
+
+.ui-swatch[data-swatch="red"] {
+  background: var(--hue-red);
+}
+
+.ui-swatch[data-swatch="orange"] {
+  background: var(--hue-orange);
+}
+
+.ui-swatch[data-swatch="amber"] {
+  background: var(--hue-amber);
+}
+
+.ui-swatch[data-swatch="lime"] {
+  background: var(--hue-lime);
+}
+
+.ui-swatch[data-swatch="green"] {
+  background: var(--hue-green);
+}
+
+.ui-swatch[data-swatch="teal"] {
+  background: var(--hue-teal);
+}
+
+.ui-swatch[data-swatch="slate"] {
+  background: var(--hue-slate);
+}
