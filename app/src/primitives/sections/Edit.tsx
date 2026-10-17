@@ -4,16 +4,33 @@
 // styles (`--hue-*`), imported by the page.
 import { Cable, EyeOff, Focus, Group, Image, Lock, MousePointer2, Pin, Shapes, Spline, SquareCode, StickyNote, Table, Bold, Italic } from "lucide-react";
 import { useState } from "react";
+import { exactRule } from "@engine/canvas/query";
 import { IconButton, Island, Menu, Separator } from "../../ui";
 import { useText } from "../../i18n";
 import { TEXT_SIZES } from "../../state/bars";
 import type { BarButton } from "../../state/bars";
 import { VoletButton } from "../../edit/Volets";
+import { EditPaletteFoot } from "../../edit/EditPalette";
+import type { HiddenRule } from "../../state/hidden";
 import { Row, Section } from "../Specimen";
 import "../../edit/edit.css";
 
+const noop = (): void => undefined;
+const FOOT_EDIT = { showRule: noop, showAll: noop, undo: noop, redo: noop };
+// the devices a sample rule keeps out: only their count is shown
+const devices = (count: number, prefix: string): readonly string[] => Array.from({ length: count }, (_, at) => `${prefix}${at + 1}`);
+
 function Palette() {
   const t = useText();
+  // three gestures: H on one device (an exact rule), an expression from the search (12 devices), an isolation
+  const name = t("primitives:edit.hiddenByName");
+  const expression = t("primitives:edit.hiddenExpression");
+  const isolated = t("primitives:edit.hiddenIsolated");
+  const hidden: readonly HiddenRule[] = [
+    { rule: exactRule([name]), kind: "hide", named: [name], hosts: [name] },
+    { rule: expression, kind: "hide", named: null, hosts: devices(12, expression) },
+    { rule: isolated, kind: "only", named: null, hosts: devices(30, isolated) },
+  ];
   const [connector, setConnector] = useState(false);
   const tip = "right" as const;
   return (
@@ -31,13 +48,12 @@ function Palette() {
         <IconButton label={t("edit:palette.code")} icon={<SquareCode />} shortcut="B" tooltipPlacement={tip} />
         <Separator orientation="horizontal" />
         <IconButton label={t("edit:palette.group")} icon={<Group />} shortcut="G" tooltipPlacement={tip} disabled disabledReason={t("edit:palette.groupNeeds")} />
+        <EditPaletteFoot history={{ undo: true, redo: false }} hidden={hidden} hiddenCount={43} edit={FOOT_EDIT} />
       </Island>
       <figcaption>{t("primitives:edit.palette")}</figcaption>
     </figure>
   );
 }
-
-const noop = (): void => undefined;
 
 function DeviceBar() {
   const t = useText();
@@ -125,13 +141,14 @@ export function EditSection() {
   const t = useText();
   return (
     <Section id="edit" heading={t("primitives:edit.title")} note={t("primitives:edit.note")} room="popover">
-      <Row>
-        <Palette />
-        <DeviceBar />
-      </Row>
+      {/* the palette's row last: the note bar's size list opens above its bar and would cover the palette's foot */}
       <Row>
         <NoteBar />
         <MenuSpecimen />
+      </Row>
+      <Row>
+        <Palette />
+        <DeviceBar />
       </Row>
     </Section>
   );

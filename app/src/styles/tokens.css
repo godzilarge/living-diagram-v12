@@ -197,6 +197,7 @@
   --context-bar-gap: 12px;
   --volet-list-width: 48px;
   --menu-min-width: 200px;
+  --menu-max-width: 320px;
   --name-form-width: 280px;
 }
 

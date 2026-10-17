@@ -185,7 +185,7 @@ describe("primitives", () => {
     expect(html(<Facts items={[]} />)).not.toContain("data-size");
     expect(html(<Alerts size="snug" label="a" items={[{ id: "1", tone: "error", text: "x" }]} />)).toContain('data-size="snug"');
   });
-  it("a menu: actions, a chosen value, a shortcut, a deleting row, a separator and a heading", () => {
+  it("a menu: actions, a chosen value, a shortcut, a deleting row, a verbatim row, a separator and a heading", () => {
     const out = html(
       <Menu
         label="m"
@@ -197,17 +197,20 @@ describe("primitives", () => {
           { id: "b", label: "b", checked: true },
           { id: "c", label: "c", checked: false },
           { id: "d", label: "d", danger: true },
+          { id: "e", label: "e", verbatim: true, disabled: true },
         ]}
       />,
     );
     expect(out).toMatch(/role="menu"[^>]*aria-label="m"|aria-label="m"[^>]*role="menu"/);
-    expect(out.match(/role="menuitem"/g)).toHaveLength(2);
+    expect(out.match(/role="menuitem"/g)).toHaveLength(3);
     expect(out.match(/role="menuitemradio"/g)).toHaveLength(2);
     expect(out).toContain('aria-checked="true"');
     expect(out).toContain('aria-keyshortcuts="Control+C"');
     expect(out).toContain("ui-shortcut");
     expect(out.match(/ui-option-check/g)).toHaveLength(1);
     expect(out).toContain("data-danger");
+    expect(out.match(/data-verbatim/g)).toHaveLength(1);
+    expect(out).toContain('aria-disabled="true"');
     expect(out).toContain('role="separator"');
     expect(out).toContain("ui-menu-heading");
     expect(html(<Menu label="m" surface onChoose={() => undefined} rows={[]} />)).toContain("data-surface");

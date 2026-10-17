@@ -22,6 +22,8 @@ const ACTIONS: readonly ActionSource[] = [
   { id: "fit", words: "Show everything" },
   { id: "grid", words: "Grid" },
   { id: "compareRun", words: "Compare with the collection of 12 Jan", runId: "demo-0112" },
+  { id: "hideMatches", words: "" },
+  { id: "showHidden", words: "Show the 2 hidden devices" },
 ];
 const sources: Sources = { model, infrastructures: [{ name: "demo-dc", devices: 13 }, { name: "wan-core", devices: 14 }], current: "demo-dc", actions: ACTIONS };
 const bare = (m: Model | null): Sources => ({ model: m, infrastructures: [], current: "", actions: [] });
@@ -113,8 +115,21 @@ describe("on the synthetic series", () => {
     expect(found.infrastructures.map((h) => [h.name, h.current, h.devices])).toEqual([["demo-dc", true, 13]]);
     expect(search(sources, "12 jan").actions.map((h) => [h.id, h.runId])).toEqual([["compareRun", "demo-0112"]]);
     expect(search(sources, "grid").actions).toHaveLength(1);
-    expect(search(sources, "type:switch").actions).toEqual([]);
     expect(search(sources, "type:switch").infrastructures).toEqual([]);
+  });
+
+  it("offers to hide the devices an expression designates, the expression as the view's rule, after the other actions", () => {
+    const acc = search(sources, "acc");
+    expect(acc.devices.map((h) => h.hostname)).toEqual(["dc01-acc-01", "dc01-acc-03", "dc01-acc-02"]);
+    expect(acc.actions.map((h) => [h.id, h.count, h.rule])).toEqual([["hideMatches", 3, "acc"]]);
+    expect(search(sources, "type:switch dc01").actions.map((h) => h.rule)).toEqual(["type:switch dc01"]);
+    expect(search(sources, "port:eth").actions).toEqual([]); // a port is not a device rule
+    expect(search(sources, "nothing-here").actions).toEqual([]);
+    expect(search(sources, "hidden").actions.map((h) => h.id)).toEqual(["showHidden"]);
+    const words = search(sources, "show").actions.map((h) => h.id);
+    expect(words).toEqual(["fit", "showHidden"]); // the query's action is never found by words
+    expect(search({ ...sources, actions: ACTIONS.filter((a) => a.id !== "hideMatches") }, "acc").actions).toEqual([]);
+    expect(search(bare(model), "acc").actions).toEqual([]);
   });
 
   it("counts each scope and groups the results in the tabs' order", () => {
@@ -123,10 +138,13 @@ describe("on the synthetic series", () => {
     expect(countOf(found, "devices")).toBe(2);
     expect(countOf(found, "infrastructures")).toBe(1);
     const groups = groupsIn(found, "all");
-    expect(groups.map((g) => g.scope)).toEqual(["devices", "ports", "infrastructures"]);
+    expect(groups.map((g) => g.scope)).toEqual(["devices", "ports", "infrastructures"]); // the query's own action is not a group of its own
+    expect(groups[0].tail && groups[0].tail.kind === "action" && groups[0].tail.id).toBe("hideMatches");
     expect(groupsIn(found, "ports").map((g) => g.scope)).toEqual(["ports"]);
     expect(hitsIn(found, "all")).toHaveLength(found.total);
-    expect(hitsIn(found, "actions")).toEqual([]);
+    expect(hitsIn(found, "actions").map((h) => h.kind === "action" && h.id)).toEqual(["hideMatches"]); // its own tab keeps it
+    const rows = rowsIn(found, "all", {});
+    expect(rows[groups[0].hits.length + (groups[0].more ? 1 : 0)].kind).toBe("action"); // right after the devices (and "N more")
   });
 
   it("finds the group and the cluster of the series", () => {

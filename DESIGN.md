@@ -280,6 +280,7 @@ components:
     width: "48px"
   menu:
     min-width: "200px"
+    max-width: "320px"
   name-form:
     width: "280px"
 ---
@@ -403,7 +404,8 @@ contract with sortable headers, a filter and a column chooser). Its height follo
 with a sticky table head and a 48 px fade at the bottom edge.
 
 **Hide when empty:** the panel without a selection, the "compared" marks without a compared run, the run band with
-a single run, the minimap when toggled off, the panel and the run band while editing.
+a single run, the minimap when toggled off, the panel and the run band while editing (the minimap then takes the
+band's place, bottom right: the palette holds the left).
 
 Responsive: the shell is built for 1280 to 2560 px wide; below 1200 px the context island collapses to the
 infrastructure and the run, and the panel docks to the full height of the right edge. Phone and tablet are not
@@ -527,16 +529,28 @@ popover under the control that opens it.
   rail and the word "comparée"; "Comparer avec…" as a choice.
 - **Canvas controls:** zoom out, zoom level as a word (52 px, a click goes back to 100 %), zoom in | fit, grid
   (toggle), minimap (toggle) | edit (toggle). The minimap, when shown, is an island above the canvas controls: paper,
-  hairline, the island shadow, 16 px from the left edge, 12 px above the controls.
+  hairline, the island shadow, 16 px from the left edge, 12 px above the controls; in edit mode it moves to the run
+  band's place, 16 px from the right edge and the bottom, clear of the palette's foot.
 - **Layer choice** words are 36 px wide at 600; the compared run of the band carries its small word 6 px after its
   date, its rail dashed 4 px on, 3 px off, in ink-3.
 - **Edit palette** (edit mode): a column island at x = 16, 216 px from the top (the approved mockup's `.edit-tools`),
-  nine icon tools in four groups (select | declare a cable, connector | note, shape, table, image, code block | group),
-  each with its key in its tooltip, to the right. The current tool carries the rail under its icon, as every control
+  twelve icon tools in five groups (select | declare a cable, connector | note, shape, table, image, code block | group
+  | hidden devices, undo, redo), each with its key in its tooltip, to the right. The current tool carries the rail under its icon, as every control
   does (the approved mockup; one rail): select when no tool is armed, the connector while it is. The insertion tools
   insert at the centre of the view; shape opens a menu (rectangle, ellipse) hung 12 px to its right; image opens the
   file picker; a tool that cannot act yet is disabled with its reason (declare a cable: in progress; group: a device
-  of the run selected). ↑ ↓ walk the tools (one tab stop). It rises 4 px in 220 ms as edit mode opens.
+  of the run selected). Its foot, past one more hairline: hidden devices (`EyeOff`), undo (`Undo2`, `Ctrl Z`), redo
+  (`Redo2`, `Ctrl Y`). Hidden devices opens a menu hung 12 px to its right, as shape does: a heading, one row per
+  rule of the view, in the address's order, the isolation last, then a hairline and "show all". A row says the
+  gesture that wrote it, its data as written: an exact rule (H on a selection) its names (up to three, else the first
+  two "and N others"), an expression (from the search, or by hand) itself and its count in the run ("ADMIN · 50
+  devices", "· no device" when it keeps none out), the isolation "Isolated: core · 12 hidden". A row chosen lifts its
+  rule as a whole (one gesture, undone in one: fifty devices come back together) and closes the menu. Its tooltip
+  carries the count of devices hidden ("Hidden devices (3)", a device two rules keep out counted once), never a
+  badge on the icon. A hiding is a view rule (the address), not an intention:
+  the contextual bar hides, this menu is the one place of the shell that shows again. Each of the three is disabled with its
+  reason when it has nothing to act on (nothing hidden, nothing to undo, nothing to redo). ↑ ↓ walk the tools (one
+  tab stop). It rises 4 px in 220 ms as edit mode opens.
 - **User button:** the declared author's initial (the `User` icon without a name) opens the name popover: a caption
   ink-3 sentence saying what the name is for, the field (80 characters) and the primary "Save" on one row (Enter
   saves too), and under them, in caption ink-3, whether changes are written. 280 px wide. Accounts will take its place
@@ -617,7 +631,9 @@ popover under the control that opens it.
   keyboard position on accent-weak. A row may carry a shortcut chip on the right, or the check in accent-ink for the
   chosen value of a choice (a `menuitemradio`). A row that deletes turns to the error text on hover and at the
   keyboard position, without a fill (one definition with the danger control). A hairline separates groups (4 px above
-  and below it); a heading in label size ink-3 names the rows under it. 200 px wide at least; 2 px between rows.
+  and below it); a heading in label size ink-3 names the rows under it. 200 px wide at least, 320 px at most (a longer
+  row ends in an ellipsis, its words whole in its accessible name); 2 px between rows. Rows
+  are in sentence case, except a row that names a datum (a hostname): its words as the data writes them.
 - **Surface:** in a popover it takes the popover's paper with 4 px around its rows (a choice's list); alone (the
   context menu) the same surface of its own, at the click point, kept 8 px inside the viewport.
 - **Keys:** ↑ ↓ walk the rows (they wrap), Home and End go to the ends, a letter goes to the next row it starts, Enter

@@ -56,8 +56,9 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   one primitive added: words joined by wires, the current run with the rail, the compared one with a dotted rail and
   "compared", "Compare with…" any earlier run or none). **Orhan's decisions**: Check, Log, L2, L3, Edit, Export and
   Search are present but disabled with the "in progress" tooltip until their brick; the v1 canvas is mounted **read
-  only** (selection, pan and zoom, hover; a drag moves a card locally as the v1 does without a name; the memorized
-  placement is written as in the v1; no intent write, no context menu until brick 6); the map's ground is the
+  only** (selection, pan and zoom, hover; a drag moved a card locally as the v1 does without a name, **until
+  2026-10-17: read mode moves nothing**, a drag pans the view, see brick 6's retouch; the memorized placement of fresh
+  devices is written as in the v1; no intent write, no context menu until brick 6); the map's ground is the
   shell's paper and its grid the quiet dots of the mockup, fixed on the screen (tokens `grid`, `grid.step`,
   `grid.dot` added to `DESIGN.md`; Orhan: the v1 grid was too present; the plan grid and the magnet come with edit
   mode); `grid` and `minimap` join `ld-prefs` under the v1's names (the mockup's defaults: grid on, overview
@@ -120,7 +121,8 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   primitives page before use: `Palette` (`app/src/ui/Palette.tsx`); `Shortcut` gained a drawn key, `Facts` a `snug`
   size (88 px labels), `Scrim` a fade when mounted open; `shellKeyOf` answers Ctrl+K from anywhere; `useDiagram`
   gained `openElement` and `reveal`. The typing never lights the map; Shift+Enter, hide, isolate and the field chips
-  of the v1 are parked. Measured in Chromium (`e2e/search.spec.ts`: Ctrl+K, the groups and counts, ↓ ↓ Enter and the
+  of the v1 are parked (**hide came back on 2026-10-17**, as the query's own action: "Hide these N devices" writes the
+  expression as the view's rule, "Show the N hidden devices" lifts every rule; isolate and the chips stay parked). Measured in Chromium (`e2e/search.spec.ts`: Ctrl+K, the groups and counts, ↓ ↓ Enter and the
   address, Tab, Escape and the kept text, the panel behind, nothing found, an unreadable expression, an action, the
   home) in light, dark and French; captures `.impeccable/planche-recherche/`. Review
   `docs/revues/2026-10-16-recherche.md` (0 critical, 1 high, 7 medium, 13 low; probes in `-sondes/`), **treated the
@@ -189,9 +191,14 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   "remove from a group" (H4, in part), P / H / Ctrl+B and Ctrl+Shift+V (M1, M2), one opener rule (B3, B7); **left for
   a later brick**: the hue of a type, a group's description and frame style, a connector's bend (the v1 inspector's
   fine settings, for the group, annotation and connector panels in edit mode). Decisions to judge in use: `docs/a-juger-a-l-usage.md` (N and G,
-  Escape, insertion at the centre, the mode not in the address, the twelve hues, no undo button, the bar over a
+  Escape, insertion at the centre, the mode not in the address, the twelve hues, the bar over a
   cable, one choice for a paste with secrets, the name on the user button, the plan grid's colour, the canvas's fade
-  on a selected note, Tab to the bar).
+  on a selected note, Tab to the bar). **Retouched on 2026-10-17** after Orhan's first use on his archive: read mode
+  moves nothing (`movable` on the v1 canvas, false outside edit mode: a drag pans); undo and redo buttons at the foot
+  of the palette (decided, out of the list to judge); a "Hidden devices" button and menu in the palette that brings a
+  hidden device back or lifts every rule (`state/hidden.ts`, on `keepByRules`; a hidden device stays hidden after
+  leaving the mode, to judge in use); the code draft and the in-place fields of the v1 robust to React's StrictMode
+  (development only: the draft was abandoned as it opened).
 
 ## Rules every brick obeys
 

@@ -80,6 +80,10 @@
     "minimapShow": "Show the overview",
     "minimapHide": "Hide the overview",
     "openRun": "Open the collection of {{date}}",
-    "compareRun": "Compare with the collection of {{date}}"
+    "compareRun": "Compare with the collection of {{date}}",
+    "hideMatches_one": "Hide this device",
+    "hideMatches_other": "Hide these {{count}} devices",
+    "showHidden_one": "Show the hidden device",
+    "showHidden_other": "Show the {{count}} hidden devices"
   }
 }

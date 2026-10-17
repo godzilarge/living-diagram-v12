@@ -3,7 +3,8 @@
 // one definition with Select and Palette): 32 px, in sentence case, the hover fill under the pointer, the keyboard position on
 // accent-weak; an optional shortcut chip on the right; a chosen value carries the check in accent-ink (a
 // `menuitemradio`); a `danger` row turns to the error text on hover (no fill: one definition with the controls); a
-// separator row is a hairline; a heading row names the rows under it in label size, ink-3. Keys: ↑ ↓ Home End move the
+// separator row is a hairline; a heading row names the rows under it in label size, ink-3; a `verbatim` row (a
+// hostname) keeps the case of its datum. Keys: ↑ ↓ Home End move the
 // focus between rows, Enter and Space choose, a letter goes to the next row it starts; Escape is the holder's
 // (`onEscape`). `focusOnOpen`: the first row takes the focus on mount (the context menu), or the menu itself (a volet:
 // the arrows then start from the top), or nothing.
@@ -28,6 +29,8 @@ export type MenuItem = Readonly<{
   checked?: boolean;
   danger?: boolean;
   disabled?: boolean;
+  /** A datum's name (a hostname): its words as written, never put in sentence case. */
+  verbatim?: boolean;
 }>;
 export type MenuRow = MenuItem | Readonly<{ kind: "separator" }> | Readonly<{ kind: "heading"; label: string }>;
 
@@ -152,6 +155,7 @@ function MenuRowButton({ item, active, onChoose }: { item: MenuItem; active: boo
       data-value={item.id}
       data-active={active ? "" : undefined}
       data-danger={item.danger ? "" : undefined}
+      data-verbatim={item.verbatim ? "" : undefined}
       onClick={choose}
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") return;

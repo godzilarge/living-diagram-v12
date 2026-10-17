@@ -187,6 +187,30 @@ test("an action runs from the palette: the grid toggles, stored in the browser",
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("ld-prefs") || "{}").grid)).toBe(false);
 });
 
+test("an expression hides every device it designates, from the palette; the palette then offers to show them", async ({ page }) => {
+  await openDiagram(page, LIGHT);
+  await page.keyboard.press("Control+k");
+  await field(page).fill("acc");
+  // three devices (two cards and a stub), their ports, and, last, the query's own action
+  await expect(palette(page).getByRole("option").first()).toContainText("dc01-acc-01");
+  const hide = palette(page).getByRole("option", { name: /^Hide these 3 devices/ });
+  await expect(hide).toBeVisible();
+  await page.screenshot({ path: `${CAPTURES}/search-hide-light-cobalt-en.png` });
+  await hide.click();
+  await expect(palette(page)).toHaveCount(0);
+  await expect(page.locator(".react-flow__node-card", { hasText: "dc01-acc-01" })).toHaveCount(0);
+  await expect(page.locator(".react-flow__node-card", { hasText: "dc01-acc-03" })).toHaveCount(0);
+  expect(await address(page)).toMatch(/hide=acc/);
+  // the expression hides what it says: a device that does not contain it stays
+  await expect(page.locator(".react-flow__node-card", { hasText: "dc01-core-01" })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  await field(page).fill("hidden");
+  await palette(page).getByRole("option", { name: /^Show the 3 hidden devices/ }).click();
+  await expect(palette(page)).toHaveCount(0);
+  await expect(page.locator(".react-flow__node-card", { hasText: "dc01-acc-01" })).toBeVisible();
+  expect(await address(page)).not.toMatch(/hide=/);
+});
+
 test("the home: Ctrl+K lists the infrastructures, Enter opens the first", async ({ page }) => {
   await page.clock.setFixedTime(NOW);
   await mockApi(page);

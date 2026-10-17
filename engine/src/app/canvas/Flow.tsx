@@ -70,7 +70,11 @@ const STUB_INSET = (STUB_SLOT.w - STUB_BOX.w) / 2;
 /** La boîte d'un nœud d'équipement au sens de React Flow (sa position est le coin haut gauche de cette boîte). */
 const slotOf = (node: FlowNode): Box => (node.type === "card" ? (node.data as CardData).plan : STUB_SLOT);
 /** Ce que la page règle sur la toile, hors de la vue partagée par l'adresse : des préférences du navigateur. */
-export interface FlowPrefs { grid: boolean; snap: boolean; minimap: boolean; theme: "dark" | "light"; guides: boolean }
+export interface FlowPrefs {
+  grid: boolean; snap: boolean; minimap: boolean; theme: "dark" | "light"; guides: boolean;
+  /** Le coin de la minimap (en bas à gauche par défaut ; l'application v2 la met en bas à droite en mode édition). */
+  minimapPosition?: "bottom-left" | "bottom-right";
+}
 // Les textes que React Flow donne aux lecteurs d'écran, dans la langue de la page et vrais : rien ne se supprime ici,
 // un câble ne se focalise pas (il s'ouvre par la fiche d'un équipement ou par la recherche). React Flow donne la
 // direction d'un déplacement en anglais (`up`, `down`, `left`, `right`) : elle passe par le catalogue.
@@ -120,6 +124,9 @@ export const FloatingHost = createContext<{ toile: Toile; gate: Gate; guides: Gu
 export interface ContextRequest { target: ContextTarget; at: Point; plan: Point }
 export interface FlowProps {
   toile: Toile; prefs: FlowPrefs; editable: boolean;
+  /** Les nœuds se glissent-ils ? Vrai par défaut (la v1 déplace localement même sans nom) ; la coquille v2 le lie au mode
+   *  édition : en lecture, rien ne bouge. */
+  movable?: boolean;
   onAnnotation: (id: string, patch: Partial<AFrame> & { text?: string; content?: TableContent }) => void;
   onConnector: (id: string, patch: ConnectorPatch) => void;
   /** Le nom d'un groupe édité sur son cadre (lot 2 de docs/11). */
@@ -147,7 +154,7 @@ export function Flow(props: FlowProps) {
   );
 }
 
-function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel, onConnectorCreate, onContext, editRequest, toolArmed, onToolDone, onClone, children, onView }: FlowProps) {
+function Inner({ toile, prefs, editable, movable = true, onAnnotation, onConnector, onGroupLabel, onConnectorCreate, onContext, editRequest, toolArmed, onToolDone, onClone, children, onView }: FlowProps) {
   const rf = useReactFlow<FlowNode, FlowEdge>();
   const store = useStoreApi<FlowNode, FlowEdge>();
   const container = useRef<HTMLDivElement>(null);
@@ -507,10 +514,10 @@ function Inner({ toile, prefs, editable, onAnnotation, onConnector, onGroupLabel
         panOnDrag={PAN_BUTTONS} onlyRenderVisibleElements
         minZoom={MIN_ZOOM} maxZoom={MAX_ZOOM} nodeDragThreshold={DRAG_THRESHOLD} selectionKeyCode={armed || space ? null : "Shift"} multiSelectionKeyCode={armed ? null : MULTI_KEYS} elementsSelectable={!armed}
         selectionMode={SelectionMode.Partial} nodesConnectable={false} elevateEdgesOnSelect={false} elevateNodesOnSelect={false}
-        zoomOnDoubleClick={false} deleteKeyCode={null} proOptions={{ hideAttribution: true }} fitView={false} nodesDraggable={!toile.state.control && !armed && !space}
+        zoomOnDoubleClick={false} deleteKeyCode={null} proOptions={{ hideAttribution: true }} fitView={false} nodesDraggable={movable && !toile.state.control && !armed && !space}
         edgesFocusable={false} colorMode={prefs.theme} ariaLabelConfig={ariaLabelConfig}>
         {prefs.grid ? <Background variant={BackgroundVariant.Lines} gap={GRID} lineWidth={1} /> : null}
-        {prefs.minimap ? <MiniMap position="bottom-left" pannable zoomable nodeClassName={minimapClass} nodeBorderRadius={3} /> : null}
+        {prefs.minimap ? <MiniMap position={prefs.minimapPosition ?? "bottom-left"} pannable zoomable nodeClassName={minimapClass} nodeBorderRadius={3} /> : null}
         <SketchLayer sketch={sketch} />
         <CloneLayer ghost={ghost} />
       </ReactFlow>

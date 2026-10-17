@@ -7,6 +7,38 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Edit mode, retouched after Orhan's first use: a still read mode, undo and redo in the palette, the hidden devices
+  back, the code draft under StrictMode** (2026-10-17, `/brique-ui edition` retouch; Orhan's four points after running
+  the v2 on his archive). **Read mode moves nothing** (Orhan: "a move you cannot undo outside edit mode" is an edit): the
+  v1 canvas gained an optional `movable` (default true, the v1 unchanged), the v2 passes `editable`; a drag on a card
+  pans the view; the brick 2 decision "a drag moves a card locally" is replaced (`docs/13-migration-plan.md`). **Undo
+  and redo buttons** at the foot of the edit palette, disabled when their stack is empty, Ctrl+Z / Ctrl+Y in their
+  tooltips (the "no undo button" point of `docs/a-juger-a-l-usage.md`, decided); the undo stack holder re-renders the
+  page on each write. **Hidden devices**: a palette button, disabled when nothing is hidden, opens a `Menu` listing
+  what the view's rules (`hide=`, `only=`) take out of the run, each row brings its device back (out of the exact rule
+  that names it, or into an exact isolation), "Show all" lifts every rule; a device hidden by a hand-written rule in
+  the address is listed disabled (`app/src/state/hidden.ts`, on the engine's `keepByRules`). A hidden device stays
+  hidden after leaving edit mode (the rule lives in the address): to judge in use. **The code draft** abandoned at once
+  ("block abandoned: nothing was saved") was React's StrictMode in development only (`npm run dev`): it unmounts and
+  remounts every effect, and the editor's unmount effect ended the draft; the two v1 unmount effects that save or
+  abandon (`code-edit.tsx`, `inline.tsx`) now decide a microtask later and do nothing when remounted; reproduced and
+  fixed against the dev server, StrictMode kept (it also writes the opening placement twice in development; the
+  second write is stale, 409, absorbed). Along the way: the taller palette (12 tools) met the minimap at the bottom
+  left, so **in edit mode the minimap takes the band's place, bottom right** (`FlowPrefs.minimapPosition`, default
+  unchanged), and the contextual bar's zone reserves it (`zoneOf(width, height, reserved)`: a bar whose span crosses
+  the island stops 12 px above it); the e2e placement mock now merges like the backend (`record` keeps what it has,
+  stale `base_revision` is 409 with the document), which ended a write storm the old mock caused; `Menu` rows can be
+  `verbatim` (a hostname keeps its case); an opener's stale tooltip after its popover closes is fixed in `Tooltip`;
+  the primitives page mounts the real palette foot. **Then Orhan's fifth point, the same day: hide by a pattern from
+  the search.** The palette's query gets its own action, "Hide these N devices", when the expression designates devices
+  (every term a device field): the expression itself becomes the view's rule, as the v1's search did ("ADMIN" hides
+  every hostname that contains it; `ruleOf` writes the engine's grammar), **under the devices it designates** (the
+  devices group's tail, after "N more", out of its count: seen without scrolling past the ports; its own tab keeps it);
+  "Show the N hidden devices" lifts every rule, found by its words, so a reader has a way back too. And **the hidden
+  menu lists rules, not devices** (Orhan: fifty devices hidden by one expression never come back one by one): one row
+  per gesture, the names of an exact rule or the expression with its count, the isolation last; choosing a row lifts
+  that rule as a whole, a rule that named one device brings it back selected and in view (`hiddenRules`, `dropping`,
+  `showRule`). Measured in `e2e/edit.spec.ts` (14) and `e2e/search.spec.ts`; captures `.impeccable/planche-palette-foot/`.
 - **Brick 6 of the v2 migration: edit mode, delivered and reviewed** (2026-10-16, `/brique-ui edition`, taken before
   bricks 4 and 5 were pushed, then rebased on them; the announcement's decisions stand: N and G to the palette in the
   mode, Escape never leaves it, insertion at the centre of the view, the mode out of the address, the contract's twelve

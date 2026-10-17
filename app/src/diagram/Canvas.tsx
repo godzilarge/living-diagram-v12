@@ -1,6 +1,6 @@
 // The canvas: the only component that mounts it (once per run), the v1's drawing unchanged (`engine/src/app/canvas/`,
-// React Flow) inside the v2 shell. Read mode (brick 2): selection, pan and zoom, hover; a drag moves a card locally
-// and the memorized placement is written (the engine's placement host); nothing is written to the intent. Edit mode
+// React Flow) inside the v2 shell. Read mode (brick 2): selection, pan and zoom, hover; nothing moves and nothing is
+// written (Orhan, 2026-10-17: a move that cannot be undone is an edit; the pencil opens everything that moves). Edit mode
 // (brick 6): the v1's hosts are mounted with the canvas (the intent writer under the declared name, the intent host,
 // the undo stack of the infrastructure) and the canvas's gestures write through them (a drag pins, a mixed selection
 // moves in one write, an annotation resizes or is edited in place, the connector tool draws, Alt + drag clones); the
@@ -107,7 +107,7 @@ function pushView(toile: Toile, view: ViewState): boolean {
 type Latest = Pick<CanvasProps, "view" | "insets" | "wanted" | "onSelect" | "onNote" | "onWantedMissing" | "onTouched" | "session" | "editing" | "author" | "edit"> & { t: ReturnType<typeof useText> };
 
 /** The v1's hosts around a toile: the writer under the name, the intent host, the undo stack; the canvas hooks that
- *  go through them, gated by edit mode (in read mode a drag stays local and only the placement is memorized). */
+ *  go through them, gated by edit mode (in read mode nothing drags: `movable` is false on the canvas). */
 function mountHosts(model: Model, latest: { current: Latest }, history: StackHolder, remembered: boolean, graph: () => Toile) {
   const frozen = (): Session => ({ token: latest.current.session().token, infrastructure: model.source.infrastructure });
   const writer = makeWriter(frozen, latest.current.author, noop);
@@ -252,7 +252,18 @@ export function Canvas(props: CanvasProps) {
   const editable = editing && !!author && !!handle && !handle.writer.locked;
   // the read grid is the shell's, fixed on the screen; edit mode shows the plan grid (the one a drag snaps to), the
   // magnet and the guides, as the v1 drew them
-  const flowPrefs = useMemo(() => ({ grid: editing && prefs.grid, snap: editing, minimap: prefs.minimap, theme: prefs.theme, guides: editing }), [prefs, editing]);
+  // in edit mode the minimap takes the run band's place, bottom right (the band hides there; the palette holds the left)
+  const flowPrefs = useMemo(
+    () => ({
+      grid: editing && prefs.grid,
+      snap: editing,
+      minimap: prefs.minimap,
+      theme: prefs.theme,
+      guides: editing,
+      minimapPosition: editing ? ("bottom-right" as const) : ("bottom-left" as const),
+    }),
+    [prefs, editing],
+  );
   const code = useMemo(() => ({ commands: edit, infrastructure: model.source.infrastructure }), [edit, model]);
   const runKey = `${model.source.infrastructure}\u0000${model.source.collector_run_id}`;
   return (
@@ -265,6 +276,7 @@ export function Canvas(props: CanvasProps) {
               toile={toile}
               prefs={flowPrefs}
               editable={editable}
+              movable={editable}
               onAnnotation={onAnnotation}
               onConnector={onConnector}
               onGroupLabel={onGroupLabel}

@@ -37,6 +37,7 @@ export const ALLOWED: ReadonlyMap<string, string> = new Map([
   ["src/edit/focus.ts:.react-flow__node.selected", "a selector (the selected node the focus goes back to), never shown"],
   ["src/edit/focus.ts:image/png,image/jpeg,image/webp", "MIME types (the file input's accept), never shown"],
   ["src/diagram/useEditKeys.ts:[data-float='context-bar']", "a selector (the contextual bar), never shown"],
+  ["src/edit/ContextBar.tsx:.react-flow__minimap", "a selector (the minimap, an island the bar never covers), never shown"],
   ["src/diagram/useEditKeys.ts:Home", "a KeyboardEvent key name compared, never shown"],
   ["src/edit/useToolbarKeys.ts:Home", "a KeyboardEvent key name compared, never shown"],
   ["src/ui/Menu.tsx:Home", "a KeyboardEvent key name compared, never shown"],

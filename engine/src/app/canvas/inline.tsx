@@ -6,11 +6,15 @@ import type { Point } from "../../canvas/layout";
 
 /** La fin d'un champ d'édition en place, une seule fois : Entrée, Échap, la perte du focus, ou sa disparition. La toile
  *  ne monte que ce qui se voit (lot 13 de docs/11) : un nœud sorti du champ démonte son champ, qui enregistre alors
- *  comme s'il était quitté (le navigateur ne signale pas la perte du focus d'un élément retiré). */
+ *  comme s'il était quitté (le navigateur ne signale pas la perte du focus d'un élément retiré) ; décidé une micro-tâche
+ *  plus tard, car le mode strict de React (développement) démonte et remonte aussitôt chaque effet. */
 export function useFinish(onDone: (text: string | null, next?: boolean) => void, initial: string): { finish: (text: string | null, next?: boolean) => void; track: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void } {
-  const done = useRef(false), value = useRef(initial), latest = useRef(onDone);
+  const done = useRef(false), value = useRef(initial), latest = useRef(onDone), mounted = useRef(false);
   latest.current = onDone;
-  useEffect(() => () => { if (!done.current) { done.current = true; latest.current(value.current, false); } }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; queueMicrotask(() => { if (!mounted.current && !done.current) { done.current = true; latest.current(value.current, false); } }); };
+  }, []);
   const finish = (text: string | null, next?: boolean): void => { if (done.current) return; done.current = true; latest.current(text, next); };
   const track = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => { value.current = event.target.value; };
   return { finish, track };

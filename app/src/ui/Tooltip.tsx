@@ -17,7 +17,7 @@ import {
   useTransitionStatus,
 } from "@floating-ui/react";
 import type { Placement } from "@floating-ui/react";
-import { cloneElement, isValidElement, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useState } from "react";
 import type { HTMLProps, ReactElement, ReactNode, Ref } from "react";
 import { EDGE, motionMs, TOOLTIP_OFFSET } from "./geometry";
 import "./Tooltip.css";
@@ -67,6 +67,11 @@ export function useTooltip({ label, shortcut, placement = "bottom", open: forced
     middleware: [offset(TOOLTIP_OFFSET), flip({ padding: EDGE }), shift({ padding: EDGE })],
     whileElementsMounted: autoUpdate,
   });
+  // held shut from outside (its control's popover is open), it forgets a hover that opened it before: closing the
+  // popover must not bring back a tooltip the reader no longer asks for
+  useEffect(() => {
+    if (forced === false) setOpen(false);
+  }, [forced]);
   const hover = useHover(context, { enabled: !controlled, delay: { open: motionMs("tooltip-delay"), close: 0 }, move: false });
   const focus = useFocus(context, { enabled: !controlled });
   const dismiss = useDismiss(context, { enabled: !controlled });

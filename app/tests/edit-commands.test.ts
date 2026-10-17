@@ -93,6 +93,21 @@ describe("the edit commands", () => {
     expect(views[1]).toEqual({ only: "^(a)$" });
   });
 
+  it("writes the search's expression as a rule once, lifts one rule as a whole, lifts every rule", () => {
+    const { commands, views, actions } = harness();
+    commands.hideRule(" admin ");
+    commands.hideRule("admin");
+    expect(views).toEqual([{ hide: ["admin"] }]);
+    commands.hideHosts(["sw-01"]);
+    commands.showRule("^(sw-01)$"); // one device named: it comes back wanted (selected, in view)
+    expect(views[2]).toEqual({ hide: ["admin"], only: "" });
+    expect(actions.filter((a) => a.type === "want")).toEqual([{ type: "want", wanted: { kind: "node", token: "sw-01" } }]);
+    commands.showRule("nothing");
+    commands.showAll();
+    expect(views[3]).toEqual({ hide: [], only: "" });
+    expect(views).toHaveLength(4);
+  });
+
   it("removes a device's pin and hue in one write, only what it has", () => {
     const both = harness(true, fakeHandle({ pinned: ["sw-01"], coloured: ["sw-01"] }));
     both.commands.removeIntent("sw-01");

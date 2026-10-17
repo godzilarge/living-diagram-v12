@@ -29,9 +29,11 @@ export type GroupHit = Readonly<{ kind: "group"; key: string; id: string; label:
 export type ClusterHit = Readonly<{ kind: "cluster"; key: string; id: string; name: string | null; hosts: readonly string[]; mode: string; selection: Selection }>;
 export type NoteHit = Readonly<{ kind: "note"; key: string; id: string; noteKind: "note" | "code"; title: string; line: number; text: string; selection: Selection }>;
 export type InfrastructureHit = Readonly<{ kind: "infrastructure"; key: string; name: string; current: boolean; devices: number | null }>;
-/** The actions the shell can run from the palette; `openRun` and `compareRun` name a collection. */
-export type ActionId = "fit" | "center" | "zoomReset" | "grid" | "minimap" | "edit" | "openRun" | "compareRun";
-export type ActionHit = Readonly<{ kind: "action"; key: string; id: ActionId; runId: string | null; words: string }>;
+/** The actions the shell can run from the palette; `openRun` and `compareRun` name a collection; `hideMatches` is the
+ *  query's own action: hide the devices the typed expression designates (the expression becomes the view's rule, as
+ *  the v1 did: "ADMIN" hides every hostname that contains it); `showHidden` lifts every rule. */
+export type ActionId = "fit" | "center" | "zoomReset" | "grid" | "minimap" | "edit" | "openRun" | "compareRun" | "hideMatches" | "showHidden";
+export type ActionHit = Readonly<{ kind: "action"; key: string; id: ActionId; runId: string | null; words: string; /** `hideMatches`: how many devices, and the rule to write. */ count?: number; rule?: string }>;
 export type Hit = DeviceHit | PortHit | GroupHit | ClusterHit | NoteHit | InfrastructureHit | ActionHit;
 
 /** An infrastructure the page knows (the context island's list, the home's widget). */
@@ -186,7 +188,18 @@ function infrastructures(list: readonly InfrastructureSource[], current: string,
 
 function actions(list: readonly ActionSource[], terms: readonly Term[]): readonly ActionHit[] {
   if (!plain(terms)) return [];
-  return list.filter((item) => matchesAll(terms, item.words)).map((item) => Object.freeze({ kind: "action" as const, key: `x:${item.id}:${item.runId ?? ""}`, id: item.id, runId: item.runId ?? null, words: item.words }));
+  return list.filter((item) => item.id !== "hideMatches" && matchesAll(terms, item.words)).map((item) => Object.freeze({ kind: "action" as const, key: `x:${item.id}:${item.runId ?? ""}`, id: item.id, runId: item.runId ?? null, words: item.words }));
+}
+
+/** The typed expression as the engine's rule (`canvas/query.ts` reads the same grammar: a word per term, `field:regex`,
+ *  hostname by default, case insensitive). */
+export const ruleOf = (terms: readonly Term[]): string => terms.map((t) => (t.explicit ? `${t.field}:` : "") + t.regex.source).join(" ");
+
+/** The query's own action, when the page offers it and the expression designates devices: hide them all. */
+function queryActions(list: readonly ActionSource[], terms: readonly Term[], found: readonly DeviceHit[]): readonly ActionHit[] {
+  const offered = list.find((item) => item.id === "hideMatches");
+  if (!offered || !found.length || !terms.every((t) => isDeviceField(t.field))) return [];
+  return [Object.freeze({ kind: "action" as const, key: "x:hideMatches", id: "hideMatches" as const, runId: null, words: offered.words, count: found.length, rule: ruleOf(terms) })];
 }
 
 export function search(sources: Sources, text: string): Results {
@@ -201,6 +214,7 @@ export function search(sources: Sources, text: string): Results {
     infrastructures: none ? [] : infrastructures(sources.infrastructures, sources.current, terms),
     actions: none ? [] : actions(sources.actions, terms),
   };
+  if (!none && model) found.actions = [...found.actions, ...queryActions(sources.actions, terms, found.devices)];
   const total = found.devices.length + found.ports.length + found.groups.length + found.notes.length + found.infrastructures.length + found.actions.length;
   return Object.freeze({ text, terms, error, empty: none, ...found, total });
 }
@@ -221,16 +235,28 @@ export const shownOf = (scope: Scope, shown: Shown, group: Group_): number => sh
 /** `shown` with one more page for a group. */
 export const showMore = (scope: Scope, shown: Shown, group: Group_): Shown => ({ ...shown, [group]: shownOf(scope, shown, group) + SHOWN_STEP });
 
-export type HitGroup = Readonly<{ scope: Group_; hits: readonly Hit[]; /** The rows beyond the window, said as "N more". */ more: number }>;
+export type HitGroup = Readonly<{
+  scope: Group_;
+  hits: readonly Hit[];
+  /** The rows beyond the window, said as "N more". */
+  more: number;
+  /** A row after "N more", out of the count: the query's own action under the devices it designates. */
+  tail: Hit | null;
+}>;
+
+const queryActionOf = (results: Results): ActionHit | null => results.actions.find((hit) => hit.id === "hideMatches") ?? null;
 
 /** The results a scope shows, grouped by kind in the tabs' order, each group cut to its window, empty groups left
- *  out. Without a window, everything (the pure tests). */
+ *  out. The query's own action ("hide these N devices") sits under the devices group, after "N more", where the
+ *  reader sees it without scrolling past the ports; the actions group keeps it in its own tab only. Without a window,
+ *  everything (the pure tests). */
 export function groupsIn(results: Results, scope: Scope, shown?: Shown): readonly HitGroup[] {
+  const query = queryActionOf(results);
   return SCOPES.filter((s): s is Group_ => s !== "all" && (scope === "all" || s === scope))
     .map((s) => {
-      const all = results[s];
+      const all = s === "actions" && scope === "all" && query ? results.actions.filter((hit) => hit !== query) : results[s];
       const limit = shown ? shownOf(scope, shown, s) : all.length;
-      return { scope: s, hits: all.slice(0, limit), more: Math.max(0, all.length - limit) };
+      return { scope: s, hits: all.slice(0, limit), more: Math.max(0, all.length - limit), tail: s === "devices" ? query : null };
     })
     .filter((group) => group.hits.length > 0);
 }
@@ -241,10 +267,10 @@ export type Row = Hit | MoreRow;
 
 /** The rows the arrows walk, flat and in the list's order: the shown hits, and after a cut group its "more" row. */
 export const rowsIn = (results: Results, scope: Scope, shown?: Shown): readonly Row[] =>
-  groupsIn(results, scope, shown).flatMap((group): Row[] => [...group.hits, ...(group.more ? [{ kind: "more" as const, key: `more:${group.scope}`, scope: group.scope, count: group.more }] : [])]);
+  groupsIn(results, scope, shown).flatMap((group): Row[] => [...group.hits, ...(group.more ? [{ kind: "more" as const, key: `more:${group.scope}`, scope: group.scope, count: group.more }] : []), ...(group.tail ? [group.tail] : [])]);
 
 /** The same hits flat, without the "more" rows. */
-export const hitsIn = (results: Results, scope: Scope, shown?: Shown): readonly Hit[] => groupsIn(results, scope, shown).flatMap((group) => group.hits);
+export const hitsIn = (results: Results, scope: Scope, shown?: Shown): readonly Hit[] => groupsIn(results, scope, shown).flatMap((group) => (group.tail ? [...group.hits, group.tail] : group.hits));
 
 /** Tab and Shift+Tab: the next or previous tab, every tab a choice whatever its count. */
 export function stepScope(scope: Scope, direction: 1 | -1): Scope {

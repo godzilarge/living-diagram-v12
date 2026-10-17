@@ -32,6 +32,7 @@ import type { Item } from "@engine/app/state/selection";
 import type { Action as V1Action, AppState as V1State, NoteOffer } from "@engine/app/state/types";
 import { t as v1 } from "@engine/i18n";
 import { currentAuthor } from "./author";
+import { dropping, exactHosts, showingAll } from "./hidden";
 import type { Action, DiagramState, Tool } from "./diagram";
 import type { ViewState } from "./address";
 import type { PaletteTool } from "./edit-keys";
@@ -68,6 +69,11 @@ export type EditCommands = IntentCommands & ClipboardCommands & CodeCommands & F
   grid: (cols?: number | null) => void;
   hideHosts: (hosts: readonly string[]) => void;
   isolateHosts: (hosts: readonly string[]) => void;
+  /** A rule of the view (the search's expression) that hides every device it designates. */
+  hideRule: (rule: string) => void;
+  /** A rule lifted as a whole, its devices back on the map (`state/hidden.ts`); every rule lifted. */
+  showRule: (rule: string) => void;
+  showAll: () => void;
   /** The hue of a device (null: back to its type's), of several, the pin removed. */
   color: (hostname: string, hue: string | null) => void;
   colorHosts: (hosts: readonly string[], hue: string | null) => void;
@@ -186,6 +192,21 @@ export function makeEditCommands(deps: EditDeps): EditCommands {
       graph()?.select(null);
     },
     isolateHosts: (hosts) => { if (hosts.length) setView({ only: exactRule([...hosts]) }); },
+    hideRule: (rule) => {
+      const text = rule.trim();
+      if (!text || current().view.hide.includes(text)) return;
+      setView({ hide: [...current().view.hide, text] });
+      graph()?.select(null);
+    },
+    // a rule that named one device: it comes back selected and in view (shown where it was, it could be off screen)
+    showRule: (rule) => {
+      const v = current().view, next = dropping(v, rule);
+      if (next === v) return;
+      setView({ hide: next.hide, only: next.only });
+      const named = exactHosts(rule);
+      if (named && named.length === 1 && v.only !== rule) dispatch({ type: "want", wanted: { kind: "node", token: named[0] } });
+    },
+    showAll: () => { const v = current().view, next = showingAll(v); if (next !== v) setView({ hide: next.hide, only: next.only }); },
     color: (hostname, hue) => handle()?.intents.onColor(hostname, hue),
     colorHosts: (hosts, hue) => handle()?.intents.onColors([...hosts], hue),
     unpin: (hosts) => handle()?.intents.unpin([...hosts]),

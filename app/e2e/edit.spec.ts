@@ -3,7 +3,9 @@
 // hide; a device selected gets the mockup's bar above it, with its volets; N inserts a note at the centre of the
 // view, whose bar comes with its size list; Ctrl+Z undoes the insertion; the context menu on a right click; the keys
 // of the palette win over the grid and the overview; nothing is written without a name, which the user button takes;
-// measured (bars, islands, tooltips, contrast) in light, dark and French, with its captures.
+// the palette's foot undoes and redoes, and brings a hidden device back (retouch of 2026-10-17); outside the mode a
+// drag pans the map, nothing moves; measured (bars, islands, tooltips, contrast) in light, dark and French, with its
+// captures.
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { audit } from "./audit";
@@ -70,7 +72,10 @@ for (const variant of VARIANTS) {
     await expect(page.locator(".diagram-panel")).toHaveCount(0);
     await expect(page.getByRole("group", { name: fr ? "Collectes" : "Collections" })).toHaveCount(0);
     await expect(pencil(page, fr)).toHaveAttribute("aria-pressed", "true");
-    await expect(palette(page, fr).getByRole("button")).toHaveCount(9);
+    await expect(palette(page, fr).getByRole("button")).toHaveCount(12);
+    // the foot of the palette: hidden devices, undo and redo, each disabled with its reason while it has nothing to do
+    for (const name of fr ? ["Équipements masqués", "Annuler", "Rétablir"] : ["Hidden devices", "Undo", "Redo"])
+      await expect(palette(page, fr).getByRole("button", { name: new RegExp(`^${name}`) })).toHaveAttribute("aria-disabled", "true");
     await expect(palette(page, fr).getByRole("button", { name: fr ? "Sélectionner" : "Select" })).toHaveAttribute("aria-pressed", "true");
     // the device bar above the selected card
     const deviceBar = bar(page, fr);
@@ -127,9 +132,9 @@ test("N inserts a note at the centre of the view: its bar with the size list; Ct
   await expect.poll(() => api.ops.map((op) => op.op)).toEqual(["annotation_create", "annotation_update"]);
   await page.keyboard.press("Control+z");
   await expect.poll(() => api.ops.length).toBe(3);
+  await expect(page.getByRole("status")).toContainText(/undone/i); // the first undo is written before the second is asked
   await page.keyboard.press("Control+z");
   await expect(page.locator(".react-flow__node").filter({ hasText: "Note" })).toHaveCount(0, { timeout: 5000 });
-  await expect(page.getByRole("status")).toContainText(/undone/i);
 });
 
 test("the keys: N and G belong to the palette, M leaves the mode, Escape puts the tool away then lets go", async ({ page }) => {
@@ -234,4 +239,102 @@ test("P pins, H hides; the group menu adds the device to an existing group by it
   expect(added.members).toEqual([CORE]);
   await page.keyboard.press("h");
   await expect(page.locator(".react-flow__node-card", { hasText: CORE })).toHaveCount(0);
+});
+
+test("read mode moves nothing: a drag on a card pans the whole map, nothing is written", async ({ page }) => {
+  await page.clock.setFixedTime(NOW);
+  const api = await mockApi(page);
+  await open(page, WITH_CORE, LIGHT, { token: TOKEN, author: AUTHOR });
+  await drawn(page);
+  await dismissToast(page);
+  const writes = api.placements.length; // the fresh devices of the run, memorized at the opening (docs/09)
+  const card = page.locator(".react-flow__node-card", { hasText: CORE });
+  const other = page.locator(".react-flow__node-card").filter({ hasNotText: CORE }).first();
+  const [cardBefore, otherBefore] = [await card.boundingBox(), await other.boundingBox()];
+  if (!cardBefore || !otherBefore) throw new Error("the cards are not drawn");
+  await page.mouse.move(cardBefore.x + cardBefore.width / 2, cardBefore.y + cardBefore.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cardBefore.x + cardBefore.width / 2 + 60, cardBefore.y + cardBefore.height / 2 + 60, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const [cardAfter, otherAfter] = [await card.boundingBox(), await other.boundingBox()];
+  if (!cardAfter || !otherAfter) throw new Error("the cards left the screen");
+  expect({ dx: Math.round(cardAfter.x - cardBefore.x), dy: Math.round(cardAfter.y - cardBefore.y) }).toEqual({ dx: 60, dy: 60 });
+  expect({ dx: Math.round(otherAfter.x - otherBefore.x), dy: Math.round(otherAfter.y - otherBefore.y) }).toEqual({ dx: 60, dy: 60 });
+  expect(api.ops).toEqual([]);
+  expect(api.placements.length).toBe(writes);
+});
+
+test("the palette's foot: Undo takes the inserted note back, Redo brings it back, each disabled when its stack is empty", async ({ page }) => {
+  const { api } = await openEditing(page, LIGHT, AT_REST);
+  const undo = palette(page, false).getByRole("button", { name: /^Undo/ });
+  const redo = palette(page, false).getByRole("button", { name: /^Redo/ });
+  await expect(undo).toHaveAttribute("aria-disabled", "true");
+  await page.keyboard.press("n");
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Note" })).toHaveCount(1, { timeout: 5000 });
+  await expect(undo).not.toHaveAttribute("aria-disabled", "true");
+  await expect(redo).toHaveAttribute("aria-disabled", "true");
+  await undo.click();
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Note" })).toHaveCount(0, { timeout: 5000 });
+  await expect(undo).toHaveAttribute("aria-disabled", "true");
+  await expect(redo).not.toHaveAttribute("aria-disabled", "true");
+  await redo.click();
+  await expect(page.locator(".react-flow__node").filter({ hasText: "Note" })).toHaveCount(1, { timeout: 5000 });
+  await expect.poll(() => api.ops.map((op) => op.op)).toEqual(["annotation_create", "annotation_delete", "annotation_create"]);
+});
+
+test("the palette's foot: H hides the device, the palette lists the rule, choosing it brings the device back selected and in view", async ({ page }) => {
+  const { api } = await openEditing(page, LIGHT);
+  const hidden = palette(page, false).getByRole("button", { name: /^Hidden devices/ });
+  await expect(hidden).toHaveAttribute("aria-disabled", "true");
+  await page.keyboard.press("h");
+  await expect(page.locator(".react-flow__node-card", { hasText: CORE })).toHaveCount(0);
+  await expect(hidden).toHaveAccessibleName("Hidden devices (1)");
+  await hidden.click();
+  const menu = page.getByRole("menu", { name: /^Hidden devices/ });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("menuitem")).toHaveCount(2); // the one rule (the device's name), "Show all"
+  await menu.getByRole("menuitem", { name: CORE }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(page.locator(".react-flow__node-card", { hasText: CORE })).toBeVisible();
+  await expect(page.locator(".react-flow__node-card.selected", { hasText: CORE })).toHaveCount(1); // back in view, selected
+  await expect(hidden).toHaveAttribute("aria-disabled", "true");
+});
+
+test("rules written in the address: one row per rule with its count; a rule lifts as a whole; Show all lifts them, memorized once", async ({ page }) => {
+  // two devices by name, the external one by kind; opened with the rules, the three are never placed nor memorized
+  const rules = `hide=${encodeURIComponent("^(dc01-acc-01|dc01-acc-03)$")}&hide=${encodeURIComponent("kind:external")}`;
+  const { api } = await openEditing(page, LIGHT, `${AT_REST}#${rules}`);
+  await expect(page.locator(".react-flow__node-card")).toHaveCount(5);
+  const writes = api.placements.length; // the five shown, memorized at the opening
+  const hidden = palette(page, false).getByRole("button", { name: /^Hidden devices/ });
+  const menu = page.getByRole("menu", { name: /^Hidden devices/ });
+  await expect(hidden).toHaveAccessibleName("Hidden devices (3)");
+  await hidden.click();
+  const rows = menu.getByRole("menuitem");
+  await expect(rows).toHaveCount(3); // the two names, the expression with its count, "Show all"
+  await expect(rows.nth(0)).toContainText("dc01-acc-01");
+  await expect(rows.nth(0)).toContainText("dc01-acc-03");
+  await expect(rows.nth(1)).toContainText("kind:external");
+  await expect(rows.nth(1)).toContainText("1");
+  await page.screenshot({ path: `${CAPTURES}/edit-hidden-light-cobalt-en.png` });
+  // the expression lifted alone: the external device is back, the two named stay hidden
+  await rows.nth(1).click();
+  await expect(menu).toHaveCount(0);
+  await expect(hidden).toHaveAccessibleName("Hidden devices (2)");
+  expect(page.url()).not.toMatch(/external/);
+  expect(page.url()).toMatch(/hide=/);
+  await hidden.click();
+  await expect(menu.getByRole("menuitem")).toHaveCount(2);
+  await menu.getByRole("menuitem", { name: "Show all" }).click();
+  await expect(menu).toHaveCount(0);
+  await page.keyboard.press("f"); // the view fits the whole run: the canvas draws the visible cards only
+  await expect(page.locator(".react-flow__node-card")).toHaveCount(8, { timeout: 5000 });
+  await expect(hidden).toHaveAttribute("aria-disabled", "true");
+  expect(page.url()).not.toMatch(/hide=/);
+  // the devices placed fresh are memorized once per lift (the external one, then the two named): the document grows
+  // (the API keeps what it has), no storm
+  await expect.poll(() => api.placements.length).toBe(writes + 2);
+  await page.waitForTimeout(500);
+  expect(api.placements.length).toBe(writes + 2);
 });

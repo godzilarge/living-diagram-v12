@@ -85,6 +85,12 @@
     "minimapShow": "Afficher la vue d'ensemble",
     "minimapHide": "Masquer la vue d'ensemble",
     "openRun": "Ouvrir la collecte du {{date}}",
-    "compareRun": "Comparer avec la collecte du {{date}}"
+    "compareRun": "Comparer avec la collecte du {{date}}",
+    "hideMatches_one": "Masquer cet équipement",
+    "hideMatches_many": "Masquer ces {{count}} équipements",
+    "hideMatches_other": "Masquer ces {{count}} équipements",
+    "showHidden_one": "Afficher l'équipement masqué",
+    "showHidden_many": "Afficher les {{count}} équipements masqués",
+    "showHidden_other": "Afficher les {{count}} équipements masqués"
   }
 }

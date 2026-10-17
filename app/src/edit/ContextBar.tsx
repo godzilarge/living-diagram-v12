@@ -24,6 +24,7 @@ import { barLabel, entriesOf } from "../state/bars";
 import type { BarButton, BarEntry } from "../state/bars";
 import { runBar } from "../state/bar-actions";
 import { placeBar, toScreen, zoneOf } from "../state/bar-place";
+import type { Rect } from "../state/bar-place";
 import { barIcon } from "./icons";
 import { useToolbarKeys } from "./useToolbarKeys";
 import { VoletButton } from "./Volets";
@@ -92,13 +93,20 @@ function Bar({ toile, gate, edit, revision, tool }: ContextBarProps & { toile: T
   const targetRef = useRef<Target | null>(target);
   targetRef.current = target;
 
+  // the minimap, when shown, is an island inside the zone (bottom right in edit mode): a bar never covers it
+  const islandIn = (area: HTMLElement): Rect | null => {
+    const mini = area.querySelector(".react-flow__minimap");
+    if (!mini) return null;
+    const r = mini.getBoundingClientRect(), a = area.getBoundingClientRect();
+    return { x: r.left - a.left, y: r.top - a.top, w: r.width, h: r.height };
+  };
   // the place, from the view, the geometry and the bar's own width: set on the element, never in a style attribute
   const place = useCallback((): void => {
     const element = island.current, area = element?.parentElement, aimed = targetRef.current;
     if (!element || !area || !aimed) return;
     const [x, y, zoom] = store.getState().transform;
     const plane = anchorOf(aimed.kind === "multi" ? aimed.multi : toile.state.multi, geometryOf(toile));
-    const spot = plane ? placeBar(toScreen(plane, { x, y, zoom }), element.offsetWidth, zoneOf(area.clientWidth, area.clientHeight)) : null;
+    const spot = plane ? placeBar(toScreen(plane, { x, y, zoom }), element.offsetWidth, zoneOf(area.clientWidth, area.clientHeight, islandIn(area))) : null;
     if (!spot) {
       element.setAttribute("data-offscreen", "");
       return;

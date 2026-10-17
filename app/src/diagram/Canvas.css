@@ -44,3 +44,8 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+
+/* in edit mode it takes the run band's place: bottom right, 16 px from the right edge and the bottom */
+.diagram-canvas .flow-host .react-flow__minimap.react-flow__panel.right {
+  margin: 0 var(--space-lg) var(--space-lg) 0;
+}

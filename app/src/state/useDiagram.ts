@@ -80,8 +80,10 @@ export function useDiagram(insetsOf: () => Insets, notify: (note: Note | null) =
   const handleRef = useRef<CanvasHandle | null>(null);
   const opening = useRef(0);
   // the undo stack: one per infrastructure (the intent is), it crosses the runs; the canvas's undo controller reads it
+  // its writes re-render the page: the palette's undo and redo buttons read the stack
   const stackRef = useRef<Stack>(emptyStack());
-  const undoStack = useMemo<StackHolder>(() => ({ owner: () => stateRef.current.address.infrastructure, get: () => stackRef.current, set: (stack) => { stackRef.current = stack; } }), []);
+  const [, setStackVersion] = useState(0);
+  const undoStack = useMemo<StackHolder>(() => ({ owner: () => stateRef.current.address.infrastructure, get: () => stackRef.current, set: (stack) => { stackRef.current = stack; setStackVersion((n) => n + 1); } }), []);
   const session = useCallback((): Session => ({ token: readToken(), infrastructure: stateRef.current.address.infrastructure }), []);
 
   const refuse = useCallback(() => {

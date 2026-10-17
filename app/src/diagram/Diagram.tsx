@@ -20,6 +20,7 @@ import type { DiagramState, RunState } from "../state/diagram";
 import type { EditKey } from "../state/edit-keys";
 import type { EditCommands, Note } from "../state/edit-commands";
 import { useAuthor } from "../state/author";
+import { hiddenOf, hiddenRules } from "../state/hidden";
 import type { StackHolder } from "@engine/app/canvas/undo";
 import type { ContextRequest } from "@engine/app/canvas/Flow";
 import type { Model } from "@engine/canvas/types";
@@ -205,12 +206,14 @@ export function Diagram() {
   const run = state.run;
   const model = run.kind === "ready" ? run.model : null;
   const editing = state.editing;
+  const hidden = useMemo(() => (model ? hiddenRules(model.nodes, model.links, state.view) : []), [model, state.view]);
+  const hiddenCount = useMemo(() => (model ? hiddenOf(model.nodes, model.links, state.view).length : 0), [model, state.view]);
   // the panel and the band hide while editing (DESIGN.md, Hide when empty)
   const shown = !!model && !editing && hasPanel(model, state.selection);
   const width: Width | null = shown ? (focus ? "focus" : prefs.panel) : null;
   const insets = useMemo(() => chromeWith(width), [width]);
   insetsRef.current = insets;
-  const search = useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure: openInfrastructure });
+  const search = useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure: openInfrastructure, hidden: hiddenCount });
   const panel: PanelControl = { shown, focus, setFocus, onSearch: search.control.onOpen };
   // edit mode's keys first (they stop there), then the shell's
   const clipboard = useMemo(
@@ -280,7 +283,16 @@ export function Diagram() {
         <ToolsIsland search={search.control} />
       </div>
       {/* edit mode's palette, on the left (DESIGN.md, Edit palette) */}
-      {editing && model && !blocked ? <EditPalette tool={state.tool} canGroup={state.hosts.some((host) => isDevice(model, host))} edit={commands.edit} /> : null}
+      {editing && model && !blocked ? (
+        <EditPalette
+          tool={state.tool}
+          canGroup={state.hosts.some((host) => isDevice(model, host))}
+          edit={commands.edit}
+          history={{ undo: history.get().undo.length > 0, redo: history.get().redo.length > 0 }}
+          hidden={hidden}
+          hiddenCount={hiddenCount}
+        />
+      ) : null}
       {blocked ? <StateIsland blocked={blocked} onConnect={commands.connect} /> : null}
       {/* the panel of the selected element, before the canvas in the DOM: Tab reaches it before the cards */}
       {model && width ? (

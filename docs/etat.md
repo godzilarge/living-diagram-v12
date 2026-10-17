@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-16** (refonte UI : brique 5, réglages et langue, livrée et revue ; prochaine brique : le mode édition).
+**Dernière mise à jour : 2026-10-17** (refonte UI : brique 6, le mode édition, livrée, poussée et retouchée après le premier essai d'Orhan ; prochaine brique : Contrôle et Journal).
 
 ## Fait
 
@@ -111,9 +111,27 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   attend le 1228 ; `LD_CHROMIUM=<chemin>` dans `app/playwright.config.ts` choisit le binaire) ; moteur et contrats
   verts ; backend 643 avec trois échecs propres à cette machine (Chromium cherché sous `~/.cache/ms-playwright`,
   Node 22.22 refusant `node --test <dossier>`, un motif `tests/js/*.test.js` passe). Captures
-  `.impeccable/planche-edition/` (non versionnées : remises à Orhan). **Non commité** : le commit est proposé dans
-  le dernier message de la session. Orhan n'a pas encore jugé les planches du panneau, de la recherche, des réglages
-  ni de l'édition : ses retours passent avant la brique 7.
+  `.impeccable/planche-edition/` (non versionnées : remises à Orhan). **Commitée 8a30e6f, poussée** sur
+  `claude/keen-dirac-d907ei`. **Retouche du 2026-10-17** après le premier essai d'Orhan sur son archive (cinq
+  points, tous traités) : **la lecture ne bouge rien** (option `movable` de la toile v1, fausse hors mode édition ; un
+  glisser sur une fiche déplace la vue ; la décision « glisser local » de la brique 2 est remplacée) ; **Annuler /
+  Rétablir** au pied de la palette (désactivés pile vide, Ctrl+Z / Ctrl+Y en infobulle ; point « à juger » tranché) ;
+  **Équipements masqués** : bouton de la palette et menu (`app/src/state/hidden.ts` sur `keepByRules`) qui liste **une
+  ligne par règle** (les noms d'un masquage à la main, l'expression avec son compte, l'isolement en dernier) ; la
+  choisir lève la règle entière, « Tout afficher » lève tout ; **masquer par motif depuis la recherche** : l'action
+  de requête « Masquer ces N équipements » quand l'expression désigne des équipements (l'expression devient la règle
+  de vue, comme la v1 : `ADMIN` masque tout nom qui le contient), « Afficher les N équipements masqués » dès que
+  quelque chose est masqué (la lecture a son retour) ; isoler et les chips restent parqués ; **le brouillon de code abandonné à l'ouverture** était le mode strict de React en dev seulement, les
+  deux démontages de la v1 qui enregistrent (`code-edit.tsx`, `inline.tsx`) décident une micro-tâche plus tard. Au
+  passage : la minimap passe en bas à droite en mode édition (la palette à douze outils la touchait ; la zone de la
+  barre contextuelle la réserve), le simulateur d'API e2e fusionne le placement comme le backend (tempête d'écritures
+  du simulateur corrigée), `Menu` ligne `verbatim`, infobulle périmée d'un ouvreur corrigée, bundle v1 `app.js`
+  reconstruit ; `Menu` borné à 320 px avec ellipse (jeton `menu.max-width`). Suites : app check 243, `e2e/edit.spec.ts` 14,
+  `e2e/search.spec.ts` 13 ; `measure.spec` : six écarts sous-pixel identiques sur
+  `origin/main` avec le Chromium 1194 (environnement) ; moteur vert. Captures `.impeccable/planche-palette-foot/`
+  remises à Orhan. **Commitée et poussée** à la demande d'Orhan. Orhan n'a pas
+  encore jugé les planches du panneau, de la recherche, des réglages ni de l'édition : ses retours passent avant la
+  brique 7.
   Serveur de test pour Orhan : `:8018/next/` sur `bac-a-sable/accueil-data/archive-six`, jeton `demo` (démarré à
   la main : `cd backend && LD_API_TOKEN=demo LD_ARCHIVE_DIR=../bac-a-sable/accueil-data/archive-six uv run uvicorn
   ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build` ; il sert

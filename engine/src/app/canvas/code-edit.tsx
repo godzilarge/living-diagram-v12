@@ -61,15 +61,23 @@ export function CodeEditor({ w, h, size, font, numbers, initial, saved = "", fir
   };
   // Démonté sans fin (la toile ne monte que ce qui se voit, lot 13) : enregistré comme quitté, sauf s'il porte une valeur
   // sensible nouvelle non vue (jamais enregistrée en silence) : le texte est rendu à la page (`onLeave`), qui le garde en
-  // attente et le dit ; jamais perdu (revue, M1). Un brouillon s'abandonne (la page le dit).
-  useEffect(() => () => {
-    if (finished.current) return;
-    finished.current = true;
-    const text = normalizeCode(value.current);
-    if (!saveOnLeave) { latest.current(null, "plain", 0); return; }
-    // (de même un texte trop long : refusé à l'enregistrement, il serait perdu ; il attend, et se dit au retour)
-    if ((newSecrets(text, saved).length || text.length > CODE_MAX) && leave.current) { leave.current(text); return; }
-    latest.current(text.trim() ? text : null, "plain", 0);
+  // attente et le dit ; jamais perdu (revue, M1). Un brouillon s'abandonne (la page le dit). Décidé une micro-tâche plus
+  // tard : le mode strict de React (développement) démonte et remonte aussitôt chaque effet ; un éditeur remonté n'a pas fini.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      queueMicrotask(() => {
+        if (mounted.current || finished.current) return;
+        finished.current = true;
+        const text = normalizeCode(value.current);
+        if (!saveOnLeave) { latest.current(null, "plain", 0); return; }
+        // (de même un texte trop long : refusé à l'enregistrement, il serait perdu ; il attend, et se dit au retour)
+        if ((newSecrets(text, saved).length || text.length > CODE_MAX) && leave.current) { leave.current(text); return; }
+        latest.current(text.trim() ? text : null, "plain", 0);
+      });
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     setVars(box.current, { "--ce-top": CODE.HEAD + "px", "--ce-h": Math.max(lh * 3, h - CODE.HEAD) + "px", "--ce-fs": size + "px", "--ce-lh": lh + "px",

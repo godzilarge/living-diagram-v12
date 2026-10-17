@@ -4,6 +4,7 @@
   flex-direction: column;
   gap: var(--space-2xs);
   min-width: var(--menu-min-width);
+  max-width: var(--menu-max-width);
   outline: 0;
 }
 
@@ -25,9 +26,22 @@
   text-align: start;
 }
 
+/* a row longer than the menu's widest ends in an ellipsis (a rule written by hand, a long group name): the menu never
+   grows without bound; the row's words stay whole in its accessible name */
+.ui-menu-item .ui-option-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* sentence case, whatever the words' source (the v1's menu writes them in lower case for its own sentences) */
 .ui-menu-item .ui-option-text::first-letter {
   text-transform: uppercase;
+}
+
+/* a datum's name (a hostname) as written: the front never rewrites what the data says */
+.ui-menu-item[data-verbatim] .ui-option-text::first-letter {
+  text-transform: none;
 }
 
 .ui-menu-item .ui-shortcut {

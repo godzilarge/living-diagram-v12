@@ -27,7 +27,7 @@ export function rowName(t: Translate, hit: Hit): string {
     case "cluster": return hit.name ?? t("search:row.clusterOf", { hosts: hostsWords(t, hit.hosts) });
     case "note": return hit.title || hit.text;
     case "infrastructure": return hit.name;
-    case "action": return hit.words;
+    case "action": return hit.id === "hideMatches" ? t("search:actions.hideMatches", { count: hit.count ?? 0 }) : hit.words;
   }
 }
 
@@ -88,8 +88,10 @@ export type ActionContext = Readonly<{
   selected: string | null;
   grid: boolean;
   minimap: boolean;
-  /** Edit mode on: the action leaves it. Left out (the home): no edit action. */
+  /** Edit mode on: the action leaves it. Left out (the home): no edit action, no hiding. */
   editing?: boolean;
+  /** How many devices the view hides: "show the hidden devices" when some are. */
+  hidden?: number;
   /** The archived runs, oldest first, and the one shown. */
   runs: readonly RunEntry[];
   current: string;
@@ -109,6 +111,9 @@ export function actionSources(t: Translate, context: ActionContext): readonly Ac
     { id: "grid", words: t(context.grid ? "search:actions.gridHide" : "search:actions.gridShow") },
     { id: "minimap", words: t(context.minimap ? "search:actions.minimapHide" : "search:actions.minimapShow") },
     ...(context.editing === undefined ? [] : [{ id: "edit" as const, words: t(context.editing ? "edit:mode.actionLeave" : "edit:mode.action") }]),
+    // the query's own action (its words come with the count, `rowName`), offered on the diagram page only
+    ...(context.editing === undefined ? [] : [{ id: "hideMatches" as const, words: "" }]),
+    ...(context.hidden ? [{ id: "showHidden" as const, words: t("search:actions.showHidden", { count: context.hidden }) }] : []),
   ];
   const open = [...context.runs].reverse().filter((run) => run.run_id !== context.current).map((run): ActionSource => ({ id: "openRun", runId: run.run_id, words: t("search:actions.openRun", { date: date(run) }) }));
   const compare = context.compare.map((run): ActionSource => ({ id: "compareRun", runId: run.run_id, words: t("search:actions.compareRun", { date: date(run) }) }));

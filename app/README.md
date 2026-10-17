@@ -45,7 +45,7 @@ and its parts, the placement writer, the images) · `src/state/` pure modules (t
 address, the band's rules, the zoom, the diff facts, the diagram reducer, the shell keys) and the hooks that load
 (`useHome`, `useDiagram`) · `src/home/` the home · `src/diagram/` the diagram shell: the islands, the canvas controls,
 the run band, and `Canvas.tsx`, the only component that mounts the v1 canvas (`@engine/app/canvas`, React Flow, its
-own styles and i18n instance; read only until brick 6) · `src/panel/` the panel of the selected element (a device, a
+own styles and i18n instance; nothing moves outside edit mode) · `src/panel/` the panel of the selected element (a device, a
 cable, an aggregate, a bundle, an HA cluster; `state/panel.ts` holds its pure logic: rows, neighbours seen by LLDP or
 CDP, scope, filter, sort, alerts by code, structures) · `src/search/` the search palette (`state/search.ts` holds
 its pure logic; the page opens what is chosen: `diagram/useSearch.ts`, `home/useHomeSearch.ts`) · `src/i18n/` i18next, catalogues `en` / `fr` (`ui`, `shell`,

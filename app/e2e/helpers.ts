@@ -35,11 +35,17 @@ export type ApiMock = {
   delayRuns?: number;
   /** The placement documents written by the page (POST /api/placement), in order. */
   placements: unknown[];
+  /** The memorized placement, as the page's writes grow it by the backend's rule (`record` keeps what is memorized
+   *  and adds the fresh places; `replace` takes the write as it is; a stale `base_revision` is refused with the
+   *  current document, 409); read back by GET /api/placement. */
+  placement?: PlacementDoc;
   /** The intent document, as the page's writes (POST /api/intent/patches) grow it; read back by GET /api/intent. */
   intent?: IntentDoc;
   /** Every operation the page wrote, in order. */
   ops: Record<string, unknown>[];
 };
+
+type PlacementDoc = { infrastructure: string; revision: number; updated_at: string | null; places: { hostname: string }[] };
 
 type IntentDoc = {
   intent_version: string; infrastructure: string; revision: number; updated_at: string | null;
@@ -217,12 +223,18 @@ function diagramRoute(url: URL, method: string, postData: () => unknown, state: 
       return { json: state.intent };
     }
     case "/api/placement": {
+      state.placement ??= { ...(diagramFixture("placement.json") as PlacementDoc), infrastructure };
       if (method === "POST") {
-        const write = postData() as { places: unknown[] };
+        const write = postData() as { base_revision: number; replace: boolean; places: { hostname: string }[] };
         state.placements.push(write);
-        return { json: { infrastructure, revision: state.placements.length, updated_at: "2026-01-19T19:30:00Z", places: write.places } };
+        if (write.base_revision !== state.placement.revision) return { status: 409, json: state.placement }; // the backend answers the current document itself
+        const known = new Set(state.placement.places.map((place) => place.hostname));
+        const places = write.replace ? write.places : [...state.placement.places, ...write.places.filter((place) => !known.has(place.hostname))];
+        if (!write.replace && places.length === state.placement.places.length) return { json: state.placement };
+        state.placement = { ...state.placement, revision: state.placement.revision + 1, updated_at: "2026-01-19T19:30:00Z", places };
+        return { json: state.placement };
       }
-      return { json: { ...(diagramFixture("placement.json") as object), infrastructure } };
+      return { json: state.placement };
     }
     case "/api/diff": {
       const diff = fullDiffOf(url.searchParams.get("from") ?? "", url.searchParams.get("to") ?? "");

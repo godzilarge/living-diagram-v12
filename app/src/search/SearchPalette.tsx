@@ -48,6 +48,8 @@ function paletteGroups(t: Translate, results: Results, scope: Scope, shown: Show
     rows: [
       ...group.hits.map((hit) => ({ id: hit.key, icon: hitIcon(hit), name: segmentsOf(rowName(t, hit), results.terms), detail: rowDetail(t, hit) })),
       ...(group.more ? [{ id: `more:${group.scope}`, icon: <Ellipsis />, name: t("search:more", { count: group.more }), variant: "more" as const }] : []),
+      // the query's own action, under the devices it designates, out of the group's count
+      ...(group.tail ? [{ id: group.tail.key, icon: hitIcon(group.tail), name: segmentsOf(rowName(t, group.tail), results.terms), detail: rowDetail(t, group.tail) }] : []),
     ],
   }));
 }
