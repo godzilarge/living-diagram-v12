@@ -93,4 +93,6 @@ def test_start_needs_an_infrastructure_and_action_and_object_filter(client: Test
     lone = client.get(JOURNAL_URL, params={"object": "g1-1"}, headers=auth)
     assert lone.status_code == 422 and lone.json()["errors"][0]["path"] == "object", "identité par infrastructure"
     history = client.get(JOURNAL_URL, params={"object": "sw-core-01", **LAB}, headers=auth).json()
+    several = client.get(JOURNAL_URL, params={"object": ["sw-core-01", "g1-1"], **LAB}, headers=auth).json()
+    assert several["total"] >= history["total"], "`object` répétable : l'un ou l'autre"
     assert [e["revision"] for e in history["entries"]] == [1], "membre du groupe créé"

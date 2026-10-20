@@ -210,7 +210,10 @@
   },
   "menu": {
     "label": "Menu contextuel",
-    "history": "Historique"
+    "history": "Historique",
+    "historyMany_one": "Historique de {{count, number}} équipement",
+    "historyMany_other": "Historique de {{count, number}} équipements",
+    "historyMany_many": "Historique de {{count, number}} équipements"
   },
   "keys": {
     "delete": "Suppr",

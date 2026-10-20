@@ -30,7 +30,7 @@ import type { Model } from "@engine/canvas/types";
 import type { Insets } from "../state/zoom";
 import type { Session } from "../api/run";
 import { useInfrastructures } from "../state/useInfrastructures";
-import { historyObjectOf } from "../state/journal";
+import { historyObjectsOf } from "../state/journal";
 import { useJournal } from "../state/useJournal";
 import { Journal } from "../journal/Journal";
 import { SearchPalette } from "../search/SearchPalette";
@@ -262,7 +262,8 @@ export function Diagram() {
     () => ({ device: (hostname: string) => formatSearch(state.address) + formatHash(state.view, { kind: "node", token: hostname }) }),
     [state.address, state.view],
   );
-  const historyObject = state.selection ? historyObjectOf(state.selection) : null;
+  // the panel's History: the element read, or the selected devices when there are several
+  const historyObjects = state.hosts.length > 1 ? state.hosts : state.selection ? historyObjectsOf(state.selection) : [];
   const actions = useMemo(
     () => ({
       onWiden: () => {
@@ -273,9 +274,9 @@ export function Diagram() {
       onCentre: () => commands.center(),
       onClose: () => commands.select(null, []),
       // the Log on the selected element, for what the log names (the context menu's History row, reachable from the keyboard here)
-      ...(historyObject ? { onHistory: () => commands.openHistory(historyObject) } : {}),
+      ...(historyObjects.length ? { onHistory: () => commands.openHistory(historyObjects) } : {}),
     }),
-    [commands, prefs, setPrefs, historyObject],
+    [commands, prefs, setPrefs, historyObjects],
   );
   const blocked = blockedOf(t, state);
   return (

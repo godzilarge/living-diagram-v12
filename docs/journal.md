@@ -7,6 +7,15 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Log: the History row acts on the selection** (2026-10-20, Orhan's first test: "with several devices selected,
+  History seems to take one device only"). The row took the device aimed at alone, and the API accepted one `object`.
+  Now `GET /api/intent/journal` takes `object` **repeatable** (an entry is kept when it cites any of them;
+  `JournalQuery.objects`, README), the filters carry `objects` (`jobj` repeatable in the address, the v1's single `jobj`
+  still reads), the context menu's row says "History of N devices" and acts on the selection when the device aimed at
+  belongs to it (the rule of hide and isolate), the panel's History button does the same for a multiple selection, the
+  Log's context line names up to three objects, else their count. Backend 35 tests of the journal green, ruff green;
+  app check 264; `e2e/journal.spec.ts` 7 (a multi-selection case added).
+
 - **Brick 7, the Log view (J1) and the History row of the context menu** (2026-10-20, `/brique-ui controle` with
   Orhan's choice: "definitely J1 for the Log", Check still under judgement; Orhan's two remarks: the bench page
   "packed on the left, lacks balance", and a "Log / History" row in the context menu of every element). **Balance**:

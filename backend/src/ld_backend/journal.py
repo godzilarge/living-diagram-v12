@@ -165,7 +165,7 @@ class JournalQuery:
     before: str | None = None
     limit: int = DEFAULT_LIMIT
     actions: tuple[str, ...] = ()
-    object: str | None = None  # l'historique d'un objet : hostname ou identité (`g…`, `a…`, `c…`)
+    objects: tuple[str, ...] = ()  # l'historique d'objets : hostnames ou identités (`g…`, `a…`, `c…`), l'un ou l'autre
     start: int | None = None  # le lien vers une entrée : la page commence à cette révision (ignoré avec `before`)
 
 
@@ -510,7 +510,7 @@ class JournalReader:
         return lines, unreadable
 
     def page(self, query: JournalQuery) -> JournalPage:
-        if query.infrastructure is None and (query.object is not None or query.start is not None):
+        if query.infrastructure is None and (query.objects or query.start is not None):
             raise JournalScopeError("object et start demandent une infrastructure")  # revue, M3 : jamais mêlés
         cursor = _decode(query.before) if query.before else None
         lines, unreadable = self._all(query.infrastructure)
@@ -525,7 +525,7 @@ class JournalReader:
                 and (skip == "author" or not query.authors or e.author in query.authors)
                 and (skip == "category" or not query.categories or any(c in query.categories for c in e.categories))
                 and (skip == "action" or not query.actions or any(a in query.actions for a in e.actions))
-                and (query.object is None or query.object in line.refs)
+                and (not query.objects or any(obj in line.refs for obj in query.objects))
                 and (since is None or line.key[0] >= since)
                 and (until is None or line.key[0] < until)
                 and all(word in line.haystack for word in words)

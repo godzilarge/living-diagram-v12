@@ -333,7 +333,10 @@
     "actions": "Entry actions",
     "goneSaid": "({{gone}})",
     "showNamed": "Show {{name}} in the diagram",
-    "keyO": "o"
+    "keyO": "o",
+    "andLast": "{{list}} and {{last}}",
+    "objectsCount_one": "{{count, number}} object",
+    "objectsCount_other": "{{count, number}} objects"
   },
   "firstDay": "1"
 }

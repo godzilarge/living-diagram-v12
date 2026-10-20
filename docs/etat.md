@@ -150,7 +150,8 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   reste montée dessous (`inert`) ; **le menu du clic droit s'ouvre aussi en lecture** avec les lignes lecture de la v1
   et **« Historique » en tête** pour équipement, groupe, annotation, connecteur (Retour ramène au diagramme) ;
   l'accueil passe sur la primitive `Feed` et la grammaire du Journal (M5 de la revue de l'accueil) ; le panneau porte
-  un bouton « Historique » (revue H3) ; « Ouvrir le
+  un bouton « Historique » (revue H3) ; **Historique agit sur la sélection** (premier essai d'Orhan : `object`
+  répétable côté API, `jobj` répétable dans l'adresse, « Historique de N équipements ») ; « Ouvrir le
   journal » ouvre le Journal de toutes les infrastructures. Logique v1 portée dans `app/src/state/journal*.ts`,
   `useJournal.ts`, `api/journal.ts`, filtres dans l'adresse (`address.ts`, écrits en mode journal seulement) ;
   catalogue `journal` fr / en ; primitives `Facets` et `Feed` dans `DESIGN.md` et la page vivante, `Segmented` avec

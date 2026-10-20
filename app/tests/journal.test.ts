@@ -5,7 +5,7 @@ import type { JournalEntry, JournalOp } from "../src/api/journal";
 import { setLanguage } from "../src/i18n";
 import { DEFAULT_VIEW, formatHash, parseHash } from "../src/state/address";
 import {
-  byDay, dayLabel, DEFAULT_FILTERS, entriesOf, entryLink, filtered, firstEntry, fold, formatFilters, historyObjectOf, isTrace, keyOf, localDay, mergedOp,
+  byDay, dayLabel, DEFAULT_FILTERS, entriesOf, entryLink, filtered, firstEntry, fold, formatFilters, historyObjectsOf, isTrace, keyOf, localDay, mergedOp,
   newer, parseFilters, queryOf, rangeLabel, sameFilters, sessionHosts, timeLabel, zoneLabel,
 } from "../src/state/journal";
 import { merged, reloadLimit } from "../src/state/journal-load";
@@ -28,19 +28,20 @@ describe("the log's filters", () => {
     expect(formatFilters(DEFAULT_FILTERS)).toEqual([]);
     expect(filtered(DEFAULT_FILTERS)).toBe(false);
     expect(filtered({ ...DEFAULT_FILTERS, rev: 3 }), "a link to an entry narrows nothing").toBe(false);
-    expect(filtered({ ...DEFAULT_FILTERS, object: "x" })).toBe(true);
+    expect(filtered({ ...DEFAULT_FILTERS, objects: ["x"] })).toBe(true);
   });
 
   it("tolerates what it does not know and drops what cannot hold", () => {
-    const f = parseFilters([["jcat", "groups,teleport"], ["jp", "1y"], ["jau", ""], ["jau", "bob"], ["jau", "bob"], ["jrev", "12"], ["jobj", "g1-1"]]);
+    const f = parseFilters([["jcat", "groups,teleport"], ["jp", "1y"], ["jau", ""], ["jau", "bob"], ["jau", "bob"], ["jrev", "12"], ["jobj", "g1-1"], ["jobj", "dc01"], ["jobj", "g1-1"]]);
     expect(f.categories).toEqual(["groups"]);
     expect(f.period).toBe("all");
     expect(f.authors).toEqual(["bob"]);
     expect(f.rev).toBe(12);
-    expect(f.object).toBe("g1-1");
+    expect(f.objects, "`jobj` repeats: the history of a selection, once each").toEqual(["g1-1", "dc01"]);
+    expect(formatFilters(f).filter((part) => part.startsWith("jobj="))).toEqual(["jobj=g1-1", "jobj=dc01"]);
     // "all infrastructures": neither an object's history nor a link (unique in their infrastructure only)
     const all = parseFilters([["jinfra", "*"], ["jrev", "12"], ["jobj", "g1-1"]]);
-    expect(all.object).toBe("");
+    expect(all.objects).toEqual([]);
     expect(all.rev).toBeNull();
     // a range without a bound is no range
     expect(parseFilters([["jp", "range"]]).period).toBe("all");
@@ -64,12 +65,12 @@ describe("the log's filters", () => {
   });
 
   it("make the query: the infrastructure open by default, the period since now, a link's start without a cursor", () => {
-    const f = { ...DEFAULT_FILTERS, q: " cœur ", authors: ["a", "b"], categories: ["groups"] as const, actions: ["deleted"] as const, period: "24h" as const, object: "g1", rev: 9 };
+    const f = { ...DEFAULT_FILTERS, q: " cœur ", authors: ["a", "b"], categories: ["groups"] as const, actions: ["deleted"] as const, period: "24h" as const, objects: ["g1", "dc01"], rev: 9 };
     expect(queryOf(f, "lab", NOW, "CUR")).toEqual([
-      ["infrastructure", "lab"], ["author", "a"], ["author", "b"], ["category", "groups"], ["action", "deleted"], ["object", "g1"], ["q", "cœur"], ["since", "2026-10-08T12:00:00Z"], ["before", "CUR"],
+      ["infrastructure", "lab"], ["author", "a"], ["author", "b"], ["category", "groups"], ["action", "deleted"], ["object", "g1"], ["object", "dc01"], ["q", "cœur"], ["since", "2026-10-08T12:00:00Z"], ["before", "CUR"],
     ]);
     expect(queryOf(f, "lab", NOW, null, 200).slice(-2)).toEqual([["start", "9"], ["limit", "200"]]);
-    expect(queryOf({ ...DEFAULT_FILTERS, infrastructure: "*", object: "g1", rev: 9 }, "lab", NOW), "all infrastructures: no parameter, no object, no start").toEqual([]);
+    expect(queryOf({ ...DEFAULT_FILTERS, infrastructure: "*", objects: ["g1"], rev: 9 }, "lab", NOW), "all infrastructures: no parameter, no object, no start").toEqual([]);
     expect(queryOf({ ...DEFAULT_FILTERS, infrastructure: "other" }, "lab", NOW)).toEqual([["infrastructure", "other"]]);
     const range = queryOf({ ...DEFAULT_FILTERS, period: "range", from: "2026-09-01", to: "2026-09-15" }, "", NOW);
     expect(range[0][0]).toBe("since");
@@ -131,10 +132,12 @@ describe("the feed", () => {
     expect(isTrace(a)).toBe(false);
   });
 
-  it("opens the history of a device, a group, an annotation or a connector, nothing for the map", () => {
-    expect(historyObjectOf({ kind: "node", id: "dc01-core-01" })).toBe("dc01-core-01");
-    expect(historyObjectOf({ kind: "group", id: "g1-1" })).toBe("g1-1");
-    expect(historyObjectOf({ kind: "pane" })).toBeNull();
+  it("opens the history of a device (the selection when it belongs to it), a group, an annotation or a connector, nothing for the map", () => {
+    expect(historyObjectsOf({ kind: "node", id: "dc01-core-01" })).toEqual(["dc01-core-01"]);
+    expect(historyObjectsOf({ kind: "node", id: "a" }, ["a", "b", "c"]), "aimed inside the selection: the whole selection").toEqual(["a", "b", "c"]);
+    expect(historyObjectsOf({ kind: "node", id: "z" }, ["a", "b"]), "aimed outside it: the device alone").toEqual(["z"]);
+    expect(historyObjectsOf({ kind: "group", id: "g1-1" }, ["a"])).toEqual(["g1-1"]);
+    expect(historyObjectsOf({ kind: "pane" })).toEqual([]);
   });
 
   it("reads as long as what was shown, and keeps the tail of an older read", () => {

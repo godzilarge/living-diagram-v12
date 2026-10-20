@@ -460,9 +460,9 @@ def _journal_routes(router: APIRouter, journal: JournalReader) -> None:
         "infrastructures. Filtres combinés : `author` et `category` répétables (l'un ou l'autre), `q` (chaque mot, "
         "sans la casse ni les accents, sur l'auteur, les noms, les mots des phrases de la page et le contenu des "
         "opérations ; jamais le nom de l'infrastructure), `since` inclus, "
-        "`until` exclu, `action` répétable (`created`, `modified`, `deleted`), `object` (l'historique d'un objet : "
-        "hostname ou identité, tout ce qui le cite ; avec `infrastructure`). Pagination par `before` = le `next` "
-        "de la page précédente ; "
+        "`until` exclu, `action` répétable (`created`, `modified`, `deleted`), `object` répétable (l'historique "
+        "d'un ou plusieurs objets : hostname ou identité, tout ce qui cite l'un d'eux ; avec `infrastructure`). "
+        "Pagination par `before` = le `next` de la page précédente ; "
         "`start` (avec `infrastructure`) fait commencer la première page à une révision (le lien vers une entrée). "
         "Lecture seule ; une ligne illisible est sautée et comptée (`unreadable`).",
     )
@@ -476,11 +476,11 @@ def _journal_routes(router: APIRouter, journal: JournalReader) -> None:
         before: Annotated[str | None, Query(max_length=400, description="le `next` de la page précédente")] = None,
         limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 100,
         action: Annotated[list[Action] | None, Query(description="répétable")] = None,
-        object: Annotated[str | None, Query(min_length=1, max_length=253, description="hostname ou identité")] = None,  # noqa: A002
+        object: Annotated[list[str] | None, Query(description="répétable : hostname ou identité")] = None,  # noqa: A002
         start: Annotated[int | None, Query(ge=0, description="révision, avec `infrastructure`")] = None,
     ) -> JournalPage:
         # une révision, comme une identité `g…` / `a…` / `c…`, n'est unique que dans son infrastructure (revue, M3)
-        for name, given in (("start", start), ("object", object)):
+        for name, given in (("start", start), ("object", object or None)):
             if given is not None and infrastructure is None:
                 return one_problem("invalid_query", name, "missing_infrastructure", name=name)  # type: ignore[return-value]
         query = JournalQuery(
@@ -493,7 +493,7 @@ def _journal_routes(router: APIRouter, journal: JournalReader) -> None:
             before=before,
             limit=limit,
             actions=tuple(action or ()),
-            object=object,
+            objects=tuple(object or ()),
             start=start,
         )
         try:

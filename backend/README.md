@@ -502,8 +502,9 @@ replie les entrées voisines d'un même regroupement.
 **Action, historique d'un objet, lien vers une entrée** (2026-10-10, `journal_index.py`) : chaque entrée porte `actions`
 (`created` = `*_create` ; `deleted` = `*_delete` et la trace d'une purge ; `modified` = le reste, retirer une épingle ou
 une couleur compris), filtrées par `action` (répétable) et comptées en facette `actions` (ordre fixe, sans leur filtre).
-`object=<hostname ou identité>` garde les entrées qui citent l'objet : ses opérations, sa création, un groupe qui le
-compte parmi ses membres, un ancrage ou un bout de connecteur sur lui. `start=<révision>` (avec `infrastructure`, sinon
+`object=<hostname ou identité>` (répétable : l'un ou l'autre, l'historique d'une sélection) garde les entrées qui
+citent l'objet : ses opérations, sa création, un groupe qui le compte parmi ses membres, un ancrage ou un bout de
+connecteur sur lui. `start=<révision>` (avec `infrastructure`, sinon
 422 : une révision n'est unique que dans son infrastructure ; de même pour `object`) fait commencer la première page à
 l'entrée de cette révision ; absente, la page part de la trace de la purge qui l'a retirée, sinon de la plus proche plus
 ancienne, sinon du début, et `start_missing` vaut `true`. Une trace n'est jamais prise pour l'entrée de sa révision.

@@ -23,6 +23,7 @@ import { JournalFacets } from "./Facets";
 import { JournalFeed } from "./Feed";
 import { JournalTools } from "./JournalTools";
 import { objectName, presenceOf, targetOf, wordsOf } from "./rows";
+import { objectsName } from "./words";
 import { causeWords, goneWords, linkWords, posedWords, scopeWords, shownWords, subtitleWords, totalWords } from "./words";
 import "./journal.css";
 
@@ -49,16 +50,16 @@ async function copyText(text: string): Promise<boolean> {
 
 /** Under the header: the history of one object (removable) and the link to an entry ("show the latest"). */
 function Context({ t, f, name, link, setJournal }: { t: Translate; f: JournalFilters; name: string; link: string; setJournal: JournalProps["setJournal"] }) {
-  if (!f.object && f.rev === null) return null;
+  if (!f.objects.length && f.rev === null) return null;
   return (
     <div className="journal-context">
-      {f.object ? (
+      {f.objects.length ? (
         <span className="journal-context-part" data-journal-history="">
           <Icon>
             <History />
           </Icon>
           <span>{t("journal:ui.historyOf", { name })}</span>
-          <IconButton label={t("journal:ui.leaveHistory")} icon={<X />} onClick={() => setJournal({ object: "" })} />
+          <IconButton label={t("journal:ui.leaveHistory")} icon={<X />} onClick={() => setJournal({ objects: [] })} />
         </span>
       ) : null}
       {f.rev !== null ? (
@@ -113,7 +114,7 @@ export function Journal({ hook, filters: f, address, view, model, setJournal, sh
         showFromJournal(kind, id);
         return true;
       },
-      history: (object, infrastructure) => setJournal({ ...DEFAULT_FILTERS, infrastructure: infrastructure === current ? "" : infrastructure, object: object.id }),
+      history: (object, infrastructure) => setJournal({ ...DEFAULT_FILTERS, infrastructure: infrastructure === current ? "" : infrastructure, objects: [object.id] }),
       copy: copyText,
     }),
     [presence, hrefOf, current, showFromJournal, setJournal],
@@ -193,7 +194,7 @@ export function Journal({ hook, filters: f, address, view, model, setJournal, sh
 
   const status = load.kind === "failed" && !page ? t("journal:ui.unreadableStatus") : !page ? t("journal:ui.reading") : totalWords(t, page.total, narrowed);
   const subtitle = subtitleWords(t, status, scopeWords(t, f, current), now);
-  const clearFilters = (): void => setJournal({ q: "", authors: [], categories: [], actions: [], object: "", period: "all", from: "", to: "" });
+  const clearFilters = (): void => setJournal({ q: "", authors: [], categories: [], actions: [], objects: [], period: "all", from: "", to: "" });
   const posed = posedWords(t, f, now);
   return (
     <div className="journal" data-journal="">
@@ -208,7 +209,7 @@ export function Journal({ hook, filters: f, address, view, model, setJournal, sh
             </div>
             <JournalTools filters={f} now={now} onChange={setJournal} exportCsv={hook.exportCsv} />
           </header>
-          <Context t={t} f={f} name={objectName(f.object, page?.entries ?? [], model)} link={f.rev !== null ? linkWords(t, f.rev, page) : ""} setJournal={setJournal} />
+          <Context t={t} f={f} name={objectsName(t, f.objects, page?.entries ?? [], model)} link={f.rev !== null ? linkWords(t, f.rev, page) : ""} setJournal={setJournal} />
           <div className="journal-body" ref={body} onScroll={(event) => (scrolled.current = event.currentTarget.scrollTop)}>
             <span className="ui-visually-hidden" aria-live="polite">
               {said}

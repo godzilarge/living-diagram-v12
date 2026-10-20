@@ -361,7 +361,11 @@
     "actions": "Actions de l'entrée",
     "goneSaid": "({{gone}})",
     "showNamed": "Montrer {{name}} dans le Diagramme",
-    "keyO": "o"
+    "keyO": "o",
+    "andLast": "{{list}} et {{last}}",
+    "objectsCount_one": "{{count, number}} objet",
+    "objectsCount_other": "{{count, number}} objets",
+    "objectsCount_many": "{{count, number}} objets"
   },
   "firstDay": "1er"
 }

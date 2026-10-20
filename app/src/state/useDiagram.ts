@@ -69,7 +69,7 @@ export type DiagramCommands = Readonly<{
    *  history: an identity is unique in its infrastructure only); the history of one object (a hostname, an identity)
    *  from the context menu, the browser's Back coming back here; an object cited by an entry shown in the Diagram. */
   setJournal: (patch: Partial<JournalFilters>) => void;
-  openHistory: (object: string) => void;
+  openHistory: (objects: readonly string[]) => void;
   showFromJournal: (kind: RefKind, id: string) => void;
 }>;
 
@@ -193,12 +193,13 @@ export function useDiagram(insetsOf: () => Insets, notify: (note: Note | null) =
       refuse,
       setJournal: (patch) => {
         const was = stateRef.current.view.journal;
-        const moved = patch.infrastructure !== undefined && patch.infrastructure !== was.infrastructure && patch.object === undefined;
-        dispatch({ type: "view", patch: { journal: { ...was, rev: null, ...(moved ? { object: "" } : {}), ...patch } } });
+        const moved = patch.infrastructure !== undefined && patch.infrastructure !== was.infrastructure && patch.objects === undefined;
+        dispatch({ type: "view", patch: { journal: { ...was, rev: null, ...(moved ? { objects: [] } : {}), ...patch } } });
       },
-      openHistory: (object) => {
+      openHistory: (objects) => {
+        if (!objects.length) return;
         pushNext();
-        dispatch({ type: "view", patch: { mode: "journal", journal: { ...DEFAULT_FILTERS, object } } });
+        dispatch({ type: "view", patch: { mode: "journal", journal: { ...DEFAULT_FILTERS, objects: [...objects] } } });
       },
       showFromJournal: (kind, id) => {
         pushNext();

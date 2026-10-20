@@ -27,7 +27,8 @@ export function localDay(day: string): Date | null {
 const iso = (d: Date): string => d.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 /** The Log view's filters, carried by the address. `infrastructure`: `""` = the one open, `"*"` = all, a name = that
- *  one. `object`: the history of one object (a hostname or an identity `g…`, `a…`, `c…`). `rev`: a link to an entry,
+ *  one. `objects`: the history of one or several objects (hostnames or identities `g…`, `a…`, `c…`: a selection; an
+ *  entry is kept when it cites any of them). `rev`: a link to an entry,
  *  the page starts at that revision (not a filter: the latest are one click away). */
 export type JournalFilters = Readonly<{
   q: string;
@@ -38,12 +39,12 @@ export type JournalFilters = Readonly<{
   period: Period;
   from: string;
   to: string;
-  object: string;
+  objects: readonly string[];
   rev: number | null;
 }>;
-export const DEFAULT_FILTERS: JournalFilters = Object.freeze({ q: "", authors: [], categories: [], actions: [], infrastructure: "", period: "all", from: "", to: "", object: "", rev: null });
+export const DEFAULT_FILTERS: JournalFilters = Object.freeze({ q: "", authors: [], categories: [], actions: [], infrastructure: "", period: "all", from: "", to: "", objects: [], rev: null });
 /** True when something narrows the log (a link to an entry does not). */
-export const filtered = (f: JournalFilters): boolean => !!(f.q.trim() || f.authors.length || f.categories.length || f.actions.length || f.object || f.period !== "all");
+export const filtered = (f: JournalFilters): boolean => !!(f.q.trim() || f.authors.length || f.categories.length || f.actions.length || f.objects.length || f.period !== "all");
 export const sameFilters = (a: JournalFilters, b: JournalFilters): boolean => formatFilters(a).join("&") === formatFilters(b).join("&");
 
 /** The query's parameters (repeatable: `author`, `category`, `action`); `current` = the infrastructure open. */
@@ -54,7 +55,7 @@ export function queryOf(f: JournalFilters, current: string, now: number, before?
   f.authors.forEach((a) => out.push(["author", a]));
   f.categories.forEach((c) => out.push(["category", c]));
   f.actions.forEach((a) => out.push(["action", a]));
-  if (f.object && infra) out.push(["object", f.object]);
+  if (infra) f.objects.forEach((o) => out.push(["object", o]));
   if (f.q.trim()) out.push(["q", f.q.trim()]);
   if (f.period === "range") {
     const from = localDay(f.from), to = localDay(f.to);
@@ -68,7 +69,7 @@ export function queryOf(f: JournalFilters, current: string, now: number, before?
 }
 
 // ---- the address: `#mode=journal&jq=…&jau=…&jcat=a,b&jact=deleted&jobj=…&jinfra=*&jp=7d` (or `jp=range&jfrom=YYYY-MM-DD&jto=…`),
-// `jrev=986` for a link to an entry; the same keys as the v1, written in Log mode only
+// `jrev=986` for a link to an entry; the same keys as the v1 (`jobj` repeatable here), written in Log mode only
 export function parseFilters(pairs: readonly (readonly [string, string])[]): JournalFilters {
   let f: JournalFilters = DEFAULT_FILTERS;
   for (const [key, value] of pairs) {
@@ -76,7 +77,7 @@ export function parseFilters(pairs: readonly (readonly [string, string])[]): Jou
     else if (key === "jau" && value.trim() && !f.authors.includes(value)) f = { ...f, authors: [...f.authors, value] };
     else if (key === "jcat") f = { ...f, categories: value.split(",").filter(isCategory) };
     else if (key === "jact") f = { ...f, actions: value.split(",").filter(isAction) };
-    else if (key === "jobj" && value.trim()) f = { ...f, object: value };
+    else if (key === "jobj" && value.trim() && !f.objects.includes(value)) f = { ...f, objects: [...f.objects, value] };
     else if (key === "jrev" && /^\d{1,9}$/.test(value)) f = { ...f, rev: Number(value) };
     else if (key === "jinfra") f = { ...f, infrastructure: value };
     else if (key === "jp" && isPeriod(value)) f = { ...f, period: value };
@@ -84,7 +85,7 @@ export function parseFilters(pairs: readonly (readonly [string, string])[]): Jou
     else if (key === "jto" && localDay(value)) f = { ...f, to: value };
   }
   // "all": neither an object's history nor a link (an identity, a revision are unique in their infrastructure only)
-  if (f.infrastructure === "*") f = { ...f, object: "", rev: null };
+  if (f.infrastructure === "*") f = { ...f, objects: [], rev: null };
   if (f.period !== "range" || (!f.from && !f.to)) f = { ...f, period: f.period === "range" ? "all" : f.period, from: "", to: "" };
   return Object.freeze(f);
 }
@@ -94,7 +95,7 @@ export function formatFilters(f: JournalFilters): string[] {
   f.authors.forEach((a) => parts.push(`jau=${encodeURIComponent(a)}`));
   if (f.categories.length) parts.push(`jcat=${f.categories.join(",")}`);
   if (f.actions.length) parts.push(`jact=${f.actions.join(",")}`);
-  if (f.object) parts.push(`jobj=${encodeURIComponent(f.object)}`);
+  f.objects.forEach((o) => parts.push(`jobj=${encodeURIComponent(o)}`));
   if (f.infrastructure) parts.push(`jinfra=${encodeURIComponent(f.infrastructure)}`);
   if (f.period !== "all") parts.push(`jp=${f.period}`);
   if (f.period === "range" && f.from) parts.push(`jfrom=${f.from}`);
@@ -221,9 +222,14 @@ export function byDay(items: readonly JournalItem[], now: number): Readonly<{ da
   return out;
 }
 
-/** What the context menu's "History" row opens for its target: a device by its hostname, a group, an annotation or a
- *  connector by its identity; nothing for the map. */
-export const historyObjectOf = (target: Readonly<{ kind: string; id?: string }>): string | null => (target.kind === "pane" || !target.id ? null : target.id);
+/** What the context menu's "History" row opens for its target: a device by its hostname (the whole selection when the
+ *  device belongs to it, as hide and isolate do), a group, an annotation or a connector by its identity; nothing for
+ *  the map. */
+export function historyObjectsOf(target: Readonly<{ kind: string; id?: string }>, selectedHosts: readonly string[] = []): string[] {
+  if (target.kind === "pane" || !target.id) return [];
+  if (target.kind === "node" && selectedHosts.includes(target.id)) return [...selectedHosts];
+  return [target.id];
+}
 
 /** The page's language at the time of the call (the day labels are cached per language). */
 export const language = (): string => i18n.language;

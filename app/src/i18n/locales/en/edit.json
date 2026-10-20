@@ -204,7 +204,9 @@
   },
   "menu": {
     "label": "Context menu",
-    "history": "History"
+    "history": "History",
+    "historyMany_one": "History of {{count, number}} device",
+    "historyMany_other": "History of {{count, number}} devices"
   },
   "keys": {
     "delete": "Del",

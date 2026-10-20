@@ -171,6 +171,17 @@ test("the History row of the context menu opens the device's history in read mod
   await page.goBack();
   await expect(journal(page)).toHaveCount(0);
   expect(await address(page)).not.toContain("mode=journal");
+  // several devices selected: History on one of them opens the history of the whole selection (one `jobj` each)
+  await page.goto(DIAGRAM);
+  await expect(page.locator(".react-flow__node-card").first()).toBeVisible({ timeout: 15_000 });
+  await page.locator(".react-flow__node-card", { hasText: CORE }).click();
+  await page.locator(".react-flow__node-card", { hasText: "dc01-acc-01" }).click({ modifiers: ["Shift"] });
+  await page.locator(".react-flow__node-card", { hasText: CORE }).click({ button: "right" });
+  await page.getByRole("menu").getByRole("menuitem", { name: "History of 2 devices" }).click();
+  await expect(journal(page)).toBeVisible();
+  expect(await address(page)).toContain(`jobj=${CORE}`);
+  expect(await address(page)).toContain("jobj=dc01-acc-01");
+  await expect(journal(page)).toContainText(/History of dc01-\S+ and dc01-\S+/);
   // the panel offers the same from the keyboard: its History button opens the device's history
   await page.goto(`${DIAGRAM}#node=${CORE}`);
   await expect(page.locator(".react-flow__node-card").first()).toBeVisible({ timeout: 15_000 });

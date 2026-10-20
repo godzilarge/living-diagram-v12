@@ -459,13 +459,15 @@ def test_actions_are_created_modified_deleted_and_a_purge_counts_as_deleted(root
 
 def test_object_history_lists_everything_that_cites_it(root: Path):
     """L'historique d'un objet : ses opérations, sa création, un groupe qui le compte parmi ses membres."""
-    assert [e["revision"] for e in _read(root, infrastructure=LAB, object="sw-core-01")["entries"]] == [4, 2, 1]
-    assert [e["revision"] for e in _read(root, infrastructure=LAB, object="g2-1")["entries"]] == [6, 3, 2], (
+    assert [e["revision"] for e in _read(root, infrastructure=LAB, objects=("sw-core-01",))["entries"]] == [4, 2, 1]
+    both = _read(root, infrastructure=LAB, objects=("sw-core-01", "g2-1"))["entries"]
+    assert [e["revision"] for e in both] == [6, 4, 3, 2, 1], "plusieurs objets : ce qui cite l'un d'eux"
+    assert [e["revision"] for e in _read(root, infrastructure=LAB, objects=("g2-1",))["entries"]] == [6, 3, 2], (
         "créé, renommé, supprimé"
     )
-    assert _read(root, infrastructure=LAB, object="inconnu")["entries"] == []
+    assert _read(root, infrastructure=LAB, objects=("inconnu",))["entries"] == []
     with pytest.raises(ValueError):  # une identité n'est unique que dans son infrastructure (revue, M3)
-        _read(root, object="g2-1")
+        _read(root, objects=("g2-1",))
 
 
 def test_a_link_opens_the_page_at_its_revision_and_says_when_it_is_gone(root: Path):
@@ -534,7 +536,7 @@ def test_a_legacy_line_is_in_the_history_of_the_connector_it_became(tmp_path: Pa
     folder = tmp_path / "_intent" / LAB
     folder.mkdir(parents=True)
     (folder / "journal.jsonl").write_text(line + "\n", encoding="utf-8")
-    assert [e["revision"] for e in _read(tmp_path, infrastructure=LAB, object="c5-1")["entries"]] == [5]
+    assert [e["revision"] for e in _read(tmp_path, infrastructure=LAB, objects=("c5-1",))["entries"]] == [5]
 
 
 @pytest.mark.parametrize("language", ["fr", "en"])

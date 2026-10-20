@@ -15,7 +15,7 @@ import { useText } from "../i18n";
 import type { ContextMenuState } from "../state/diagram";
 import type { EditCommands } from "../state/edit-commands";
 import { runMenu } from "../state/bar-actions";
-import { historyObjectOf } from "../state/journal";
+import { historyObjectsOf } from "../state/journal";
 import { focusMap } from "./focus";
 import "./edit.css";
 
@@ -31,7 +31,7 @@ export type ContextMenuProps = {
   edit: EditCommands;
   onClose: () => void;
   /** The Log on one object (a hostname, an identity). */
-  onHistory: (object: string) => void;
+  onHistory: (objects: readonly string[]) => void;
 };
 
 /** The id of the History row (`data-value="history"`). */
@@ -54,8 +54,9 @@ function rowsOf(menu: ContextMenuState, toile: Toile, hosts: readonly string[], 
 export function ContextMenu({ menu, toile, hosts, hasSelection, edit, onClose, onHistory }: ContextMenuProps) {
   const t = useText();
   const ref = useRef<HTMLDivElement>(null);
-  const object = historyObjectOf(menu.target);
-  const head: MenuRow[] = object ? [{ id: HISTORY, label: t("edit:menu.history") }, { kind: "separator" }] : [];
+  // the selection when the device aimed at belongs to it (the rule of hide and isolate): "History of 3 devices"
+  const objects = historyObjectsOf(menu.target, hosts);
+  const head: MenuRow[] = objects.length ? [{ id: HISTORY, label: objects.length > 1 ? t("edit:menu.historyMany", { count: objects.length }) : t("edit:menu.history") }, { kind: "separator" }] : [];
   // edit.canWrite() is false out of edit mode: the reading rows only
   const rows = [...head, ...rowsOf(menu, toile, hosts, hasSelection, edit.canWrite())];
 
@@ -103,7 +104,7 @@ export function ContextMenu({ menu, toile, hosts, hasSelection, edit, onClose, o
       onContextMenu={(event) => event.preventDefault()}
       onChoose={(id) => {
         onClose();
-        if (id === HISTORY && object) onHistory(object);
+        if (id === HISTORY && objects.length) onHistory(objects);
         else runMenu(menu.target, id, menu.plan, edit, toile.model, hosts);
       }}
     />

@@ -8,7 +8,9 @@ import type { JournalFilters, JournalItem, Period } from "../state/journal";
 import { dayLabel, isTrace, locale, rangeLabel, timeLabel, zoneLabel } from "../state/journal";
 import type { RefKind } from "../state/journal-text";
 import type { Cause } from "../state/useHome";
-import { oldestOf } from "./rows";
+import { objectName, oldestOf } from "./rows";
+import type { Model } from "@engine/canvas/types";
+import type { JournalEntry } from "../api/journal";
 
 /** How many changes the page answers: "412 changes", "3 changes match", "no change matches". */
 export function totalWords(t: Translate, total: number, narrowed: boolean): string {
@@ -45,6 +47,14 @@ export function posedWords(t: Translate, f: JournalFilters, now: number): string
   if (f.authors.length) out.push(list(f.authors));
   if (f.period !== "all") out.push(periodWords(t, f.period, f, now));
   return out.length ? t("journal:ui.posed", { filters: out.join(t("journal:ui.posedSep")) }) : "";
+}
+
+/** The objects whose history is read: one by its name, up to three joined, else their count (the Log is one page). */
+export function objectsName(t: Translate, objects: readonly string[], entries: readonly JournalEntry[], model: Model | null): string {
+  const names = objects.map((object) => objectName(object, entries, model));
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length <= 3) return t("journal:ui.andLast", { list: names.slice(0, -1).join(t("journal:listSep")), last: names[names.length - 1] });
+  return t("journal:ui.objectsCount", { count: names.length });
 }
 
 /** A day's title, in sentence case ("Today", "Saturday 17 January 2026"). */
