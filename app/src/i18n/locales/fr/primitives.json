@@ -197,7 +197,7 @@
     "hiddenExpression": "ADMIN",
     "hiddenIsolated": "dc01-core",
     "bar": "Barre contextuelle, son volet des teintes ouvert",
-    "menu": "Menu : des actions, une valeur choisie, un raccourci, une ligne qui supprime",
+    "menu": "Menu : des actions, une valeur choisie, un raccourci, un masquage levé, une ligne qui supprime",
     "sizes": "Une barre de note, sa liste des tailles ouverte",
     "device": "dc01-core-01"
   },

@@ -73,9 +73,11 @@ for (const variant of VARIANTS) {
     await expect(page.getByRole("group", { name: fr ? "Collectes" : "Collections" })).toHaveCount(0);
     await expect(pencil(page, fr)).toHaveAttribute("aria-pressed", "true");
     await expect(palette(page, fr).getByRole("button")).toHaveCount(12);
-    // the foot of the palette: hidden devices, undo and redo, each disabled with its reason while it has nothing to do
-    for (const name of fr ? ["Équipements masqués", "Annuler", "Rétablir"] : ["Hidden devices", "Undo", "Redo"])
+    // the foot of the palette: undo and redo disabled with their reason while they have nothing to do; hidden devices
+    // enabled with nothing hidden, the run's five unknown neighbours to offer
+    for (const name of fr ? ["Annuler", "Rétablir"] : ["Undo", "Redo"])
       await expect(palette(page, fr).getByRole("button", { name: new RegExp(`^${name}`) })).toHaveAttribute("aria-disabled", "true");
+    await expect(palette(page, fr).getByRole("button", { name: fr ? "Équipements masqués" : "Hidden devices" })).not.toHaveAttribute("aria-disabled", "true");
     await expect(palette(page, fr).getByRole("button", { name: fr ? "Sélectionner" : "Select" })).toHaveAttribute("aria-pressed", "true");
     // the device bar above the selected card
     const deviceBar = bar(page, fr);
@@ -286,19 +288,53 @@ test("the palette's foot: Undo takes the inserted note back, Redo brings it back
 test("the palette's foot: H hides the device, the palette lists the rule, choosing it brings the device back selected and in view", async ({ page }) => {
   const { api } = await openEditing(page, LIGHT);
   const hidden = palette(page, false).getByRole("button", { name: /^Hidden devices/ });
-  await expect(hidden).toHaveAttribute("aria-disabled", "true");
+  // nothing hidden, but the run's five unknown neighbours: the menu has them to offer
+  await expect(hidden).not.toHaveAttribute("aria-disabled", "true");
+  await expect(hidden).toHaveAccessibleName("Hidden devices");
   await page.keyboard.press("h");
   await expect(page.locator(".react-flow__node-card", { hasText: CORE })).toHaveCount(0);
   await expect(hidden).toHaveAccessibleName("Hidden devices (1)");
   await hidden.click();
   const menu = page.getByRole("menu", { name: /^Hidden devices/ });
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole("menuitem")).toHaveCount(2); // the one rule (the device's name), "Show all"
+  await expect(menu.getByRole("menuitem")).toHaveCount(3); // the one rule (the device's name), the unknown neighbours, "Show all"
+  // the rule's row ends in the cross of a hiding lifted; the gestures that show do not
+  await expect(menu.getByRole("menuitem", { name: CORE }).locator('[data-trailing="lift"] svg')).toHaveCount(1);
+  await expect(menu.getByRole("menuitem", { name: "Show all" }).locator("[data-trailing]")).toHaveCount(0);
+  await expect(menu.getByRole("menuitem", { name: /unknown neighbours/ }).locator("[data-trailing]")).toHaveCount(0);
   await menu.getByRole("menuitem", { name: CORE }).click();
   await expect(menu).toHaveCount(0);
   await expect(page.locator(".react-flow__node-card", { hasText: CORE })).toBeVisible();
   await expect(page.locator(".react-flow__node-card.selected", { hasText: CORE })).toHaveCount(1); // back in view, selected
-  await expect(hidden).toHaveAttribute("aria-disabled", "true");
+  await expect(hidden).not.toHaveAttribute("aria-disabled", "true");
+  await expect(hidden).toHaveAccessibleName("Hidden devices");
+});
+
+test("the unknown neighbours: the palette's menu shows them and hides them again, a view rule in the address", async ({ page }) => {
+  await openEditing(page, LIGHT, AT_REST);
+  const hidden = palette(page, false).getByRole("button", { name: /^Hidden devices/ });
+  const menu = page.getByRole("menu", { name: /^Hidden devices/ });
+  const stubs = page.locator(".react-flow__node-stub");
+  await expect(hidden).not.toHaveAttribute("aria-disabled", "true"); // no rule, five unknown neighbours
+  await expect(hidden).toHaveAccessibleName("Hidden devices");
+  await expect(stubs).toHaveCount(0);
+  await hidden.click();
+  await expect(menu.getByText("Unknown neighbours", { exact: true })).toBeVisible();
+  await expect(menu.getByRole("menuitem")).toHaveCount(1); // no rule: neither its heading nor "Show all"
+  await menu.getByRole("menuitem", { name: "Show the 5 unknown neighbours" }).click();
+  await expect(menu).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => location.hash)).toContain("stubs=1");
+  await expect(stubs).toHaveCount(5, { timeout: 5000 });
+  await hidden.click();
+  await menu.getByRole("menuitem", { name: "Hide the 5 unknown neighbours" }).click();
+  await expect(menu).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => location.hash)).not.toContain("stubs=");
+  await expect(stubs).toHaveCount(0, { timeout: 5000 });
+  // the address asks for an unknown neighbour: the engine shows them to reveal it, and the view learns it (the
+  // address says `stubs=1`, the menu offers to hide them)
+  await page.goto(`${AT_REST}#node=ap-dc01-05`);
+  await expect(stubs).toHaveCount(5, { timeout: 15_000 });
+  await expect.poll(() => page.evaluate(() => location.hash)).toContain("stubs=1");
 });
 
 test("rules written in the address: one row per rule with its count; a rule lifts as a whole; Show all lifts them, memorized once", async ({ page }) => {
@@ -312,7 +348,8 @@ test("rules written in the address: one row per rule with its count; a rule lift
   await expect(hidden).toHaveAccessibleName("Hidden devices (3)");
   await hidden.click();
   const rows = menu.getByRole("menuitem");
-  await expect(rows).toHaveCount(3); // the two names, the expression with its count, "Show all"
+  await expect(rows).toHaveCount(4); // the two names, the expression with its count, the unknown neighbours, "Show all"
+  await expect(menu.locator('[data-trailing="lift"]')).toHaveCount(2); // one cross per rule
   await expect(rows.nth(0)).toContainText("dc01-acc-01");
   await expect(rows.nth(0)).toContainText("dc01-acc-03");
   await expect(rows.nth(1)).toContainText("kind:external");
@@ -325,12 +362,13 @@ test("rules written in the address: one row per rule with its count; a rule lift
   expect(page.url()).not.toMatch(/external/);
   expect(page.url()).toMatch(/hide=/);
   await hidden.click();
-  await expect(menu.getByRole("menuitem")).toHaveCount(2);
+  await expect(menu.getByRole("menuitem")).toHaveCount(3);
   await menu.getByRole("menuitem", { name: "Show all" }).click();
   await expect(menu).toHaveCount(0);
   await page.keyboard.press("f"); // the view fits the whole run: the canvas draws the visible cards only
   await expect(page.locator(".react-flow__node-card")).toHaveCount(8, { timeout: 5000 });
-  await expect(hidden).toHaveAttribute("aria-disabled", "true");
+  await expect(hidden).toHaveAccessibleName("Hidden devices"); // the unknown neighbours keep it enabled
+  await expect(page.locator(".react-flow__node-stub")).toHaveCount(0); // "Show all" lifts the rules only
   expect(page.url()).not.toMatch(/hide=/);
   // the devices placed fresh are memorized once per lift (the external one, then the two named): the document grows
   // (the API keeps what it has), no storm

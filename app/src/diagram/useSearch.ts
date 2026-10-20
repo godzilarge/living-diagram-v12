@@ -3,7 +3,7 @@
 // and what a chosen result does here: an element is selected and its panel opens, or it is selected and centred (a
 // removed device, a neighbour never collected, "centre the view"); another infrastructure opens its page; an action
 // runs the shell's command; the query's own action hides the devices the expression designates (the view's rule), and
-// "show the hidden devices" lifts every rule. Sources are memoised; the search runs on every keystroke without another cache.
+// "show the hidden devices" lifts every rule, "show (hide) the unknown neighbours" toggles them. Sources are memoised; the search runs on every keystroke without another cache.
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Model, Selection } from "@engine/canvas/types";
 import { useText } from "../i18n";
@@ -30,6 +30,8 @@ type SearchOptions = Readonly<{
   onInfrastructure: (name: string) => void;
   /** How many devices the view hides (the palette offers to show them). */
   hidden: number;
+  /** The run's unknown neighbours (the palette offers to show or hide them). */
+  stubs: number;
 }>;
 
 /** The selected element's name, for "centre the view on…": a device, a group, an HA cluster. */
@@ -41,7 +43,7 @@ function selectedName(model: Model | null, selection: Selection | null): string 
   return null;
 }
 
-export function useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure, hidden }: SearchOptions) {
+export function useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure, hidden, stubs }: SearchOptions) {
   const t = useText();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -50,10 +52,11 @@ export function useSearch({ state, model, infrastructures, commands, prefs, setP
   const selected = selectedName(model, state.selection);
   const runs = state.runs;
   const current = state.address.runId;
+  const showStubs = state.view.showStubs;
   const actions = useMemo(
-    () => actionSources(t, { selected, grid: prefs.grid, minimap: prefs.minimap, editing: state.editing, hidden, runs: runs ?? [], current, compare: compareChoices(runs ?? [], current), now }),
+    () => actionSources(t, { selected, grid: prefs.grid, minimap: prefs.minimap, editing: state.editing, hidden, stubs, showStubs, runs: runs ?? [], current, compare: compareChoices(runs ?? [], current), now }),
     // the words follow the language (`t` changes identity at every render)
-    [language, selected, prefs.grid, prefs.minimap, state.editing, hidden, runs, current, now],
+    [language, selected, prefs.grid, prefs.minimap, state.editing, hidden, stubs, showStubs, runs, current, now],
   );
   const sources = useMemo<Sources>(
     () => ({ model, infrastructures, current: state.address.infrastructure, actions }),
@@ -71,6 +74,7 @@ export function useSearch({ state, model, infrastructures, commands, prefs, setP
           if (hit.id === "edit") return commands.toggleEdit();
           if (hit.id === "hideMatches") return hit.rule ? commands.edit.hideRule(hit.rule) : undefined;
           if (hit.id === "showHidden") return commands.edit.showAll();
+          if (hit.id === "toggleStubs") return commands.edit.showStubs(!showStubs);
           if (hit.id === "openRun") return hit.runId ? commands.openFromBand(hit.runId) : undefined;
           if (hit.id === "compareRun") return hit.runId ? commands.compareTo(hit.runId) : undefined;
           return commands[hit.id]();
@@ -80,7 +84,7 @@ export function useSearch({ state, model, infrastructures, commands, prefs, setP
         }
       }
     },
-    [commands, prefs, setPrefs, onInfrastructure],
+    [commands, prefs, setPrefs, onInfrastructure, showStubs],
   );
   const onOpen = useCallback(() => closeOpenLayers(() => setOpen(true)), []);
   const onClose = useCallback(() => setOpen(false), []);

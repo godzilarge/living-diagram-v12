@@ -7,6 +7,23 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Unknown neighbours back in the shell, and a cross on the hidden rules** (2026-10-20, Orhan: "what the v1 had and
+  the v2 lost: showing the unknown neighbours or not; a section for them in Hidden devices", then "a row click lifts
+  the rule, but it is not clear: a small cross on the right of each row"). The engine already hid the stubs (announced
+  by LLDP / CDP, never collected) unless `stubs=1`, which the address already carried: nothing commanded it. The
+  Hidden devices menu gains a second section, heading "Unknown neighbours" and one gesture row "Show the N unknown
+  neighbours" / "Hide the N unknown neighbours" (`edit.showStubs`, the address), only when the run has any; without
+  a rule the menu is that section alone; the foot button is enabled with a rule or a neighbour, its count stays the
+  run's hidden devices; "Show all" lifts the rules only. Read mode (no palette) gets the same row as a Ctrl+K action
+  (`toggleStubs`, `CircleDashed`). The `Menu` primitive gains `trailing: "lift"`: a small `X` on the right, ink-3,
+  ink under the pointer or at the keyboard position, never red (a hiding lifted is not a deletion); every rule row
+  carries it, "Show all" and the neighbours row do not. The engine turns the stubs on by itself when it reveals one
+  (the address or the search asks for a stub): the canvas now tells the view (`syncStubs`), so the address and the
+  menu say what is drawn. DESIGN.md (Edit palette, Menu), primitives page (the Menu specimen, the palette's foot with
+  five neighbours), catalogues fr / en. Tests: app check 267; `e2e/edit.spec.ts` 15 (a neighbours test, the reveal
+  case, the crosses asserted). Captures `.impeccable/planche-stubs/`. Two points to judge in use: the count N is the
+  run's, not what the view will draw under its rules; "Show all" leaving the neighbours alone.
+
 - **The bar's rails at one height** (2026-10-20, Orhan on a capture: "look at the rails under Diagram, L1, change").
   Three rails, three heights: the mockup's tab put its rail on the island's hairline (46 px tab), the layer and the
   "changes" toggle at the foot of their 32 px control, 8 px higher. Plate of two corrections (A: every rail on the

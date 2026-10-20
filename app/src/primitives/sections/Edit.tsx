@@ -16,7 +16,7 @@ import { Row, Section } from "../Specimen";
 import "../../edit/edit.css";
 
 const noop = (): void => undefined;
-const FOOT_EDIT = { showRule: noop, showAll: noop, undo: noop, redo: noop };
+const FOOT_EDIT = { showRule: noop, showAll: noop, showStubs: noop, undo: noop, redo: noop };
 // the devices a sample rule keeps out: only their count is shown
 const devices = (count: number, prefix: string): readonly string[] => Array.from({ length: count }, (_, at) => `${prefix}${at + 1}`);
 
@@ -48,7 +48,7 @@ function Palette() {
         <IconButton label={t("edit:palette.code")} icon={<SquareCode />} shortcut="B" tooltipPlacement={tip} />
         <Separator orientation="horizontal" />
         <IconButton label={t("edit:palette.group")} icon={<Group />} shortcut="G" tooltipPlacement={tip} disabled disabledReason={t("edit:palette.groupNeeds")} />
-        <EditPaletteFoot history={{ undo: true, redo: false }} hidden={hidden} hiddenCount={43} edit={FOOT_EDIT} />
+        <EditPaletteFoot history={{ undo: true, redo: false }} hidden={hidden} hiddenCount={43} stubs={5} showStubs={false} edit={FOOT_EDIT} />
       </Island>
       <figcaption>{t("primitives:edit.palette")}</figcaption>
     </figure>
@@ -128,6 +128,9 @@ function MenuSpecimen() {
           { kind: "separator" },
           { kind: "heading", label: t("edit:volet.route") },
           ...routes.map((id) => ({ id, label: t(`edit:bar.routes.${id}`), checked: route === id })),
+          { kind: "separator" },
+          { kind: "heading", label: t("edit:palette.hidden") },
+          { id: "lift", label: t("primitives:edit.hiddenExpression"), verbatim: true, trailing: "lift" },
           { kind: "separator" },
           { id: "delete", label: t("edit:bar.delete"), danger: true, shortcut: [t("edit:keys.delete")] },
         ]}

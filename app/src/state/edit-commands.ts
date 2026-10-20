@@ -74,6 +74,8 @@ export type EditCommands = IntentCommands & ClipboardCommands & CodeCommands & F
   /** A rule lifted as a whole, its devices back on the map (`state/hidden.ts`); every rule lifted. */
   showRule: (rule: string) => void;
   showAll: () => void;
+  /** The unknown neighbours (stub nodes) drawn or left out: a view rule (`stubs=1`), as a hiding is. */
+  showStubs: (shown: boolean) => void;
   /** The hue of a device (null: back to its type's), of several, the pin removed. */
   color: (hostname: string, hue: string | null) => void;
   colorHosts: (hosts: readonly string[], hue: string | null) => void;
@@ -207,6 +209,7 @@ export function makeEditCommands(deps: EditDeps): EditCommands {
       if (named && named.length === 1 && v.only !== rule) dispatch({ type: "want", wanted: { kind: "node", token: named[0] } });
     },
     showAll: () => { const v = current().view, next = showingAll(v); if (next !== v) setView({ hide: next.hide, only: next.only }); },
+    showStubs: (shown) => { if (current().view.showStubs !== shown) setView({ showStubs: shown }); },
     color: (hostname, hue) => handle()?.intents.onColor(hostname, hue),
     colorHosts: (hosts, hue) => handle()?.intents.onColors([...hosts], hue),
     unpin: (hosts) => handle()?.intents.unpin([...hosts]),

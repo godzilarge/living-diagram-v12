@@ -121,6 +121,18 @@ describe("search words", () => {
     expect(bare.map((a) => a.words)).toEqual(["Tout afficher", "Revenir à 100 %", "Afficher la grille", "Masquer la vue d'ensemble"]);
   });
 
+  it("offers to show the run's unknown neighbours, or to hide them once drawn, in the edit palette's words", () => {
+    const base = { selected: null, grid: false, minimap: false, editing: false, runs: [], current: "", compare: [], now: NOW };
+    const stubs = (context: Partial<Parameters<typeof actionSources>[1]>) => actionSources(t, { ...base, ...context }).filter((a) => a.id === "toggleStubs").map((a) => a.words);
+    expect(stubs({ stubs: 5, showStubs: false })).toEqual(["Show the 5 unknown neighbours"]);
+    expect(stubs({ stubs: 5, showStubs: true })).toEqual(["Hide the 5 unknown neighbours"]);
+    expect(stubs({ stubs: 0 })).toEqual([]);
+    expect(stubs({})).toEqual([]);
+    expect(inFrench(() => stubs({ stubs: 1, showStubs: false }))).toEqual(["Afficher le voisin inconnu"]);
+    const offered: Sources = { ...sources, actions: actionSources(t, { ...base, stubs: 5 }) };
+    expect(search(offered, "unknown").actions.map((h) => h.id)).toEqual(["toggleStubs"]);
+  });
+
   it("steps over the tabs a page offers, wrapping around", () => {
     expect(stepIn(["all", "infrastructures"], "all", 1)).toBe("infrastructures");
     expect(stepIn(["all", "infrastructures"], "infrastructures", 1)).toBe("all");

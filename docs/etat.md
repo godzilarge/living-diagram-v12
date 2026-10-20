@@ -154,7 +154,13 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   répétable côté API, `jobj` répétable dans l'adresse, « Historique de N équipements ») ; « Ouvrir le
   journal » ouvre le Journal de toutes les infrastructures ; **les rails de la barre à une seule hauteur** (remarque
   d'Orhan sur capture, planche A / B, **B choisi** : le rail de l'onglet descend au pied de son mot, `Rail.css`,
-  DESIGN.md « One height in a bar », `docs/revues/2026-10-20-rails/` ; les scopes de la palette suivent, à juger). Logique v1 portée dans `app/src/state/journal*.ts`,
+  DESIGN.md « One height in a bar », `docs/revues/2026-10-20-rails/` ; les scopes de la palette suivent, à juger) ;
+  **les voisins inconnus reviennent** (remarque d'Orhan : la v1 savait les afficher, la v2 non) : section « Voisins
+  inconnus » du menu Équipements masqués, une ligne-geste « Afficher / Masquer les N voisins inconnus » (`stubs=1`),
+  action Ctrl+K en lecture, la toile prévient la vue quand elle les montre d'elle-même ; **une croix à droite de
+  chaque règle masquée** (`Menu` `trailing: "lift"`, DESIGN.md § Menu) ; app check 267, `edit.spec.ts` 15 ; captures
+  `.impeccable/planche-stubs/` ; deux points à juger (le compte N est celui du run ; « Tout afficher » ne touche pas
+  aux voisins). Logique v1 portée dans `app/src/state/journal*.ts`,
   `useJournal.ts`, `api/journal.ts`, filtres dans l'adresse (`address.ts`, écrits en mode journal seulement) ;
   catalogue `journal` fr / en ; primitives `Facets` et `Feed` dans `DESIGN.md` et la page vivante, `Segmented` avec
   un segment qui ouvre un popover, jetons `journal.*`. Douze points dans `docs/a-juger-a-l-usage.md` (colonne 1200,
@@ -169,7 +175,7 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   complète, vert seul (1 échec sur 3 passages) ; moteur vert ; backend 98 % (un échec d'environnement :
   `test_the_viewer_passes_its_node_tests`, Node 22.22 refuse `node --test <dossier>` ; les tests Chromium passent avec
   un lien `~/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/chrome-headless-shell` vers le headless
-  shell du conteneur) ; contrats 98 %. Captures `.impeccable/planche-journal/` (non versionnées, remises à Orhan). **Commité a0f36c0, puis 58aef0e (Historique sur la sélection) et le rail de l'onglet, poussés** sur
+  shell du conteneur) ; contrats 98 %. Captures `.impeccable/planche-journal/` (non versionnées, remises à Orhan). **Commité a0f36c0, puis 58aef0e (Historique sur la sélection), 207eb45 (rails) et les voisins inconnus, poussés** sur
   `claude/inspiring-noether-darrm2` (branche partie de `claude/keen-dirac-d907ei`, la brique 6 et le banc).
   **Prochaine session : `/brique-ui controle`**, en commençant par le choix d'Orhan (A, B ou C) et ses remarques sur la
   planche du Journal : écrire d'abord dans `DESIGN.md` et la page vivante les primitives que la direction demande (puce

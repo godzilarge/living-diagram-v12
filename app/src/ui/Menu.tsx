@@ -4,11 +4,12 @@
 // accent-weak; an optional shortcut chip on the right; a chosen value carries the check in accent-ink (a
 // `menuitemradio`); a `danger` row turns to the error text on hover (no fill: one definition with the controls); a
 // separator row is a hairline; a heading row names the rows under it in label size, ink-3; a `verbatim` row (a
-// hostname) keeps the case of its datum. Keys: ↑ ↓ Home End move the
+// hostname) keeps the case of its datum; a `trailing: "lift"` row (a hiding lifted) ends in a small cross, ink-3,
+// ink under the pointer or at the keyboard position, never red (it removes a view rule, not data). Keys: ↑ ↓ Home End move the
 // focus between rows, Enter and Space choose, a letter goes to the next row it starts; Escape is the holder's
 // (`onEscape`). `focusOnOpen`: the first row takes the focus on mount (the context menu), or the menu itself (a volet:
 // the arrows then start from the top), or nothing.
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { HTMLAttributes, KeyboardEvent, Ref } from "react";
 import { useMergeRefs } from "@floating-ui/react";
@@ -31,6 +32,8 @@ export type MenuItem = Readonly<{
   disabled?: boolean;
   /** A datum's name (a hostname): its words as written, never put in sentence case. */
   verbatim?: boolean;
+  /** A glyph on the right that says what choosing does: `lift`, a small cross (a hiding lifted, not a deletion). */
+  trailing?: "lift";
 }>;
 export type MenuRow = MenuItem | Readonly<{ kind: "separator" }> | Readonly<{ kind: "heading"; label: string }>;
 
@@ -166,6 +169,13 @@ function MenuRowButton({ item, active, onChoose }: { item: MenuItem; active: boo
     >
       <span className="ui-option-text">{item.label}</span>
       {item.shortcut?.length ? <Shortcut keys={item.shortcut} /> : null}
+      {item.trailing === "lift" ? (
+        <span className="ui-menu-trailing" data-trailing="lift">
+          <Icon>
+            <X />
+          </Icon>
+        </span>
+      ) : null}
       {item.checked ? (
         <span className="ui-option-check">
           <Icon>

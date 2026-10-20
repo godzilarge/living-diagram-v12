@@ -219,12 +219,14 @@ export function Diagram() {
   const journal = useJournal({ token: state.token, filters: state.view.journal, infrastructure: state.address.infrastructure, shown: journalShown, onRefused: commands.refuse });
   const hidden = useMemo(() => (model ? hiddenRules(model.nodes, model.links, state.view) : []), [model, state.view]);
   const hiddenCount = useMemo(() => (model ? hiddenOf(model.nodes, model.links, state.view).length : 0), [model, state.view]);
+  // the run's unknown neighbours (announced by LLDP / CDP, never collected): the view draws them or not (`stubs=1`)
+  const stubs = useMemo(() => model?.kindCounts.get("stub") ?? 0, [model]);
   // the panel and the band hide while editing (DESIGN.md, Hide when empty)
   const shown = !!model && !editing && !journalShown && hasPanel(model, state.selection);
   const width: Width | null = shown ? (focus ? "focus" : prefs.panel) : null;
   const insets = useMemo(() => chromeWith(width), [width]);
   insetsRef.current = insets;
-  const search = useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure: openInfrastructure, hidden: hiddenCount });
+  const search = useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure: openInfrastructure, hidden: hiddenCount, stubs });
   const panel: PanelControl = { shown, focus, setFocus, onSearch: search.control.onOpen };
   // edit mode's keys first (they stop there), then the shell's
   const clipboard = useMemo(
@@ -307,6 +309,8 @@ export function Diagram() {
           history={{ undo: history.get().undo.length > 0, redo: history.get().redo.length > 0 }}
           hidden={hidden}
           hiddenCount={hiddenCount}
+          stubs={stubs}
+          showStubs={state.view.showStubs}
         />
       ) : null}
       {blocked && (!journalShown || blocked.kind === "token") ? <StateIsland blocked={blocked} onConnect={commands.connect} /> : null}

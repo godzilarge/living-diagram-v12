@@ -607,14 +607,19 @@ popover under the control that opens it.
   of the run selected). Its foot, past one more hairline: hidden devices (`EyeOff`), undo (`Undo2`, `Ctrl Z`), redo
   (`Redo2`, `Ctrl Y`). Hidden devices opens a menu hung 12 px to its right, as shape does: a heading, one row per
   rule of the view, in the address's order, the isolation last, then a hairline and "show all". A row says the
-  gesture that wrote it, its data as written: an exact rule (H on a selection) its names (up to three, else the first
-  two "and N others"), an expression (from the search, or by hand) itself and its count in the run ("ADMIN · 50
+  gesture that wrote it, its data as written, with the small cross of a hiding lifted on its right (Menu): an exact
+  rule (H on a selection) its names (up to three, else the first two "and N others"), an expression (from the search, or by hand) itself and its count in the run ("ADMIN · 50
   devices", "· no device" when it keeps none out), the isolation "Isolated: core · 12 hidden". A row chosen lifts its
   rule as a whole (one gesture, undone in one: fifty devices come back together) and closes the menu. Its tooltip
   carries the count of devices hidden ("Hidden devices (3)", a device two rules keep out counted once), never a
   badge on the icon. A hiding is a view rule (the address), not an intention:
-  the contextual bar hides, this menu is the one place of the shell that shows again. Each of the three is disabled with its
-  reason when it has nothing to act on (nothing hidden, nothing to undo, nothing to redo). ↑ ↓ walk the tools (one
+  the contextual bar hides, this menu is the one place of the shell that shows again. When the run has unknown
+  neighbours (devices announced by LLDP / CDP, never collected), a second section follows the rules: the heading
+  "Unknown neighbours" and one gesture row, without a cross, "Show the N unknown neighbours" while the view leaves
+  them out, "Hide the N unknown neighbours" once drawn; they are a view rule too (`stubs=1` in the address), which
+  "show all" leaves alone (it lifts the rules only, and is left out with its heading when there is none); read mode,
+  without the palette, has the same row as a Ctrl+K action. Each of the three is disabled with its
+  reason when it has nothing to act on (nothing hidden nor unknown, nothing to undo, nothing to redo). ↑ ↓ walk the tools (one
   tab stop). It rises 4 px in 220 ms as edit mode opens.
 - **User button:** the declared author's initial (the `User` icon without a name) opens the name popover: a caption
   ink-3 sentence saying what the name is for, the field (80 characters) and the primary "Save" on one row (Enter
@@ -695,7 +700,9 @@ popover under the control that opens it.
   choice's options and the palette's results: 32 px, body text, 8 px inside; the hover fill under the pointer, the
   keyboard position on accent-weak. A row may carry a shortcut chip on the right, or the check in accent-ink for the
   chosen value of a choice (a `menuitemradio`). A row that deletes turns to the error text on hover and at the
-  keyboard position, without a fill (one definition with the danger control). A hairline separates groups (4 px above
+  keyboard position, without a fill (one definition with the danger control). A row that removes what it names (a
+  hiding lifted) carries a small cross on its right, ink-3, ink under the pointer and at the keyboard position, never
+  red: lifting a hiding is not a deletion. A hairline separates groups (4 px above
   and below it); a heading in label size ink-3 names the rows under it. 200 px wide at least, 320 px at most (a longer
   row ends in an ellipsis, its words whole in its accessible name); 2 px between rows. Rows
   are in sentence case, except a row that names a datum (a hostname): its words as the data writes them.

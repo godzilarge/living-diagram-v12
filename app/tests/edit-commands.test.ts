@@ -108,6 +108,15 @@ describe("the edit commands", () => {
     expect(views).toHaveLength(4);
   });
 
+  it("shows and hides the unknown neighbours through the view, writing only a change", () => {
+    const { commands, views } = harness();
+    commands.showStubs(false);
+    commands.showStubs(true);
+    commands.showStubs(true);
+    commands.showStubs(false);
+    expect(views).toEqual([{ showStubs: true }, { showStubs: false }]);
+  });
+
   it("removes a device's pin and hue in one write, only what it has", () => {
     const both = harness(true, fakeHandle({ pinned: ["sw-01"], coloured: ["sw-01"] }));
     both.commands.removeIntent("sw-01");

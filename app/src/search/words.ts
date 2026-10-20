@@ -6,6 +6,7 @@ import type { ModelNode } from "@engine/canvas/types";
 import type { Translate } from "../i18n";
 import type { RunEntry } from "../api/run";
 import { haModeWords, kindWords } from "../panel/words";
+import { stubsRowWords } from "../edit/hidden-words";
 import type { ActionSource, Hit, Results, Scope } from "../state/search";
 import { dayMonth } from "../state/time";
 
@@ -92,6 +93,9 @@ export type ActionContext = Readonly<{
   editing?: boolean;
   /** How many devices the view hides: "show the hidden devices" when some are. */
   hidden?: number;
+  /** The run's unknown neighbours and whether the view draws them: "show (hide) the N unknown neighbours" when any. */
+  stubs?: number;
+  showStubs?: boolean;
   /** The archived runs, oldest first, and the one shown. */
   runs: readonly RunEntry[];
   current: string;
@@ -114,6 +118,8 @@ export function actionSources(t: Translate, context: ActionContext): readonly Ac
     // the query's own action (its words come with the count, `rowName`), offered on the diagram page only
     ...(context.editing === undefined ? [] : [{ id: "hideMatches" as const, words: "" }]),
     ...(context.hidden ? [{ id: "showHidden" as const, words: t("search:actions.showHidden", { count: context.hidden }) }] : []),
+    // the edit palette's row in the same words (read mode has no palette)
+    ...(context.stubs ? [{ id: "toggleStubs" as const, words: stubsRowWords(t, context.stubs, !!context.showStubs) }] : []),
   ];
   const open = [...context.runs].reverse().filter((run) => run.run_id !== context.current).map((run): ActionSource => ({ id: "openRun", runId: run.run_id, words: t("search:actions.openRun", { date: date(run) }) }));
   const compare = context.compare.map((run): ActionSource => ({ id: "compareRun", runId: run.run_id, words: t("search:actions.compareRun", { date: date(run) }) }));

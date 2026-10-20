@@ -106,6 +106,12 @@ function pushView(toile: Toile, view: ViewState): boolean {
   return changed;
 }
 
+/** The engine shows the unknown neighbours by itself when it reveals one (a stub asked by the address or the search):
+ *  the view learns it, so the address (`stubs=1`) and the hidden devices' menu say what the canvas draws. */
+function syncStubs(toile: Toile, latest: { current: Latest }): void {
+  if (toile.state.filters.showStubs && !latest.current.view.showStubs) latest.current.edit.showStubs(true);
+}
+
 type Latest = Pick<CanvasProps, "view" | "insets" | "wanted" | "onSelect" | "onNote" | "onWantedMissing" | "onTouched" | "session" | "editing" | "author" | "edit"> & { t: ReturnType<typeof useText> };
 
 /** The v1's hosts around a toile: the writer under the name, the intent host, the undo stack; the canvas hooks that
@@ -185,8 +191,10 @@ export function Canvas(props: CanvasProps) {
     const asked = latest.current.wanted;
     const first = asked ? selectionFromToken(model, asked.kind, asked.token) : null;
     if (asked && !first && model.source.infrastructure === infrastructure) latest.current.onWantedMissing(asked.token);
-    if (first) created.reveal(first);
-    else created.select(null);
+    if (first) {
+      created.reveal(first);
+      syncStubs(created, latest);
+    } else created.select(null);
     setAssetReader((asset) => readAsset(latest.current.session(), asset));
     const mounted: EditHandle = {
       toile: created, area: () => host.current?.getBoundingClientRect() ?? { width: 0, height: 0 },
@@ -224,14 +232,18 @@ export function Canvas(props: CanvasProps) {
     if (wanted) {
       if (model.source.infrastructure !== infrastructure) return;
       const found = selectionFromToken(model, wanted.kind, wanted.token);
-      if (found) toile.reveal(found);
-      else onWantedMissing(wanted.token);
+      if (found) {
+        toile.reveal(found);
+        syncStubs(toile, latest);
+      } else onWantedMissing(wanted.token);
       return;
     }
     if (sameSelection(toile.state.selection, selection) && sameHosts(toile.state.selected, hosts)) return;
     if (hosts.length >= 2) toile.selectHosts([...hosts]);
-    else if (selection) toile.reveal(selection);
-    else toile.select(null);
+    else if (selection) {
+      toile.reveal(selection);
+      syncStubs(toile, latest);
+    } else toile.select(null);
   }, [toile, model, infrastructure, wanted, selection, hosts, onWantedMissing]);
 
   // Leaving edit mode puts the tool away in the canvas too (its armed state follows `tool`); nothing else to do.

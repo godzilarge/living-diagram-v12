@@ -185,7 +185,7 @@ describe("primitives", () => {
     expect(html(<Facts items={[]} />)).not.toContain("data-size");
     expect(html(<Alerts size="snug" label="a" items={[{ id: "1", tone: "error", text: "x" }]} />)).toContain('data-size="snug"');
   });
-  it("a menu: actions, a chosen value, a shortcut, a deleting row, a verbatim row, a separator and a heading", () => {
+  it("a menu: actions, a chosen value, a shortcut, a deleting row, a verbatim row, a hiding lifted, a separator and a heading", () => {
     const out = html(
       <Menu
         label="m"
@@ -198,11 +198,15 @@ describe("primitives", () => {
           { id: "c", label: "c", checked: false },
           { id: "d", label: "d", danger: true },
           { id: "e", label: "e", verbatim: true, disabled: true },
+          { id: "f", label: "f", trailing: "lift" },
         ]}
       />,
     );
     expect(out).toMatch(/role="menu"[^>]*aria-label="m"|aria-label="m"[^>]*role="menu"/);
-    expect(out.match(/role="menuitem"/g)).toHaveLength(3);
+    expect(out.match(/role="menuitem"/g)).toHaveLength(4);
+    // the cross says what choosing does, in a glyph the name does not read: the row's name stays its label
+    expect(out.match(/data-trailing="lift"/g)).toHaveLength(1);
+    expect(out).toMatch(/data-value="f"[^]*?<span class="ui-option-text">f<\/span><span class="ui-menu-trailing" data-trailing="lift"><span class="ui-icon" aria-hidden="true">/);
     expect(out.match(/role="menuitemradio"/g)).toHaveLength(2);
     expect(out).toContain('aria-checked="true"');
     expect(out).toContain('aria-keyshortcuts="Control+C"');

@@ -191,7 +191,7 @@
     "hiddenExpression": "ADMIN",
     "hiddenIsolated": "dc01-core",
     "bar": "Contextual bar, its hue volet open",
-    "menu": "Menu: actions, a chosen value, a shortcut, a deleting row",
+    "menu": "Menu: actions, a chosen value, a shortcut, a hiding lifted, a deleting row",
     "sizes": "A note bar, its size list open",
     "device": "dc01-core-01"
   },

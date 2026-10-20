@@ -31,8 +31,9 @@ export type NoteHit = Readonly<{ kind: "note"; key: string; id: string; noteKind
 export type InfrastructureHit = Readonly<{ kind: "infrastructure"; key: string; name: string; current: boolean; devices: number | null }>;
 /** The actions the shell can run from the palette; `openRun` and `compareRun` name a collection; `hideMatches` is the
  *  query's own action: hide the devices the typed expression designates (the expression becomes the view's rule, as
- *  the v1 did: "ADMIN" hides every hostname that contains it); `showHidden` lifts every rule. */
-export type ActionId = "fit" | "center" | "zoomReset" | "grid" | "minimap" | "edit" | "openRun" | "compareRun" | "hideMatches" | "showHidden";
+ *  the v1 did: "ADMIN" hides every hostname that contains it); `showHidden` lifts every rule; `toggleStubs` shows or
+ *  hides the unknown neighbours. */
+export type ActionId = "fit" | "center" | "zoomReset" | "grid" | "minimap" | "edit" | "openRun" | "compareRun" | "hideMatches" | "showHidden" | "toggleStubs";
 export type ActionHit = Readonly<{ kind: "action"; key: string; id: ActionId; runId: string | null; words: string; /** `hideMatches`: how many devices, and the rule to write. */ count?: number; rule?: string }>;
 export type Hit = DeviceHit | PortHit | GroupHit | ClusterHit | NoteHit | InfrastructureHit | ActionHit;
 

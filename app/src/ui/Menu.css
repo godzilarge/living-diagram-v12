@@ -48,6 +48,23 @@
   flex: none;
 }
 
+/* a row that removes what it names (a hiding lifted): a small cross on the right, ink-3 at rest, ink under the pointer
+   or at the keyboard position; never the error colour (a view rule lifted is not a deletion) */
+.ui-menu-trailing {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-ink-3);
+  transition: color var(--motion-hover) var(--motion-ease);
+}
+
+.ui-menu-item:is(:hover, [data-force="hover"], [data-active]) .ui-menu-trailing {
+  color: var(--color-ink);
+}
+
+.ui-menu-item[aria-disabled="true"] .ui-menu-trailing {
+  color: inherit;
+}
+
 /* a row that deletes: the error text on hover or at the keyboard position, no fill (the error on a fill would fall
    under 4.5:1 in dark; the focus ring still says where the keyboard is) */
 .ui-menu-item[data-danger]:is(:hover, [data-force="hover"], [data-active]) {

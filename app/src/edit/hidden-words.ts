@@ -2,7 +2,9 @@
 // gesture that wrote it. An exact rule (H on a selection) says its names, as written: one, two or three joined by a
 // comma, past three the first two "and N others"; an expression (the search, or the address by hand) says itself and
 // the devices of the run it keeps out ("ADMIN · 50 devices", "· no device" when it keeps none out); the isolation says
-// so ("Isolated: core · 12 hidden"). Every sentence comes from the catalogue, values interpolated.
+// so ("Isolated: core · 12 hidden"). The unknown neighbours' row (the menu's second section, and the Ctrl+K action)
+// says the gesture it offers: show them when the view leaves them out, hide them when it draws them. Every sentence
+// comes from the catalogue, values interpolated.
 import type { Translate } from "../i18n";
 import type { HiddenRule } from "../state/hidden";
 
@@ -25,3 +27,7 @@ export function hiddenRuleWords(t: Translate, row: HiddenRule): string {
   if (row.named) return rule;
   return count ? t("edit:palette.hiddenRuleCount", { rule, count }) : t("edit:palette.hiddenRuleNone", { rule });
 }
+
+/** The unknown neighbours' row: "Show the 5 unknown neighbours" while the view leaves them out, "Hide…" once shown. */
+export const stubsRowWords = (t: Translate, count: number, shown: boolean): string =>
+  t(shown ? "edit:palette.stubsHide" : "edit:palette.stubsShow", { count });
