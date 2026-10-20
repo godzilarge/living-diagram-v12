@@ -7,6 +7,14 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **The bar's rails at one height** (2026-10-20, Orhan on a capture: "look at the rails under Diagram, L1, change").
+  Three rails, three heights: the mockup's tab put its rail on the island's hairline (46 px tab), the layer and the
+  "changes" toggle at the foot of their 32 px control, 8 px higher. Plate of two corrections (A: every rail on the
+  island's edge; B: every rail at the foot of its word), Orhan chose **B**. `Rail.css`: the tab's rail sits where a
+  32 px control's does (whole pixels for the palette's 43 px scopes, which follow); DESIGN.md "One height in a bar".
+  The "changes" toggle's rail, absent from the mockup (a plain button there), stays: it says the v1's "show the
+  changes on the map", on by default. Plate: `docs/revues/2026-10-20-rails/`.
+
 - **Log: the History row acts on the selection** (2026-10-20, Orhan's first test: "with several devices selected,
   History seems to take one device only"). The row took the device aimed at alone, and the API accepted one `object`.
   Now `GET /api/intent/journal` takes `object` **repeatable** (an entry is kept when it cites any of them;

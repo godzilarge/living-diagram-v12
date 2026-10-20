@@ -3,7 +3,8 @@
   align-items: stretch;
 }
 
-/* a tab fills the island's height so its rail sits on the island's edge (48 - 2 hairlines) */
+/* a tab fills the island's height (48 - 2 hairlines): its whole height takes the click, its rail stays at the foot of
+   its word */
 .ui-tab {
   height: calc(var(--control-height) + 2 * var(--island-padding) - 2px);
   padding: 0 var(--space-md);
@@ -18,10 +19,13 @@
   background: transparent;
 }
 
+/* the rail at the foot of the word, where a 32 px control's sits: one height for every rail of a bar (Orhan,
+   2026-10-20, choice B of the plate: the mockup's tab put it on the island's hairline, 8 px under the layers' and the
+   toggles'); whole pixels for a strip of odd height (the palette's scopes, 43 px) */
 .ui-tab.ui-rail::after {
   left: var(--space-md);
   right: var(--space-md);
-  bottom: -1px; /* on the island's hairline */
+  bottom: round(down, calc((100% - var(--control-height)) / 2), 1px);
 }
 
 .ui-tab[aria-selected="true"] {

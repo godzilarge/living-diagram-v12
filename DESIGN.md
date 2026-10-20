@@ -471,8 +471,10 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   always a tooltip; `aria-pressed` when it toggles.
 - **Primary:** accent fill, on-accent text, 0 14px padding; one per surface at most (export, "Ouvrir la fiche").
 - **Hover / Focus:** hover fill 120 ms; focus ring 2 px accent, offset 2 px, on keyboard focus only.
-- **Current / on:** the 2 px accent rail (bottom of a tab, left of a vertical tool, under a run), ink text at 600 for
-  a word (a layer, a scope, a setting); no fill. One definition, in the primitive.
+- **Current / on:** the 2 px accent rail (under the word of a tab, a layer, a run, a scope; left of a vertical tool),
+  ink text at 600 for a word (a layer, a scope, a setting); no fill. One definition, in the primitive. **One height
+  in a bar:** every rail sits at the foot of a 32 px control, a tab's included (Orhan, 2026-10-20, chosen on a plate
+  against the mockup's tab, whose rail sat on the island's hairline, 8 px under the layers' rail).
 - **Disabled:** ink-4, no hover, cursor default; a tooltip still says why (L2, L3: "en cours").
 - **Danger:** error text on hover, no fill (the error red on the dark hover fill would fall under 4.5:1).
 - **Outlined icon button:** the icon button with a line-2 border on paper, for a control alone on an empty surface (the
@@ -582,7 +584,8 @@ popover under the control that opens it.
 
 ### Navigation
 - **View switch** (Diagramme / Contrôle / Journal): body-size words (13.5 px) at 500, ink-2; the current one in
-  ink at 600 with the 2 px accent rail; counts next to Contrôle in the state colour.
+  ink at 600 with the 2 px accent rail at the foot of the word, level with the layers' rail; counts next to Contrôle
+  in the state colour.
 - **Layer choice** (L1 / L2 / L3): the same rail; L2 and L3 disabled with a tooltip, no extra text.
 - **Context choices** (infrastructure, run): a word with a chevron, opens a list. A choice may carry fixed words
   instead of its value ("Compare with…") and a busy state while what it lists is read (the run choice while a

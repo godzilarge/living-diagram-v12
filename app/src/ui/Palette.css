@@ -83,7 +83,7 @@
   color: var(--color-ink-3);
 }
 
-/* the scope row: the tab strip, its rail on the band's hairline, the first word 20 px from the edge */
+/* the scope row: the tab strip, its rail at the foot of its word as every tab's, the first word 20 px from the edge */
 .ui-palette-scopes {
   flex: none;
   height: var(--palette-scope-height);
