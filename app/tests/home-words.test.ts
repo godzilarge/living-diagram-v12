@@ -20,7 +20,7 @@ const inLanguage = <T,>(language: "en" | "fr", read: () => T): T => {
 };
 const entry = (author: string): JournalEntry => ({
   infrastructure: "demo-dc", revision: 1, at: "2026-01-19T17:00:00Z", author,
-  categories: [], actions: [], created: [], subjects: [], ops: [{ op: "pin", hostname: "a" }, { op: "pin", hostname: "b" }],
+  categories: [], actions: [], created: [], subjects: [], ops: [{ op: "pin", hostname: "a" }, { op: "pin", hostname: "b" }], group: null,
 });
 
 describe("home words", () => {
@@ -62,9 +62,9 @@ describe("home words", () => {
   });
 
   it("puts the author where the catalogue says, unknown when left blank", () => {
-    expect(byAuthorWords(t, entry("orhan"))).toEqual({ before: "", author: "orhan", after: " moved 2 devices" });
-    expect(byAuthorWords(t, entry("  "))).toEqual({ before: "", author: "unknown", after: " moved 2 devices" });
-    expect(inLanguage("fr", () => byAuthorWords(t, entry("")))).toEqual({ before: "", author: "inconnu", after: " a déplacé 2 équipements" });
+    expect(byAuthorWords(t, entry("orhan"))).toEqual({ before: "", author: "orhan", after: " placed 2 devices" });
+    expect(byAuthorWords(t, entry("  "))).toEqual({ before: "", author: "unknown", after: " placed 2 devices" });
+    expect(inLanguage("fr", () => byAuthorWords(t, entry("")))).toEqual({ before: "", author: "inconnu", after: " a placé 2 équipements" });
   });
 
   it("counts the archive entries it could not read at the foot of a widget", () => {

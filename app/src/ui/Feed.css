@@ -1,0 +1,167 @@
+/* A feed (DESIGN.md, Feed): avatar | sentence (20 px line) and its caption | the time and the revision; 10 px above and
+   below a row, a hairline between two; the head of a row that unfolds is a button 8 px wider than the text on each
+   side, so its hover fill and its focus ring breathe. */
+.ui-feed-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-feed-item {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.ui-feed-item:last-child {
+  border-bottom: 0;
+}
+
+.ui-feed-head {
+  display: grid;
+  grid-template-columns: var(--avatar-size) minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--space-md);
+  padding: var(--feed-item-padding);
+}
+
+/* a flat list (the home's widget) starts flush with the header above it */
+.ui-feed > .ui-feed-list > .ui-feed-item:first-child > .ui-feed-head {
+  padding-top: 0;
+}
+
+button.ui-feed-head {
+  width: calc(100% + 2 * var(--space-sm));
+  margin: 0 calc(-1 * var(--space-sm));
+  padding-right: var(--space-sm);
+  padding-left: var(--space-sm);
+  border: 0;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-weight);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--motion-hover) var(--motion-ease);
+}
+
+button.ui-feed-head:is(:hover, [data-force="hover"]) {
+  background: var(--color-ground);
+}
+
+button.ui-feed-head:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
+  outline-offset: calc(-1 * var(--focus-ring-width));
+}
+
+/* the row a link points at: the keyboard position in a list (accent-weak) */
+.ui-feed-item[data-target] > .ui-feed-head {
+  background: var(--color-accent-weak);
+}
+
+.ui-feed-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ui-feed-sentence {
+  line-height: var(--text-body-line-leading);
+  text-wrap: pretty;
+}
+
+.ui-feed-sentence b {
+  font-weight: var(--text-body-strong-weight);
+}
+
+.ui-feed-caption {
+  margin-top: var(--space-2xs);
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-caption-leading);
+}
+
+.ui-feed-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-body-line-leading);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ui-feed-sub {
+  margin-top: var(--space-2xs);
+  color: var(--color-ink-3);
+  line-height: var(--text-caption-leading);
+}
+
+/* tones: positions recede, a deletion's verb stands out */
+.ui-feed-item[data-tone="quiet"] .ui-feed-sentence {
+  color: var(--color-ink-3);
+}
+
+.ui-feed-item[data-tone="quiet"] .ui-feed-sentence b {
+  color: var(--color-ink-2);
+}
+
+.ui-feed-item[data-tone="destroy"] .ui-feed-verb {
+  color: var(--color-error);
+}
+
+/* inline after the sentence: the tally of a repeated gesture (the Shortcut's chip), or a note */
+.ui-feed-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: var(--shortcut-height);
+  margin-left: var(--space-sm);
+  padding: var(--shortcut-padding);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--shortcut-radius);
+  color: var(--shortcut-text-color);
+  font-size: var(--shortcut-font-size);
+  font-weight: var(--shortcut-font-weight);
+  line-height: 1;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.ui-feed-times {
+  color: var(--color-ink-2);
+}
+
+.ui-feed-note {
+  margin-left: var(--space-sm);
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+}
+
+.ui-feed-match {
+  background: transparent;
+  color: inherit;
+  font-weight: var(--palette-match-weight);
+}
+
+/* the detail of a row that unfolds: under the sentence's column */
+.ui-feed-detail {
+  padding: 0 0 var(--space-md) calc(var(--avatar-size) + var(--space-md));
+}
+
+/* a day: its title sticks at the top of the scrolling body, on paper, as wide as the rows' hover */
+.ui-feed-day-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 calc(-1 * var(--space-sm));
+  padding: var(--space-md) var(--space-sm) var(--space-xs);
+  background: var(--color-paper);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-leading);
+}

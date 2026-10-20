@@ -1,0 +1,5 @@
+fr&jau=orhan -> 236 modifications correspondent · demo-dc · heures UTC+1 | shown 260/318 cut=true | search 200
+fr&jinfra=* -> 236 modifications · toutes les infrastructures · heures UTC+1 | shown 260/321 cut=true | search 200
+fr&jinfra=*&jau=orhan -> 236 modifications correspondent · toutes les infrastructures · heures UTC+1 | shown 260/401 cut=true | search 200
+en&jau=orhan -> 236 modifications correspondent · demo-dc · heures UTC+1 | shown 260/318 cut=true | search 200
+fr&jp=range&jfrom=2026-01-01&jto=2026-01-15 -> 236 modifications correspondent · demo-dc · heures UTC+1 | shown 199/318 cut=true | search 200

@@ -1,0 +1,42 @@
+history.length 2
+- region "Aujourd'hui":
+  - heading "Aujourd'hui" [level=3]
+  - list:
+    - listitem:
+      - button "orhan a placé 3 équipements 17:30 r80":
+        - text: orhan a placé 3 équipements
+        - time: 17:30
+        - text: r80
+    - listitem:
+      - button "camille.r a ajouté une note « Baie 12 »n'existe plus 16:20 r79":
+        - text: camille.r a ajouté une note « Baie 12 »n'existe plus
+        - time: 16:20
+        - text: r79
+    - listitem:
+- complementary "filtres du journal":
+  - heading "Filtres" [level=2]
+  - button "Effacer tous les filtres"
+  - group "filtres du journal":
+    - region "Infrastructure":
+      - heading "Infrastructure" [level=3]
+      - radiogroup "Infrastructure":
+        - radio "Toutes, 412": Toutes
+        - radio "demo-dc, ouverte, 236" [checked]: demo-dc ouverte
+        - radio "lab-sec, 12": lab-sec
+        - radio "site-lyon, 98": site-lyon
+        - radio "site-nantes, 41": site-nantes
+        - radio "wan-core, 25": wan-core
+    - region "Catégories":
+- heading "Journal" [level=2]
+- text: 236 modifications correspondent · demo-dc · heures UTC+1
+- radiogroup "période":
+  - radio "24 h"
+  - radio "7 jours"
+  - radio "30 jours"
+  - radio "Tout" [checked]
+  - radio "Plage"
+- searchbox "rechercher dans le journal"
+- button "Exporter en CSV"
+- 'button "Lire le journal : raccourcis et limites"'
+after o: #node=dc01-acc-01 history.length 3
+after back: #mode=journal&jau=orhan&node=dc01-acc-01 journal shown 1

@@ -1,0 +1,18 @@
+{
+ "destroy verb": 5.3,
+ "quiet sentence": 5.6,
+ "tally border vs paper": 1.55,
+ "search border": [
+  "ui-field-input:1.55"
+ ],
+ ".ui-feed-sub on target": "4.92 bg 235,240,254",
+ ".ui-feed-when time on target": "4.92 bg 235,240,254",
+ ".ui-feed-note on target": "4.92 bg 235,240,254",
+ "b on target": "16.17 bg 235,240,254",
+ "focus ring on target": 5.46,
+ ".ui-feed-sub on hover": "5.13 bg 244,245,246",
+ ".ui-feed-when time on hover": "5.13 bg 244,245,246",
+ ".ui-feed-note on hover": "5.13 bg 244,245,246",
+ "b on hover": "16.88 bg 244,245,246",
+ "focus ring on hover": 5.7
+}

@@ -21,6 +21,9 @@ import { makeEditCommands } from "./edit-commands";
 import type { EditCommands, EditHandle, Note } from "./edit-commands";
 import { latestTarget, openTarget } from "./runs";
 import type { Target } from "./runs";
+import { DEFAULT_FILTERS } from "./journal";
+import type { JournalFilters } from "./journal";
+import type { RefKind } from "./journal-text";
 import { zoomIn, zoomOut, zoomTo } from "./zoom";
 import type { Insets } from "./zoom";
 import type { Cause } from "./useHome";
@@ -31,6 +34,8 @@ export type CanvasHandle = EditHandle;
 
 export type DiagramCommands = Readonly<{
   connect: (token: string) => void;
+  /** A 401 met elsewhere (the Log's reads): the token is forgotten and asked for again. */
+  refuse: () => void;
   openFromBand: (runId: string) => void;
   compareTo: (from: string) => void;
   setView: (patch: Partial<ViewState>) => void;
@@ -60,6 +65,12 @@ export type DiagramCommands = Readonly<{
   touched: () => void;
   /** The editing commands against the mounted canvas. */
   edit: EditCommands;
+  /** The Log view (brick 7): a filter set (a link to an entry is left; another infrastructure leaves an object's
+   *  history: an identity is unique in its infrastructure only); the history of one object (a hostname, an identity)
+   *  from the context menu, the browser's Back coming back here; an object cited by an entry shown in the Diagram. */
+  setJournal: (patch: Partial<JournalFilters>) => void;
+  openHistory: (object: string) => void;
+  showFromJournal: (kind: RefKind, id: string) => void;
 }>;
 
 const causeOf = (kind: "failed" | "invalid" | "unreachable", status?: number): Cause => (kind === "failed" ? (status ?? 0) : kind);
@@ -173,8 +184,27 @@ export function useDiagram(insetsOf: () => Insets, notify: (note: Note | null) =
       dispatch, current: () => stateRef.current, session, handle: () => handleRef.current,
       setView: (patch) => dispatch({ type: "view", patch }), note: notify,
     });
+    // the next write of the address adds an entry to the browser's history: Back comes back to the view left
+    const pushNext = (): void => {
+      if (typeof history !== "undefined") history.pushState(null, "", location.href);
+    };
     return {
       edit,
+      refuse,
+      setJournal: (patch) => {
+        const was = stateRef.current.view.journal;
+        const moved = patch.infrastructure !== undefined && patch.infrastructure !== was.infrastructure && patch.object === undefined;
+        dispatch({ type: "view", patch: { journal: { ...was, rev: null, ...(moved ? { object: "" } : {}), ...patch } } });
+      },
+      openHistory: (object) => {
+        pushNext();
+        dispatch({ type: "view", patch: { mode: "journal", journal: { ...DEFAULT_FILTERS, object } } });
+      },
+      showFromJournal: (kind, id) => {
+        pushNext();
+        dispatch({ type: "view", patch: { mode: "diagram" } });
+        dispatch({ type: "want", wanted: { kind, token: id } });
+      },
       setEditing: (editing) => dispatch({ type: "edit", editing }),
       toggleEdit: () => dispatch({ type: "edit", editing: !stateRef.current.editing }),
       setTool: (tool) => edit.setTool(tool),
@@ -220,7 +250,7 @@ export function useDiagram(insetsOf: () => Insets, notify: (note: Note | null) =
         if (view) apply(zoomTo(view, 1, area(), insetsOf()));
       },
     };
-  }, [open, insetsOf, session, notify]);
+  }, [open, insetsOf, session, notify, refuse]);
 
   return { state, session, commands, handle, history: undoStack };
 }

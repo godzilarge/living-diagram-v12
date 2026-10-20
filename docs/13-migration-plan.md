@@ -200,6 +200,30 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   leaving the mode, to judge in use); the code draft and the in-place fields of the v1 robust to React's StrictMode
   (development only: the draft was abandoned as it opened).
 
+- **Brick 7, Log view** (2026-10-20; the Check view waits for Orhan's choice among the three bench directions): the
+  Log of the J1 bench direction ("the feed and its facets", `/next/?infrastructure=…#mode=journal`), chosen by Orhan on
+  2026-10-20 with one remark, "everything is packed on the left": the Filters island (288 px) and the Log island form
+  **one reading column, centred, 1280 px at most** (1200 before the review), the ground on both sides, the canvas covered but mounted (its
+  viewport, selection and undo stack survive the trip). The feed by day (sticky titles), one row per accepted request
+  (avatar, "author did what", the time and the revision on the right), folds of a repeated gesture ("×8, from 14:58 to
+  15:02"), sessions of positions ("24 requests since 08:15"), quiet rows for positions, the verb in red for a deletion,
+  a row unfolded on its facts (the `Facts` primitive), its devices, the raw operations, "Copy link" and "History of …";
+  the facets (infrastructure exclusive with the rail, categories, actions, authors cumulative with the check, counts at
+  40 px, values that never move), the period as a `Segmented` (24 h, 7 days, 30 days, all, a range popover of two
+  dates), the search (250 ms, `/`, Escape), the CSV export (said by a toast), the help popover, the link to an entry
+  (`jrev`: the row on accent-weak, "show the latest"), an object's history (`jobj`), the empty, failed and "nothing
+  matches" states with the filters in words. **The context menu opens in read mode too**, with the v1's read rows, and
+  **History** first for a device, a group, an annotation or a connector (the Log on that object; the browser's Back
+  comes back to the diagram). The home's feed moves onto the same `Feed` primitive and the same sentence engine (M5 of
+  the home review); "Open the log" links to the Log of every infrastructure. **Logic moved into `app/src/`** with Node
+  tests: the filters in the address (`state/journal.ts`, written in Log mode only, the v1's keys), the sentences
+  (`state/journal-text.ts`), the CSV (`state/journal-csv.ts`), the reads (`state/journal-load.ts`, `useJournal.ts`), the
+  API shape (`api/journal.ts`); `engine/src/app/state/journal*.ts` stay until the cut-over. Two primitives written into
+  `DESIGN.md` and the primitives page before use: `Facets` and `Feed`; `Segmented` gained a segment that opens a
+  popover; tokens `journal.column`, `journal.facets`, `journal.search`, `journal.search-min`. The shell's keys that
+  act on the canvas are silent in Log mode; edit mode closes on leaving the Diagram. Decisions to judge in use:
+  `docs/a-juger-a-l-usage.md` (2026-10-20). Review: `docs/revues/2026-10-20-journal.md`.
+
 ## Rules every brick obeys
 
 - The approved mockup state is the comp; the `relecteur-ui` compares to it, never to a score.

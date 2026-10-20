@@ -1,0 +1,11 @@
+{
+ "subtitle": "lecture impossible · demo-dc · heures UTC+1",
+ "body": "Le journal n'a pas pu être lu.\n\nCause : erreur 500. Réessayez ; si l'erreur revient, le journal du serveur est à vérifier.\n\nRéessayer",
+ "focused": "\ndemo-dc19 janv. 2026, 03:0010 changementsDiagrammeContrôle1",
+ "alerts": [
+  "/polite: lecture impossible · demo-dc · heures UTC+1",
+  "/polite: ",
+  "alert/: Le journal n'a pas pu être lu.Cause : erreur 500. Réessayez ",
+  "/assertive: "
+ ]
+}

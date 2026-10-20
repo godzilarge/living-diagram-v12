@@ -37,6 +37,12 @@ export function openHref(infrastructure: string, runId: string, base = DIAGRAM_R
   return `${base}?${new URLSearchParams({ infrastructure, run_id: runId }).toString()}`;
 }
 
+/** Where the latest modifications open: the Log of every infrastructure (`jinfra=*`, as the widget mixes them), on
+ *  the page of the infrastructure of the most recent entry. */
+export function logHref(infrastructure: string, base = DIAGRAM_ROUTE): string {
+  return `${base}?${new URLSearchParams({ infrastructure }).toString()}#mode=journal&jinfra=*`;
+}
+
 export type InfraRow = Readonly<{
   name: string;
   devices: number | null;

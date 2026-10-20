@@ -203,7 +203,8 @@
     "join": ", "
   },
   "menu": {
-    "label": "Context menu"
+    "label": "Context menu",
+    "history": "History"
   },
   "keys": {
     "delete": "Del",

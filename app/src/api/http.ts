@@ -62,8 +62,12 @@ export function writeAuthor(name: string, store: KeyStore | null = browserStore(
   }
 }
 
-export function withParams(route: string, params: Readonly<Record<string, string | number>>): string {
-  const query = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)])).toString();
+export type Params = Readonly<Record<string, string | number>> | readonly (readonly [string, string])[];
+
+/** The route with its query; a list of pairs keeps a repeated key (`author` twice), a record cannot. */
+export function withParams(route: string, params: Params): string {
+  const pairs = Array.isArray(params) ? (params as readonly (readonly [string, string])[]).map(([key, value]) => [key, value]) : Object.entries(params).map(([key, value]) => [key, String(value)]);
+  const query = new URLSearchParams(pairs as [string, string][]).toString();
   return query ? `${route}?${query}` : route;
 }
 
@@ -72,7 +76,7 @@ const browserFetch: Fetch = (input, init) => fetch(input, init);
 /** A GET of the API with the token; `parse` validates the body at the boundary (null = not the contract's shape). */
 export async function getJson<T>(
   route: string,
-  params: Readonly<Record<string, string | number>>,
+  params: Params,
   token: string,
   parse: (body: unknown) => T | null,
   fetchFn: Fetch = browserFetch,

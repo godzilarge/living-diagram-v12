@@ -6,8 +6,11 @@
 // refusal, no collection). Ctrl+K and the tools island's button open the search palette (brick 4) over everything;
 // a result chosen there is opened here (`useSearch`). Edit mode (brick 6, the pencil or M): the palette on the left,
 // the panel and the band hidden, the contextual bar over the selected element inside the canvas, the context menu,
-// the keyboard of edit mode before the shell's. It renders `useDiagram`'s state and sends its commands; the canvas
-// is mounted by `Canvas` alone, once a collection is read.
+// the keyboard of edit mode before the shell's. The Log view (brick 7, `#mode=journal`): the ground over the canvas,
+// which stays mounted and inert, the top row kept, the panel, the band, the canvas controls and the context menu
+// gone; its pages (`useJournal`) are held here, so they survive the trip to the Diagram. The context menu opens in
+// reading too, with the History of the object first. It renders `useDiagram`'s state and sends its commands; the
+// canvas is mounted by `Canvas` alone, once a collection is read.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconLink, Island, LogoMark, Scrim, ToastHost } from "../ui";
 import { useText } from "../i18n";
@@ -27,6 +30,9 @@ import type { Model } from "@engine/canvas/types";
 import type { Insets } from "../state/zoom";
 import type { Session } from "../api/run";
 import { useInfrastructures } from "../state/useInfrastructures";
+import { historyObjectOf } from "../state/journal";
+import { useJournal } from "../state/useJournal";
+import { Journal } from "../journal/Journal";
 import { SearchPalette } from "../search/SearchPalette";
 import { ContextBar } from "../edit/ContextBar";
 import { ContextMenu } from "../edit/ContextMenu";
@@ -144,15 +150,15 @@ function editKeyAction(key: EditKey, state: DiagramState, model: Model | null, c
 type Ready = Extract<RunState, { kind: "ready" }>;
 type ShownCanvasProps = {
   state: DiagramState; run: Ready; session: () => Session; commands: DiagramCommands; notices: Notices; insets: Insets;
-  author: string; history: StackHolder; children?: React.ReactNode;
+  author: string; history: StackHolder; inert: boolean; children?: React.ReactNode;
 };
 
 /** The canvas of the collection read, with the view, the selection, the browser's preferences, and edit mode. */
-function ShownCanvas({ state, run, session, commands, notices, insets, author, history, children }: ShownCanvasProps) {
+function ShownCanvas({ state, run, session, commands, notices, insets, author, history, inert, children }: ShownCanvasProps) {
   const { prefs, language } = usePrefs();
   const { grid, minimap, theme } = prefs;
   const shown = useMemo(() => ({ grid, minimap, theme }), [grid, minimap, theme]);
-  const onContext = useCallback((request: ContextRequest) => (state.editing ? commands.openContext(request) : undefined), [commands, state.editing]);
+  const onContext = useCallback((request: ContextRequest) => commands.openContext(request), [commands]);
   return (
     <Canvas
       model={run.model}
@@ -179,6 +185,7 @@ function ShownCanvas({ state, run, session, commands, notices, insets, author, h
       onNote={notices.onNote}
       onTouched={commands.touched}
       onContext={onContext}
+      inert={inert}
     >
       {children}
     </Canvas>
@@ -201,15 +208,19 @@ export function Diagram() {
   const [now] = useState(Date.now);
   const notices = useNotices(t, state.run, commands.dropWanted, editRef);
   noticesRef.current = notices;
+  // the canvas's own lines of status ("8 devices placed and memorized") are the Diagram's: the Log does not show them
+  const journalShown = state.view.mode === "journal";
   const [focus, setFocus] = useState(false);
   const [table, setTable] = useState<TableState>(INITIAL_TABLE);
   const run = state.run;
   const model = run.kind === "ready" ? run.model : null;
   const editing = state.editing;
+  // the Log covers the map: its pages are read while it shows, kept while the Diagram shows
+  const journal = useJournal({ token: state.token, filters: state.view.journal, infrastructure: state.address.infrastructure, shown: journalShown, onRefused: commands.refuse });
   const hidden = useMemo(() => (model ? hiddenRules(model.nodes, model.links, state.view) : []), [model, state.view]);
   const hiddenCount = useMemo(() => (model ? hiddenOf(model.nodes, model.links, state.view).length : 0), [model, state.view]);
   // the panel and the band hide while editing (DESIGN.md, Hide when empty)
-  const shown = !!model && !editing && hasPanel(model, state.selection);
+  const shown = !!model && !editing && !journalShown && hasPanel(model, state.selection);
   const width: Width | null = shown ? (focus ? "focus" : prefs.panel) : null;
   const insets = useMemo(() => chromeWith(width), [width]);
   insetsRef.current = insets;
@@ -224,13 +235,14 @@ export function Diagram() {
     }),
     [commands],
   );
-  useEditKeys((key) => editKeyAction(key, state, model, commands), { editing, hasSelection: !!state.selection || state.hosts.length > 0 }, clipboard);
-  useShellKeys((key) => keyAction(key, commands, prefs, setPrefs, panel));
+  useEditKeys((key) => (journalShown ? undefined : editKeyAction(key, state, model, commands)), { editing, hasSelection: !!state.selection || state.hosts.length > 0 }, clipboard);
+  // in the Log, the keys that act on the canvas do not answer; Ctrl+K stays the palette
+  useShellKeys((key) => (journalShown && key !== "search" ? undefined : keyAction(key, commands, prefs, setPrefs, panel)));
   // leaving edit mode closes the focus panel's scrim too
   useEffect(() => {
     if (editing) setFocus(false);
   }, [editing]);
-  const title = t("diagram:page", { infrastructure: state.address.infrastructure });
+  const title = t(journalShown ? "journal:ui.page" : "diagram:page", { infrastructure: state.address.infrastructure });
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -250,6 +262,7 @@ export function Diagram() {
     () => ({ device: (hostname: string) => formatSearch(state.address) + formatHash(state.view, { kind: "node", token: hostname }) }),
     [state.address, state.view],
   );
+  const historyObject = state.selection ? historyObjectOf(state.selection) : null;
   const actions = useMemo(
     () => ({
       onWiden: () => {
@@ -259,8 +272,10 @@ export function Diagram() {
       onFocus: () => setFocus((current) => !current),
       onCentre: () => commands.center(),
       onClose: () => commands.select(null, []),
+      // the Log on the selected element, for what the log names (the context menu's History row, reachable from the keyboard here)
+      ...(historyObject ? { onHistory: () => commands.openHistory(historyObject) } : {}),
     }),
-    [commands, prefs, setPrefs],
+    [commands, prefs, setPrefs, historyObject],
   );
   const blocked = blockedOf(t, state);
   return (
@@ -277,7 +292,7 @@ export function Diagram() {
           onRun={commands.openFromBand}
           onShowChanges={(shownDiff) => commands.setView({ showDiff: shownDiff })}
         />
-        <ViewsIsland model={model} onView={(mode) => commands.setView({ mode })} />
+        <ViewsIsland model={model} value={state.view.mode} onView={(mode) => commands.setView({ mode })} />
       </div>
       <div className="diagram-top diagram-top-end">
         <ToolsIsland search={search.control} />
@@ -293,7 +308,18 @@ export function Diagram() {
           hiddenCount={hiddenCount}
         />
       ) : null}
-      {blocked ? <StateIsland blocked={blocked} onConnect={commands.connect} /> : null}
+      {blocked && (!journalShown || blocked.kind === "token") ? <StateIsland blocked={blocked} onConnect={commands.connect} /> : null}
+      {journalShown && state.token === "present" ? (
+        <Journal
+          hook={journal}
+          filters={state.view.journal}
+          address={state.address}
+          view={state.view}
+          model={model}
+          setJournal={commands.setJournal}
+          showFromJournal={commands.showFromJournal}
+        />
+      ) : null}
       {/* the panel of the selected element, before the canvas in the DOM: Tab reaches it before the cards */}
       {model && width ? (
         <div className="diagram-panel" data-width={width}>
@@ -302,7 +328,7 @@ export function Diagram() {
       ) : null}
       {/* the bottom row: the canvas controls on the left (with a canvas only, never in focus), the band on the right,
           which shrinks and scrolls inside before the two could meet */}
-      <div className="diagram-bottom">
+      <div className="diagram-bottom" hidden={journalShown}>
         {!blocked && handle && width !== "focus" ? (
           <CanvasControls
             zoom={state.zoom}
@@ -317,7 +343,7 @@ export function Diagram() {
         ) : null}
         {editing ? null : <RunsIsland state={state} now={now} commands={commands} />}
       </div>
-      {state.context && handle ? (
+      {state.context && handle && !journalShown ? (
         <ContextMenu
           menu={state.context}
           toile={handle.toile}
@@ -325,6 +351,7 @@ export function Diagram() {
           hasSelection={!!state.selection || state.hosts.length > 0}
           edit={commands.edit}
           onClose={commands.closeContext}
+          onHistory={commands.openHistory}
         />
       ) : null}
       <ToastHost name="toast" closeLabel={t("ui:close")} />
@@ -332,7 +359,7 @@ export function Diagram() {
       <SearchPalette {...search.palette} />
       {/* the canvas last in the DOM: Tab reaches every island before the cards; it paints under them (z-index) */}
       {run.kind === "ready" ? (
-        <ShownCanvas state={state} run={run} session={session} commands={commands} notices={notices} insets={insets} author={author} history={history}>
+        <ShownCanvas state={state} run={run} session={session} commands={commands} notices={notices} insets={insets} author={author} history={history} inert={journalShown}>
           <ContextBar edit={commands.edit} revision={state.revision} tool={state.tool} />
         </ShownCanvas>
       ) : null}

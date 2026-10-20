@@ -3,9 +3,11 @@
 // is checked by `tsc`. Never translated: what the user typed, identifiers (hostnames, ports, codes).
 import i18next from "i18next";
 import { useTranslation } from "react-i18next";
+import { setLanguage as setEngineLanguage } from "@engine/i18n";
 import enDiagram from "./locales/en/diagram.json";
 import enEdit from "./locales/en/edit.json";
 import enHome from "./locales/en/home.json";
+import enJournal from "./locales/en/journal.json";
 import enPanel from "./locales/en/panel.json";
 import enPrimitives from "./locales/en/primitives.json";
 import enSearch from "./locales/en/search.json";
@@ -14,6 +16,7 @@ import enUi from "./locales/en/ui.json";
 import frDiagram from "./locales/fr/diagram.json";
 import frEdit from "./locales/fr/edit.json";
 import frHome from "./locales/fr/home.json";
+import frJournal from "./locales/fr/journal.json";
 import frPanel from "./locales/fr/panel.json";
 import frPrimitives from "./locales/fr/primitives.json";
 import frSearch from "./locales/fr/search.json";
@@ -24,11 +27,11 @@ export const LANGUAGES = ["en", "fr"] as const;
 export type Language = (typeof LANGUAGES)[number];
 /** The language of a browser that announces none we speak. */
 export const DEFAULT_LANGUAGE: Language = "en";
-export const NAMESPACES = ["ui", "shell", "home", "diagram", "panel", "search", "edit", "primitives"] as const;
+export const NAMESPACES = ["ui", "shell", "home", "diagram", "panel", "search", "edit", "journal", "primitives"] as const;
 
 export const resources = {
-  en: { ui: enUi, shell: enShell, home: enHome, diagram: enDiagram, panel: enPanel, search: enSearch, edit: enEdit, primitives: enPrimitives },
-  fr: { ui: frUi, shell: frShell, home: frHome, diagram: frDiagram, panel: frPanel, search: frSearch, edit: frEdit, primitives: frPrimitives },
+  en: { ui: enUi, shell: enShell, home: enHome, diagram: enDiagram, panel: enPanel, search: enSearch, edit: enEdit, journal: enJournal, primitives: enPrimitives },
+  fr: { ui: frUi, shell: frShell, home: frHome, diagram: frDiagram, panel: frPanel, search: frSearch, edit: frEdit, journal: frJournal, primitives: frPrimitives },
 } as const;
 
 type Catalogue = (typeof resources)["en"];
@@ -65,9 +68,11 @@ void i18n.init({
   interpolation: { escapeValue: false },
 });
 
-/** Sets the language (synchronous: the catalogues are embedded) and `lang` on the root. */
+/** Sets the language (synchronous: the catalogues are embedded) and `lang` on the root; the engine's catalogue (the
+ *  v1 canvas, the hue and type words the Log's sentences borrow) follows. */
 export function setLanguage(language: Language): void {
   if (i18n.language !== language) void i18n.changeLanguage(language);
+  setEngineLanguage(language);
   if (typeof document !== "undefined") document.documentElement.lang = language;
 }
 

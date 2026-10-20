@@ -336,9 +336,95 @@
         }
       ],
       "group": null
+    },
+    {
+      "infrastructure": "demo-dc",
+      "revision": 37,
+      "at": "2026-01-12T10:00:00Z",
+      "author": "t.martin",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [
+        {
+          "id": "g20-1",
+          "kind": "group",
+          "label": "Ancien cœur",
+          "form": ""
+        }
+      ],
+      "ops": [
+        {
+          "op": "group_delete",
+          "id": "g20-1"
+        }
+      ],
+      "group": null
+    },
+    {
+      "infrastructure": "demo-dc",
+      "revision": 36,
+      "at": "2026-01-11T15:02:00Z",
+      "author": "t.martin",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [
+        {
+          "id": "a30-1",
+          "kind": "annotation",
+          "label": "Adressage cœur",
+          "form": "table"
+        }
+      ],
+      "ops": [
+        {
+          "op": "annotation_update",
+          "id": "a30-1",
+          "style": {
+            "fill_opacity": 12
+          }
+        }
+      ],
+      "group": {
+        "id": "f1",
+        "kind": "repeat",
+        "size": 2
+      }
+    },
+    {
+      "infrastructure": "demo-dc",
+      "revision": 35,
+      "at": "2026-01-11T15:01:00Z",
+      "author": "t.martin",
+      "categories": [],
+      "actions": [],
+      "created": [],
+      "subjects": [
+        {
+          "id": "a30-1",
+          "kind": "annotation",
+          "label": "Adressage cœur",
+          "form": "table"
+        }
+      ],
+      "ops": [
+        {
+          "op": "annotation_update",
+          "id": "a30-1",
+          "style": {
+            "fill_opacity": 12
+          }
+        }
+      ],
+      "group": {
+        "id": "f1",
+        "kind": "repeat",
+        "size": 2
+      }
     }
   ],
-  "total": 10,
+  "total": 13,
   "next": null,
   "authors": [],
   "categories": [],

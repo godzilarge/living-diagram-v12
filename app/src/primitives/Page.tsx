@@ -8,6 +8,7 @@ import { Buttons, IconButtons } from "./sections/Controls";
 import { EditSection } from "./sections/Edit";
 import { Feedback, Tooltips } from "./sections/Feedback";
 import { Inputs } from "./sections/Inputs";
+import { LogSection } from "./sections/Log";
 import { SearchSection } from "./sections/Search";
 import { Surfaces } from "./sections/Surfaces";
 import { Widgets } from "./sections/Widgets";
@@ -38,6 +39,7 @@ export function Page() {
       <SearchSection />
       <EditSection />
       <Widgets />
+      <LogSection />
       <ToastHost name="toast" closeLabel={t("ui:close")} />
     </div>
   );

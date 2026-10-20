@@ -1,0 +1,214 @@
+{
+ "viewport": 1024,
+ "facets": {
+  "x": 16,
+  "y": 80,
+  "w": 288,
+  "h": 804
+ },
+ "journal": {
+  "x": 320,
+  "y": 80,
+  "w": 688,
+  "h": 804
+ },
+ "topRow": [
+  [
+   "brand",
+   {
+    "x": 16,
+    "y": 16,
+    "w": 48,
+    "h": 48
+   }
+  ],
+  [
+   "context",
+   {
+    "x": 76,
+    "y": 16,
+    "w": 283.7,
+    "h": 48
+   }
+  ],
+  [
+   "views",
+   {
+    "x": 371.7,
+    "y": 16,
+    "w": 393,
+    "h": 48
+   }
+  ],
+  [
+   "tools",
+   {
+    "x": 781,
+    "y": 16,
+    "w": 227,
+    "h": 48
+   }
+  ],
+  [
+   "canvas-controls",
+   {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   }
+  ],
+  [
+   "runs",
+   {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   }
+  ]
+ ],
+ "journalHead": {
+  "x": 321,
+  "y": 81,
+  "w": 686,
+  "h": 56
+ },
+ "facetsHead": {
+  "x": 17,
+  "y": 81,
+  "w": 286,
+  "h": 56
+ },
+ "title": {
+  "x": 337,
+  "y": 90.2,
+  "w": 52.5,
+  "h": 20
+ },
+ "subtitle": {
+  "x": 337,
+  "y": 112.2,
+  "w": 52.5,
+  "h": 15.6
+ },
+ "subtitleText": "236 modifications · demo-dc · heures UTC+1",
+ "subtitleCut": true,
+ "search": {
+  "x": 715,
+  "y": 93,
+  "w": 200,
+  "h": 32
+ },
+ "facetRows": [
+  32
+ ],
+ "facetRowGap": 2,
+ "facetTitle": {
+  "x": 25,
+  "y": 149,
+  "w": 270,
+  "h": 28
+ },
+ "count": {
+  "x": 247,
+  "y": 191,
+  "w": 40,
+  "h": 12
+ },
+ "countStyle": {
+  "font-size": "12px",
+  "color": "rgb(100, 104, 110)"
+ },
+ "rail": {
+  "h": "16px",
+  "w": "2px",
+  "left": "0px",
+  "bg": "rgb(33, 80, 232)",
+  "word": "600"
+ },
+ "head": {
+  "x": 329,
+  "y": 168.6,
+  "w": 670,
+  "h": 58
+ },
+ "headPad": {
+  "padding-top": "10px",
+  "padding-bottom": "10px",
+  "padding-left": "8px",
+  "padding-right": "8px",
+  "margin-left": "-8px"
+ },
+ "avatar": {
+  "x": 337,
+  "y": 178.6,
+  "w": 22,
+  "h": 22
+ },
+ "when": {
+  "font-size": "12px",
+  "line-height": "20px",
+  "color": "rgb(100, 104, 110)"
+ },
+ "sub": {
+  "x": 973.4,
+  "y": 200.6,
+  "w": 17.6,
+  "h": 16
+ },
+ "time": {
+  "x": 960.2,
+  "y": 178.6,
+  "w": 30.8,
+  "h": 20
+ },
+ "subStyle": {
+  "color": "rgb(100, 104, 110)",
+  "font-size": "12px"
+ },
+ "dayTitle": {
+  "padding-top": "12px",
+  "padding-bottom": "4px",
+  "font-size": "12px",
+  "color": "rgb(100, 104, 110)",
+  "position": "sticky",
+  "background-color": "rgb(255, 255, 255)"
+ },
+ "tally": {
+  "x": 693,
+  "y": 296.6,
+  "w": 120.6,
+  "h": 20
+ },
+ "tallyStyle": {
+  "font-size": "12px",
+  "color": "rgb(100, 104, 110)",
+  "border-top-color": "rgb(205, 208, 212)",
+  "border-radius": "4px",
+  "height": "20px"
+ },
+ "feedBody": {
+  "padding-top": "0px",
+  "padding-left": "16px",
+  "padding-right": "16px",
+  "mask-image": "none",
+  "-webkit-mask-image": "none"
+ },
+ "gaps": [
+  416,
+  288,
+  136,
+  314,
+  213,
+  171,
+  335,
+  255,
+  254,
+  188,
+  234,
+  408,
+  348
+ ],
+ "inlineStyles": []
+}

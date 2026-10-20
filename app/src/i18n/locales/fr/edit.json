@@ -209,7 +209,8 @@
     "join": ", "
   },
   "menu": {
-    "label": "Menu contextuel"
+    "label": "Menu contextuel",
+    "history": "Historique"
   },
   "keys": {
     "delete": "Suppr",

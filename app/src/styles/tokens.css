@@ -199,6 +199,14 @@
   --menu-min-width: 200px;
   --menu-max-width: 320px;
   --name-form-width: 280px;
+  --facets-head-height: 28px;
+  --feed-when-width: 52px;
+  --journal-column: 1280px;
+  --journal-fade: 32px;
+  --journal-raw-height: 240px;
+  --journal-facets: 288px;
+  --journal-search: 280px;
+  --journal-search-min: 200px;
 }
 
 :root[data-accent="ink"] {

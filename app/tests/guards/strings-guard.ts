@@ -18,7 +18,8 @@ import { SRC } from "./files";
 export const I18N_DIR = "src/i18n/";
 export const ALLOWED: ReadonlyMap<string, string> = new Map([
   // `path:text` → reason
-  ["src/api/home.ts:/api/intent/journal", "an API route (three path segments read as three words), never shown"],
+  ["src/api/journal.ts:/api/intent/journal", "an API route (three path segments read as three words), never shown"],
+  ["src/state/journal.ts:#mode=journal&jinfra=", "the address of an entry's link (its keys), never shown as words"],
   ["src/api/run.ts:/api/ingest/bundles", "an API route, never shown"],
   ["src/api/run.ts:/api/ingest/report", "an API route, never shown"],
   ["src/api/assets.ts:/api/intent/assets", "an API route, never shown"],
@@ -44,6 +45,12 @@ export const ALLOWED: ReadonlyMap<string, string> = new Map([
   ["src/ui/Menu.tsx:Enter", "a KeyboardEvent key name compared, never shown"],
   ["src/ui/Menu.tsx:[data-menu-item]", "a selector (the rows the keys walk), never shown"],
   ["src/shell/ShellTools.tsx:Enter", "a KeyboardEvent key name compared, never shown"],
+  ["src/ui/Feed.tsx:[data-feed-row]", "a selector (the heads of the rows the keys walk), never shown"],
+  ["src/ui/Feed.tsx:Home", "a KeyboardEvent key name compared, never shown"],
+  ["src/ui/Facets.tsx:Home", "a KeyboardEvent key name compared, never shown"],
+  ["src/journal/Journal.tsx:0px 0px 600px 0px", "an IntersectionObserver margin (the next page is read 600 px before the foot), never shown"],
+  ["src/journal/JournalTools.tsx:text/csv;charset=utf-8", "a MIME type (the exported file's), never shown"],
+  ["src/state/home.ts:#mode=journal&jinfra=*", "the address of the Log of every infrastructure (its keys), never shown as words"],
 ]);
 
 const VISIBLE_ATTRIBUTES = new Set([

@@ -1,6 +1,7 @@
-// The context menu (a right click in edit mode; the v1's menu, `@engine/app/state/context`): what the click aimed at
-// offers (the map, a device, a group, an annotation and its cell, a connector), as a Menu in a layer of its own at the
-// click point, kept 8 px inside the viewport. The focus enters its first row; an entry runs (`runMenu`) and closes it;
+// The context menu (a right click, in reading and in edit mode; the v1's menu, `@engine/app/state/context`): what the
+// click aimed at offers (the map, a device, a group, an annotation and its cell, a connector), the reading rows only
+// unless the intent can be written; for an object, its History first (the Log on it). A Menu in a layer of its own at
+// the click point, kept 8 px inside the viewport. The focus enters its first row; an entry runs (`runMenu`) and closes it;
 // Escape (the focus back to the map), a press outside, the wheel, a resize or leaving the window close it. Its words
 // come from the v1's catalogues, which follow the page's language.
 import { useEffect, useLayoutEffect, useRef } from "react";
@@ -14,6 +15,7 @@ import { useText } from "../i18n";
 import type { ContextMenuState } from "../state/diagram";
 import type { EditCommands } from "../state/edit-commands";
 import { runMenu } from "../state/bar-actions";
+import { historyObjectOf } from "../state/journal";
 import { focusMap } from "./focus";
 import "./edit.css";
 
@@ -28,7 +30,12 @@ export type ContextMenuProps = {
   hasSelection: boolean;
   edit: EditCommands;
   onClose: () => void;
+  /** The Log on one object (a hostname, an identity). */
+  onHistory: (object: string) => void;
 };
+
+/** The id of the History row (`data-value="history"`). */
+export const HISTORY = "history";
 
 /** A v1 entry as a row: its written keys (`Ctrl+C`) as a chip, its `aria-keyshortcuts`, its check, its danger. */
 const rowOf = (item: V1Item): MenuRow =>
@@ -44,10 +51,13 @@ function rowsOf(menu: ContextMenuState, toile: Toile, hosts: readonly string[], 
   return items.map(rowOf);
 }
 
-export function ContextMenu({ menu, toile, hosts, hasSelection, edit, onClose }: ContextMenuProps) {
+export function ContextMenu({ menu, toile, hosts, hasSelection, edit, onClose, onHistory }: ContextMenuProps) {
   const t = useText();
   const ref = useRef<HTMLDivElement>(null);
-  const rows = rowsOf(menu, toile, hosts, hasSelection, edit.canWrite());
+  const object = historyObjectOf(menu.target);
+  const head: MenuRow[] = object ? [{ id: HISTORY, label: t("edit:menu.history") }, { kind: "separator" }] : [];
+  // edit.canWrite() is false out of edit mode: the reading rows only
+  const rows = [...head, ...rowsOf(menu, toile, hosts, hasSelection, edit.canWrite())];
 
   // at the click point, moved back inside the viewport when it lacks room (CSSOM, never a style attribute)
   useLayoutEffect(() => {
@@ -93,7 +103,8 @@ export function ContextMenu({ menu, toile, hosts, hasSelection, edit, onClose }:
       onContextMenu={(event) => event.preventDefault()}
       onChoose={(id) => {
         onClose();
-        runMenu(menu.target, id, menu.plan, edit, toile.model, hosts);
+        if (id === HISTORY && object) onHistory(object);
+        else runMenu(menu.target, id, menu.plan, edit, toile.model, hosts);
       }}
     />
   );

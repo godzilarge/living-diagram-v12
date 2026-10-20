@@ -1,0 +1,60 @@
+{
+ "x": 960,
+ "y": 80,
+ "w": 464,
+ "h": 700,
+ "rows": [
+  [
+   137,
+   49
+  ],
+  [
+   186,
+   59
+  ],
+  [
+   245,
+   59
+  ],
+  [
+   304,
+   59
+  ],
+  [
+   363,
+   59
+  ],
+  [
+   422,
+   59
+  ],
+  [
+   481,
+   59
+  ],
+  [
+   540,
+   59
+  ],
+  [
+   599,
+   59
+  ],
+  [
+   658,
+   58
+  ]
+ ],
+ "texts": [
+  "O |  | orhan a déplacé 3 équipements |  | demo-dc |  | il y a 2 h",
+  "C |  | camille.r a ajouté une annotation |  | demo-dc |  | il y a 3 h",
+  "O |  | orhan a créé le groupe « Cœur Lyon » |  | site-lyon |  | hier, 18:42",
+  "T |  | t.martin a ajouté un connecteur |  | wan-core |  | hier, 17:05",
+  "C |  | camille.r a coloré 4 équipements |  | site-nantes |  | hier, 12:20",
+  "O |  | orhan a fait 2 modifications |  | demo-dc |  | 17 janv.",
+  "T |  | t.martin a ajouté une annotation |  | lab-sec |  | 16 janv.",
+  "C |  | camille.r a modifié 2 annotations |  | demo-dc |  | 15 janv.",
+  "O |  | orhan a déplacé 12 équipements |  | site-lyon |  | 14 janv.",
+  "T |  | t.martin a renommé le groupe « Accès RDC » |  | site-nantes |  | 13 janv."
+ ]
+}

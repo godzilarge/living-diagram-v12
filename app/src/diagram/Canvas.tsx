@@ -76,6 +76,8 @@ export type CanvasProps = {
   /** An intent write accepted: what reads the model re-reads it. */
   onTouched: () => void;
   onContext: (request: ContextRequest) => void;
+  /** Another view covers the map (the Log): the canvas stays mounted, its viewport kept, out of reach. */
+  inert?: boolean;
   /** What the page lays over the canvas in its own coordinates (the contextual bar). */
   children?: ReactNode;
 };
@@ -147,7 +149,7 @@ function mountHosts(model: Model, latest: { current: Latest }, history: StackHol
 }
 
 export function Canvas(props: CanvasProps) {
-  const { model, infrastructure, remembered, view, insets, prefs, language, selection, hosts, wanted, editing, author, tool, editRequest, history, edit, onWantedMissing, onView, onHandle, onContext, children } = props;
+  const { model, infrastructure, remembered, view, insets, prefs, language, selection, hosts, wanted, editing, author, tool, editRequest, history, edit, onWantedMissing, onView, onHandle, onContext, inert, children } = props;
   const t = useText();
   const host = useRef<HTMLDivElement>(null);
   // what the mount effect reads without depending on it: one canvas per run, never per render
@@ -267,7 +269,7 @@ export function Canvas(props: CanvasProps) {
   const code = useMemo(() => ({ commands: edit, infrastructure: model.source.infrastructure }), [edit, model]);
   const runKey = `${model.source.infrastructure}\u0000${model.source.collector_run_id}`;
   return (
-    <div className="diagram-canvas" ref={host} data-canvas="" data-grid={prefs.grid && !editing ? "" : undefined} data-editing={editing ? "" : undefined} tabIndex={-1}>
+    <div className="diagram-canvas" ref={host} data-canvas="" data-grid={prefs.grid && !editing ? "" : undefined} data-editing={editing ? "" : undefined} tabIndex={-1} inert={inert}>
       {toile ? (
         <I18nextProvider i18n={canvasI18n}>
           <CodeContext.Provider value={code}>

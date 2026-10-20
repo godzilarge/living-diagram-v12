@@ -59,7 +59,6 @@
     "warnings_many": "{{count, number}} d'avertissements ouverts",
     "warnings_other": "{{count, number}} avertissements ouverts",
     "journal": "Journal",
-    "journalSoon": "Journal : en cours",
     "layer": "Couche",
     "l1": "L1",
     "l2": "L2",

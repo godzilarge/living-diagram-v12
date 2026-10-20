@@ -33,3 +33,7 @@ export const PALETTE_DESTINATIONS = Object.freeze([
 export const PALETTE_SITE = "dc01";
 /** The ports beyond the window of All, said by the "more" row. */
 export const PALETTE_MORE = 24;
+
+/** The Log's specimens (facets and feed): names of objects as the data writes them, never words of the interface. */
+export const LOG_OBJECTS = Object.freeze({ annotation: "rack-12", table: "core-addressing", group: "old-core" });
+export const LOG_COUNTS = Object.freeze({ all: 412, demo: 236, lyon: 98, paris: 0, positions: 300, colors: 24, groups: 31, annotations: 40, connectors: 0 });

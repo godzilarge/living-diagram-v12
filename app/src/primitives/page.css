@@ -237,3 +237,13 @@ body:has(.page) {
   align-items: flex-start;
   gap: var(--space-sm);
 }
+
+/* the Log's specimens: the facets at their island's width, the feeds at twice it */
+.page-facets-island {
+  width: var(--journal-facets);
+  padding: 0 var(--space-sm) var(--space-md);
+}
+
+.page-feed .ui-island {
+  width: calc(2 * var(--journal-facets));
+}

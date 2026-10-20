@@ -1,0 +1,7 @@
+Down -> button[radio] lab-sec, 12 facets hash #mode=journal&jinfra=lab-sec
+Home -> button[radio] Toutes, 412 facets hash #mode=journal&jinfra=*
+ring solid 2px offset 2px
+period Right -> button[radio] Plage journal expanded=false haspopup=dialog
+Enter -> input Du 
+bad range note: La fin précède le début.
+Escape -> button[radio] Plage journal

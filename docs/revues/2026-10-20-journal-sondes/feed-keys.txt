@@ -1,0 +1,12 @@
+End -> button Ccamille.r a supprimé la note « À vérifier »16:01r journal
+Home -> button Oorhan a placé 3 équipements17:30r80 journal
+Down -> button Ccamille.r a ajouté une note « Baie 12 »n'existe p journal
+Enter -> expanded=true
+Tab after unfold -> summary Brut : 1 opération reçue journal
+Space -> expanded=false
+ring solid 2px
+/ -> input rechercher dans le journal journal
+hash after typing #mode=journal&jq=camille
+Escape -> value='' hash #mode=journal
+Escape again -> input rechercher dans le journal journal hash #mode=journal
+o on row 1 -> hash #node=dc01-acc-01 status=gone

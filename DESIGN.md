@@ -283,6 +283,17 @@ components:
     max-width: "320px"
   name-form:
     width: "280px"
+  facets:
+    head-height: "28px"
+  feed:
+    when-width: "52px"
+  journal:
+    column: "1280px"
+    fade: "32px"
+    raw-height: "240px"
+    facets: "288px"
+    search: "280px"
+    search-min: "200px"
 ---
 
 # Design System: Living Diagram
@@ -407,6 +418,19 @@ with a sticky table head and a 48 px fade at the bottom edge.
 a single run, the minimap when toggled off, the panel and the run band while editing (the minimap then takes the
 band's place, bottom right: the palette holds the left).
 
+**The Log view** (brick 7, direction J1 "the feed and its facets", chosen at the bench): the ground covers the map (the
+canvas stays mounted underneath, inert, its viewport kept), the top row stays; the panel, the run band, the canvas
+controls and the edit palette do not show. Under the top row (80 px from the top, 16 px from the bottom) two islands
+form **one reading column, centred, 1280 px at most** (`journal-column`: the Filters island, 288 px, `journal-facets`,
+16 px, the Log island): beyond it the ground shows on both sides (Orhan, 2026-10-20: the bench's full-width feed left
+600 px of void between a sentence and its time); under 1312 px of window the column takes the width less 16 px on each
+side. Each island scrolls inside, its body fading over its last 32 px (`journal-fade`); the day titles stick. In the
+DOM the Log island comes first (Tab reaches its search and its feed before the facets), the facets are drawn on the left. The Log's header holds, on one row, the title over its line
+(how many, where, the zone of the clocks: the one line of the shell that joins its facts with middle dots, as the
+bench page Orhan chose writes it), the period, the search (280 px, giving way down to 200 before the title's line is
+cut with an ellipsis), the export and the help. A group or an annotation the sentence cites
+by its name is set in quotes ("modified the table « Core addressing »"); a device or a connector is not.
+
 Responsive: the shell is built for 1280 to 2560 px wide; below 1200 px the context island collapses to the
 infrastructure and the run, and the panel docks to the full height of the right edge. Phone and tablet are not
 targeted.
@@ -508,8 +532,46 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   mockup; text, placeholder and focus ring hold 4.5:1 / 3:1).
 - **Search:** a discreet icon button with the `Ctrl K` shortcut chip in the tools island; it opens the palette.
 - **Segmented choice:** a ground track, 6 px radius, the chosen segment on paper with the island shadow (a filter
-  over a list, a count after each word when it filters a list); the current segment never uses the accent fill. The settings (theme, accent, language) are rail
+  over a list, a count after each word when it filters a list); the current segment never uses the accent fill. A
+  segment may **open a popover** instead of choosing at once (the Log's range: two dates, then Apply): it is a button
+  of the group (`aria-pressed` when its value is the chosen one; `aria-expanded`, which a radio cannot carry), the
+  arrows reach it without choosing it, Enter or a click opens it, its popover opens under the island's header,
+  aligned on the island's edge; chosen, the segment says its value ("1 Sept – 15 Sept"). The settings (theme, accent, language) are rail
   buttons, as in the approved mockup, with a 12 px swatch before each accent.
+
+### Facets
+What narrows a list one reads (the Log's filters), as sections of 32 px rows in an island 288 px wide, padded 0 8 12;
+a hairline between sections, 12 px above a section and 8 px under it. A section's title is a label in ink-3 on a 28 px
+row (8 px inside), with, on its right, a **clear** word in accent-ink at 500 when something in it is on (a text button,
+said "clear the filter Category"). A row is a word in ink-2, 8 px inside, the hover fill under the pointer; an optional
+icon (16 px, ink-3) or Avatar before the word; on its right the count in label size, tabular, ink-3, in the
+`count-slot` (40 px, right-aligned), **ink-4 at zero** (a zero stays a choice); the count is decorative, the row's
+accessible name says it. An optional note after the word in label ink-3 ("open": the infrastructure of the Diagram).
+- **Exclusive** (one value: the infrastructure): a `radiogroup`, one tab stop, ↑ ↓ (and ← →, Home, End) move to the
+  neighbour and choose it; the chosen row carries a **2 px accent rail on its left edge**, 16 px high, its word in ink
+  at 600 (the One Rail, stood up as the edit palette's).
+- **Cumulative** (any number: categories, actions, authors): toggles (`aria-pressed`), each with the 16 px slot of the
+  Checklist before its icon, the accent check (stroke 2) when on, nothing when off; on, the word in ink at 600. One
+  grammar with the Checklist; never a rail (on is not current), never a pill, never an accent fill.
+A facet's values never move: the server gives them in a fixed order; a value of the address unknown to the page stays,
+at zero, removable.
+
+### Feed
+Who did what, when, as a list one reads (the home's Latest modifications, the Log): a row is the Avatar (22 px) | the
+sentence on a 20 px line (body; the author at 600) with an optional caption under it (caption, ink-3, 2 px below) |
+on the right, the time (caption, ink-3, on the sentence's 20 px line) and an optional second line under it (caption,
+ink-3: the revision, an identifier one reads, so never ink-4, which the bench had); 12 px between the columns, **10 px above and below** (`feed-item`), a hairline between two rows.
+Tones: **neutral**; **quiet** (the sentence in ink-3, the author in ink-2: positions, most of a log, recede);
+**destroy** (the verb, a span the sentence sets, in the error colour: a deletion stands out). Inline after the
+sentence, 8 px away: a **tally** (the same gesture repeated: "×8" and its span "from 14:58 to 15:02" in a 20 px chip,
+the Shortcut's line-2 border and radius, label size ink-3) or a **note** (caption ink-3: "312 requests since 08:41", a
+cited object that is gone). A search's match inside a row is set at 650, as the palette's.
+- **Days:** a day title (label, ink-3, 12 px above, 4 px below) sticks at the top of the scrolling body on paper.
+- **Inert** (the home): the row is text. **Unfolds** (the Log): the row's head is one button (`aria-expanded`), 8 px
+  wider than the text on each side so its hover fill (ground) and the focus ring breathe; the detail opens under the
+  sentence's column. The list is one tab stop (the active row), ↑ ↓ Home End move between rows; the row a link
+  points at takes the accent-weak fill (the keyboard position in a list).
+- A flat list (no day) starts flush with its widget's header (no padding above its first row).
 
 ### Checklist
 What is shown or kept (the columns of the focus table; later what an export shows): a column of 32 px rows, each a
@@ -636,6 +698,9 @@ popover under the control that opens it.
   are in sentence case, except a row that names a datum (a hostname): its words as the data writes them.
 - **Surface:** in a popover it takes the popover's paper with 4 px around its rows (a choice's list); alone (the
   context menu) the same surface of its own, at the click point, kept 8 px inside the viewport.
+- **Context menu:** it opens in reading too (its reading rows: centre, hide, isolate, copy the name, members), the
+  editing rows in edit mode only; for a device, a group, an annotation or a connector its first row is **History**
+  (the Log on that object), then a hairline.
 - **Keys:** ↑ ↓ walk the rows (they wrap), Home and End go to the ends, a letter goes to the next row it starts, Enter
   and Space choose; Escape is its holder's (the popover closes, the context menu closes and gives the focus back to
   the map). The context menu puts the focus on its first row; in a volet the menu takes the focus and the arrows
@@ -695,7 +760,8 @@ A 20 px mark of two squares, ink and accent, alone in its island; never the prod
 - **Don't** use violet or purple anywhere, nor red as an accent, nor cyan.
 - **Don't** draw pill-shaped buttons, gradients, glass, glows, zero-offset halos, or identical rounded cards as a
   page structure.
-- **Don't** set labels in uppercase, use monospace outside code, join meta strings with middle dots, or add eyebrow
+- **Don't** set labels in uppercase, use monospace outside code, join meta strings with middle dots (the Log's
+  header line excepted, see The Log view), or add eyebrow
   labels above headings.
 - **Don't** invent a second way to say "current" or "selected": the rail is the only one.
 - **Don't** show a check code (`aggregate_below_min_links`) in the Diagram view; verdicts live in Contrôle.

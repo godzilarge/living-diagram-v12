@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "@engine/canvas/model";
 import type { PageData } from "@engine/canvas/types";
 import { DEFAULT_VIEW } from "../src/state/address";
-import { initialState, reducer, selectionTokenOf } from "../src/state/diagram";
+import { initialState, reducer, selectionTokenOf, shownView } from "../src/state/diagram";
 import { diffFactsOf } from "../src/state/diff-facts";
 import { parseFullDiff, parseSnapshot } from "../src/api/run";
 
@@ -55,6 +55,22 @@ describe("the diagram state", () => {
     expect(reducer(state, { type: "zoom", zoom: 0.5 }).zoom).toBe(0.5);
     expect(reducer(state, { type: "failed", cause: 500 }).run).toEqual({ kind: "failed", cause: 500 });
     expect(reducer(state, { type: "view", patch: { showPorts: true } }).view.showPorts).toBe(true);
+  });
+});
+
+describe("the views", () => {
+  it("show the Diagram and the Log, never Check yet; leaving the Diagram closes edit mode with what it opened", () => {
+    expect(shownView({ ...DEFAULT_VIEW, mode: "journal" }).mode).toBe("journal");
+    expect(shownView({ ...DEFAULT_VIEW, mode: "control" }).mode).toBe("diagram");
+    let state = initialState("present", ADDRESS);
+    state = reducer(state, { type: "edit", editing: true });
+    state = reducer(state, { type: "tool", tool: "connector" });
+    state = reducer(state, { type: "view", patch: { mode: "journal" } });
+    expect(state.editing).toBe(false);
+    expect(state.tool).toBeNull();
+    expect(state.view.mode).toBe("journal");
+    state = reducer(state, { type: "view", patch: { mode: "diagram" } });
+    expect(state.editing, "coming back does not reopen it").toBe(false);
   });
 });
 

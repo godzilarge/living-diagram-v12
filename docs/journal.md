@@ -7,6 +7,34 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Brick 7, the Log view (J1) and the History row of the context menu** (2026-10-20, `/brique-ui controle` with
+  Orhan's choice: "definitely J1 for the Log", Check still under judgement; Orhan's two remarks: the bench page
+  "packed on the left, lacks balance", and a "Log / History" row in the context menu of every element). **Balance**:
+  the Filters island (288) and the Log island form one reading column centred at 1280 px (`journal.column`, 1200
+  before the review's M2), the
+  ground on both sides; the time and revision stay on the row's right. **The view** (`app/src/journal/`): the J1
+  grammar (feed by day, folds "×8", sessions, quiet positions, red deletions, a row unfolded on its facts, raw
+  operations, "Copy link", "History of …"; facets; period and range; search; CSV; help; `jrev` and `jobj` states),
+  on the v1's logic moved into `app/src/state/journal*.ts` with Node tests (`tests/journal*.test.ts`, 264 in all)
+  and the catalogue `journal` fr / en; the canvas stays mounted under the Log (inert); the shell's canvas keys are
+  silent there; edit mode closes on leaving the Diagram. **Primitives** `Facets` and `Feed` written into `DESIGN.md`
+  and the primitives page before use; `Segmented` gained a segment that opens a popover; the home's feed now uses
+  `Feed` and the Log's sentence engine (M5 of the home review). **Context menu in read mode** (decision: else History
+  would need edit mode): the v1's read rows, History first for a device, a group, an annotation or a connector; Back
+  comes back to the diagram. **Home**: "Open the log" links to the Log of every infrastructure. **Environment**: the
+  bench prototype lives only on Orhan's machine (gitignored); Orhan sent `journal-a.html`, kept out of the repository.
+  The backend's Chromium tests run again here with a symbolic link to the container's headless shell (no code change);
+  `test_the_viewer_passes_its_node_tests` still fails on Node 22.22 (`node --test <dir>`), as noted. Decisions to
+  judge in use: twelve rows of `docs/a-juger-a-l-usage.md` (2026-10-20). Suites: app check 264, `e2e/journal.spec.ts`
+  7, the whole e2e 78 passed and 12 known sub-pixel deviations of Chromium 1194 (settings tooltip at 15.7 px); one
+  order-dependent failure of `edit.spec.ts:226` in one run out of three (green alone, to watch); engine check green; backend 98 %
+  (one environment failure); contracts 98 %. Captures `.impeccable/planche-journal/` (not versioned, sent to Orhan).
+  Review: `docs/revues/2026-10-20-journal.md` (0 critical, 3 high, 7 medium, 14 low), treated the same day in one
+  lot (§ Traitement: the quotes moved into the sentence engine, History in the panel's header too, the canvas's toasts
+  kept, the column widened to 1280 px, the range segment a button, the Log island first in the DOM, French
+  non-breaking spaces, tokens of their own, the fade, the CSV date in UTC, the home's tones; M3 for Orhan, B13 and B14
+  assumed).
+
 - **Brick 7, Check and Log views: the bench, three directions for Check and two for Log, waiting for Orhan**
   (2026-10-17, `/brique-ui controle`; nothing decided yet). The reading found **no approved mockup** for either view
   (`design/comps/shell/` only carries the "Contrôle 6" tab), so the skill's rule applied: a bench before any project

@@ -4,7 +4,10 @@
 // in the other: `#node=`, `#link=`, `#beam=`, `#cluster=`, `#aggregate=`, `#group=`, `#annotation=`, `#connector=`;
 // `stubs=1`, `ports=1`, `speeds=1`, `beams=1`, `pins=0`, `notes=0`, `oper=1`, `diff=0`; `hide=` (repeatable), `only=`,
 // `mask=`; `mode=control` or `mode=journal` (absent = diagram). An unreadable entry is ignored: a truncated link never
-// keeps the page from showing. The v1's Log filters (`jq`, `jau`…) are not read here: they move with brick 7. Pure.
+// keeps the page from showing. The Log view's filters (`jq`, `jau`, `jcat`, `jact`, `jobj`, `jinfra`, `jp`, `jfrom`,
+// `jto`, `jrev`: `journal.ts`) are read whatever the mode and written in Log mode only, as the v1 did. Pure.
+import { DEFAULT_FILTERS, formatFilters, parseFilters } from "./journal";
+import type { JournalFilters } from "./journal";
 
 export type Address = Readonly<{ infrastructure: string; runId: string; from: string }>;
 export type ViewMode = "diagram" | "control" | "journal";
@@ -21,6 +24,8 @@ export type ViewState = Readonly<{
   hide: readonly string[];
   only: string;
   hiddenStatuses: readonly string[];
+  /** The Log view's filters; kept while the Diagram shows, written in the address in Log mode only. */
+  journal: JournalFilters;
 }>;
 export type SelectionToken = Readonly<{ kind: string; token: string }>;
 export type ParsedHash = Readonly<{ view: ViewState; selection: SelectionToken | null }>;
@@ -42,6 +47,7 @@ export const DEFAULT_VIEW: ViewState = Object.freeze({
   hide: [],
   only: "",
   hiddenStatuses: [],
+  journal: DEFAULT_FILTERS,
 });
 
 /** Where `/next/` opens: the diagram when the address names an infrastructure, else the home. */
@@ -100,11 +106,12 @@ function applyPair(view: ViewState, key: string, value: string): ViewState {
 export function parseHash(hash: string): ParsedHash {
   let view: ViewState = DEFAULT_VIEW;
   let selection: SelectionToken | null = null;
-  for (const [key, value] of pairs(hash)) {
+  const all = pairs(hash);
+  for (const [key, value] of all) {
     if (isSelectionKey(key)) selection = selection ?? { kind: key, token: value };
-    else view = applyPair(view, key, value);
+    else if (!key.startsWith("j")) view = applyPair(view, key, value);
   }
-  return { view: Object.freeze(view), selection };
+  return { view: Object.freeze({ ...view, journal: parseFilters(all.filter(([key]) => key.startsWith("j"))) }), selection };
 }
 
 export function formatHash(view: ViewState, selection: SelectionToken | null): string {
@@ -121,7 +128,9 @@ export function formatHash(view: ViewState, selection: SelectionToken | null): s
   view.hide.forEach((rule) => parts.push(`hide=${encodeURIComponent(rule)}`));
   if (view.only) parts.push(`only=${encodeURIComponent(view.only)}`);
   if (view.hiddenStatuses.length) parts.push(`mask=${view.hiddenStatuses.join(",")}`);
-  if (selection) parts.push(`${selection.kind}=${encodeURIComponent(selection.token)}`);
+  if (view.mode === "journal") parts.push(...formatFilters(view.journal));
+  // the Log shows no selection: the canvas keeps its own, the address of the Log never names it (Back from "o" stays clean)
+  if (selection && view.mode !== "journal") parts.push(`${selection.kind}=${encodeURIComponent(selection.token)}`);
   return parts.length ? `#${parts.join("&")}` : "";
 }
 

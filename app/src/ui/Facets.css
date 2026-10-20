@@ -1,0 +1,173 @@
+/* Facets (DESIGN.md, Facets): sections of 32 px rows under a 28 px label; the exclusive choice on the left rail, the
+   cumulative ones with the Checklist's slot and check; the count in the 40 px slot, ink-4 at zero. */
+.ui-facets {
+  display: flex;
+  flex-direction: column;
+}
+
+.ui-facets-section {
+  padding: var(--space-md) 0 var(--space-sm);
+}
+
+.ui-facets-section + .ui-facets-section {
+  border-top: 1px solid var(--color-line);
+}
+
+.ui-facets-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: var(--facets-head-height);
+  margin-bottom: var(--space-xs);
+  padding: 0 var(--space-sm);
+}
+
+.ui-facets-head h3 {
+  margin: 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-leading);
+}
+
+/* "clear": a word in accent-ink, as an inline link; it acts, so it is a button */
+.ui-facets-clear {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-chip);
+  background: transparent;
+  color: var(--link-text-color);
+  font-size: var(--text-label-size);
+  font-weight: var(--link-font-weight);
+  line-height: var(--text-label-leading);
+  cursor: pointer;
+}
+
+.ui-facets-clear:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--link-underline-color);
+  text-underline-offset: var(--link-underline-offset);
+}
+
+.ui-facets-clear:focus-visible,
+.ui-facet:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-background-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.ui-facets-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-facet {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  height: var(--control-height);
+  padding: 0 var(--space-sm);
+  border: 0;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--color-ink-2);
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-weight);
+  line-height: 1;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-hover) var(--motion-ease),
+    color var(--motion-hover) var(--motion-ease);
+}
+
+.ui-facet:is(:hover, [data-force="hover"]) {
+  background: var(--color-hover);
+  color: var(--color-ink);
+}
+
+.ui-facet:is([aria-checked="true"], [aria-pressed="true"]) {
+  color: var(--color-ink);
+  font-weight: var(--text-body-strong-weight);
+}
+
+/* the exclusive choice: the rail stood up on the row's left edge (the edit palette's) */
+.ui-facet[role="radio"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--space-sm);
+  bottom: var(--space-sm);
+  width: var(--rail-height);
+  background: var(--rail-background-color);
+  transform: scaleY(0);
+  transition: transform var(--motion-rail) var(--motion-ease);
+}
+
+.ui-facet[role="radio"][aria-checked="true"]::before {
+  transform: scaleY(1);
+}
+
+/* the cumulative toggle: the Checklist's slot and its accent check (one grammar) */
+.ui-facet-slot {
+  display: inline-flex;
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+}
+
+.ui-facet-slot .ui-icon svg {
+  stroke-width: 2;
+}
+
+.ui-facet-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-ink-3);
+}
+
+.ui-facet-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-facet-note {
+  flex: none;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+}
+
+.ui-facet-count {
+  flex: none;
+  width: var(--count-slot-width);
+  margin-left: auto;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ui-facet-count[data-zero] {
+  color: var(--color-ink-4);
+}
+
+.ui-facets-empty {
+  margin: 0;
+  padding: 0 var(--space-sm);
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+}

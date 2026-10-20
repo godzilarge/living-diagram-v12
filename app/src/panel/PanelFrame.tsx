@@ -2,7 +2,7 @@
 // with the five header actions of the mockup: widen (W, a toggle with the rail), focus (Shift+F, a toggle), centre the
 // view (C), more (history, copy, pin: with later bricks), close (Escape). The frame renders what it is given; the
 // page decides the width and listens to the keys.
-import { ChevronsLeftRight, Crosshair, Ellipsis, Maximize2, X } from "lucide-react";
+import { ChevronsLeftRight, Crosshair, Ellipsis, History, Maximize2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { IconButton, Panel } from "../ui";
 import type { PanelWidth } from "../ui";
@@ -13,6 +13,9 @@ export type PanelActions = Readonly<{
   onFocus: () => void;
   onCentre: () => void;
   onClose: () => void;
+  /** The Log on the selected element (a device, a group, an annotation, a connector); absent for a cable, an
+   *  aggregate, a bundle or a cluster, which the log never names. */
+  onHistory?: () => void;
 }>;
 
 export type PanelFrameProps = {
@@ -39,6 +42,7 @@ export function PanelFrame({ heading, subheading, tile, width, actions, children
         onClick={actions.onFocus}
       />
       <IconButton label={t("panel:actions.centre")} icon={<Crosshair />} shortcut="C" tooltipPlacement="bottom-end" onClick={actions.onCentre} />
+      {actions.onHistory ? <IconButton label={t("panel:actions.history")} icon={<History />} tooltipPlacement="bottom-end" onClick={actions.onHistory} /> : null}
       <IconButton label={t("panel:actions.more")} icon={<Ellipsis />} disabled disabledReason={t("panel:actions.moreSoon")} tooltipPlacement="bottom-end" />
       <IconButton label={t("panel:actions.close")} icon={<X />} shortcut={t("ui:keys.escape")} tooltipPlacement="bottom-end" onClick={actions.onClose} />
     </>

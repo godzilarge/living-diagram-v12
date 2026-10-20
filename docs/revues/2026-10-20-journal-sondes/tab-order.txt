@@ -1,0 +1,40 @@
+button Effacer tous les filtres facets
+button[radio] demo-dc, ouverte, 236 facets
+button Positions, 150 facets
+button Couleurs, 24 facets
+button Groupes, 31 facets
+button Annotations, 31 facets
+button Connecteurs, 0 facets
+button Créé, 61 facets
+button Modifié, 153 facets
+button Supprimé, 22 facets
+button camille.r, 71 facets
+button orhan, 126 facets
+button t.martin, 39 facets
+button[radio] Tout journal
+input rechercher dans le journal journal
+button Exporter en CSV journal
+button Lire le journal : raccourcis et limites journal
+button Oorhan a placé 3 équipements17:30r80 journal
+body demo-dc19 janv. 2026, 03:0010 changementsDiagramme 
+a Living Diagram, accueil brand
+button[combobox] Infrastructure context
+button[combobox] Collecte context
+button 10 changements context
+button[tab] Journal views
+button L1 views
+button L2 views
+button L3 views
+button Rechercher tools
+button Exporter en PNG ou SVG tools
+button Réglages tools
+button Votre nom tools
+button Effacer tous les filtres facets
+button[radio] demo-dc, ouverte, 236 facets
+button Positions, 150 facets
+button Couleurs, 24 facets
+button Groupes, 31 facets
+button Annotations, 31 facets
+button Connecteurs, 0 facets
+button Créé, 61 facets
+button Modifié, 153 facets

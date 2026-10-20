@@ -1,13 +1,13 @@
 // The views island (design/comps/shell/index.html, `.views`): the view strip (Diagram; Check with its open errors,
-// else warnings, in the state colour; Log), then the layer choice L1 / L2 / L3. Check, Log, L2 and L3 come with later
-// bricks: disabled, their tooltip says so.
+// else warnings, in the state colour; Log), then the layer choice L1 / L2 / L3. The current view carries the rail;
+// Check, L2 and L3 come with later bricks: disabled, their tooltip says so.
 import type { Model } from "@engine/canvas/types";
 import { Button, Island, Rail, Separator } from "../ui";
 import { useText } from "../i18n";
 import type { ViewMode } from "../state/address";
 import { checkCount } from "./words";
 
-export function ViewsIsland({ model, onView }: { model: Model | null; onView: (mode: ViewMode) => void }) {
+export function ViewsIsland({ model, value, onView }: { model: Model | null; value: ViewMode; onView: (mode: ViewMode) => void }) {
   const t = useText();
   const count = checkCount(t, model);
   return (
@@ -15,7 +15,7 @@ export function ViewsIsland({ model, onView }: { model: Model | null; onView: (m
       <Rail
         name="view"
         label={t("diagram:views.label")}
-        value="diagram"
+        value={value}
         onChange={(mode) => onView(mode as ViewMode)}
         items={[
           { id: "diagram", label: t("diagram:views.diagram") },
@@ -26,7 +26,7 @@ export function ViewsIsland({ model, onView }: { model: Model | null; onView: (m
             disabledReason: t("diagram:views.controlSoon"),
             ...(count ? { count: count.count, countTone: count.tone, countLabel: count.label } : {}),
           },
-          { id: "journal", label: t("diagram:views.journal"), disabled: true, disabledReason: t("diagram:views.journalSoon") },
+          { id: "journal", label: t("diagram:views.journal") },
         ]}
       />
       <Separator />

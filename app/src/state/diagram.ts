@@ -67,9 +67,9 @@ export type Action =
   | Readonly<{ type: "editRequest"; request: EditRequestState | null }>
   | Readonly<{ type: "touched" }>;
 
-/** The modes the shell can show: Check and Log come with brick 7; until then an address naming them reads as the
- *  Diagram, and the address is rewritten so it says what the page shows. */
-export const SHOWN_MODES: readonly ViewState["mode"][] = ["diagram"];
+/** The modes the shell can show: Check waits for its direction (brick 7, Orhan still judging the bench); until then an
+ *  address naming it reads as the Diagram, and the address is rewritten so it says what the page shows. */
+export const SHOWN_MODES: readonly ViewState["mode"][] = ["diagram", "journal"];
 export const shownView = (view: ViewState): ViewState => (SHOWN_MODES.includes(view.mode) ? view : { ...view, mode: "diagram" });
 
 export function initialState(token: TokenState, address: Address, view: ViewState = DEFAULT_VIEW, wanted: SelectionToken | null = null): DiagramState {
@@ -116,8 +116,13 @@ export function reducer(state: DiagramState, action: Action): DiagramState {
         runsCause: action.runs ? null : state.runsCause,
         hosts: [],
       };
-    case "view":
-      return { ...state, view: { ...state.view, ...action.patch } };
+    case "view": {
+      const view = { ...state.view, ...action.patch };
+      // another view than the Diagram closes edit mode (the Log is read only), with what it opened
+      const leaves = view.mode !== "diagram" && state.editing;
+      if (leaves) return { ...state, view, editing: false, tool: null, context: null, editRequest: null };
+      return { ...state, view, context: view.mode === "diagram" ? state.context : null };
+    }
     case "select": {
       const same = sameSelection(state.selection, action.selection) && sameHosts(state.hosts, action.hosts);
       if (same) return state.wanted ? { ...state, wanted: null } : state; // the canvas answered, even without a change

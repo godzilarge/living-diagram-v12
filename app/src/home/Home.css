@@ -100,56 +100,6 @@ tr:is(:hover, :focus-within) .home-go,
   font-weight: var(--text-body-strong-weight);
 }
 
-/* latest modifications */
-.home-feed {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home-feed-item {
-  display: grid;
-  grid-template-columns: var(--avatar-size) minmax(0, 1fr) auto;
-  align-items: start;
-  column-gap: var(--space-md);
-  padding: var(--feed-item-padding);
-  border-bottom: 1px solid var(--color-line);
-}
-
-.home-feed-item:first-child {
-  padding-top: 0;
-}
-
-.home-feed-item:last-child {
-  border-bottom: 0;
-}
-
-.home-feed-what {
-  margin: 0;
-  line-height: var(--text-body-line-leading);
-  text-wrap: pretty;
-}
-
-.home-feed-what b {
-  font-weight: var(--text-body-strong-weight);
-}
-
-.home-feed-where {
-  margin: var(--space-2xs) 0 0;
-  color: var(--color-ink-3);
-  font-size: var(--text-caption-size);
-  font-weight: var(--text-caption-weight);
-  line-height: var(--text-caption-leading);
-}
-
-.home-feed-when {
-  color: var(--color-ink-3);
-  font-size: var(--text-caption-size);
-  font-weight: var(--text-caption-weight);
-  line-height: var(--text-body-line-leading);
-  white-space: nowrap;
-}
-
 /* the free slot: a line-2 frame on the ground, no fill, no shadow */
 .home-slot {
   display: grid;

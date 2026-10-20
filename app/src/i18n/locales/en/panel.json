@@ -8,7 +8,8 @@
     "centre": "Centre the view",
     "more": "More: history, copy, pin",
     "moreSoon": "More: history, copy, pin: in progress",
-    "close": "Close"
+    "close": "Close",
+    "history": "History"
   },
   "kind": {
     "switch": "Switch",

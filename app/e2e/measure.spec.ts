@@ -54,7 +54,7 @@ for (const variant of VARIANTS) {
     const problems = await open(page, "/next/", variant, { token: TOKEN });
     const infrastructures = page.getByRole("table", { name: "Infrastructures" });
     await expect(infrastructures.locator("tbody tr")).toHaveCount(6);
-    await expect(page.locator(".home-feed-item")).toHaveCount(10);
+    await expect(page.locator(".ui-feed-item")).toHaveCount(10);
     // the diffs fill their cells after the page shows: wait for the last one
     await expect(page.getByText(variant.lang === "fr" ? "aucun changement" : "no change").first()).toBeVisible();
     await page.screenshot({ path: `${CAPTURES}/home-${tag}.png` });

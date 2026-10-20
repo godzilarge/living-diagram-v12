@@ -4,7 +4,7 @@
 import type { JournalEntry } from "../api/home";
 import type { Translate } from "../i18n";
 import type { Compared, RunRow, Status } from "../state/home";
-import { journalLine } from "../state/journal-line";
+import { headline, textOf } from "../state/journal-text";
 import { dayMonth, when } from "../state/time";
 import type { Load } from "../state/useHome";
 
@@ -48,12 +48,8 @@ export function failedWords(t: Translate, load: Load<unknown>): string {
   return t("home:failed", { status: load.cause });
 }
 
-/** What a feed entry did, its other changes counted: "moved 3 devices and 1 other change". */
-export function entryWords(t: Translate, entry: JournalEntry): string {
-  const line = journalLine(entry);
-  const phrase = t(line.key, line.values);
-  return line.more > 0 ? t("home:journal.andMore", { phrase, count: line.more }) : phrase;
-}
+/** What a feed entry did, in the Log view's words (one grammar, brick 7): "placed 3 devices and 1 other change". */
+export const entryWords = (_t: Translate, entry: JournalEntry): string => textOf(headline(entry));
 
 /** A sentence around its author, as the catalogue orders them: the text before and after the author's name. */
 export type ByAuthor = Readonly<{ before: string; author: string; after: string }>;

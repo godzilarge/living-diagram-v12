@@ -1,13 +1,15 @@
 // What the home reads from the API, validated at the boundary: the archived infrastructures (`GET /api/infrastructures`),
-// the latest modifications (`GET /api/intent/journal`), the diff between a run and the one before it
+// the latest modifications (`GET /api/intent/journal`, parsed by `journal.ts`), the diff between a run and the one before it
 // (`GET /api/diff`, of which the home keeps the summary and the date of the earlier run). A malformed item is dropped,
 // a fact the API did not give is null, never guessed; a body that is not the contract's shape is refused whole.
 // Shapes: backend `schemas.py` (`InfrastructureList`), `journal.py` (`JournalEntry`), contracts `diff/summary.py`.
 import type { Summary } from "@engine/contracts/diff";
 import { getJson } from "./http";
 import type { Answer, Fetch } from "./http";
+import { JOURNAL_ROUTE, parseEntry } from "./journal";
+import type { JournalEntry } from "./journal";
 
-export const ROUTES = { infrastructures: "/api/infrastructures", journal: "/api/intent/journal", diff: "/api/diff" } as const;
+export const ROUTES = { infrastructures: "/api/infrastructures", journal: JOURNAL_ROUTE, diff: "/api/diff" } as const;
 /** The latest modifications the home shows without a `homeChanges` preference. */
 export const JOURNAL_LIMIT = 10;
 /** The collections of each infrastructure the home asks for without a `homeRuns` preference (the API's default). */
@@ -30,19 +32,7 @@ export type Infrastructure = Readonly<{
 }>;
 export type InfrastructureList = Readonly<{ infrastructures: readonly Infrastructure[]; unreadable: number }>;
 
-export type JournalSubject = Readonly<{ id: string; kind: string; label: string }>;
-export type JournalOp = Readonly<{ op: string } & Record<string, unknown>>;
-export type JournalEntry = Readonly<{
-  infrastructure: string;
-  revision: number;
-  at: string;
-  author: string;
-  categories: readonly string[];
-  actions: readonly string[];
-  created: readonly string[];
-  subjects: readonly JournalSubject[];
-  ops: readonly JournalOp[];
-}>;
+export type { JournalEntry, JournalOp, JournalSubject } from "./journal";
 
 /** The counts of a diff's summary, every one of them checked (the engine's `Summary`). */
 export type DiffSummary = Readonly<Summary>;
@@ -98,34 +88,12 @@ export function parseInfrastructures(body: unknown): InfrastructureList | null {
   return { infrastructures: list, unreadable: countOrNull(body.unreadable) ?? 0 };
 }
 
-function subject(value: unknown): JournalSubject | null {
-  if (!isRecord(value) || !isText(value.id) || !isText(value.kind)) return null;
-  return { id: value.id, kind: value.kind, label: typeof value.label === "string" ? value.label : "" };
-}
-
-function entry(value: unknown): JournalEntry | null {
-  if (!isRecord(value) || !isText(value.infrastructure) || !isText(value.at) || typeof value.author !== "string") return null;
-  if (!isCount(value.revision) || !Array.isArray(value.ops)) return null;
-  const ops = value.ops.filter((op): op is JournalOp => isRecord(op) && isText(op.op));
-  return {
-    infrastructure: value.infrastructure,
-    revision: value.revision,
-    at: value.at,
-    author: value.author,
-    categories: texts(value.categories),
-    actions: texts(value.actions),
-    created: texts(value.created),
-    subjects: Array.isArray(value.subjects) ? value.subjects.map(subject).filter((s) => s !== null) : [],
-    ops,
-  };
-}
-
 /** The latest entries, and the lines of the log the server skipped as unreadable. */
 export type Journal = Readonly<{ entries: readonly JournalEntry[]; unreadable: number }>;
 
 export function parseJournal(body: unknown): Journal | null {
   if (!isRecord(body) || !Array.isArray(body.entries)) return null;
-  return { entries: body.entries.map(entry).filter((item) => item !== null), unreadable: countOrNull(body.unreadable) ?? 0 };
+  return { entries: body.entries.map(parseEntry).filter((item) => item !== null), unreadable: countOrNull(body.unreadable) ?? 0 };
 }
 
 const SECTIONS = ["nodes", "interfaces", "links", "aggregates", "mlag_domains", "ha_clusters"] as const;

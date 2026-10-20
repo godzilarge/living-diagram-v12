@@ -1,0 +1,385 @@
+/* The Log view (DESIGN.md, Layout, The Log view): the ground over the map, under the top row one reading column
+   centred, 1280 px at most (the Filters island, 16 px, the Log island), the ground beyond; under 1312 px of window the
+   column takes the width less 16 px on each side. Each island scrolls inside. */
+.journal {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--color-ground);
+}
+
+.journal-column {
+  position: absolute;
+  top: calc(2 * var(--space-lg) + var(--control-height) + 2 * var(--island-padding));
+  bottom: var(--space-lg);
+  left: max(var(--space-lg), calc((100% - var(--journal-column)) / 2));
+  right: max(var(--space-lg), calc((100% - var(--journal-column)) / 2));
+  display: grid;
+  grid-template-columns: var(--journal-facets) minmax(0, 1fr);
+  column-gap: var(--space-lg);
+}
+
+/* the Log island comes first in the DOM (Tab reaches its search and its feed before the thirteen facets); the facets
+   are drawn on the left */
+.journal-facets {
+  order: -1;
+}
+
+.journal-facets,
+.journal-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* an island's header: 56 px, the title at 15 px / 600 (the widget's), its tools on the right, 8 px apart */
+.journal-island-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-sm);
+  height: var(--widget-header-height);
+  padding: 0 var(--space-md) 0 var(--space-lg);
+}
+
+.journal-island-head h2 {
+  margin: 0;
+  font-size: var(--widget-font-size);
+  font-weight: var(--widget-font-weight);
+  line-height: var(--widget-font-leading);
+  white-space: nowrap;
+}
+
+.journal-island-tools {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* the title over its line (how many, where, the zone): the panel header's grammar, the header's tools keep their room */
+.journal-title {
+  display: flex;
+  flex: 0 1 auto;
+  overflow: hidden;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.journal-subtitle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the search takes what the header leaves, 280 px at most */
+.journal-search {
+  flex: 0 1 var(--journal-search);
+  min-width: var(--journal-search-min);
+}
+
+.journal-head .journal-island-tools {
+  flex: none;
+}
+
+.journal-search .ui-field-box,
+.journal-search .ui-field-input {
+  width: 100%;
+}
+
+.journal-facets-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 var(--space-sm) var(--space-md);
+}
+
+.journal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--widget-padding);
+  mask-image: linear-gradient(to bottom, currentColor calc(100% - var(--journal-fade)), transparent);
+}
+
+/* under the header: an object's history, a link to an entry */
+.journal-context {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-lg);
+  padding: 0 var(--space-md) var(--space-sm) var(--space-lg);
+  color: var(--color-ink-2);
+}
+
+.journal-context-part {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.journal-context-part > .ui-icon {
+  color: var(--color-ink-3);
+}
+
+/* the states of the body: failed, nothing recorded, nothing matches */
+.journal-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-xl) 0;
+}
+
+.journal-state p {
+  margin: 0;
+}
+
+.journal-state-title {
+  font-weight: var(--text-body-strong-weight);
+}
+
+.journal-state-detail {
+  max-width: 64ch;
+  color: var(--color-ink-3);
+  text-wrap: pretty;
+}
+
+.journal-warn {
+  margin: var(--space-md) 0 0;
+  font-size: var(--text-label-size);
+}
+
+.journal-caption-part + .journal-caption-part {
+  margin-left: var(--space-sm);
+}
+
+/* the foot: older entries, how many are read, what the log keeps */
+.journal-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-md) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+}
+
+.journal-foot-note {
+  flex: 0 1 auto;
+  max-width: 50%;
+  margin-left: auto;
+  text-align: right;
+  text-wrap: pretty;
+}
+
+/* the detail of a row */
+.journal-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding-top: var(--space-2xs);
+}
+
+.journal-detail .ui-facts {
+  width: 100%;
+}
+
+.journal-hosts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journal-steps,
+.journal-ops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journal-steps > li {
+  display: grid;
+  grid-template-columns: var(--feed-when-width) minmax(0, 1fr);
+  column-gap: var(--space-md);
+}
+
+.journal-steps time {
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-body-line-leading);
+}
+
+.journal-ops > li {
+  line-height: var(--text-body-line-leading);
+}
+
+.journal-ops .journal-hosts {
+  margin-top: var(--space-2xs);
+}
+
+.journal-more,
+.journal-gone-word {
+  color: var(--color-ink-3);
+}
+
+.journal-raw {
+  width: 100%;
+}
+
+.journal-raw summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  border-radius: var(--radius-chip);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-leading);
+  cursor: pointer;
+}
+
+.journal-raw summary:hover {
+  color: var(--color-ink);
+}
+
+.journal-raw pre {
+  max-height: var(--journal-raw-height);
+  margin: var(--space-sm) 0 0;
+  padding: var(--space-md);
+  overflow: auto;
+  border-radius: var(--radius-control);
+  background: var(--color-sunken);
+  color: var(--color-ink-2);
+  font-family: inherit;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.journal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.journal-said {
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+}
+
+/* the range: two days, a note, cancel and apply */
+.journal-range {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: var(--journal-search);
+}
+
+.journal-range-row {
+  display: grid;
+  grid-template-columns: var(--feed-when-width) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-sm);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+}
+
+.journal-range-row .ui-field,
+.journal-range-row .ui-field-box,
+.journal-range-row .ui-field-input {
+  width: 100%;
+}
+
+.journal-range-note {
+  margin: 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+}
+
+.journal-range-note[data-bad] {
+  color: var(--color-error);
+}
+
+.journal-range-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+/* the help: the keys, then what the log keeps */
+.journal-help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: var(--journal-facets);
+  padding: var(--space-sm);
+}
+
+.journal-help h3 {
+  margin: 0;
+  font-size: var(--text-body-size);
+  font-weight: var(--text-body-strong-weight);
+}
+
+.journal-keys {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-sm) var(--space-md);
+  margin: 0;
+}
+
+.journal-keys > div {
+  display: contents;
+}
+
+.journal-keys dt {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.journal-keys dd {
+  margin: 0;
+  color: var(--color-ink-2);
+  font-size: var(--text-label-size);
+  line-height: var(--shortcut-height);
+}
+
+.journal-keys-pair {
+  display: inline-flex;
+  gap: var(--space-xs);
+}
+
+.journal-help-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: var(--space-md) 0 0;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-ink-3);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  list-style: none;
+}

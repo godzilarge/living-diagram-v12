@@ -1,0 +1,4 @@
+journal-demo-dc-20260119-2030.csv
+43 entrées exportées role=status
+﻿date (UTC);infrastructure;révision;auteur;catégorie;modification;objets;opérations (JSON)
+2026-01-19T17:30:00+01:00;demo-dc;80;orhan;Positions;placé 3 équipements;dc01-acc-01, dc01-acc-02, dc01-acc-03;"[{""op"":""pin"",""hostname"":""dc01-acc-01"",""x"":0,""y"":120},{""op"":""pin"",""hostname"":""dc01-acc-02"",""x"":240,""y"":120},{""op"":""pin"",""hostname"":""dc01-acc-03"",""x"":480,""y"":120}]"

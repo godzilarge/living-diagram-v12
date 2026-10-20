@@ -1,6 +1,7 @@
 // The token in the tab's storage, the call with its outcomes, the bodies validated at the boundary.
 import { describe, expect, it } from "vitest";
 import { loadDiff, loadInfrastructures, loadJournal, parseDiff, parseInfrastructures, parseJournal } from "../src/api/home";
+import { loadJournalPage, parseEntry, parseJournalPage } from "../src/api/journal";
 import { getJson, readAuthor, readToken, TOKEN_KEY, withParams, writeToken } from "../src/api/http";
 import type { Fetch, KeyStore } from "../src/api/http";
 
@@ -41,6 +42,24 @@ describe("http", () => {
     const notJson: Fetch = async () => ({ status: 200, ok: true, json: async () => { throw new SyntaxError("x"); } });
     expect(await getJson("/api/x", {}, "t", (b) => b, notJson)).toEqual({ kind: "invalid" });
     expect(withParams("/api/y", {})).toBe("/api/y");
+    expect(withParams("/api/y", [["author", "a"], ["author", "b c"]]), "pairs keep a repeated key").toBe("/api/y?author=a&author=b+c");
+  });
+
+  it("reads a page of the log with its facets, refuses one without its total, drops an unknown subject kind", async () => {
+    const calls: string[] = [];
+    await loadJournalPage("t", [["infrastructure", "lab"], ["author", "a"], ["limit", "200"]], answer(200, { entries: [], total: 0 }, calls));
+    expect(calls).toEqual(["/api/intent/journal?infrastructure=lab&author=a&limit=200 Bearer t"]);
+    const page = parseJournalPage({
+      entries: [{ infrastructure: "a", revision: 1, at: "2026-01-19T00:00:00Z", author: "x", ops: [{ op: "pin" }], subjects: [{ id: "g", kind: "group", label: "G", form: "" }, { id: "z", kind: "zone" }], group: { id: "s1", kind: "session", size: 3 } }],
+      total: 12, next: "cur", authors: [{ value: "x", count: 1 }, { value: 3 }], categories: [], infrastructures: [{ value: "a", count: 1 }], actions: [{ value: "modified", count: 1 }], unreadable: 1, start_missing: true,
+    });
+    expect(page?.entries[0].subjects.map((s) => s.id)).toEqual(["g"]);
+    expect(page?.entries[0].group).toEqual({ id: "s1", kind: "session", size: 3 });
+    expect(page?.authors).toEqual([{ value: "x", count: 1 }]);
+    expect(page).toMatchObject({ total: 12, next: "cur", unreadable: 1, start_missing: true });
+    expect(parseJournalPage({ entries: [], total: 0 })).toMatchObject({ next: null, authors: [], start_missing: false });
+    expect(parseJournalPage({ entries: [] })).toBeNull();
+    expect(parseEntry({ infrastructure: "a", revision: 1, at: "x", author: "", ops: [], group: { id: "s", kind: "other", size: 1 } })?.group, "an unknown group kind is no group").toBeNull();
   });
 
   it("asks the three routes of the home", async () => {
@@ -107,7 +126,7 @@ describe("http", () => {
     });
     expect(journal?.entries).toHaveLength(1);
     expect(journal?.entries[0].ops).toEqual([{ op: "pin" }]);
-    expect(journal?.entries[0].subjects).toEqual([{ id: "g", kind: "group", label: "" }]);
+    expect(journal?.entries[0].subjects).toEqual([{ id: "g", kind: "group", label: "", form: "", unnamed: null, parts: null }]);
     expect(journal?.entries[0].author).toBe("");
     expect(journal?.unreadable).toBe(2);
     expect(parseJournal({ entries: [] })?.unreadable).toBe(0);

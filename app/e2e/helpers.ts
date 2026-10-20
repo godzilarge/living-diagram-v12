@@ -168,7 +168,7 @@ export async function mockApi(page: Page, options: Partial<ApiMock> = {}): Promi
       return route.fulfill({ status: 401, json: { code: "unauthorized", detail: "missing or invalid token" } });
     if (url.pathname === "/api/diff" && state.refuseDiffs) return route.fulfill({ status: 401, json: { code: "unauthorized" } });
     if (url.pathname === "/api/infrastructures") return route.fulfill({ json: recentOnly(state.infrastructures ?? fixture("infrastructures.json"), url) });
-    if (url.pathname === "/api/intent/journal") return route.fulfill({ json: fixture("journal.json") });
+    if (url.pathname === "/api/intent/journal") return route.fulfill({ json: journalPage(url) });
     const answered = diagramRoute(url, route.request().method(), route.request().postDataJSON.bind(route.request()), state);
     if (answered) {
       if (url.pathname === "/api/ingest/bundles" && state.delayRuns) await new Promise((resolve) => setTimeout(resolve, state.delayRuns));
@@ -243,6 +243,59 @@ function diagramRoute(url: URL, method: string, postData: () => unknown, state: 
     default:
       return null;
   }
+}
+
+type JournalRow = { infrastructure: string; revision: number; at: string; author: string; created: string[]; subjects: { id: string; label: string }[]; ops: Record<string, unknown>[] };
+const categoryOf = (op: string): string =>
+  op === "pin" || op === "unpin" ? "positions" : op.startsWith("color") || op.startsWith("uncolor") ? "colors" : op.startsWith("group_") ? "groups" : op.startsWith("annotation_") ? "annotations" : op.startsWith("connector_") ? "connectors" : "other";
+const actionOf = (op: string): string => (op.endsWith("_create") ? "created" : op.endsWith("_delete") || op === "journal_prune" ? "deleted" : "modified");
+const refsOf = (row: JournalRow): string[] => [
+  ...row.created,
+  ...row.ops.flatMap((op) => [op.hostname, op.id, ...(Array.isArray(op.members) ? op.members : [])].filter((v): v is string => typeof v === "string" && v.length > 0)),
+];
+const fold = (text: string): string => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+const haystack = (row: JournalRow): string => fold([row.author, ...refsOf(row), ...row.subjects.map((s) => s.label), ...row.ops.map((op) => String(op.op))].join("\n"));
+const facetsOf = (all: JournalRow[], kept: JournalRow[], of: (row: JournalRow) => string[]) =>
+  [...new Set(all.flatMap(of))].sort((a, b) => a.localeCompare(b)).map((value) => ({ value, count: kept.filter((row) => of(row).includes(value)).length }));
+
+/** `GET /api/intent/journal` as the backend answers it (`journal.py`): the fixture's entries filtered by the query
+ *  (infrastructure, authors, categories, actions, the object's history, the words, the period, a link's `start`),
+ *  the facets over the whole log with their counts under the filters, the page after the `before` cursor (an index),
+ *  the most recent first. */
+function journalPage(url: URL): unknown {
+  const q = url.searchParams;
+  const all = (fixture("journal.json") as { entries: JournalRow[] }).entries;
+  const categories = (row: JournalRow) => [...new Set(row.ops.map((op) => categoryOf(String(op.op))))];
+  const actions = (row: JournalRow) => [...new Set(row.ops.map((op) => actionOf(String(op.op))))];
+  const many = (key: string) => q.getAll(key);
+  const infra = q.get("infrastructure"), object = q.get("object"), words = fold(q.get("q") ?? "").split(/\s+/).filter(Boolean);
+  const since = q.get("since") ? Date.parse(q.get("since") as string) : null, until = q.get("until") ? Date.parse(q.get("until") as string) : null;
+  const start = q.get("start") ? Number(q.get("start")) : null;
+  const kept = all.filter(
+    (row) =>
+      (!infra || row.infrastructure === infra) &&
+      (!many("author").length || many("author").includes(row.author)) &&
+      (!many("category").length || categories(row).some((c) => many("category").includes(c))) &&
+      (!many("action").length || actions(row).some((a) => many("action").includes(a))) &&
+      (!object || refsOf(row).includes(object)) &&
+      words.every((word) => haystack(row).includes(word)) &&
+      (since === null || Date.parse(row.at) >= since) &&
+      (until === null || Date.parse(row.at) < until),
+  );
+  const from = q.get("before") ? Number(q.get("before")) : start !== null ? Math.max(0, kept.findIndex((row) => row.revision <= start)) : 0;
+  const limit = Number(q.get("limit") ?? 100);
+  const page = kept.slice(from, from + limit);
+  return {
+    entries: page.map((row) => ({ ...row, categories: categories(row), actions: actions(row) })),
+    total: kept.length,
+    next: from + limit < kept.length ? String(from + limit) : null,
+    authors: facetsOf(all, kept, (row) => [row.author]),
+    categories: facetsOf(all, kept, categories),
+    infrastructures: facetsOf(all, kept, (row) => [row.infrastructure]),
+    actions: facetsOf(all, kept, actions),
+    unreadable: 0,
+    start_missing: start !== null && !kept.some((row) => row.revision === start),
+  };
 }
 
 /** The `recent` latest collections of each infrastructure (6 by default), as `GET /api/infrastructures` keeps them. */
