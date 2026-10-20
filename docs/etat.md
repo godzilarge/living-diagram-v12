@@ -166,7 +166,8 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   complète, vert seul (1 échec sur 3 passages) ; moteur vert ; backend 98 % (un échec d'environnement :
   `test_the_viewer_passes_its_node_tests`, Node 22.22 refuse `node --test <dossier>` ; les tests Chromium passent avec
   un lien `~/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/chrome-headless-shell` vers le headless
-  shell du conteneur) ; contrats 98 %. Captures `.impeccable/planche-journal/` (non versionnées, remises à Orhan).
+  shell du conteneur) ; contrats 98 %. Captures `.impeccable/planche-journal/` (non versionnées, remises à Orhan). **Commité a0f36c0, poussé** sur
+  `claude/inspiring-noether-darrm2` (branche partie de `claude/keen-dirac-d907ei`, la brique 6 et le banc).
   **Prochaine session : `/brique-ui controle`**, en commençant par le choix d'Orhan (A, B ou C) et ses remarques sur la
   planche du Journal : écrire d'abord dans `DESIGN.md` et la page vivante les primitives que la direction demande (puce
   `Code` réservée à Contrôle ; îlot gauche pour B ou bascules mot + compte pour C), un catalogue `control:codes` d'une
