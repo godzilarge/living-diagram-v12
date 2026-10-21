@@ -86,6 +86,12 @@
   text-align: right;
 }
 
+/* centred: a mark alone under its short header (Check's topics), 2 px on both sides: two headers 4 px apart at least */
+.ui-table :is(th, td)[data-align="center"] {
+  padding: 0 var(--space-2xs);
+  text-align: center;
+}
+
 .ui-table :is(th, td):last-child {
   padding-right: 0;
 }

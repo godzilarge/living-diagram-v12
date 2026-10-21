@@ -67,9 +67,9 @@ export type Action =
   | Readonly<{ type: "editRequest"; request: EditRequestState | null }>
   | Readonly<{ type: "touched" }>;
 
-/** The modes the shell can show: Check and Log come with brick 7; until then an address naming them reads as the
- *  Diagram, and the address is rewritten so it says what the page shows. */
-export const SHOWN_MODES: readonly ViewState["mode"][] = ["diagram"];
+/** The modes the shell can show: the Diagram and Check (brick 7a); Log comes later, until then an address naming it
+ *  reads as the Diagram, and the address is rewritten so it says what the page shows. */
+export const SHOWN_MODES: readonly ViewState["mode"][] = ["diagram", "control"];
 export const shownView = (view: ViewState): ViewState => (SHOWN_MODES.includes(view.mode) ? view : { ...view, mode: "diagram" });
 
 export function initialState(token: TokenState, address: Address, view: ViewState = DEFAULT_VIEW, wanted: SelectionToken | null = null): DiagramState {
@@ -89,6 +89,15 @@ export function selectionTokenOf(state: DiagramState): SelectionToken | null {
     return token ? { kind: token[0], token: token[1] } : null;
   }
   return state.wanted;
+}
+
+/** A view patch. Leaving the Diagram (Check) leaves edit mode and puts the canvas's selection aside as the selection
+ *  awaited (the address keeps it, the canvas shows it again when the Diagram comes back). */
+function withView(state: DiagramState, patch: Partial<ViewState>): DiagramState {
+  const view = { ...state.view, ...patch };
+  if (view.mode === state.view.mode || view.mode === "diagram") return { ...state, view };
+  const wanted = state.wanted ?? selectionTokenOf(state);
+  return { ...state, view, editing: false, tool: null, context: null, editRequest: null, selection: null, hosts: [], wanted };
 }
 
 export function reducer(state: DiagramState, action: Action): DiagramState {
@@ -117,7 +126,7 @@ export function reducer(state: DiagramState, action: Action): DiagramState {
         hosts: [],
       };
     case "view":
-      return { ...state, view: { ...state.view, ...action.patch } };
+      return withView(state, action.patch);
     case "select": {
       const same = sameSelection(state.selection, action.selection) && sameHosts(state.hosts, action.hosts);
       if (same) return state.wanted ? { ...state, wanted: null } : state; // the canvas answered, even without a change
@@ -128,9 +137,10 @@ export function reducer(state: DiagramState, action: Action): DiagramState {
     case "zoom":
       return state.zoom === action.zoom ? state : { ...state, zoom: action.zoom };
     case "edit":
-      // leaving edit mode puts the tool away and closes what it opened
+      // leaving edit mode puts the tool away and closes what it opened; entering it from Check shows the Diagram
       if (action.editing === state.editing) return state;
-      return action.editing ? { ...state, editing: true } : { ...state, editing: false, tool: null, context: null, editRequest: null };
+      if (action.editing) return state.view.mode === "diagram" ? { ...state, editing: true } : { ...withView(state, { mode: "diagram" }), editing: true };
+      return { ...state, editing: false, tool: null, context: null, editRequest: null };
     case "tool":
       // a tool arms in edit mode only; arming closes the menu
       return { ...state, tool: action.tool && state.editing ? action.tool : null, context: null };

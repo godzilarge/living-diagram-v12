@@ -45,11 +45,6 @@
   max-height: 60%;
 }
 
-/* a sentence in place of a widget's content */
-.home-note {
-  margin: 0 0 var(--space-xs);
-  color: var(--color-ink-3);
-}
 
 /* infrastructures */
 .home-name {

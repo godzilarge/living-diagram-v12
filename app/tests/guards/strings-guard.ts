@@ -26,6 +26,7 @@ export const ALLOWED: ReadonlyMap<string, string> = new Map([
   ["src/ui/Palette.tsx:Enter", "a KeyboardEvent key name compared, never shown (the chip's word comes from edit:keys.enter)"],
   ["src/ui/Select.tsx:Enter", "a KeyboardEvent key name compared, never shown"],
   ["src/ui/Table.tsx:Enter", "a KeyboardEvent key name compared, never shown"],
+  ["src/ui/Register.tsx:Enter", "a KeyboardEvent key name compared, never shown"],
   ["src/state/edit-keys.ts:Enter", "a KeyboardEvent key name compared, never shown"],
   ["src/state/edit-keys.ts:Delete", "a KeyboardEvent key name compared, never shown (the word comes from edit:bar.delete)"],
   ["src/state/edit-keys.ts:Tab", "a KeyboardEvent key name compared, never shown"],

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "@engine/canvas/model";
 import type { PageData } from "@engine/canvas/types";
 import { DEFAULT_VIEW } from "../src/state/address";
-import { initialState, reducer, selectionTokenOf } from "../src/state/diagram";
+import { initialState, reducer, selectionTokenOf, shownView } from "../src/state/diagram";
 import { diffFactsOf } from "../src/state/diff-facts";
 import { parseFullDiff, parseSnapshot } from "../src/api/run";
 
@@ -55,6 +55,38 @@ describe("the diagram state", () => {
     expect(reducer(state, { type: "zoom", zoom: 0.5 }).zoom).toBe(0.5);
     expect(reducer(state, { type: "failed", cause: 500 }).run).toEqual({ kind: "failed", cause: 500 });
     expect(reducer(state, { type: "view", patch: { showPorts: true } }).view.showPorts).toBe(true);
+  });
+});
+
+describe("the Check mode", () => {
+  const ready = () => {
+    let state = initialState("present", ADDRESS);
+    state = reducer(state, { type: "ready", model, data, missing: [], remembered: false, runs: null });
+    return reducer(state, { type: "select", selection: { kind: "node", id: host }, hosts: [host] });
+  };
+
+  it("is shown: an address naming Check keeps it, one naming Log reads as the Diagram", () => {
+    expect(shownView({ ...DEFAULT_VIEW, mode: "control" }).mode).toBe("control");
+    expect(shownView({ ...DEFAULT_VIEW, mode: "journal" }).mode).toBe("diagram");
+  });
+
+  it("leaves edit mode and keeps the selection aside, awaited by the canvas that comes back", () => {
+    let state = reducer(ready(), { type: "edit", editing: true });
+    state = reducer(state, { type: "tool", tool: "connector" });
+    state = reducer(state, { type: "view", patch: { mode: "control" } });
+    expect(state).toMatchObject({ editing: false, tool: null, context: null, selection: null, hosts: [], wanted: { kind: "node", token: host } });
+    expect(selectionTokenOf(state), "the address keeps the selection").toEqual({ kind: "node", token: host });
+    state = reducer(state, { type: "view", patch: { mode: "diagram" } });
+    expect(state.view.mode).toBe("diagram");
+    expect(state.wanted).toEqual({ kind: "node", token: host });
+  });
+
+  it("goes back to the Diagram when edit mode is asked from Check; a toggle of the view keeps the mode", () => {
+    let state = reducer(ready(), { type: "view", patch: { mode: "control" } });
+    state = reducer(state, { type: "view", patch: { showStubs: true } });
+    expect(state.view).toMatchObject({ mode: "control", showStubs: true });
+    state = reducer(state, { type: "edit", editing: true });
+    expect(state).toMatchObject({ editing: true, view: { mode: "diagram" } });
   });
 });
 

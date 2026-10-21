@@ -5,7 +5,8 @@
 // answers Enter and Space; a row with one (`href`) shows it as a quiet Link in its `link` column, which Tab reaches,
 // and a click elsewhere on the row follows the same address through `onRowClick`. A `cut` column takes a quarter of
 // the table and cuts its text with an ellipsis. Each row carries its id (`data-row`), for what reports the rows on
-// screen; each cell its column's key (`data-key`), for a surface that sizes its columns. Cells are text or nodes:
+// screen; each cell its column's key (`data-key`), for a surface that sizes its columns; a `center` column (a mark
+// alone under a short header) pads its head and cells 2 px on both sides, so neighbouring headers never touch. Cells are text or nodes:
 // never HTML from data. `wrap` lets the cells of a table break on two lines (the focus panel) instead of cutting.
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
@@ -19,7 +20,7 @@ export type SortDirection = "ascending" | "descending";
 export type Column = Readonly<{
   key: string;
   label: string;
-  align?: "start" | "end";
+  align?: "start" | "end" | "center";
   sortable?: boolean;
   fit?: boolean;
   hideLabel?: boolean;

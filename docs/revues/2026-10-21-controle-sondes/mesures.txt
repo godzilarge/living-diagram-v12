@@ -1,0 +1,25 @@
+BRIQUE fr 1440x900 : table.left=33 mark.left=41 phrase.left=61 cible.icone.left=41 cible.lien.left=65
+BRIQUE détail : td padding-left=8px hauteur ligne détail=56 (une cible de 28 px) ; air sous la dernière cible=20 px
+BRIQUE en-tête de groupe : 40 px ; couverture : tête 32 px, lignes 40,40,40,40,40,40,40 ; sources : lignes 40,40,40,40,40
+BRIQUE Livraison, faits entiers dans le corps : Exportateur=oui Contrat=oui Reçu le=oui Équipements=oui Constats=oui Normalisations=oui Non lues=NON Non résolus=NON
+MAQUETTE : table.left=33 mark.left=33 phrase.left=53 cible.icone.left=53 cible.lien.left=75 ; détail 78.5 px (deux cibles), air sous la dernière 13 px
+MAQUETTE en-tête de groupe : 36 px ; couverture lignes 32,32,32 ; sources lignes 32,32,32
+MAQUETTE Livraison, faits entiers : Exportateur=oui Contrat=oui Reçu le=oui Équipements=oui Constats=oui Normalisations=oui Non lues=oui Non résolus=oui
+CONTRASTE light-cobalt (fond rgb(255, 255, 255)) : marque creuse 2.41:1 (trait 1px) · marque grise 5.6 · marque ambre 2.36 · trait plein 9.18 · pointillé 5.6 · Code texte 5.6 / bord 1.55 · méta 5.6 · groupe 5.6 · bascules 1:5.3 7:5.43 18:5.6 · lien cible 7.88 · bord du filtre 1.55
+CONTRASTE dark-cobalt (fond rgb(28, 29, 31)) : marque creuse 2.92:1 (trait 1px) · marque grise 6.27 · marque ambre 7.82 · trait plein 9.85 · pointillé 6.27 · Code texte 6.27 / bord 1.83 · méta 6.27 · groupe 6.27 · bascules 1:4.98 7:7.82 18:6.27 · lien cible 7.82 · bord du filtre 1.83
+CONTRASTE light-ink (fond rgb(255, 255, 255)) : marque creuse 2.41:1 (trait 1px) · marque grise 5.6 · marque ambre 2.36 · trait plein 9.18 · pointillé 5.6 · Code texte 5.6 / bord 1.55 · méta 5.6 · groupe 5.6 · bascules 1:5.3 7:5.43 18:5.6 · lien cible 18.42 · bord du filtre 1.55
+CONTRASTE dark-ink (fond rgb(28, 29, 31)) : marque creuse 2.92:1 (trait 1px) · marque grise 6.27 · marque ambre 7.82 · trait plein 9.85 · pointillé 6.27 · Code texte 6.27 / bord 1.83 · méta 6.27 · groupe 6.27 · bascules 1:4.98 7:7.82 18:6.27 · lien cible 14.66 · bord du filtre 1.83
+TAB depuis le haut : a:Living Diagram, home → button[combobox]:Infrastructure → button[combobox]:Collection → button:10 changes → button[tab]:Check1 → button:L1 → button:L2 → button:L3 → button:Search → button:Export as PNG or SVG → button:Settings → button:Your name → button:Errors1 → button:Warnings7 → button:Notes18 → input:Filter the verdicts → tr:1 aggregate without enough active member → tr:4 cables observed on ports that see seve
+FOCUS ligne du registre (clavier) : outline solid 2px rgb(33, 80, 232) offset -2px
+Après Entrée puis Tab : le focus est sur A:dc01-core-01 · port-channel101
+Échap sur la cible : focus A:dc01-core-01 · port-channel101, adresse #mode=control
+Entrée sur la cible : adresse ?infrastructure=demo-dc&run_id=demo-0119&from=demo-0112#aggregate=%5B%22dc01-core-01%22%2C%22port-channel101%22%5D
+1024 : verdicts 16–512 ; en-tête scrollWidth/clientWidth 611/494 ; Verdicts[33–90] 26[98–111] Erreurs1[119–201] Avertissements7[205–337] Notes18[341–420] Équipement, port, code…[428–628] ; chevauchements aucun ; largeur du document 1024
+SANS RAPPORT NI stored_at : Livraison Exportateur=ld-contracts-synth 1.0.0 | Contrat=RunBundle 1.0.0 | Équipements=7 en périmètre, 7 ont répondu | Normalisations=aucune résiduelle, 5 par B1 | Non lues=aucune | Non résolus=5 voisins
+MOUVEMENT RÉDUIT : chevron 0.001s, survol de ligne 0.001s, rail des bascules 0.001s
+SURVOL d'une ligne ouverte : ligne ouverte rgb(244, 245, 246), son détail rgba(0, 0, 0, 0)
+CHANGEMENTS en Contrôle : aria-pressed true → false, adresse #mode=control&diff=0, registre toujours là : 1
+SÉLECTION en Contrôle : adresse #mode=control&node=dc01-core-01, panneau 0
+SÉLECTION de retour au Diagramme : adresse #node=dc01-core-01, panneau 1 dc01-core-01
+ÉCHAP palette depuis Contrôle : focus Search, vue #mode=control&node=dc01-core-01, registre 1
+MASQUER depuis Contrôle (1 action) : adresse #mode=control&hide=acc&node=dc01-core-01, vue affichée : registre 1, toile 0, palette ouverte 0

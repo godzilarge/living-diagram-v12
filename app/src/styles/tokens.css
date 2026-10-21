@@ -81,6 +81,7 @@
   --shadow-island: 0 1px 2px rgba(20, 20, 20, 0.05), 0 8px 24px -10px rgba(20, 20, 20, 0.16);
   --shadow-layer: 0 2px 6px rgba(20, 20, 20, 0.06), 0 28px 64px -18px rgba(20, 20, 20, 0.30);
   --shadow-tooltip: 0 4px 12px -2px rgba(0, 0, 0, 0.22);
+  --shadow-hollow-mark: inset 0 0 0 1.5px #A4A7AC;
   --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-hover: 120ms;
   --motion-tooltip: 150ms;
@@ -145,6 +146,7 @@
   --widget-background-color: var(--color-paper);
   --widget-radius: var(--radius-surface);
   --widget-header-height: 56px;
+  --widget-fade: 32px;
   --widget-padding: 0 16px 12px;
   --widget-font-size: var(--text-subtitle-strong-size);
   --widget-font-weight: var(--text-subtitle-strong-weight);
@@ -164,6 +166,17 @@
   --avatar-size: 22px;
   --mark-radius: var(--radius-mark);
   --mark-size: 8px;
+  --code-chip-text-color: var(--color-ink-3);
+  --code-chip-font-size: var(--text-label-size);
+  --code-chip-font-weight: var(--text-label-weight);
+  --code-chip-font-leading: var(--text-label-leading);
+  --code-chip-radius: var(--radius-chip);
+  --code-chip-height: 20px;
+  --code-chip-padding: 0 5px;
+  --source-line-width: 16px;
+  --register-font-weight: 500;
+  --register-target-height: 28px;
+  --check-view-side-width: 480px;
   --grid-step: 24px;
   --grid-dot: 1px;
   --layer-choice-width: 36px;
@@ -238,6 +251,7 @@
   --shadow-island: 0 1px 2px rgba(0, 0, 0, 0.30), 0 10px 28px -10px rgba(0, 0, 0, 0.55);
   --shadow-layer: 0 2px 6px rgba(0, 0, 0, 0.35), 0 28px 64px -18px rgba(0, 0, 0, 0.70);
   --shadow-tooltip: 0 4px 12px -2px rgba(0, 0, 0, 0.5);
+  --shadow-hollow-mark: inset 0 0 0 1.5px #62666C;
 }
 
 :root[data-theme="dark"][data-accent="ink"] {

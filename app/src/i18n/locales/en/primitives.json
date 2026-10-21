@@ -194,5 +194,14 @@
     "menu": "Menu: actions, a chosen value, a shortcut, a deleting row",
     "sizes": "A note bar, its size list open",
     "device": "dc01-core-01"
+  },
+  "check": {
+    "title": "Check: codes, marks, the register",
+    "note": "Check is the one surface that shows a check code, always next to its sentence. A hollow mark says a topic was not asked; a source line is the canvas's stroke of a cable; a zero is quiet. The register groups the verdicts under their severity, each row on two lines (sentence, then code and rule), opening on what it concerns.",
+    "codes": "Code chips (Check only)",
+    "marks": "Marks: neutral, warning, hollow; a quiet zero",
+    "lines": "Source lines: confirmed, documented only, observed only",
+    "register": "Widget with severity toggles (one off) and a filter; the register, a row open on its targets",
+    "coverage": "Coverage: a band of facts, centred topic columns, 480 px"
   }
 }

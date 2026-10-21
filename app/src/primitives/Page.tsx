@@ -11,6 +11,7 @@ import { Inputs } from "./sections/Inputs";
 import { SearchSection } from "./sections/Search";
 import { Surfaces } from "./sections/Surfaces";
 import { Widgets } from "./sections/Widgets";
+import { CheckSection } from "./sections/Check";
 import "./page.css";
 
 export function Page() {
@@ -38,6 +39,7 @@ export function Page() {
       <SearchSection />
       <EditSection />
       <Widgets />
+      <CheckSection />
       <ToastHost name="toast" closeLabel={t("ui:close")} />
     </div>
   );

@@ -1,0 +1,37 @@
+/* The Check view (design/comps/shell/control.html, `.space`): from y = 80 (16 + a 48 px island + 16) to 16 px above
+   the bottom edge, 16 px from the sides; the verdicts take the rest, the right column is 480 px (912 / 480 at 1440),
+   16 px between widgets. The page never scrolls, the widgets do. */
+.control-space {
+  position: absolute;
+  inset: calc(2 * var(--space-lg) + var(--control-height) + 2 * var(--island-padding)) var(--space-lg) var(--space-lg);
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--check-view-side-width);
+  gap: var(--space-lg);
+}
+
+.control-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-height: 0;
+}
+
+/* the right column: the coverage takes the free height, the two others their content's (whole at 1440 × 900), and
+   give way (their bodies scroll, faded at the bottom) only once the coverage is down to a quarter of the column */
+.control-col > [data-float="coverage"] {
+  min-height: 25%;
+}
+
+.control-col > :is([data-float="sources"], [data-float="delivery"]) {
+  flex: 0 1 auto;
+}
+
+
+.control-quiet {
+  color: var(--color-ink-2);
+}
+
+.control-muted {
+  color: var(--color-ink-3);
+}

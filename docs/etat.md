@@ -3,7 +3,7 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-17** (refonte UI : brique 7, les vues Contrôle et Journal, **au banc** : trois directions pour Contrôle, deux pour Journal, en attente du choix d'Orhan ; aucun code du projet touché).
+**Dernière mise à jour : 2026-10-21** (refonte UI : brique 7a, la vue Contrôle, livrée et revue ; le redimensionnement des widgets au banc (trois directions) et la vue Journal (J1 / J2) attendent le choix d'Orhan).
 
 ## Fait
 
@@ -136,24 +136,46 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   la main : `cd backend && LD_API_TOKEN=demo LD_ARCHIVE_DIR=../bac-a-sable/accueil-data/archive-six uv run uvicorn
   ld_backend.api:app_from_env --factory --host 0.0.0.0 --port 8018`, après `cd app && npm run build` ; il sert
   `app/dist` tel quel, un `npm run build` suffit à le mettre à jour). **Brique 7, Contrôle et Journal, au banc (2026-10-17)** : aucune maquette approuvée n'existait pour ces deux
-  vues (`design/comps/shell/` n'a que l'onglet), donc **banc avant tout code** : `bac-a-sable/controle/` (gitignoré,
-  README dedans ; `python3 build.py`, `node capture.mjs`), cinq pages autonomes sur les données `demo-dc` de la
-  maquette, captures `.impeccable/planche-controle/` remises à Orhan. Contrôle : **A** le registre (page de widgets
-  sur fond, la carte s'efface), **B** la carte et un îlot de verdicts à gauche (la fiche de droite avec les codes),
-  **C** deux bandes de bascules sous la rangée du haut, la fiche de la collecte quand rien n'est sélectionné (là où
-  `/view` atterrit). Journal : **J1** le fil et ses facettes (grammaire du fil de l'accueil), **J2** le tableau
-  filtré. **Prochaine session : `/brique-ui controle`**, en commençant par le choix d'Orhan (une lettre pour Contrôle,
-  une pour Journal, et ses remarques) : écrire d'abord dans `DESIGN.md` et la page vivante les primitives que la
-  direction choisie demande (puce `Code` réservée à Contrôle ; îlot gauche pour B ou bascules mot + compte pour C ;
-  liste de facettes pour J1), un catalogue `control:codes` d'une phrase par code avec son compte (`panel:checks`
-  parle par équipement), puis construire. À savoir : les onglets Contrôle et Journal sont désactivés « en
-  cours » dans `app/src/diagram/ViewsIsland.tsx` ; `SHOWN_MODES` de `app/src/state/diagram.ts` ne laisse passer que
-  `diagram` (l'adresse se réécrit) ; `pushView` de `app/src/diagram/Canvas.tsx` force `control` à faux ; la v1
-  dessinait les statuts et les contrôles sur la toile en vue Contrôle (`toile.state.control`) ; le mode édition doit
-  se fermer en passant à Contrôle ou Journal (`setView` ⇒ `edit` à faux) ; la logique du Journal v1 à déplacer :
-  `engine/src/app/state/journal*.ts` (filtres dans l'adresse `jq`, `jau`, `jcat`, `jact`, `jobj`, `jinfra`, `jp`,
-  `jrev`, repliage, phrases, CSV) et ses tests ; `/view` reste gelé, ses onglets Contrôles, Qualité, Sources sont
-  absorbés par la vue ; rien de nouveau côté API ; `npm run e2e` dure ~4 min. **La toile
+  vues, donc banc avant tout code (`bac-a-sable/controle/`, perdu avec le conteneur ; cinq pages : Contrôle A le
+  registre, B la carte et l'îlot, C les bandes ; Journal J1 le fil, J2 le tableau), captures remises à Orhan.
+  **Brique 7a, la vue Contrôle, livrée le 2026-10-21** (Orhan a choisi **A, le registre**, et le prototype est
+  **versionné comme maquette approuvée : `design/comps/shell/control.html`**, captures et `DIRECTION.md` § Check
+  view) : `#mode=control` montre une page de widgets sur le fond sous la rangée du haut du diagramme (toile, commandes,
+  bande et fiche démontées) : **Verdicts** (le total, trois bascules de sévérité avec leurs comptes, un filtre ; le
+  registre groupé par sévérité puis code, une ligne par code avec sa phrase, sa puce `Code` et sa famille de règle, son
+  compte, un chevron ; dépliée, ses cibles en liens qui ouvrent le Diagramme sur l'élément), **Couverture de la
+  collecte** (bande de faits, tableau par équipement avec une marque par topic, creuse quand non demandé), **Câbles et
+  sources** (une ligne par combinaison de sources avec le trait de la toile), **Livraison** (exportateur, contrat,
+  reçu le, équipements, constats, normalisations, non lues, non résolus). **Remarque d'Orhan appliquée** (« tableau
+  trop condensé ») : lignes à 56 px sur deux lignes, colonne Règle repliée sous la phrase. Catalogue `control` (une
+  phrase absolue par code, les 40 codes, fr et en ; `RULE_OF` tenu face à `codes.py` par un test). Primitives écrites
+  dans `DESIGN.md` et sur la page vivante : `Code` (réservée à Contrôle), `Register`, `Mark` creuse, `SourceLine`,
+  `Zero`, extensions de `Widget` (bascules, bande, légende, fondu), `Button` (`count`), `Table` (colonne centrée) ;
+  section « Check view ». Logique `app/src/state/control.ts`, composants `app/src/control/`, mesure
+  `app/e2e/control.spec.ts`. Revue `docs/revues/2026-10-21-controle.md` (0 critique, 1 haut, 3 moyens, 10 bas) **traitée le jour même en entier** (§ Traitement : le compte d'un verdict devient le nombre de choses nommées, `SUBJECT_OF` par code ; ligne dépliée alignée sur la phrase ; tableaux de droite à 32 px ; `interface_member_unknown` corrigé dans les deux catalogues ; dix bas faits, B6 assumé : les commandes du Diagramme restent actives en Contrôle). Sept points dans `docs/a-juger-a-l-usage.md` (toile démontée, bascules
+  transitoires, port ⇒ équipement, comptes, collecte `failed`, colonne droite à 900 px, en-têtes de topic). Suites :
+  `app` check 276 (35 fichiers), e2e 86 réussites et les 12 échecs connus de `measure` / `settings` (Chromium 1194, identiques sur `main`), aucun dans `control.spec` ; moteur vert ; backend 643 dont 1 échec propre à la machine (`test_the_viewer_passes_its_node_tests`, Node 22.22 refuse `node --test <dossier>`) ; contrats 637, 98 %, ruff propre. **Sa seconde remarque, redimensionner les widgets pour mettre « Couverture de la collecte » au premier
+  plan, est au banc** : `design/rounds/2026-10-21-tuiles/` (versionné ; `bac-a-sable/tuiles/` le temps de la
+  session), trois pages remises à Orhan : **T1 les poignées** (on tire les gouttières), **T2 les tailles** (Compacte /
+  Normale / Grande et « Mettre en premier » dans les réglages du widget), **T3 les places** (quatre places fixes, on
+  tire un widget par son en-tête ou le bouton « Mettre en avant »). Mesuré : Couverture en avant montre 4 lignes sur
+  30 dans la maquette, 12 en T1, 20 en T2 et T3. Avis de l'agent `ui` : T3 par son bouton seul ; et trier la
+  couverture avec les injoignables et les partielles en tête. En attendant, « Ouvrir en grand », « Tous les câbles »
+  et « Rapport d'ingestion » sont désactivés « en cours ». **Prochaine session : `/brique-ui tuiles`** (ou
+  `/brique-ui journal` si Orhan tranche d'abord J1 / J2), en commençant par **ses deux choix** : une lettre T1 / T2 /
+  T3 (et le glissé de T3 oui ou non) pour les widgets, une lettre J1 / J2 pour le Journal, et ses remarques sur les
+  captures de la vue Contrôle. Pour les tuiles : écrire d'abord dans `DESIGN.md` la préférence `ld-prefs` par vue
+  (jamais une intention), la règle de recomposition de la grille et la primitive du geste s'il y en a un (poignée
+  T1, en-tête saisissable et place cible T3 ; aucune pour T2), puis construire sur `app/src/control/ControlView.tsx` ;
+  les trois boutons « en cours » prennent alors leur sens ou disparaissent. Pour le Journal : la logique v1 à
+  déplacer, `engine/src/app/state/journal*.ts` (filtres dans l'adresse `jq`, `jau`, `jcat`, `jact`, `jobj`,
+  `jinfra`, `jp`, `jrev`, repliage, phrases, CSV) et ses tests ; `journal-text.ts` remplacera la ligne de l'accueil
+  (M5 de la revue de l'accueil). À savoir : `npm run e2e` veut `LD_CHROMIUM=/opt/pw-browsers/chromium` sur la
+  machine de session (Playwright 1.61 n'a pas son Chromium), et 12 de ses tests (`measure.spec`, `settings.spec` :
+  infobulle « Settings » à 15,7 px, popover à 16,0 / 16,2 px) échouent avec ce Chromium 1194 comme sur `main`, pas
+  dans la brique ; les tests navigateur du backend cherchent `~/.cache/ms-playwright/chromium_headless_shell-*/*/
+  chrome-headless-shell` (un lien symbolique vers `/opt/pw-browsers` suffit) ; `/view` reste gelé, ses onglets
+  Contrôles, Qualité, Sources sont absorbés par la vue ; rien de nouveau côté API. **La toile
   (cartes, câbles) est une autre surface** : tour de directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la
   refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais

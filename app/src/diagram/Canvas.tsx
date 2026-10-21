@@ -84,8 +84,8 @@ const noop = (): void => undefined;
 const sameSelection = (a: Selection | null, b: Selection | null): boolean => a === b || (!!a && !!b && a.kind === b.kind && a.id === b.id);
 const sameHosts = (a: Iterable<string>, b: readonly string[]): boolean => [...a].sort().join("\n") === [...b].sort().join("\n");
 
-/** Pushes the view into the canvas; true when something changed that asks for a new layout. In the Diagram view every
- *  cable is drawn, neutral: the hidden statuses only apply in Check (brick 7). */
+/** Pushes the view into the canvas; true when something changed that asks for a new layout. Every cable is drawn,
+ *  neutral: the v1's Check drawing (statuses, hidden statuses) is not used, Check is a page of its own (brick 7a). */
 function pushView(toile: Toile, view: ViewState): boolean {
   const f = toile.state.filters;
   const hide = view.hide.map(parseRule);

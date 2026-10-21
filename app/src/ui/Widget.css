@@ -33,12 +33,26 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* the toggles after the count: 4 px apart (the approved Check mockup's `.seg`); the header's 8 px before them */
+.ui-widget-toggles {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 /* the filter and the icon buttons, on the right: 8 px between controls, as in every bar */
 .ui-widget-tools {
   display: inline-flex;
+  flex: 0 1 auto;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-sm);
+  min-width: 0;
   margin-left: auto;
+}
+
+.ui-widget > .ui-facts[data-layout="strip"] {
+  flex: none;
 }
 
 .ui-widget-body {
@@ -46,6 +60,11 @@
   min-height: 0;
   overflow: auto;
   padding: var(--widget-padding);
+}
+
+/* more below: the last 32 px fade out (the approved Check mockup's `.w-body`) */
+.ui-widget-body[data-more] {
+  mask-image: linear-gradient(to bottom, currentColor calc(100% - var(--widget-fade)), transparent);
 }
 
 /* under a hairline: the body may scroll and stop mid-row above it */

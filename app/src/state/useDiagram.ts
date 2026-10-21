@@ -5,7 +5,7 @@
 // A run named by the address without its compared run (`from`) opens compared with the run before it, which the v1
 // did not (there, an address without `from` opened without a diff): to judge in use, docs/a-juger-a-l-usage.md.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { build } from "@engine/canvas/model";
+import { build, tokenOf } from "@engine/canvas/model";
 import type { Selection } from "@engine/canvas/types";
 import type { StackHolder } from "@engine/app/canvas/undo";
 import { emptyStack } from "@engine/app/state/history";
@@ -47,6 +47,8 @@ export type DiagramCommands = Readonly<{
   openElement: (selection: Selection) => void;
   /** Selects an element chosen elsewhere and centres the view on it (the canvas shows it whatever hides it). */
   reveal: (selection: Selection) => void;
+  /** From Check: the Diagram view, the element awaited by the canvas that mounts (shown and centred). */
+  showInDiagram: (selection: Selection | null) => void;
   fit: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -206,6 +208,12 @@ export function useDiagram(insetsOf: () => Insets, notify: (note: Note | null) =
       },
       openElement: (selection) => handleRef.current?.toile.select(selection),
       reveal: (selection) => void handleRef.current?.toile.reveal(selection),
+      showInDiagram: (selection) => {
+        const { run } = stateRef.current;
+        const token = run.kind === "ready" && selection ? tokenOf(run.model, selection) : null;
+        dispatch({ type: "view", patch: { mode: "diagram" } });
+        if (token) dispatch({ type: "want", wanted: { kind: token[0], token: token[1] } });
+      },
       fit: () => handleRef.current?.toile.fit(),
       zoomIn: () => {
         const view = viewOf();

@@ -19,6 +19,13 @@
   background: var(--color-error);
 }
 
+/* hollow: nothing was asked (a topic the collection did not request); a 1.5 px ink-4 outline inside the 8 px square,
+   drawn as an inset shadow (a 1.5 px border rounds to 1 px at a device pixel ratio of 1; the approved mockup's `.off`) */
+.ui-mark[data-tone="off"] {
+  background: transparent;
+  box-shadow: var(--shadow-hollow-mark);
+}
+
 /* the mark before its words: 8 px apart, the words in the state colour (neutral keeps the ink); a Count takes the
    same state colours (one definition) */
 .ui-state {

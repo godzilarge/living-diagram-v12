@@ -200,5 +200,14 @@
     "menu": "Menu : des actions, une valeur choisie, un raccourci, une ligne qui supprime",
     "sizes": "Une barre de note, sa liste des tailles ouverte",
     "device": "dc01-core-01"
+  },
+  "check": {
+    "title": "Contrôle : codes, marques, le registre",
+    "note": "Contrôle est la seule surface qui montre un code de contrôle, toujours à côté de sa phrase. Une marque creuse dit qu'un sujet n'a pas été demandé ; un trait de source est le trait d'un câble sur la toile ; un zéro reste discret. Le registre range les verdicts sous leur sévérité, chaque ligne sur deux lignes (la phrase, puis le code et la règle), dépliable sur ce qu'elle concerne.",
+    "codes": "Puces de code (Contrôle seulement)",
+    "marks": "Marques : neutre, avertissement, creuse ; un zéro discret",
+    "lines": "Traits de source : confirmé, décrit seulement, observé seulement",
+    "register": "Widget avec bascules de sévérité (une éteinte) et filtre ; le registre, une ligne dépliée sur ses cibles",
+    "coverage": "Couverture : une bande de faits, colonnes de sujets centrées, 480 px"
   }
 }

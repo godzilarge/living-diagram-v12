@@ -51,7 +51,6 @@
     "label": "Vue",
     "diagram": "Diagramme",
     "control": "Contrôle",
-    "controlSoon": "Contrôle : en cours",
     "errors_one": "{{count, number}} erreur ouverte",
     "errors_many": "{{count, number}} d'erreurs ouvertes",
     "errors_other": "{{count, number}} erreurs ouvertes",

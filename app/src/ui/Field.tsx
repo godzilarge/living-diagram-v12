@@ -1,5 +1,6 @@
 // A text field (DESIGN.md, Inputs): paper, a 1 px line-2 border, 32 px high, body text, the placeholder in ink-3; on
-// focus the border takes the accent and the ring; an invalid value gets the error border and its message below.
+// focus the border takes the accent and the ring; an invalid value gets the error border and its message below. A
+// `fluid` field gives way in a row that lacks room (Check's filter under 1280 px), never overflowing its surface.
 import { useId } from "react";
 import type { InputHTMLAttributes, ReactNode, Ref } from "react";
 import { Icon } from "./Icon";
@@ -11,14 +12,16 @@ export type FieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "style" | "
   icon?: ReactNode;
   /** The message of an invalid value, shown under the field. */
   error?: string;
+  /** In a row that may lack room (a widget's header): 200 px, giving way down to 64 px before the row overflows. */
+  fluid?: boolean;
   ref?: Ref<HTMLInputElement>;
   "data-force"?: "focus";
 };
 
-export function Field({ label, icon, error, className, ref, disabled, ...rest }: FieldProps) {
+export function Field({ label, icon, error, fluid, className, ref, disabled, ...rest }: FieldProps) {
   const messageId = useId();
   return (
-    <span className={["ui-field", className ?? ""].join(" ").trim()} data-invalid={error ? "" : undefined}>
+    <span className={["ui-field", className ?? ""].join(" ").trim()} data-invalid={error ? "" : undefined} data-fluid={fluid ? "" : undefined}>
       <span className="ui-field-box">
         {icon ? (
           <span className="ui-field-icon">

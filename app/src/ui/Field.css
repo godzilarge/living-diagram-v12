@@ -66,3 +66,15 @@
   font-size: var(--text-label-size);
   line-height: var(--text-label-leading);
 }
+
+/* fluid: 200 px, giving way down to two control heights (64 px) when its row lacks room */
+.ui-field[data-fluid] {
+  flex: 0 1 200px;
+  min-width: calc(2 * var(--control-height));
+}
+
+.ui-field[data-fluid] .ui-field-box,
+.ui-field[data-fluid] .ui-field-input {
+  width: 100%;
+  min-width: 0;
+}

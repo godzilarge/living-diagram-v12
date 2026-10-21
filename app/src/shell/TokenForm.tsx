@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Button, Field } from "../ui";
 import { useText } from "../i18n";
+import { Note } from "./Note";
 import "./TokenForm.css";
 
 export function TokenForm({ refused, onConnect }: { refused: boolean; onConnect: (token: string) => void }) {
@@ -15,7 +16,7 @@ export function TokenForm({ refused, onConnect }: { refused: boolean; onConnect:
   };
   return (
     <form className="shell-token" onSubmit={submit}>
-      <p className="shell-note">{t("home:token.intro")}</p>
+      <Note>{t("home:token.intro")}</Note>
       <div className="shell-token-row" data-bar="token">
         <Field
           type="password"

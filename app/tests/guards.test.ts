@@ -1,7 +1,8 @@
-// The guards that fail the suite: tokens, primitives, strings. Each is proved on synthetic sources (it catches what
+// The guards that fail the suite: tokens, primitives, strings, the check code reserved to Check. Each is proved on synthetic sources (it catches what
 // it must, lets pass what it must), then run on every source of src/.
 import { describe, expect, it } from "vitest";
 import { sources } from "./guards/files";
+import { codeFindings } from "./guards/code-guard";
 import { primitiveFindings } from "./guards/primitives-guard";
 import { looksLikeWords, stringFindings } from "./guards/strings-guard";
 import { cssFindings, scriptFindings } from "./guards/tokens-guard";
@@ -107,5 +108,21 @@ describe("strings guard", () => {
 
   it("holds on every script of src/ outside the catalogues", () => {
     expect(sources([".ts", ".tsx"]).flatMap(stringFindings)).toEqual([]);
+  });
+});
+
+describe("code guard", () => {
+  it("refuses a check code outside the Check view, lets it pass there", () => {
+    const panel = { path: "src/panel/X.tsx", text: 'import { Code, Mark } from "../ui";\nexport const x = <Code>{"link_down"}</Code>;' };
+    expect(codeFindings(panel)).toHaveLength(2);
+    expect(codeFindings({ path: "src/search/X.tsx", text: 'import { Code } from "../ui/Code";' })).toHaveLength(1);
+    expect(codeFindings({ path: "src/edit/X.tsx", text: 'import { Code } from "lucide-react";\nexport const i = <Code />;' }), "Lucide's icon").toEqual([]);
+    expect(codeFindings({ ...panel, path: "src/control/X.tsx" })).toEqual([]);
+    expect(codeFindings({ ...panel, path: "src/ui/Register.tsx" })).toEqual([]);
+    expect(codeFindings({ path: "src/panel/Y.tsx", text: 'import { CodeContext } from "x";' })).toEqual([]);
+  });
+
+  it("holds on every script of src/", () => {
+    expect(sources([".ts", ".tsx"]).flatMap(codeFindings)).toEqual([]);
   });
 });

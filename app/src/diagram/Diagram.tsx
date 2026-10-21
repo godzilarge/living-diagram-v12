@@ -7,7 +7,9 @@
 // a result chosen there is opened here (`useSearch`). Edit mode (brick 6, the pencil or M): the palette on the left,
 // the panel and the band hidden, the contextual bar over the selected element inside the canvas, the context menu,
 // the keyboard of edit mode before the shell's. It renders `useDiagram`'s state and sends its commands; the canvas
-// is mounted by `Canvas` alone, once a collection is read.
+// is mounted by `Canvas` alone, once a collection is read. Check (brick 7a, `#mode=control`): the same top row over the
+// ground and the page of verdicts (`ControlView`); no canvas, no canvas controls, no band, no panel, no pencil; the
+// canvas's keys do nothing there, Ctrl+K stays, and a verdict's target or a search result opens the Diagram on it.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconLink, Island, LogoMark, Scrim, ToastHost } from "../ui";
 import { useText } from "../i18n";
@@ -49,6 +51,7 @@ import { useEditKeys } from "./useEditKeys";
 import { useSearch } from "./useSearch";
 import { useShellKeys } from "./useShellKeys";
 import { ViewsIsland } from "./ViewsIsland";
+import { ControlView } from "../control/ControlView";
 import { blockedOf } from "./words";
 import "./Diagram.css";
 import "../panel/panel.css";
@@ -206,10 +209,11 @@ export function Diagram() {
   const run = state.run;
   const model = run.kind === "ready" ? run.model : null;
   const editing = state.editing;
+  const control = state.view.mode === "control";
   const hidden = useMemo(() => (model ? hiddenRules(model.nodes, model.links, state.view) : []), [model, state.view]);
   const hiddenCount = useMemo(() => (model ? hiddenOf(model.nodes, model.links, state.view).length : 0), [model, state.view]);
   // the panel and the band hide while editing (DESIGN.md, Hide when empty)
-  const shown = !!model && !editing && hasPanel(model, state.selection);
+  const shown = !!model && !editing && !control && hasPanel(model, state.selection);
   const width: Width | null = shown ? (focus ? "focus" : prefs.panel) : null;
   const insets = useMemo(() => chromeWith(width), [width]);
   insetsRef.current = insets;
@@ -224,13 +228,14 @@ export function Diagram() {
     }),
     [commands],
   );
-  useEditKeys((key) => editKeyAction(key, state, model, commands), { editing, hasSelection: !!state.selection || state.hosts.length > 0 }, clipboard);
-  useShellKeys((key) => keyAction(key, commands, prefs, setPrefs, panel));
-  // leaving edit mode closes the focus panel's scrim too
+  // in Check the canvas's keys do nothing (nothing to zoom, select or edit); Ctrl+K stays
+  useEditKeys((key) => (control ? undefined : editKeyAction(key, state, model, commands)), { editing, hasSelection: !!state.selection || state.hosts.length > 0 }, clipboard);
+  useShellKeys((key) => (control && key !== "search" ? undefined : keyAction(key, commands, prefs, setPrefs, panel)));
+  // edit mode and Check close the focus panel's scrim too
   useEffect(() => {
-    if (editing) setFocus(false);
-  }, [editing]);
-  const title = t("diagram:page", { infrastructure: state.address.infrastructure });
+    if (editing || control) setFocus(false);
+  }, [editing, control]);
+  const title = t(control ? "control:page" : "diagram:page", { infrastructure: state.address.infrastructure });
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -264,7 +269,7 @@ export function Diagram() {
   );
   const blocked = blockedOf(t, state);
   return (
-    <div className="diagram">
+    <div className="diagram" data-mode={control ? "control" : undefined}>
       <div className="diagram-top diagram-top-start">
         <Island name="brand" layout="bar">
           <IconLink href={import.meta.env.BASE_URL} label={t("shell:home")} icon={<LogoMark />} tooltipPlacement="bottom-start" />
@@ -277,7 +282,7 @@ export function Diagram() {
           onRun={commands.openFromBand}
           onShowChanges={(shownDiff) => commands.setView({ showDiff: shownDiff })}
         />
-        <ViewsIsland model={model} onView={(mode) => commands.setView({ mode })} />
+        <ViewsIsland model={model} mode={state.view.mode} onView={(mode) => commands.setView({ mode })} />
       </div>
       <div className="diagram-top diagram-top-end">
         <ToolsIsland search={search.control} />
@@ -294,6 +299,7 @@ export function Diagram() {
         />
       ) : null}
       {blocked ? <StateIsland blocked={blocked} onConnect={commands.connect} /> : null}
+      {control && model && !blocked ? <ControlView model={model} address={state.address} view={state.view} runs={state.runs} now={now} /> : null}
       {/* the panel of the selected element, before the canvas in the DOM: Tab reaches it before the cards */}
       {model && width ? (
         <div className="diagram-panel" data-width={width}>
@@ -315,7 +321,7 @@ export function Diagram() {
             onEdit={commands.toggleEdit}
           />
         ) : null}
-        {editing ? null : <RunsIsland state={state} now={now} commands={commands} />}
+        {editing || control ? null : <RunsIsland state={state} now={now} commands={commands} />}
       </div>
       {state.context && handle ? (
         <ContextMenu
@@ -331,7 +337,7 @@ export function Diagram() {
       <Scrim open={width === "focus"} onDismiss={() => setFocus(false)} />
       <SearchPalette {...search.palette} />
       {/* the canvas last in the DOM: Tab reaches every island before the cards; it paints under them (z-index) */}
-      {run.kind === "ready" ? (
+      {run.kind === "ready" && !control ? (
         <ShownCanvas state={state} run={run} session={session} commands={commands} notices={notices} insets={insets} author={author} history={history}>
           <ContextBar edit={commands.edit} revision={state.revision} tool={state.tool} />
         </ShownCanvas>

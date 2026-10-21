@@ -3,7 +3,8 @@
 **The React v2, built only from the tokens and primitives of `DESIGN.md`, with guards that fail the suite when the
 design drifts.** Served by the backend at `/next/` while `/` keeps the v1; it opens on the home (brick 1) and, with
 `?infrastructure=…` in the address, on the diagram shell (brick 2: the v1 canvas inside) with the panel of the
-selected element (brick 3: compact, wide with W, focus with Shift+F) and, on both pages, the search palette (brick 4:
+selected element (brick 3: compact, wide with W, focus with Shift+F), the Check view at `#mode=control` (brick 7a:
+the verdicts, the coverage, the cables and their sources, the delivery, on the ground) and, on both pages, the search palette (brick 4:
 Ctrl+K or the tools' search button) and the settings popover (brick 5: theme, accent, language, stored in the
 browser, followed by every open tab); the surfaces arrive as bricks (`/brique-ui`) against `design/comps/shell/`.
 
@@ -48,8 +49,11 @@ the run band, and `Canvas.tsx`, the only component that mounts the v1 canvas (`@
 own styles and i18n instance; nothing moves outside edit mode) · `src/panel/` the panel of the selected element (a device, a
 cable, an aggregate, a bundle, an HA cluster; `state/panel.ts` holds its pure logic: rows, neighbours seen by LLDP or
 CDP, scope, filter, sort, alerts by code, structures) · `src/search/` the search palette (`state/search.ts` holds
-its pure logic; the page opens what is chosen: `diagram/useSearch.ts`, `home/useHomeSearch.ts`) · `src/i18n/` i18next, catalogues `en` / `fr` (`ui`, `shell`,
-`home`, `diagram`, `panel`, `search`, `primitives`) · `src/prefs.ts` theme, accent, language, the rows of two home widgets (`homeRuns`
+its pure logic; the page opens what is chosen: `diagram/useSearch.ts`, `home/useHomeSearch.ts`) · `src/control/` the Check
+view (`#mode=control`: the page of widgets the diagram page shows in place of the canvas; `state/control.ts` holds its
+pure logic: the verdicts by severity and code and their targets, the toggles and the filter, the coverage, the
+combinations of sources, the delivery; the rule of each code, `RULE_OF`) · `src/i18n/` i18next, catalogues `en` / `fr` (`ui`, `shell`,
+`home`, `diagram`, `panel`, `search`, `edit`, `control`: one absolute sentence per check code, `primitives`) · `src/prefs.ts` theme, accent, language, the rows of two home widgets (`homeRuns`
 6 · 12 · 25 · 50 · 100, `homeChanges` 10 · 25 · 50 · 100), the canvas controls `grid` / `minimap` under the v1's
 names and the panel's width `panel` (compact · wide) (`ld-prefs`; a value outside the choices reads as the default; only
 the field that changed is written; the v1 writing its whole object drops its own) · `src/shell/` the settings
@@ -58,6 +62,6 @@ the surfaces · `src/primitives/`
 the living primitives page · `@engine/*` → `../engine/src/*` (the pure engine, the v1 canvas and its i18n; `react`,
 `lucide-react`, `@xyflow/react`, `i18next`, `prismjs` resolve to this package's copies, `tsconfig.json` paths and
 Vite `dedupe`). The address is the view state (`?infrastructure`, `run_id`, `from`; `#node=`… and the toggles, the
-v1's keys): what the page shows is what the address says.
+v1's keys; `mode=control` the Check view, absent the Diagram): what the page shows is what the address says.
 Pinned versions; `.npmrc` sets `legacy-peer-deps` (npm 10 crashes on vite 8's optional peer chain), so every peer is
 explicit in `package.json`. Vitest 4 because Node 20 runs here (Vitest 5 needs Node 22).

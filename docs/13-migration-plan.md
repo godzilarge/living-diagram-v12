@@ -200,6 +200,58 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   leaving the mode, to judge in use); the code draft and the in-place fields of the v1 robust to React's StrictMode
   (development only: the draft was abandoned as it opened).
 
+- **Brick 7a, Check view** (2026-10-21): the Check view of `design/comps/shell/control.html` (direction A, "the
+  register", chosen by Orhan on 2026-10-17 at the bench), at `#mode=control`: the Check tab of the views island is on
+  (its count stays the open errors, else warnings), `SHOWN_MODES` gains `control`, the tab's title says "Check of
+  {infrastructure}". **A page of widgets on the ground** under the diagram's top row; no canvas, no canvas controls, no
+  band, no panel, no pencil (the canvas is unmounted, its keys do nothing, Ctrl+K stays). **Verdicts** (left, full
+  height): the total of checks, three independent severity toggles with their counts, a filter (sentence, code,
+  targets' names), then the register: one row per (severity, code), the most severe first, then by count and code,
+  under a heading per severity; **Orhan's remark applied** ("too condensed"): 56 px rows on two lines, the sentence at
+  500 then the code chip and the rule's family, the Rule column gone; a row opens on its targets (each thing once, in
+  the snapshot's order), each an inline Link to the element in the Diagram view (`#node=`, `#link=`, `#aggregate=`,
+  `#cluster=`; a port selects its device), a real address the page's `hashchange` already follows. **Coverage**: the
+  devices in scope, a band of facts (in scope, answered, partial, unreachable, failed when there is one), a compact
+  table (32 px), device, collection, six topic columns of marks (grey, the warning mark, hollow for a topic not asked); the
+  mockup's defect fixed: the topic headers never touch at 480 px (measured). **Cables and sources**: one row per
+  combination of sources the model knows, the canvas's stroke before the sources in words, the status in words, the
+  count. **Delivery**: the collection's day, then exporter, contract, received (the archive's `stored_at`), devices,
+  findings, normalizations, unread descriptions, unresolved neighbours, a fact without a value left out. **A sentence
+  per code** in a new catalogue `control` (`control:codes`, the 40 codes of the contract, absolute, with their count;
+  an unknown code is "N other checks" with its chip), the rule of each code in `RULE_OF` (`state/control.ts`, held to
+  `codes.py` by a test). Going to Check leaves edit mode and keeps the selection aside (`wanted`): the Diagram comes
+  back on it; edit mode asked from Check opens the Diagram; a search result chosen in Check opens the Diagram on it.
+  **Primitives written into `DESIGN.md` and the primitives page before use**: `Code` (the check's chip, reserved to
+  Check), `Register` and `RegisterTargets` (group headings, rows that open, targets as links, on the Table's styles),
+  the hollow `Mark` (`off`) and a mark said in a cell (`said`), `SourceLine`, `Zero`; `Widget` gains `toggles`
+  (`WidgetToggles`), a `band` and a caption for its count, and fades its last 32 px while more lies below (the
+  mockup's `.w-body`); `Button` a `count`; `Table` a centred column; tokens `shadows.hollow-mark`, `code-chip`, `register` (weight),
+  `source-line.width`, `register.target-height`, `check-view.side-width` (480), `widget.fade`; a section "Check view"
+  in `DESIGN.md`. Logic in `app/src/state/control.ts` (Node tests: `control.test.ts`, `control-words.test.ts`, the
+  mode in `diagram-state.test.ts`, the primitives in `ui.test.tsx`), words in `app/src/control/words.ts`, components
+  in `app/src/control/`. Measured in Chromium (`e2e/control.spec.ts`: five variants with `audit`, the four widgets
+  and their counts, a row opened by a click and by the keyboard, a target that opens the Diagram, Back to Check, a
+  toggle, the filter, Ctrl+K from Check, `#mode=control` by hand, edit mode left, the topic headers at 480 px).
+  Captures `.impeccable/planche-controle/`. **Waiting**: the Log view (J1 or J2, Orhan's choice), the resizable
+  widgets (at the bench in another session), and with them the three header buttons present but disabled "in
+  progress" ("Open large" on the coverage, "All cables", "Ingestion report"). To judge in use:
+  `docs/a-juger-a-l-usage.md` (the canvas unmounted and the view framed anew, the transient toggles and filter, a
+  port's target selects its device, a verdict counts its things, the failed collection, the right column at 900 px,
+  the topic headers 4 px apart, two Diagram commands live in Check). Review `docs/revues/2026-10-21-controle.md`
+  (0 critical, 1 high, 3 medium, 10 low; probes in `-sondes/`), **treated the same day in full**: a verdict counts the
+  things it names, each once (H1: `SUBJECT_OF`, one line per code from what B1 emits; the five R0 codes count
+  neighbours, deduplicated on the announced name, so the register's "5 neighbours unknown" agrees with the delivery's
+  "5 unresolved"; the header, the toggles, the headings, the Check tab and the panel still count checks; a Node test
+  holds the count to the distinct things code by code on the fixture), the open row's targets aligned on the sentence
+  with their own height (M1, measured), coverage and sources at 32 px rows so the delivery's eight facts show at
+  1440 × 900 (M2), `interface_member_unknown` in the contract's sense (M3, the panel's sentence too), the group
+  heading at 36 px (B1), "All cables" with `Maximize2` (B2), no hover fill on an open row (B3), the hollow mark a
+  1.5 px inset shadow (B4, token `shadows.hollow-mark`), a `fluid` filter that never overflows under 1280 px (B5),
+  the two Diagram commands kept live in Check and written to judge (B6), one `Note` for the shell (B7,
+  `shell/Note.tsx`), the sentence's weight by its token and `Code` on its leading (B8), "non collectée" and "no
+  residual" (B9), a guard that reserves `Code` to Check (`tests/guards/code-guard.ts`) and a target without a
+  selection tested from the state (B10).
+
 ## Rules every brick obeys
 
 - The approved mockup state is the comp; the `relecteur-ui` compares to it, never to a score.

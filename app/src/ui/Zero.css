@@ -1,0 +1,7 @@
+.ui-zero {
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-zero > [aria-hidden="true"] {
+  color: var(--color-ink-4);
+}

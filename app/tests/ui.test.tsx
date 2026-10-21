@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { Alerts, Avatar, Button, Checklist, Count, Facts, Field, FileInput, IconButton, IconLink, initialOf, Island, Link, Mark, Menu, Palette, Panel, Rail, Segmented, Separator, Shortcut, Swatch, Table, Widget } from "../src/ui";
+import { Alerts, Avatar, Button, Checklist, Code, Count, Facts, Field, FileInput, IconButton, IconLink, initialOf, Island, Link, Mark, Menu, Palette, Panel, Rail, Register, registerRowKey, RegisterTargets, Segmented, Separator, Shortcut, SourceLine, Swatch, Table, Widget, WidgetToggles, Zero } from "../src/ui";
 import type { PaletteProps } from "../src/ui";
 
 const html = (node: React.ReactNode) => renderToStaticMarkup(<>{node}</>);
@@ -225,5 +225,68 @@ describe("primitives", () => {
     expect(input).toContain('type="file"');
     expect(input).toContain('tabindex="-1"');
     expect(input).toContain('aria-hidden="true"');
+  });
+
+  it("a check code is a chip of its own; a hollow mark says nothing was asked; a mark alone may be said", () => {
+    expect(html(<Code>{"link_down"}</Code>)).toBe('<span class="ui-code">link_down</span>');
+    expect(html(<Mark tone="off" />)).toBe('<span class="ui-mark" data-tone="off" aria-hidden="true"></span>');
+    expect(html(<Mark tone="off" said="HA: not asked" />)).toBe('<span class="ui-mark" data-tone="off" role="img" aria-label="HA: not asked"></span>');
+    const css = readFileSync(new URL("../src/ui/Mark.css", import.meta.url), "utf8");
+    expect(css).toMatch(/\[data-tone="off"\]\s*\{[^}]*box-shadow: var\(--shadow-hollow-mark\)/);
+  });
+
+  it("a source line is a decorative stroke before its words; a zero is quiet and still said", () => {
+    const line = html(<SourceLine kind="dotted">{"Description only"}</SourceLine>);
+    expect(line).toContain('<span class="ui-source-line" data-line="dotted" aria-hidden="true"></span>Description only');
+    expect(html(<Zero />)).toBe('<span class="ui-zero"><span aria-hidden="true">0</span><span class="ui-visually-hidden">0</span></span>');
+  });
+
+  it("a toggle carries its count; a widget's toggles are a named group measured as a bar; a band sits over the body", () => {
+    const toggle = html(<Button pressed count={{ value: 6, tone: "error" }}>{"Errors"}</Button>);
+    expect(toggle).toMatch(/aria-pressed="true"/);
+    expect(toggle).toContain('<span class="ui-button-text">Errors</span><span class="ui-count" data-tone="error">6</span>');
+    const widget = html(
+      <Widget name="w" heading="h" count="19 Jan" toggles={<WidgetToggles name="severities" label="Severities">{null}</WidgetToggles>} band={<Facts layout="strip" items={[{ label: "a", value: "1" }]} />}>
+        {null}
+      </Widget>,
+    );
+    expect(widget).toContain('<span class="ui-widget-count">19 Jan</span><div class="ui-widget-toggles" role="group" aria-label="Severities" data-bar="severities">');
+    expect(widget.indexOf('data-layout="strip"')).toBeLessThan(widget.indexOf("ui-widget-body"));
+  });
+
+  it("a table may centre a column (a mark under its short header)", () => {
+    const out = html(<Table label="t" columns={[{ key: "ha", label: "HA", align: "center", fit: true }]} rows={[{ id: "1", cells: { ha: <Mark tone="off" /> } }]} />);
+    expect(out).toContain('data-key="ha" data-align="center" data-fit=""');
+  });
+
+  it("the register: group headings, rows that open (aria-expanded, a detail row under the open one), targets as links", () => {
+    const row = (id: string) => ({ id, tone: "error" as const, title: `sentence ${id}`, meta: <Code>{"aggregate_below_min_links"}</Code>, count: 2, detail: <RegisterTargets label="What it concerns" targets={[{ id: "t", icon: null, label: "dc01-core-01 · port-channel101", href: "#aggregate=x" }, { id: "u", icon: null, label: "gone", href: null }]} /> });
+    const out = html(
+      <Register label="Verdicts" columns={{ mark: "Severity", verdict: "Verdict", count: "How many", open: "Open" }} groups={[{ id: "error", label: "Errors", count: 2, rows: [row("a"), row("b")] }]} open={new Set(["a"])} onToggle={() => undefined} />,
+    );
+    expect(out).toContain('<table class="ui-table ui-register" aria-label="Verdicts" data-density="relaxed" data-head="widget">');
+    expect(out).toMatch(/<tr class="ui-register-group" data-group="error"><th scope="colgroup" colSpan="4">/i);
+    expect(out.match(/aria-expanded="true"/g)).toHaveLength(1);
+    expect(out.match(/aria-expanded="false"/g)).toHaveLength(1);
+    expect(out.match(/tabindex="0"/gi)).toHaveLength(2);
+    const controls = /aria-expanded="true" aria-controls="([^"]+)"/.exec(out)?.[1];
+    expect(out).toContain(`<tr class="ui-register-detail" id="${controls}">`);
+    expect(out.match(/ui-register-detail/g)).toHaveLength(1);
+    expect(out).toContain('<a href="#aggregate=x" class="ui-link" data-variant="inline">dc01-core-01 · port-channel101</a>');
+    expect(out).toContain('<span class="ui-register-target-words">gone</span>');
+    expect(out).toContain('<span class="ui-register-title">sentence a</span><span class="ui-register-meta"><span class="ui-code">aggregate_below_min_links</span></span>');
+  });
+
+  it("a register row opens and closes at the keyboard: Enter and Space on the row, never on a link inside it", () => {
+    const row = {};
+    const press = (key: string, target: object = row) => {
+      let toggled = 0, prevented = 0;
+      registerRowKey({ key, target, currentTarget: row, preventDefault: () => (prevented += 1) } as never, () => (toggled += 1));
+      return [toggled, prevented];
+    };
+    expect(press("Enter")).toEqual([1, 1]);
+    expect(press(" ")).toEqual([1, 1]);
+    expect(press("ArrowDown")).toEqual([0, 0]);
+    expect(press("Enter", {}), "a link inside keeps its Enter").toEqual([0, 0]);
   });
 });
