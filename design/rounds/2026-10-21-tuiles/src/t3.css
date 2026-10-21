@@ -1,0 +1,19 @@
+/* ---------- T3, the places: the header is the handle ---------- */
+.space > .w > .w-head { cursor: grab; touch-action: none; }
+.space > .w > .w-head :is(button, input, a, .seg, .filter) { cursor: pointer; }
+.space > .w > .w-head input { cursor: text; }
+.space > .w[data-still] { transition: none; }
+.space > .w[data-lifted] {
+  z-index: 20; box-shadow: var(--shadow-lg); transform: translate(var(--dx, 0), var(--dy, 0)); transition: none;
+}
+:root[data-drag="w"], :root[data-drag="w"] * { cursor: grabbing !important; user-select: none; }
+.btn[aria-disabled="true"] .ico { color: var(--ink-4); }
+
+/* the places during a drag: the empty one is a free slot (line-2), the target is framed line-2, dashed */
+.place-frame {
+  position: absolute; left: var(--x); top: var(--y); width: var(--w); height: var(--h); border-radius: var(--r-surf);
+  pointer-events: none; display: none;
+}
+.place-frame[data-on] { display: block; }
+.place-frame.origin { z-index: 0; border: 1px solid var(--line-2); }
+.place-frame.target { z-index: 10; border: 2px dashed var(--line-2); }

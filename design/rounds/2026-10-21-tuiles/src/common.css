@@ -1,0 +1,50 @@
+
+/* ================= bench: resizable widgets (common to T1, T2, T3) ================= */
+/* The space keeps the mockup's box (16 px from the edges, 16 px under the top row); its widgets are placed by the
+   script on absolute places, so that a change of size or place can be animated (240 ms, the design's ease). */
+.space { display: block; }
+.space > .w {
+  position: absolute; left: var(--x, 0); top: var(--y, 0); width: var(--w, 0); height: var(--h, auto);
+  container: w / inline-size;
+  transition: left 240ms var(--ease), top 240ms var(--ease), width 240ms var(--ease), height 240ms var(--ease);
+}
+.space[data-still] > .w { transition: none; }
+
+/* Fade only what overflows (the mockup fades a last row that fits: a defect, fixed here). */
+.w-body:not([data-overflow]) { -webkit-mask-image: none; mask-image: none; }
+
+/* A widget adapts its header and its columns to the width of its place. */
+.w-head .filter-ico { display: none; }
+@container w (max-width: 640px) {
+  .w-head.wraps { flex-wrap: wrap; height: auto; padding-top: 12px; padding-bottom: 12px; row-gap: 8px; }
+  .w-head.wraps > h2, .w-head.wraps > .muted, .w-head.wraps > .act { height: 32px; display: flex; align-items: center; }
+  .w-head.wraps .seg { order: 5; flex-basis: 100%; margin-left: -10px; }
+  .w-head .filter { display: none; }
+  .w-head .filter-ico { display: inline-flex; }
+  .reg .rule, .reg thead th:nth-child(3) { display: none; }
+  .reg td:nth-child(2) { white-space: normal; padding-top: 8px; padding-bottom: 8px; }
+}
+/* wide, the coverage's topics get room for their words (at 480 they touch: the mockup's own defect) */
+@container w (min-width: 641px) {
+  .mini th.topic, .mini td.topic { width: 72px; }
+}
+
+/* compact: the header and its strip of facts, or its first two lines; a summary, never a scroll window */
+.w[data-size="compact"] .w-body { overflow: hidden; -webkit-mask-image: none; mask-image: none; padding-bottom: 0; margin-bottom: 12px; }
+.w[data-size="compact"] .cut { visibility: hidden; }
+.w[data-size="compact"] .reg tr.detail { display: none; }
+.w[data-size="compact"] .reg tr.open .chev { transform: none; }
+.w[data-size="compact"][data-float="couverture"] .w-body { display: none; }
+.w[data-size="compact"] .strip { border-bottom-color: transparent; }
+
+/* the measuring host: a clone laid out at a given width, out of sight */
+.measure { position: absolute; left: -10000px; top: 0; width: 0; height: 0; overflow: visible; visibility: hidden; pointer-events: none; }
+.measure > .w { position: absolute; left: 0; top: 0; width: var(--w); height: auto; transition: none; container: w / inline-size; }
+
+/* ---------- the bench bar ---------- */
+.bench.on-bench { gap: 4px; }
+.bench .chk { padding: 0 8px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.bench .chk[data-ok="false"] { color: var(--err); }
+:root[data-clean] .bench { display: none; }
+/* the places are computed once the font is there (a measure in the fallback font is 2 px off) */
+.space:not([data-ready]) > .w { visibility: hidden; }

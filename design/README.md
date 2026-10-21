@@ -14,6 +14,9 @@ words, this folder shows and measures. Nothing here is product code.
   bench (`bac-a-sable/tuiles/`, not versioned).
 - `rounds/2026-10-15/` — the direction round that led there: the brief, the roll and verdicts (`ROUND.md`), the
   four candidates with their card, direction and capture. History, not authority.
+- `rounds/2026-10-21-tuiles/` — the bench on sizing the Check view's widgets (Orhan's ask on choosing direction A):
+  three working pages (T1 the handles, T2 the sizes, T3 the places), their sources, `README.md` and `ROUND.md`,
+  captures. Waiting for his verdict. History, not authority.
 - `scripts/measure.py` — the DOM measurement: bars (heights, centres, gaps, icon sizes), floating surfaces
   (margins, overlaps), tooltip grammar, fonts, external URLs. `cd backend && uv run python ../design/scripts/measure.py shell [--page home.html] [--theme dark] [--accent c] [--state edit]`.
   It is the model for the permanent test of `app/`.
