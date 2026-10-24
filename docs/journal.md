@@ -19,7 +19,7 @@ tête de la section « Entrées » (skill `livraison`).
   1 high: the enlarge travel read `.24s` as 0.24 ms; 3 medium: code column right-aligned against the bench, Tab under
   the enlarged tile, the corner mark a quarter circle; 8 low) treated the same day in full with three known defects
   (the free row made the default scroll, the wrapped toggles 10 px off, handles visible during a drag). Twelve
-  points to judge in use. Suites: app check 326 (39 files), full e2e 120, the review's probe 16; engine, backend and contracts untouched. No commit without Orhan's word.
+  points to judge in use. Suites: app check 326 (39 files), full e2e 120, the review's probe 16; engine, backend and contracts untouched. Committed 87d1ca5 at Orhan's word.
 
 - **G3 kept in principle; five structures of the verdicts' register at the bench** (2026-10-24, night, Orhan: "G3 is
   really not bad at all", motion to add in the brick with impeccable; the verdicts "better but not convinced: the

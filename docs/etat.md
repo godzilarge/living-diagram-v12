@@ -6,7 +6,7 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 **Dernière mise à jour : 2026-10-24** (refonte UI : brique 7 **Journal (J1)** et brique 7a **Contrôle (A)** livrées, revues et
 **réconciliées** : les deux branches avaient divergé depuis le banc ; fusion commitée (c966d3d) ; **vue Contrôle vérifiée
 avec impeccable le même jour**, deux défauts purs corrigés, non commités ; **banc de la grille libre** (G1 / G2) remis le soir.
-Brique grille (G3 + V3) livrée le soir, revue traitée, non commitée. Attendent Orhan : son regard sur la brique et ses retours sur les planches).
+Brique grille (G3 + V3) livrée le soir, revue traitée, commitée (87d1ca5). Attendent Orhan : son regard sur la brique et ses retours sur les planches).
 
 ## Fait
 
@@ -241,7 +241,7 @@ Brique grille (G3 + V3) livrée le soir, revue traitée, non commitée. Attenden
   1 haut, 3 moyens, 8 bas) **traitée le jour même en entier** ; douze points dans `docs/a-juger-a-l-usage.md` (pas de
   verrou, commandes dans la palette, seuil 640, nombre dans la phrase, l'espace qui défile, huit poignées, retour
   glissé, agrandi par clip, ordre des coins, tuile illisible, pas de clavier pour déplacer, ordre de Tab). Captures
-  `.impeccable/planche-grille-brique/` remises. Suites : app check 326 (39 fichiers), e2e complète 120 (`control.spec` 23 + `tiles.spec`), sonde de la revue 16 ; moteur, backend et contrats non touchés. **Non commité.** Orhan a demandé, pour
+  `.impeccable/planche-grille-brique/` remises. Suites : app check 326 (39 fichiers), e2e complète 120 (`control.spec` 23 + `tiles.spec`), sonde de la revue 16 ; moteur, backend et contrats non touchés. **Commité 87d1ca5** (sans `app/vite.config.ts`, le proxy local d'Orhan). Orhan a demandé, pour
   la version finale, de l'animation sur les gestes avec impeccable (une passe dédiée, sous la règle motion de
   `DESIGN.md`).
   **Prochaine session : `/brique-ui grille-finition`** (l'animation des gestes de Contrôle avec le skill impeccable
