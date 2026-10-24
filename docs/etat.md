@@ -4,7 +4,7 @@ Une page, tenue à jour en fin de chaque session (skill `livraison`). Première 
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
 **Dernière mise à jour : 2026-10-24** (refonte UI : brique 7 **Journal (J1)** et brique 7a **Contrôle (A)** livrées, revues et
-**réconciliées** : les deux branches avaient divergé depuis le banc ; fusion faite, pas encore commitée. Attendent Orhan : la
+**réconciliées** : les deux branches avaient divergé depuis le banc ; fusion commitée (c966d3d). Attendent Orhan : la
 lettre T1 / T2 / T3 des widgets redimensionnables, et ses retours sur les planches).
 
 ## Fait
@@ -208,7 +208,7 @@ lettre T1 / T2 / T3 des widgets redimensionnables, et ses retours sur les planch
   Contrôle met la sélection de côté (`wanted`, sa toile est démontée), le Journal la garde (sa toile reste montée, inerte) ;
   la page vivante montre Contrôle puis Journal. Suites après fusion : app check 300 (37 fichiers), moteur vert ; e2e 106 verts (Chromium 1228 : les 12 écarts
   sous-pixel du 1194 ont disparu ; deux attentes périmées de `diagram.spec.ts` corrigées, « Journal désactivé » et
-  « `#mode=journal` se lit Diagramme »). **Non commitée** à l'écriture de cette ligne.
+  « `#mode=journal` se lit Diagramme »). **Commitée c966d3d**, poussée.
   **Prochaine session : `/brique-ui tuiles`**, en commençant par **le choix d'Orhan** : une lettre T1 / T2 / T3 (et le
   glissé de T3 oui ou non) pour les widgets de Contrôle, et ses remarques sur les captures du panneau, de la recherche,
   des réglages, de l'édition, du Journal et de Contrôle. Pour les tuiles : écrire d'abord dans `DESIGN.md` la préférence
