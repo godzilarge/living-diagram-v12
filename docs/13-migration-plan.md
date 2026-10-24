@@ -278,6 +278,20 @@ direction round** (its own bench, starting from the v1 cards), then the lots par
   the three modes; leaving the Diagram closes edit mode either way, Check puts the selection aside (its canvas is
   unmounted), the Log keeps it (its canvas stays mounted and inert); the primitives page shows both sections.
 
+- **Brick grille: the Check view as free tiles, the register by rule** (2026-10-24): Orhan corrected the tiles' round
+  before any code (not a "bring to front" but a grid each user arranges), judged three directions at the bench
+  (`design/rounds/2026-10-24-grille/`: G1 bounded, G2 compacted, **G3 free and scrolling**, chosen) and five
+  structures of the register (**V3 by rule**, chosen). `DESIGN.md` first (§ Check view, § Register, Widget handle and
+  Enlarge, tokens `tiles.*`, `register.section-*`, `check-view.topic-width`), then the brick: `Tiles` primitive on
+  react-grid-layout 2.3 (legacy API, no compaction, overlaps judged by the view's rule `state/tiles.ts`: a drop on
+  occupied cells snaps back, a resize stops at the neighbour, a red placeholder says a refusal before the release),
+  eight handles, the header as handle, `ld-prefs.checkTiles`, "Resserrer" and "Réinitialiser" as Ctrl+K actions in
+  Check, "Agrandir" / "Réduire" on every tile (the three "in progress" buttons are gone), container queries at 640 px,
+  the space scrolling under the top row; the register grouped by rule (sections Cables, Aggregates, States,
+  Neighbours, Remote ports, Descriptions, Input contract; 44 px rows, the number inside the sentence, the code chip in
+  its column). Review `docs/revues/2026-10-24-grille.md` (0 critical, 1 high, 3 medium, 8 low) treated the same day in
+  full. Twelve points in `docs/a-juger-a-l-usage.md`. Suites: app check 326 (39 files), full e2e 120, the review's probe 16; engine, backend and contracts untouched.
+
 ## Rules every brick obeys
 
 - The approved mockup state is the comp; the `relecteur-ui` compares to it, never to a score.

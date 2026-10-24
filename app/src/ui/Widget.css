@@ -79,8 +79,8 @@
   line-height: var(--text-caption-leading);
 }
 
-/* a filter last in the header ends on the body's edge (16 px), as the table under it; an icon button keeps 12 px,
-   its icon then sits where the body's text ends */
-.ui-widget-tools > .ui-segmented:last-child {
+/* a filter last in the header (segmented or search field) ends on the body's edge (16 px), as the table under it;
+   an icon button keeps 12 px, its icon then sits where the body's text ends */
+.ui-widget-tools > :is(.ui-segmented, .ui-field):last-child {
   margin-right: var(--space-xs);
 }

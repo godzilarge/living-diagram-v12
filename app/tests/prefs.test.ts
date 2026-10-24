@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { changedPrefs, DEFAULT_PREFS, HOME_CHANGES, HOME_RUNS, mergePrefs, parsePrefs } from "../src/prefs";
+import { DEFAULT_TILES, tighten } from "../src/state/tiles";
 
 describe("browser preferences", () => {
   it("read tolerantly: anything unknown falls back to the default", () => {
@@ -50,5 +51,24 @@ describe("browser preferences", () => {
   it("read the canvas controls under the v1's names, a non-boolean giving the mockup's default", () => {
     expect(parsePrefs('{"grid":false,"minimap":true}')).toMatchObject({ grid: false, minimap: true });
     expect(parsePrefs('{"grid":"yes","minimap":1}')).toMatchObject({ grid: true, minimap: false });
+  });
+
+  it("read the Check view's tiles: a valid layout as stored, anything else the default layout", () => {
+    expect(DEFAULT_PREFS.checkTiles).toBe(DEFAULT_TILES);
+    const moved = { ...DEFAULT_TILES, coverage: { x: 0, y: 17, w: 4, h: 5 } };
+    expect(parsePrefs(JSON.stringify({ checkTiles: moved })).checkTiles).toEqual(moved);
+    expect(parsePrefs('{"checkTiles":"wide"}').checkTiles).toBe(DEFAULT_TILES);
+    expect(parsePrefs('{"checkTiles":{"verdicts":{"x":0,"y":0,"w":12,"h":17}}}').checkTiles).toBe(DEFAULT_TILES);
+  });
+
+  it("write the tiles alone after a gesture, every other field kept", () => {
+    const stored = '{"theme":"dark","snap":false}';
+    const before = parsePrefs(stored);
+    const moved = { ...DEFAULT_TILES, coverage: { x: 0, y: 17, w: 4, h: 5 } };
+    const changes = changedPrefs(before, { ...before, checkTiles: moved });
+    expect(changes).toEqual({ checkTiles: moved });
+    expect(JSON.parse(mergePrefs(stored, changes))).toEqual({ theme: "dark", snap: false, checkTiles: moved });
+    // tightened back to the default: a new object, written all the same (compared by reference)
+    expect(changedPrefs(parsePrefs(mergePrefs(stored, changes)), { ...before, checkTiles: tighten(moved) })).toHaveProperty("checkTiles");
   });
 });

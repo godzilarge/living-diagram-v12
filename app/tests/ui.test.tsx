@@ -263,22 +263,24 @@ describe("primitives", () => {
     expect(out).toContain('data-key="ha" data-align="center" data-fit=""');
   });
 
-  it("the register: group headings, rows that open (aria-expanded, a detail row under the open one), targets as links", () => {
-    const row = (id: string) => ({ id, tone: "error" as const, title: `sentence ${id}`, meta: <Code>{"aggregate_below_min_links"}</Code>, count: 2, detail: <RegisterTargets label="What it concerns" targets={[{ id: "t", icon: null, label: "dc01-core-01 · port-channel101", href: "#aggregate=x" }, { id: "u", icon: null, label: "gone", href: null }]} /> });
+  it("the register: section headings, rows that open (aria-expanded, a detail row under the open one), the code in its column and at the head of the detail, targets as links", () => {
+    const row = (id: string) => ({ id, tone: "error" as const, title: `sentence ${id}`, code: "aggregate_below_min_links", detail: <RegisterTargets label="What it concerns" targets={[{ id: "t", icon: null, label: "dc01-core-01 · port-channel101", href: "#aggregate=x" }, { id: "u", icon: null, label: "gone", href: null }]} /> });
     const out = html(
-      <Register label="Verdicts" columns={{ mark: "Severity", verdict: "Verdict", count: "How many", open: "Open" }} groups={[{ id: "error", label: "Errors", count: 2, rows: [row("a"), row("b")] }]} open={new Set(["a"])} onToggle={() => undefined} />,
+      <Register label="Verdicts" columns={{ mark: "Severity", verdict: "Verdict", code: "Code", open: "Open" }} groups={[{ id: "aggregates", label: "Aggregates, MLAG and HA", count: 2, rows: [row("a"), row("b")] }]} open={new Set(["a"])} onToggle={() => undefined} />,
     );
     expect(out).toContain('<table class="ui-table ui-register" aria-label="Verdicts" data-density="relaxed" data-head="widget">');
-    expect(out).toMatch(/<tr class="ui-register-group" data-group="error"><th scope="colgroup" colSpan="4">/i);
+    expect(out).toMatch(/<tr class="ui-register-group" data-group="aggregates"><th scope="colgroup" colSpan="4"><span class="ui-register-group-label">Aggregates, MLAG and HA<\/span><span class="ui-register-group-count">2<\/span>/i);
     expect(out.match(/aria-expanded="true"/g)).toHaveLength(1);
     expect(out.match(/aria-expanded="false"/g)).toHaveLength(1);
     expect(out.match(/tabindex="0"/gi)).toHaveLength(2);
     const controls = /aria-expanded="true" aria-controls="([^"]+)"/.exec(out)?.[1];
     expect(out).toContain(`<tr class="ui-register-detail" id="${controls}">`);
-    expect(out.match(/ui-register-detail/g)).toHaveLength(1);
+    expect(out.match(/class="ui-register-detail"/g)).toHaveLength(1);
     expect(out).toContain('<a href="#aggregate=x" class="ui-link" data-variant="inline">dc01-core-01 · port-channel101</a>');
     expect(out).toContain('<span class="ui-register-target-words">gone</span>');
-    expect(out).toContain('<span class="ui-register-title">sentence a</span><span class="ui-register-meta"><span class="ui-code">aggregate_below_min_links</span></span>');
+    expect(out).toContain('<td data-key="verdict"><span class="ui-register-title">sentence a</span></td><td data-key="code" data-fit=""><span class="ui-code">aggregate_below_min_links</span></td>');
+    expect(out).toContain('<span class="ui-register-detail-code"><span class="ui-code">aggregate_below_min_links</span></span>');
+    expect(out.match(/class="ui-code"/g), "two rows, one open: the chip three times").toHaveLength(3);
   });
 
   it("a register row opens and closes at the keyboard: Enter and Space on the row, never on a link inside it", () => {

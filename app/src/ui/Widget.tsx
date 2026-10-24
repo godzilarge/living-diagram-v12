@@ -6,10 +6,14 @@
 // and its body scrolls inside, never the page. Check's widgets add three things: a row of toggles right after the
 // count (`toggles`, the severity toggles), a caption in place of the count (`count` as words: Livraison's day) and a
 // band between the header and the body that does not scroll (`band`, the coverage's strip of facts). While more of the
-// body lies below, its last 32 px fade out (`data-more`, the approved Check mockup's `.w-body`).
+// body lies below, its last 32 px fade out (`data-more`, the approved Check mockup's `.w-body`). On Check's tiles, the
+// header is the handle that moves the widget (`handle`, DESIGN.md, Widget handle) and its last button enlarges it
+// (`enlarge`: "Enlarge" or "Reduce", an action whose words change, never `aria-pressed`; DESIGN.md, Enlarge).
 import { useMergeRefs } from "@floating-ui/react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode, Ref } from "react";
+import { IconButton } from "./IconButton";
 import { Island } from "./Island";
 import "./Widget.css";
 
@@ -35,8 +39,14 @@ export type WidgetProps = {
   foot?: ReactNode;
   /** The body, which scrolls: the root of what its rows report on screen. */
   bodyRef?: Ref<HTMLDivElement>;
+  /** The header moves the widget (a tile of Check's grid). */
+  handle?: boolean;
+  /** The last button of the header: enlarge the widget over the space, or reduce it (`on`). */
+  enlarge?: WidgetEnlarge;
   children: ReactNode;
 };
+
+export type WidgetEnlarge = Readonly<{ on: boolean; label: string; shortcut?: string; onToggle: () => void }>;
 
 /** True while the body holds more below what it shows: read at every render (a row opened), on scroll and resize. */
 function useMore(body: { current: HTMLDivElement | null }): boolean {
@@ -60,15 +70,15 @@ function useMore(body: { current: HTMLDivElement | null }): boolean {
   return more;
 }
 
-export function Widget({ name, heading, count, toggles, band, filter, action, grow, busy, foot, bodyRef, children }: WidgetProps) {
+export function Widget({ name, heading, count, toggles, band, filter, action, grow, busy, foot, bodyRef, handle, enlarge, children }: WidgetProps) {
   const id = useId();
-  const tools = filter || action;
+  const tools = filter || action || enlarge;
   const body = useRef<HTMLDivElement | null>(null);
   const ref = useMergeRefs([bodyRef, body]);
   const more = useMore(body);
   return (
-    <Island name={name} as="section" className="ui-widget" aria-labelledby={id} aria-busy={busy ? "true" : undefined} data-grow={grow ? "" : undefined}>
-      <header className="ui-widget-head" data-bar={tools ? `${name}-head` : undefined} data-anchor="">
+    <Island name={name} as="section" className="ui-widget" aria-labelledby={id} aria-busy={busy ? "true" : undefined} data-grow={grow ? "" : undefined} data-enlarged={enlarge?.on ? "" : undefined}>
+      <header className="ui-widget-head" data-bar={tools ? `${name}-head` : undefined} data-anchor="" data-handle={handle ? "" : undefined}>
         <h2 id={id}>{heading}</h2>
         {count !== undefined ? <span className="ui-widget-count">{count}</span> : null}
         {toggles}
@@ -76,6 +86,15 @@ export function Widget({ name, heading, count, toggles, band, filter, action, gr
           <span className="ui-widget-tools">
             {filter}
             {action}
+            {enlarge ? (
+              <IconButton
+                label={enlarge.label}
+                icon={enlarge.on ? <Minimize2 /> : <Maximize2 />}
+                shortcut={enlarge.shortcut}
+                tooltipPlacement="bottom-end"
+                onClick={enlarge.onToggle}
+              />
+            ) : null}
           </span>
         ) : null}
       </header>

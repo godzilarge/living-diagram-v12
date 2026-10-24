@@ -84,6 +84,8 @@
     "hideMatches_one": "Hide this device",
     "hideMatches_other": "Hide these {{count}} devices",
     "showHidden_one": "Show the hidden device",
-    "showHidden_other": "Show the {{count}} hidden devices"
+    "showHidden_other": "Show the {{count}} hidden devices",
+    "tilesTighten": "Tighten the tiles",
+    "tilesReset": "Reset the tiles' layout"
   }
 }

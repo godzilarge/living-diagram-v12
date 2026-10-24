@@ -52,7 +52,8 @@ describe("the Check view's words", () => {
     setLanguage("fr");
     expect(verdictWords(t, { code: "ha_member_down", count: 1 })).toBe("1 membre de grappe hors service");
     expect(verdictWords(t, { code: "aggregate_below_min_links", count: 2 })).toBe("2 agrégats sans assez de membres actifs");
-    expect(familyWords(t, "aggregates")).toBe("agrégats, MLAG et HA");
+    expect(familyWords(t, "aggregates")).toBe("Agrégats, MLAG et HA");
+    expect(familyWords(t, "contract")).toBe("Contrat d'entrée");
     expect(verdictWords(t, { code: "interface_member_unknown", count: 2 })).toBe("2 membres listés par une interface agrégat mais absents des interfaces");
     setLanguage("en");
   });
@@ -60,7 +61,8 @@ describe("the Check view's words", () => {
   it("says an unknown code as other checks, never a failure", () => {
     expect(verdictWords(t, { code: "a_brand_new_code", count: 1 })).toBe("1 other check");
     expect(verdictWords(t, { code: "a_brand_new_code", count: 4 })).toBe("4 other checks");
-    expect(familyWords(t, "other")).toBe("another rule");
+    expect(familyWords(t, "other")).toBe("Another rule");
+    expect(familyWords(t, "neighbors")).toBe("Neighbours");
   });
 
   it("names a target: a device, a short port, a whole aggregate, a cable by its two ends, a cluster's members", () => {

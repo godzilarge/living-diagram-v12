@@ -1,7 +1,7 @@
 // The icon of a result's kind, in the row and in the detail's tile: a device by its type (the panel's tile), a port,
 // a group, an HA cluster, a note or a code block, an infrastructure, an action by what it does (the canvas
 // controls' icons where they have one).
-import { Boxes, CircleDashed, Crosshair, EthernetPort, Eye, EyeOff, GitCompare, Grid3x3, Group, History, Map as MapIcon, Maximize, Network, Pencil, SquareCode, StickyNote, ZoomIn } from "lucide-react";
+import { Boxes, CircleDashed, Crosshair, EthernetPort, Eye, EyeOff, GitCompare, Grid3x3, Group, History, LayoutDashboard, Map as MapIcon, Maximize, Network, Pencil, SquareCode, StickyNote, ArrowUpToLine, ZoomIn } from "lucide-react";
 import type { ReactNode } from "react";
 import { deviceTile } from "../panel/DevicePanel";
 import type { ActionId, Hit } from "../state/search";
@@ -19,6 +19,8 @@ const ACTION_ICONS: Readonly<Record<ActionId, ReactNode>> = {
   hideMatches: <EyeOff />,
   showHidden: <Eye />,
   toggleStubs: <CircleDashed />,
+  tilesTighten: <ArrowUpToLine />,
+  tilesReset: <LayoutDashboard />,
 };
 
 export function hitIcon(hit: Hit): ReactNode {

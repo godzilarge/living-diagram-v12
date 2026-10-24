@@ -55,9 +55,12 @@ the Diagram on the element. On the right, stacked: **Coverage of the collection*
 the devices in scope with a mark per topic: filled when collected, hollow when absent, amber when partial, red when
 unreachable), **Cables and sources** (one row per combination of sources with the canvas's line style, its status in
 words and its count), **Delivery** (exporter, contract, received at, devices, findings, normalizations, unparsed
-descriptions, unresolved neighbours). Orhan's remark on the mockup: the verdicts table is too dense; the brick gives
-its rows the relaxed density (56 px) and folds the rule column under the sentence. The sizing of the widgets (his
-request) is at the bench.
+descriptions, unresolved neighbours). Orhan's remark on the mockup: the verdicts table is too dense; the brick gave
+its rows the relaxed density (56 px) and folded the rule column under the sentence. **Superseded on 2026-10-24** by
+the bench `design/rounds/2026-10-24-grille/` (captures `g3-*.png`, `g3-registre-v3.png`): the four widgets become
+**free tiles on a grid that scrolls** (G3: moved by their header, resized by eight handles, never compacted, never
+overlapping, "Agrandir" on each), and the register is **grouped by rule** (V3: a section per family, one line per
+verdict with its number in the sentence, the code chip at right). The widgets' content stays this mockup's.
 ## Tooltip, icons, motion
 One `.tip`, `[role=tooltip]`: black, white 12 / 500, padding 6 × 8, radius 5, one shadow, optional shortcut in
 `#A9ACB1`, dark adds a `#3A3C40` outline; toward the canvas, 350 ms delay. Icons (Lucide, 1.75, 16 px) for every

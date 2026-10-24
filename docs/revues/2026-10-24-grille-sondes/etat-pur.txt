@@ -1,0 +1,8 @@
+nw : Sources tirée vers le nord-ouest dans Verdicts              {"tiles":{"verdicts":{"x":0,"y":0,"w":8,"h":17},"coverage":{"x":0,"y":30,"w":4,"h":5},"sources":{"x":8,"y":5,"w":4,"h":6},"delivery":{"x":8,"y":11,"w":4,"h":6}},"refused":false}
+ne : Delivery tirée vers le nord-est (déjà au bord)              {"x":8,"y":11,"w":4,"h":6}
+sw : Coverage tirée vers le sud-ouest                            {"tiles":{"verdicts":{"x":0,"y":0,"w":8,"h":17},"coverage":{"x":8,"y":0,"w":4,"h":5},"sources":{"x":8,"y":5,"w":4,"h":6},"delivery":{"x":8,"y":11,"w":4,"h":6}},"refused":false}
+parseTiles delivery.y = 1e7                                      {"x":8,"y":10000000,"w":4,"h":6}
+parseTiles delivery.h = 1e6                                      {"x":8,"y":17,"w":4,"h":1000000}
+parseTiles Number.MAX_SAFE_INTEGER + 2 (non sûr)                 {"x":8,"y":9007199254740994,"w":4,"h":6}
+tighten(tighten(x)) == tighten(x)                                true
+valid(tighten(x))                                                true

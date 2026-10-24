@@ -91,6 +91,8 @@
     "hideMatches_other": "Masquer ces {{count}} équipements",
     "showHidden_one": "Afficher l'équipement masqué",
     "showHidden_many": "Afficher les {{count}} équipements masqués",
-    "showHidden_other": "Afficher les {{count}} équipements masqués"
+    "showHidden_other": "Afficher les {{count}} équipements masqués",
+    "tilesTighten": "Resserrer les tuiles",
+    "tilesReset": "Réinitialiser la disposition des tuiles"
   }
 }

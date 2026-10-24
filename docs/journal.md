@@ -7,6 +7,70 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **Brick grille delivered: the Check view as free tiles (G3), the register by rule (V3)** (2026-10-24, night,
+  Orhan: "G3, by rule"). `DESIGN.md` written first (§ Check view: 12 columns, 16 px gutters, 32 px rows, the mockup as
+  default layout, move by the header, eight handles, dashed placeholder red when refused, never an overlap nor a
+  compaction, `ld-prefs.checkTiles`, Ctrl+K "Resserrer" / "Réinitialiser", "Agrandir" on every tile, container query
+  at 640 px, the space scrolling under the top row, the library's computed geometry accepted as the one exception to
+  "no inline style"; § Register: sections by rule, 48 px section titles in body strong, 44 px rows, the number inside
+  the sentence, the code chip left-aligned in its column; Widget `handle` and `enlarge`; tokens). Built by the `ui`
+  agent (`state/tiles.ts` pure and tested, `ui/Tiles`, `prefs.checkTiles`, palette actions, `Register` V3,
+  `sectionsByRule`, the living page, e2e `control.spec.ts`); review `docs/revues/2026-10-24-grille.md` (0 critical,
+  1 high: the enlarge travel read `.24s` as 0.24 ms; 3 medium: code column right-aligned against the bench, Tab under
+  the enlarged tile, the corner mark a quarter circle; 8 low) treated the same day in full with three known defects
+  (the free row made the default scroll, the wrapped toggles 10 px off, handles visible during a drag). Twelve
+  points to judge in use. Suites: app check 326 (39 files), full e2e 120, the review's probe 16; engine, backend and contracts untouched. No commit without Orhan's word.
+
+- **G3 kept in principle; five structures of the verdicts' register at the bench** (2026-10-24, night, Orhan: "G3 is
+  really not bad at all", motion to add in the brick with impeccable; the verdicts "better but not convinced: the
+  data does not look well organized, it lacks structure"). Diagnosis written in the bench's README (the number said
+  twice, two natures on one line, nothing aligned, severity scattering a subject). Five registers on the mockup's
+  data in the G3 bench (`design/rounds/2026-10-24-grille/src/register.jsx`): V0 the application's, V1 columns, V2 the
+  number first, V3 by rule (sections per family), V4 the sentence alone; the severity toggles filter each. Waiting
+  for Orhan's choice in his browser.
+
+- **G3 at the bench: free and scrolling; the verdicts' density compared** (2026-10-24, evening, Orhan's first look
+  at G1 and G2: G1 cannot be reorganized (a full board without compaction: not a bug, a dead end), G2's freedom is
+  liked but its drag stutters (continuous compaction, 240 ms on every tile), the coverage is neat, the verdicts "too
+  condensed"; the bench had shown the mockup's 44 px register, not the brick's 56 px). Decisions: **G3** = the page
+  scrolls, free placement, no compaction, no overlap (the board rule of G1 without a bottom), nothing else moves
+  during a drag, a red placeholder where a drop will be refused, "Resserrer" on demand; the bench's Verdicts is now
+  the application's register (56 px, the rule folded) with a **64 px** variant (4 px between the lines, 44 px group
+  headings, 32 px targets) side by side in the bench bar. `design/rounds/2026-10-24-grille/` updated (README, ROUND,
+  sources, captures). Waiting for Orhan: G3 yes or no, and 56 or 64.
+
+- **The tiles' round corrected: a free grid at the bench** (2026-10-24, Orhan). He first chose T3 (fixed places,
+  "bring to front"), then corrected himself before any code: what he has in mind is a grid or a canvas where each
+  user resizes and moves the tiles of Check to their own taste (the verdicts larger for some, the coverage for
+  others), remembered per user. T1 / T2 / T3 are set aside (none is that). Decisions: a standard gesture takes a
+  proven library, **react-grid-layout 2.3** (Grafana, Kibana), never a hand-rolled grid; two directions he asked for,
+  built in `bac-a-sable/grille-src/` and served at `/grille/` (sources and captures versioned in
+  `design/rounds/2026-10-24-grille/`): **G1 bounded to the window** (a 12 × 24 board, free placement without
+  compaction, no overlap, no scroll, the board follows the window) and **G2 the page scrolls** (12 columns, 32 px
+  rows, vertical compaction); both with the header as handle, eight resize handles, a dashed placeholder, 240 ms,
+  container queries, "Agrandir" on every tile (the three "in progress" buttons go), the layout remembered per
+  direction, "Réinitialiser", a locked mode. Measured in Chromium: every gesture holds 16 / 16 px. Library lessons
+  in `ROUND.md` (`preventCollision` and `isBounded` freeze the drag; a refused change needs a remount; the legacy API
+  has `allowOverlap` / `compactType`, the v2 component does not). Waiting for Orhan's choice in his browser; then
+  `DESIGN.md` (a `ld-prefs` field per view, the grid, the handles, the enlarged state) before the brick.
+
+- **The Check view verified with impeccable** (2026-10-24, Orhan: the page still shows "in progress" elements, and the
+  cloud session had no impeccable skill, so a quality check of the page). The three "in progress" buttons (Open large,
+  All cables, Ingestion report) are the ones that wait for his letter T1 / T2 / T3 on the tiles' bench; nothing else
+  on the page is pending. Verification: the detector (`impeccable detect`) on `app/src/control/` and the Check
+  primitives finds nothing; the view measured in Chromium 1228 on the `demo-dc` series (30 devices, 94 checks) at
+  1440 × 900, 1366 × 768 and 1920 × 1080, light, dark, ink accent, fr and en (probe in the session's scratchpad,
+  captures `.impeccable/planche-controle-verif/`): grid, heads, rows, group headings, targets, toggles, tabs, tooltips,
+  console clean. Two pure defects, fixed the same day by the `ui` agent: the disabled tooltips said only "in progress"
+  (the `IconButton` replaces the label by `disabledReason`; the other surfaces pass a whole sentence): keys
+  `coverage.largeSoon`, `sources.allSoon`, `delivery.reportSoon` ("Open large: in progress"), `control:soon` removed;
+  the Verdicts filter ended 12 px from the widget's edge where `DESIGN.md` wants a last filter on the body's edge
+  (16 px, as the register): `Widget.css` extends the segmented rule to `.ui-field`, measured in `control.spec.ts`.
+  Found, not fixed (to judge, `docs/a-juger-a-l-usage.md` row of the topic headers updated): in English the coverage
+  table cuts every device name ("dc01-acc-…") at 480 px on `demo-dc`, French keeps them; at 1366 × 768 the coverage
+  shows no whole row and Delivery loses its last fact, by the rule "coverage keeps a quarter" — both answered by the
+  tiles (a wider coverage). Suites: app check 300, `control.spec.ts` 15, e2e 106 green. No commit without Orhan's word.
+
 - **The Log and Check branches merged** (2026-10-24). Brick 7 (the Log, J1) and brick 7a (Check, A) were built in two
   sessions from the same bench commit (`a9ed676`), each believing the other view still waited for Orhan: 15 files in
   conflict, all additive. Decisions: `SHOWN_MODES` = Diagram, Check, Log; one `withView` for both: leaving the

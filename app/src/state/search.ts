@@ -33,7 +33,7 @@ export type InfrastructureHit = Readonly<{ kind: "infrastructure"; key: string; 
  *  query's own action: hide the devices the typed expression designates (the expression becomes the view's rule, as
  *  the v1 did: "ADMIN" hides every hostname that contains it); `showHidden` lifts every rule; `toggleStubs` shows or
  *  hides the unknown neighbours. */
-export type ActionId = "fit" | "center" | "zoomReset" | "grid" | "minimap" | "edit" | "openRun" | "compareRun" | "hideMatches" | "showHidden" | "toggleStubs";
+export type ActionId = "fit" | "center" | "zoomReset" | "grid" | "minimap" | "edit" | "openRun" | "compareRun" | "hideMatches" | "showHidden" | "toggleStubs" | "tilesTighten" | "tilesReset";
 export type ActionHit = Readonly<{ kind: "action"; key: string; id: ActionId; runId: string | null; words: string; /** `hideMatches`: how many devices, and the rule to write. */ count?: number; rule?: string }>;
 export type Hit = DeviceHit | PortHit | GroupHit | ClusterHit | NoteHit | InfrastructureHit | ActionHit;
 

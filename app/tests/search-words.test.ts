@@ -133,6 +133,18 @@ describe("search words", () => {
     expect(search(offered, "unknown").actions.map((h) => h.id)).toEqual(["toggleStubs"]);
   });
 
+  it("offers Check's two actions on the tiles in Check only, found by their words", () => {
+    const base = { selected: null, grid: true, minimap: false, editing: false, runs: [], current: "", compare: [], now: NOW };
+    const tiles = (inCheck?: boolean) => actionSources(t, { ...base, inCheck }).filter((a) => a.id === "tilesTighten" || a.id === "tilesReset").map((a) => a.words);
+    expect(tiles(true)).toEqual(["Tighten the tiles", "Reset the tiles' layout"]);
+    expect(tiles(false)).toEqual([]);
+    expect(tiles()).toEqual([]);
+    expect(inFrench(() => tiles(true))).toEqual(["Resserrer les tuiles", "Réinitialiser la disposition des tuiles"]);
+    const offered: Sources = { ...sources, actions: actionSources(t, { ...base, inCheck: true }) };
+    expect(search(offered, "tiles").actions.map((h) => h.id)).toEqual(["tilesTighten", "tilesReset"]);
+    expect(inFrench(() => search({ ...sources, actions: actionSources(t, { ...base, inCheck: true }) }, "resserrer").actions.map((h) => h.id))).toEqual(["tilesTighten"]);
+  });
+
   it("steps over the tabs a page offers, wrapping around", () => {
     expect(stepIn(["all", "infrastructures"], "all", 1)).toBe("infrastructures");
     expect(stepIn(["all", "infrastructures"], "infrastructures", 1)).toBe("all");

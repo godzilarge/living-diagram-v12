@@ -1,13 +1,12 @@
 // The coverage of the collection (design/comps/shell/control.html, the right column's first widget): the devices in
 // scope as the header's count, a band of facts (in scope, answered, partial, unreachable; failed when there is one),
 // then one row per device: its collection (a mark and its word) and one mark per topic (grey collected, the warning
-// mark failed, hollow not asked), 32 px rows under a 28 px head (the mockup's `.mini`). Device and collection sort (transient); the snapshot's order by default. "Open
-// large" waits for the bench (resizable widgets): disabled, "in progress".
-import { Maximize2 } from "lucide-react";
+// mark failed, hollow not asked), 32 px rows under a 28 px head (the mockup's `.mini`). Device and collection sort
+// (transient); the snapshot's order by default. A tile of Check's grid: its header moves it, its last button enlarges it.
 import { useMemo, useState } from "react";
 import type { Model } from "@engine/canvas/types";
-import { Facts, IconButton, Mark, Table, Widget, Zero } from "../ui";
-import type { Column, Fact, Sort } from "../ui";
+import { Facts, Mark, Table, Widget, Zero } from "../ui";
+import type { Column, Fact, Sort, WidgetEnlarge } from "../ui";
 import { useText } from "../i18n";
 import { Note } from "../shell/Note";
 import type { Translate } from "../i18n";
@@ -41,7 +40,7 @@ function bandFacts(t: Translate, facts: CoverageFacts): Fact[] {
   ];
 }
 
-export function CoverageWidget({ model }: { model: Model }) {
+export function CoverageWidget({ model, enlarge }: { model: Model; enlarge: WidgetEnlarge }) {
   const t = useText();
   const rows = useMemo(() => coverageRows(model.coverage), [model]);
   const facts = useMemo(() => coverageFacts(model.coverage), [model]);
@@ -52,9 +51,9 @@ export function CoverageWidget({ model }: { model: Model }) {
       name="coverage"
       heading={t("control:coverage.title")}
       count={model.coverage.length}
-      grow
+      handle
+      enlarge={enlarge}
       band={<Facts label={t("control:coverage.facts.label")} layout="strip" items={bandFacts(t, facts)} />}
-      action={<IconButton label={t("control:coverage.large")} icon={<Maximize2 />} disabled disabledReason={t("control:soon")} tooltipPlacement="bottom-end" />}
     >
       {rows.length === 0 ? (
         <Note>{t("control:coverage.empty")}</Note>

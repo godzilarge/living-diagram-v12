@@ -5,7 +5,7 @@
 // runs the shell's command; the query's own action hides the devices the expression designates (the view's rule), and
 // "show the hidden devices" lifts every rule, "show (hide) the unknown neighbours" toggles them. From Check (no canvas),
 // an element chosen opens the Diagram view on it and an action on the view (show everything, centre, 100 %) opens the
-// Diagram view. Sources are memoised; the search runs on every keystroke without another cache.
+// Diagram view; Check offers its own two actions on the tiles (tighten them, reset their layout). Sources are memoised; the search runs on every keystroke without another cache.
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Model, Selection } from "@engine/canvas/types";
 import { useText } from "../i18n";
@@ -15,6 +15,9 @@ import type { KnownInfrastructure } from "../state/useInfrastructures";
 import { compareChoices } from "../state/runs";
 import type { Sources } from "../state/search";
 import type { DiagramCommands } from "../state/useDiagram";
+
+/** The page's commands, and the tiles' two of Check (the palette offers them there only). */
+export type SearchCommands = DiagramCommands & Readonly<{ tilesTighten: () => void; tilesReset: () => void }>;
 import type { Choice, SearchPaletteProps } from "../search/SearchPalette";
 import type { SearchControl } from "../shell/ShellTools";
 import { closeOpenLayers } from "../shell/closeLayers";
@@ -26,7 +29,7 @@ type SearchOptions = Readonly<{
   state: DiagramState;
   model: Model | null;
   infrastructures: readonly KnownInfrastructure[];
-  commands: DiagramCommands;
+  commands: SearchCommands;
   prefs: Prefs;
   setPrefs: (next: Prefs) => void;
   onInfrastructure: (name: string) => void;
@@ -55,16 +58,16 @@ export function useSearch({ state, model, infrastructures, commands, prefs, setP
   const runs = state.runs;
   const current = state.address.runId;
   const showStubs = state.view.showStubs;
+  const inCheck = state.view.mode === "control";
   const actions = useMemo(
-    () => actionSources(t, { selected, grid: prefs.grid, minimap: prefs.minimap, editing: state.editing, hidden, stubs, showStubs, runs: runs ?? [], current, compare: compareChoices(runs ?? [], current), now }),
+    () => actionSources(t, { selected, grid: prefs.grid, minimap: prefs.minimap, editing: state.editing, hidden, stubs, showStubs, runs: runs ?? [], current, compare: compareChoices(runs ?? [], current), now, inCheck }),
     // the words follow the language (`t` changes identity at every render)
-    [language, selected, prefs.grid, prefs.minimap, state.editing, hidden, stubs, showStubs, runs, current, now],
+    [language, selected, prefs.grid, prefs.minimap, state.editing, hidden, stubs, showStubs, runs, current, now, inCheck],
   );
   const sources = useMemo<Sources>(
     () => ({ model, infrastructures, current: state.address.infrastructure, actions }),
     [model, infrastructures, state.address.infrastructure, actions],
   );
-  const inCheck = state.view.mode === "control";
   const onChoose = useCallback(
     ({ hit, how }: Choice) => {
       if (inCheck && hit.kind === "action" && (hit.id === "fit" || hit.id === "center" || hit.id === "zoomReset")) return commands.setView({ mode: "diagram" });

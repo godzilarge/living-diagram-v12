@@ -1,0 +1,220 @@
+/* The tiles (DESIGN.md, Check view): the grid, its items, the place a moved tile would take, the eight resize
+   handles, the header that moves a tile, a tile lifted over the space. The library's own sheet is not loaded: every
+   rule here is ours, on the tokens. */
+
+/* the root: nothing under the lowest tile at rest; the library's grid grows while a tile is carried past its last row
+   (`autoSize`), so there is always room to drop */
+.ui-tiles {
+  position: relative;
+}
+
+.ui-tiles-grid {
+  position: relative;
+}
+
+/* an item: positioned by the library (transform, width, height), its widget filling it; a container for the widget's
+   own width queries */
+.ui-tiles-item {
+  position: absolute;
+  container: tile / inline-size;
+  transition:
+    transform var(--motion-layer) var(--motion-ease),
+    width var(--motion-layer) var(--motion-ease),
+    height var(--motion-layer) var(--motion-ease);
+}
+
+.ui-tiles-item > .ui-island {
+  position: absolute;
+  inset: 0;
+}
+
+/* nothing animates during a gesture: the tile follows the pointer, the others stay; nor a tile landing from the space
+   (its travel is the lift's, Tiles.tsx) */
+.ui-tiles-grid:has(.react-draggable-dragging, .resizing) .ui-tiles-item,
+.ui-tiles-item[data-settling] {
+  transition: none;
+}
+
+/* the tile in hand rises above the others with the layer shadow */
+.ui-tiles-item:is(.react-draggable-dragging, .resizing) {
+  z-index: 3;
+}
+
+.ui-tiles-item:is(.react-draggable-dragging, .resizing) > .ui-island {
+  box-shadow: var(--shadow-layer);
+}
+
+/* the place a moved tile would take: a dashed frame on the ground, solid red where the drop would be refused */
+.ui-tiles-grid > .react-grid-placeholder {
+  position: absolute;
+  z-index: 2;
+  border: 1px dashed var(--color-line-2);
+  border-radius: var(--radius-surface);
+  background: transparent;
+  pointer-events: none;
+}
+
+.ui-tiles[data-refused] .react-grid-placeholder {
+  border-style: solid;
+  border-color: var(--color-error);
+}
+
+/* the header moves the tile (DESIGN.md, Widget handle); its controls keep their own gesture */
+[data-handle] {
+  user-select: none;
+}
+
+.ui-tiles[data-enabled] [data-handle] {
+  cursor: grab;
+}
+
+.ui-tiles[data-enabled] .react-draggable-dragging [data-handle] {
+  cursor: grabbing;
+}
+
+/* the handles: shown while the pointer is over the tile (the hover motion), on no tile during a move or a resize,
+   never while the gestures are off */
+.ui-tiles-item > .react-resizable-handle {
+  position: absolute;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity var(--motion-hover) var(--motion-ease);
+}
+
+.ui-tiles-item:hover > .react-resizable-handle {
+  opacity: 1;
+}
+
+.ui-tiles-grid:has(.react-draggable-dragging, .resizing) .ui-tiles-item > .react-resizable-handle {
+  opacity: 0;
+  transition: none;
+}
+
+.ui-tiles:not([data-enabled]) .react-resizable-handle {
+  display: none;
+}
+
+/* the edges: 8 px strips astride the hairline, the cursor says the gesture, no mark */
+.ui-tiles-item > :is(.react-resizable-handle-e, .react-resizable-handle-w) {
+  top: var(--tiles-handle-size);
+  bottom: var(--tiles-handle-size);
+  width: var(--tiles-edge-size);
+  cursor: ew-resize;
+}
+
+.ui-tiles-item > .react-resizable-handle-e {
+  right: calc(var(--tiles-edge-size) / -2);
+}
+
+.ui-tiles-item > .react-resizable-handle-w {
+  left: calc(var(--tiles-edge-size) / -2);
+}
+
+.ui-tiles-item > :is(.react-resizable-handle-n, .react-resizable-handle-s) {
+  left: var(--tiles-handle-size);
+  right: var(--tiles-handle-size);
+  height: var(--tiles-edge-size);
+  cursor: ns-resize;
+}
+
+.ui-tiles-item > .react-resizable-handle-n {
+  top: calc(var(--tiles-edge-size) / -2);
+}
+
+.ui-tiles-item > .react-resizable-handle-s {
+  bottom: calc(var(--tiles-edge-size) / -2);
+}
+
+/* the corners: 16 px squares marked by an L (ink-3, ink under the pointer) */
+.ui-tiles-item > :is(.react-resizable-handle-se, .react-resizable-handle-sw, .react-resizable-handle-ne, .react-resizable-handle-nw) {
+  width: var(--tiles-handle-size);
+  height: var(--tiles-handle-size);
+}
+
+.ui-tiles-item > .react-resizable-handle-se {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+}
+
+.ui-tiles-item > .react-resizable-handle-nw {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+
+.ui-tiles-item > .react-resizable-handle-sw {
+  left: 0;
+  bottom: 0;
+  cursor: nesw-resize;
+}
+
+.ui-tiles-item > .react-resizable-handle-ne {
+  right: 0;
+  top: 0;
+  cursor: nesw-resize;
+}
+
+.ui-tiles-item > :is(.react-resizable-handle-se, .react-resizable-handle-sw, .react-resizable-handle-ne, .react-resizable-handle-nw)::before {
+  content: "";
+  position: absolute;
+  width: var(--tiles-corner-mark);
+  height: var(--tiles-corner-mark);
+  border: 0 solid var(--color-ink-3);
+  transition: border-color var(--motion-hover) var(--motion-ease);
+}
+
+.ui-tiles-item > .react-resizable-handle:hover::before {
+  border-color: var(--color-ink);
+}
+
+/* the L: two straight legs of 7 px, a 2 px stroke, its outer corner rounded 3 px, set 5 px inside the tile's corner */
+.ui-tiles-item > .react-resizable-handle-se::before {
+  right: var(--tiles-corner-inset);
+  bottom: var(--tiles-corner-inset);
+  border-right-width: var(--tiles-corner-stroke);
+  border-bottom-width: var(--tiles-corner-stroke);
+  border-bottom-right-radius: var(--tiles-corner-rounded);
+}
+
+.ui-tiles-item > .react-resizable-handle-sw::before {
+  left: var(--tiles-corner-inset);
+  bottom: var(--tiles-corner-inset);
+  border-left-width: var(--tiles-corner-stroke);
+  border-bottom-width: var(--tiles-corner-stroke);
+  border-bottom-left-radius: var(--tiles-corner-rounded);
+}
+
+.ui-tiles-item > .react-resizable-handle-ne::before {
+  right: var(--tiles-corner-inset);
+  top: var(--tiles-corner-inset);
+  border-right-width: var(--tiles-corner-stroke);
+  border-top-width: var(--tiles-corner-stroke);
+  border-top-right-radius: var(--tiles-corner-rounded);
+}
+
+.ui-tiles-item > .react-resizable-handle-nw::before {
+  left: var(--tiles-corner-inset);
+  top: var(--tiles-corner-inset);
+  border-left-width: var(--tiles-corner-stroke);
+  border-top-width: var(--tiles-corner-stroke);
+  border-top-left-radius: var(--tiles-corner-rounded);
+}
+
+/* a tile lifted over the space (DESIGN.md, Enlarge): at the inset its page gives (`--tiles-lift-inset`, the Check view
+   its space's), 16 px from the window's edges otherwise, the layer shadow; the library's geometry (its computed style on
+   the element) gives way, hence `!important`; the travel from its place is an animation of `translate` and `clip-path`
+   (Tiles.tsx), which these leave free */
+.ui-tiles-item[data-enlarged] {
+  position: fixed !important;
+  inset: var(--tiles-lift-inset, var(--space-lg));
+  z-index: 5;
+  width: auto !important;
+  height: auto !important;
+  transform: none !important;
+  transition: none;
+}
+
+.ui-tiles-item[data-enlarged] > .ui-island {
+  box-shadow: var(--shadow-layer);
+}

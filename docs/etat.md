@@ -4,8 +4,9 @@ Une page, tenue à jour en fin de chaque session (skill `livraison`). Première 
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
 **Dernière mise à jour : 2026-10-24** (refonte UI : brique 7 **Journal (J1)** et brique 7a **Contrôle (A)** livrées, revues et
-**réconciliées** : les deux branches avaient divergé depuis le banc ; fusion commitée (c966d3d). Attendent Orhan : la
-lettre T1 / T2 / T3 des widgets redimensionnables, et ses retours sur les planches).
+**réconciliées** : les deux branches avaient divergé depuis le banc ; fusion commitée (c966d3d) ; **vue Contrôle vérifiée
+avec impeccable le même jour**, deux défauts purs corrigés, non commités ; **banc de la grille libre** (G1 / G2) remis le soir.
+Brique grille (G3 + V3) livrée le soir, revue traitée, non commitée. Attendent Orhan : son regard sur la brique et ses retours sur les planches).
 
 ## Fait
 
@@ -209,12 +210,48 @@ lettre T1 / T2 / T3 des widgets redimensionnables, et ses retours sur les planch
   la page vivante montre Contrôle puis Journal. Suites après fusion : app check 300 (37 fichiers), moteur vert ; e2e 106 verts (Chromium 1228 : les 12 écarts
   sous-pixel du 1194 ont disparu ; deux attentes périmées de `diagram.spec.ts` corrigées, « Journal désactivé » et
   « `#mode=journal` se lit Diagramme »). **Commitée c966d3d**, poussée.
-  **Prochaine session : `/brique-ui tuiles`**, en commençant par **le choix d'Orhan** : une lettre T1 / T2 / T3 (et le
-  glissé de T3 oui ou non) pour les widgets de Contrôle, et ses remarques sur les captures du panneau, de la recherche,
-  des réglages, de l'édition, du Journal et de Contrôle. Pour les tuiles : écrire d'abord dans `DESIGN.md` la préférence
-  `ld-prefs` par vue (jamais une intention), la règle de recomposition de la grille et la primitive du geste s'il y en a un
-  (poignée T1, en-tête saisissable et place cible T3 ; aucune pour T2), puis construire sur `app/src/control/ControlView.tsx` ;
-  les trois boutons « en cours » prennent alors leur sens ou disparaissent. Puis la **brique 8** (bascule de `/`, suppression
+  **Vérification impeccable de Contrôle (2026-10-24)**, à la demande d'Orhan (la session cloud n'avait pas le skill) :
+  détecteur sans constat ; mesures dans Chromium 1228 sur `demo-dc` (1440, 1366, 1920 ; clair, sombre, encre ; fr, en),
+  captures `.impeccable/planche-controle-verif/` ; deux défauts purs corrigés par l'agent `ui` (infobulles désactivées qui
+  ne nommaient plus leur bouton : clés `*Soon`, `control:soon` retirée ; filtre de Verdicts à 16 px du bord comme le
+  registre, `Widget.css`, mesuré dans `control.spec.ts`) ; deux constats à juger consignés (nom d'équipement coupé en
+  anglais dans la Couverture à 480 px ; à 1366 × 768 la Couverture ne montre aucune ligne entière), tous deux adressés
+  par les tuiles. Suites : app check 300, `control.spec` 15, e2e 106 verts. **Non commité.**
+  **Le banc des tuiles est recadré le 2026-10-24** : Orhan a d'abord choisi T3, puis s'est repris avant tout code :
+  ce qu'il veut est **une grille libre** (chacun redimensionne et déplace les tuiles de Contrôle à son goût, mémorisé
+  par utilisateur), pas une mise en avant ; T1 / T2 / T3 sont écartées. **Banc `bac-a-sable/grille-src/` sur
+  react-grid-layout 2.3**, servi à `/grille/` (`?d=g1`, `?d=g2`), sources et captures versionnées dans
+  `design/rounds/2026-10-24-grille/` (`ROUND.md`, `README.md`) : **G1 bornée à la fenêtre** (plateau 12 × 24, placement
+  libre sans compaction, jamais de chevauchement, la page ne défile pas) et **G2 la page défile** (rangs de 32 px,
+  compaction verticale) ; en-tête saisissable, huit poignées, « Agrandir » sur chaque tuile, disposition mémorisée,
+  « Réinitialiser », mode verrouillé. Mesuré : chaque geste tient 16 / 16 px. **Premier regard d'Orhan le soir même** :
+  G1 se bloque (plateau plein, sans compaction : pas un bug, une impasse), G2 plaît par sa liberté mais saccade
+  (compaction continue), Couverture soignée, Verdicts trop condensé (le banc montrait le registre de la maquette à
+  44 px, pas celui de la brique à 56). **G3 ajouté** : page qui défile, placement libre sans compaction ni
+  chevauchement, rien ne bouge pendant le glissé, cadre rouge où le dépôt sera refusé, « Resserrer » à la demande ;
+  Verdicts de l'application (56 px) avec une variante **64 px** à comparer dans la barre du banc (`/grille/` est G3).
+  **Second regard d'Orhan** : « G3 vraiment pas mal » (animation des gestes à faire dans la brique avec impeccable) ;
+  Verdicts « mieux mais pas convaincu, la donnée manque de structure ». **Cinq registres** sur les mêmes données dans
+  la barre du banc G3 (V0 l'actuel, V1 colonnes, V2 le nombre en tête, V3 par règle, V4 la phrase seule ;
+  `design/rounds/2026-10-24-grille/src/register.jsx`). **Orhan a choisi G3 et V3 (par règle) le soir même.**
+  **Brique grille LIVRÉE le 2026-10-24** : `DESIGN.md` d'abord (§ Check view, § Register, Widget `handle` / `enlarge`,
+  jetons `tiles.*`, `check-view.topic-width`), puis la brique par l'agent `ui` (`app/src/state/tiles.ts`,
+  `app/src/ui/Tiles.tsx`, `prefs.checkTiles`, actions Ctrl+K « Resserrer » / « Réinitialiser », `Register` V3,
+  `sectionsByRule`, page vivante, `e2e/control.spec.ts`) ; revue `docs/revues/2026-10-24-grille.md` (0 critique,
+  1 haut, 3 moyens, 8 bas) **traitée le jour même en entier** ; douze points dans `docs/a-juger-a-l-usage.md` (pas de
+  verrou, commandes dans la palette, seuil 640, nombre dans la phrase, l'espace qui défile, huit poignées, retour
+  glissé, agrandi par clip, ordre des coins, tuile illisible, pas de clavier pour déplacer, ordre de Tab). Captures
+  `.impeccable/planche-grille-brique/` remises. Suites : app check 326 (39 fichiers), e2e complète 120 (`control.spec` 23 + `tiles.spec`), sonde de la revue 16 ; moteur, backend et contrats non touchés. **Non commité.** Orhan a demandé, pour
+  la version finale, de l'animation sur les gestes avec impeccable (une passe dédiée, sous la règle motion de
+  `DESIGN.md`).
+  **Prochaine session : `/brique-ui grille-finition`** (l'animation des gestes de Contrôle avec le skill impeccable
+  `animate`, après le regard d'Orhan sur la brique dans son navigateur : `cd app && npm run build` puis le serveur
+  `:8018/next/`, ou `npm run dev` sur `:5173`), puis la **brique 8** (bascule de `/`, suppression de
+  `engine/src/app/`). Avant : ses remarques sur les captures du panneau, de la recherche, des réglages,
+  de l'édition, du Journal et de Contrôle. Pour la grille : écrire d'abord dans `DESIGN.md` la préférence `ld-prefs`
+  par vue (`checkTiles`, jamais une intention), la grille et ses minimums, les primitives nouvelles (poignée, place
+  cible, en-tête saisissable, état agrandi), l'exception à la garde « jamais de style en ligne » pour la bibliothèque,
+  puis construire sur `app/src/control/ControlView.tsx` ; les trois boutons « en cours » deviennent « Agrandir ». Puis la **brique 8** (bascule de `/`, suppression
   de `engine/src/app/`). À savoir : `npm run e2e` dure ~4 min ; sur la machine de session, `LD_CHROMIUM=<chemin>` choisit le
   binaire si Playwright 1.61 n'a pas le sien (`/opt/pw-browsers/`), et les tests navigateur du backend cherchent
   `~/.cache/ms-playwright/chromium_headless_shell-*/*/chrome-headless-shell` (un lien symbolique suffit) ; `/view` reste

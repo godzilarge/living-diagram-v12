@@ -1,10 +1,12 @@
-// Check's primitives (brick 7a, design/comps/shell/control.html): the code chip, the hollow mark and a mark said in
-// a cell, the source lines, the quiet zero, the severity toggles of a widget's header (one off), the register with a
-// group heading, an open row and its targets, a coverage table with centred topic columns under a band of facts.
+// Check's primitives (brick 7a, design/comps/shell/control.html; the tiles and the register by rule of 2026-10-24): the
+// code chip, the hollow mark and a mark said in a cell, the source lines, the quiet zero, the severity toggles of a
+// widget's header (one off), the register by rule with two sections, an open row and its targets, a coverage table
+// with centred topic columns under a band of facts, and four small tiles to move, resize and enlarge.
 import { Cable, EthernetPort, Layers, Search } from "lucide-react";
 import { useState } from "react";
-import { Button, Code, Field, Mark, Register, RegisterTargets, SourceLine, Table, Widget, WidgetToggles, Zero } from "../../ui";
+import { Button, Code, Field, Mark, Register, RegisterTargets, SourceLine, Table, Tiles, Widget, WidgetToggles, Zero } from "../../ui";
 import { Facts } from "../../ui";
+import type { Tiles as TilesValue } from "../../state/tiles";
 import { useText } from "../../i18n";
 import { DEVICE } from "../sample";
 import { Row, Section, Specimen } from "../Specimen";
@@ -17,17 +19,11 @@ function SampleRegister() {
   const t = useText();
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set(["a"]));
   const toggle = (id: string) => setOpen((current) => (current.has(id) ? new Set([...current].filter((x) => x !== id)) : new Set([...current, id])));
-  const row = (id: string, tone: "error" | "warning", code: string, count: number, family: "aggregates" | "cables") => ({
+  const row = (id: string, tone: "error" | "warning", code: string, count: number) => ({
     id,
     tone,
     title: t(`control:codes.${code as "link_down"}`, { count }),
-    meta: (
-      <>
-        <Code>{code}</Code>
-        {t(`control:rules.${family}`)}
-      </>
-    ),
-    count,
+    code,
     detail: (
       <RegisterTargets
         label={t("control:verdicts.targets")}
@@ -42,14 +38,46 @@ function SampleRegister() {
   return (
     <Register
       label={t("control:verdicts.title")}
-      columns={{ mark: t("control:verdicts.columns.mark"), verdict: t("control:verdicts.columns.verdict"), count: t("control:verdicts.columns.count"), open: t("control:verdicts.columns.open") }}
+      columns={{ mark: t("control:verdicts.columns.mark"), verdict: t("control:verdicts.columns.verdict"), code: t("control:verdicts.columns.code"), open: t("control:verdicts.columns.open") }}
       groups={[
-        { id: "error", label: t("control:verdicts.severity.error"), count: 2, rows: [row("a", "error", CODES.error, 2, "aggregates")] },
-        { id: "warning", label: t("control:verdicts.severity.warning"), count: 8, rows: [row("b", "warning", CODES.warning, 8, "cables")] },
+        { id: "cables", label: t("control:sections.cables"), count: 8, rows: [row("b", "warning", CODES.warning, 8)] },
+        { id: "aggregates", label: t("control:sections.aggregates"), count: 2, rows: [row("a", "error", CODES.error, 2)] },
       ]}
       open={open}
       onToggle={toggle}
     />
+  );
+}
+
+/** Four small tiles, 3 × 3 each, side by side: moved, resized, refused on a taken place (state of the page only). */
+const SAMPLE_TILES: TilesValue = Object.freeze({
+  verdicts: Object.freeze({ x: 0, y: 0, w: 3, h: 3 }),
+  coverage: Object.freeze({ x: 3, y: 0, w: 3, h: 3 }),
+  sources: Object.freeze({ x: 6, y: 0, w: 3, h: 3 }),
+  delivery: Object.freeze({ x: 9, y: 0, w: 3, h: 3 }),
+});
+
+function SampleTiles() {
+  const t = useText();
+  const [tiles, setTiles] = useState<TilesValue>(SAMPLE_TILES);
+  // the last button of each tile lifts it over the page (no scrim here: the state alone), Reduce puts it back
+  const [enlarged, setEnlarged] = useState<keyof TilesValue | null>(null);
+  const tile = (id: keyof TilesValue, heading: string, count: number) => {
+    const on = enlarged === id;
+    const enlarge = { on, label: t(on ? "control:tile.reduce" : "control:tile.enlarge"), onToggle: () => setEnlarged(on ? null : id) };
+    return (
+      <Widget key={id} name={`tile-${id}`} heading={heading} count={count} handle enlarge={enlarge}>
+        <Mark tone={id === "verdicts" ? "error" : "neutral"}>{count}</Mark>
+      </Widget>
+    );
+  };
+  return (
+    <Tiles tiles={tiles} onChange={setTiles} enabled={!enlarged} enlarged={enlarged} label={t("control:tile.grid")}>
+      {tile("verdicts", t("control:verdicts.title"), 26)}
+      {tile("coverage", t("control:coverage.title"), 7)}
+      {tile("sources", t("control:sources.title"), 22)}
+      {tile("delivery", t("control:delivery.title"), 8)}
+    </Tiles>
   );
 }
 
@@ -136,6 +164,12 @@ export function CheckSection() {
             <SampleCoverage />
           </Widget>
           <figcaption>{t("primitives:check.coverage")}</figcaption>
+        </figure>
+      </Row>
+      <Row>
+        <figure className="page-specimen page-check-tiles">
+          <SampleTiles />
+          <figcaption>{t("primitives:check.tiles")}</figcaption>
         </figure>
       </Row>
     </Section>

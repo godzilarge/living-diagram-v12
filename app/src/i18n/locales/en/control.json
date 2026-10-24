@@ -1,7 +1,11 @@
 {
   "page": "Check of {{infrastructure}}",
   "space": "Check",
-  "soon": "in progress",
+  "tile": {
+    "grid": "Tiles of the Check view",
+    "enlarge": "Enlarge",
+    "reduce": "Reduce"
+  },
   "verdicts": {
     "title": "Verdicts",
     "severities": "Severities",
@@ -15,7 +19,7 @@
     "columns": {
       "mark": "Severity",
       "verdict": "Verdict",
-      "count": "How many",
+      "code": "Code",
       "open": "Open"
     },
     "none": "No verdict matches.",
@@ -28,15 +32,15 @@
     "join": ", ",
     "pair": "{{a}} and {{b}}"
   },
-  "rules": {
-    "neighbors": "neighbours",
-    "remotePorts": "remote ports",
-    "descriptions": "descriptions",
-    "cables": "cables",
-    "aggregates": "aggregates, MLAG and HA",
-    "states": "states",
-    "contract": "input contract",
-    "other": "another rule"
+  "sections": {
+    "cables": "Cables",
+    "aggregates": "Aggregates, MLAG and HA",
+    "states": "States",
+    "neighbors": "Neighbours",
+    "remotePorts": "Remote ports",
+    "descriptions": "Descriptions",
+    "contract": "Input contract",
+    "other": "Another rule"
   },
   "codes": {
     "neighbor_name_case_differs_one": "{{count, number}} neighbour matched only after ignoring the case of its name",
@@ -124,7 +128,6 @@
   },
   "coverage": {
     "title": "Collection coverage",
-    "large": "Open large",
     "facts": {
       "label": "Coverage",
       "scope": "In scope",
@@ -166,7 +169,6 @@
   },
   "sources": {
     "title": "Cables and sources",
-    "all": "All cables",
     "columns": {
       "sources": "Sources",
       "status": "Status",
@@ -192,7 +194,6 @@
   },
   "delivery": {
     "title": "Delivery",
-    "report": "Ingestion report",
     "label": "Delivery",
     "exporter": "Exporter",
     "contract": "Contract",

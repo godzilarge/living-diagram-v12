@@ -1,22 +1,23 @@
-// The Verdicts widget (design/comps/shell/control.html, `.reg`): B1's checks of the collection, one row per severity
-// and code, grouped under their severity; a row counts the things it names (each once), a heading and a toggle count
-// checks, as the Check tab and the panel do. Its header: the title, the total of checks (always the total), the three
+// The Verdicts widget (design/comps/shell/control.html; the register by rule, V3, DESIGN.md, Register): B1's checks of
+// the collection, one row per severity and code, grouped under their rule's family; a row counts the things it names
+// (each once), a section heading and a toggle count checks, as the Check tab and the panel do. Its header: the title, the total of checks (always the total), the three
 // severity toggles with their counts (each shows or hides its group), the filter on the right (the sentence, the
 // code, the targets' names). A row opens on its targets: each a Link that shows the element in the Diagram view.
-// Toggles, filter and the rows opened are transient: neither stored nor in the address.
+// Toggles, filter and the rows opened are transient: neither stored nor in the address. A tile of Check's grid: its
+// header moves it, its last button enlarges it (`tile`).
 import { Boxes, Cable, CircleDashed, EthernetPort, Layers, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Model } from "@engine/canvas/types";
 import type { Severity } from "@engine/contracts/snapshot";
-import { Button, Code, Field, Register, RegisterTargets, Widget, WidgetToggles } from "../ui";
-import type { RegisterGroup } from "../ui";
+import { Button, Field, Register, RegisterTargets, Widget, WidgetToggles } from "../ui";
+import type { RegisterGroup, WidgetEnlarge } from "../ui";
 import { useText } from "../i18n";
 import { Note } from "../shell/Note";
 import type { Translate } from "../i18n";
 import { deviceTile } from "../panel/DevicePanel";
 import type { Address, ViewState } from "../state/address";
-import { ALL_SHOWN, sections, SEVERITIES, severityTotals, targetHref, toggleOpen, toggleSeverity, toneOfSeverity, verdictGroups } from "../state/control";
+import { ALL_SHOWN, sectionsByRule, SEVERITIES, severityTotals, targetHref, toggleOpen, toggleSeverity, toneOfSeverity, verdictGroups } from "../state/control";
 import type { Shown, Target, VerdictGroup } from "../state/control";
 import { familyWords, targetWords, verdictWords } from "./words";
 
@@ -46,21 +47,15 @@ type Where = Readonly<{ address: Address; view: ViewState }>;
 
 function registerGroups(t: Translate, model: Model, where: Where, shown: Shown, query: string, groups: readonly VerdictGroup[]): RegisterGroup[] {
   const sentence = (group: VerdictGroup) => verdictWords(t, group);
-  return sections(groups, shown, query, sentence).map((section) => ({
-    id: section.severity,
-    label: t(`control:verdicts.severity.${section.severity}`),
+  return sectionsByRule(groups, shown, query, sentence).map((section) => ({
+    id: section.family,
+    label: familyWords(t, section.family),
     count: section.count,
     rows: section.groups.map((group) => ({
       id: group.id,
       tone: group.tone,
       title: sentence(group),
-      meta: (
-        <>
-          <Code>{group.code}</Code>
-          {familyWords(t, group.family)}
-        </>
-      ),
-      count: group.count,
+      code: group.code,
       detail: (
         <RegisterTargets
           label={t("control:verdicts.targets")}
@@ -89,7 +84,7 @@ function Toggles({ shown, totals, onToggle }: { shown: Shown; totals: Readonly<R
   );
 }
 
-export function VerdictsWidget({ model, address, view }: { model: Model; address: Address; view: ViewState }) {
+export function VerdictsWidget({ model, address, view, enlarge }: { model: Model; address: Address; view: ViewState; enlarge: WidgetEnlarge }) {
   const t = useText();
   const groups = useMemo(() => verdictGroups(model), [model]);
   const totals = useMemo(() => severityTotals(groups), [groups]);
@@ -102,7 +97,8 @@ export function VerdictsWidget({ model, address, view }: { model: Model; address
       name="verdicts"
       heading={t("control:verdicts.title")}
       count={model.checks.length}
-      grow
+      handle
+      enlarge={enlarge}
       toggles={<Toggles shown={shown} totals={totals} onToggle={(severity) => setShown((current) => toggleSeverity(current, severity))} />}
       action={
         <Field
@@ -122,7 +118,7 @@ export function VerdictsWidget({ model, address, view }: { model: Model; address
       ) : (
         <Register
           label={t("control:verdicts.title")}
-          columns={{ mark: t("control:verdicts.columns.mark"), verdict: t("control:verdicts.columns.verdict"), count: t("control:verdicts.columns.count"), open: t("control:verdicts.columns.open") }}
+          columns={{ mark: t("control:verdicts.columns.mark"), verdict: t("control:verdicts.columns.verdict"), code: t("control:verdicts.columns.code"), open: t("control:verdicts.columns.open") }}
           groups={register}
           open={open}
           onToggle={(id) => setOpen((current) => toggleOpen(current, id))}

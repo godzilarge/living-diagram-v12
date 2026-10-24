@@ -102,6 +102,8 @@ export type ActionContext = Readonly<{
   /** The runs "compare with" offers (`compareChoices`). */
   compare: readonly RunEntry[];
   now: number;
+  /** The Check view shows: its tiles' two actions are offered (left out: not offered). */
+  inCheck?: boolean;
 }>;
 
 /** The actions the diagram page offers, with the words the palette matches and shows. */
@@ -120,6 +122,8 @@ export function actionSources(t: Translate, context: ActionContext): readonly Ac
     ...(context.hidden ? [{ id: "showHidden" as const, words: t("search:actions.showHidden", { count: context.hidden }) }] : []),
     // the edit palette's row in the same words (read mode has no palette)
     ...(context.stubs ? [{ id: "toggleStubs" as const, words: stubsRowWords(t, context.stubs, !!context.showStubs) }] : []),
+    // Check's tiles (DESIGN.md, Check view, Commands)
+    ...(context.inCheck ? [{ id: "tilesTighten" as const, words: t("search:actions.tilesTighten") }, { id: "tilesReset" as const, words: t("search:actions.tilesReset") }] : []),
   ];
   const open = [...context.runs].reverse().filter((run) => run.run_id !== context.current).map((run): ActionSource => ({ id: "openRun", runId: run.run_id, words: t("search:actions.openRun", { date: date(run) }) }));
   const compare = context.compare.map((run): ActionSource => ({ id: "compareRun", runId: run.run_id, words: t("search:actions.compareRun", { date: date(run) }) }));

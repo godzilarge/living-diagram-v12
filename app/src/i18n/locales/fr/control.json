@@ -1,7 +1,11 @@
 {
   "page": "Contrôle de {{infrastructure}}",
   "space": "Contrôle",
-  "soon": "en cours",
+  "tile": {
+    "grid": "Tuiles du Contrôle",
+    "enlarge": "Agrandir",
+    "reduce": "Réduire"
+  },
   "verdicts": {
     "title": "Verdicts",
     "severities": "Sévérités",
@@ -15,7 +19,7 @@
     "columns": {
       "mark": "Sévérité",
       "verdict": "Verdict",
-      "count": "Combien",
+      "code": "Code",
       "open": "Déplier"
     },
     "none": "Aucun verdict ne correspond.",
@@ -28,15 +32,15 @@
     "join": ", ",
     "pair": "{{a}} et {{b}}"
   },
-  "rules": {
-    "neighbors": "voisins",
-    "remotePorts": "ports distants",
-    "descriptions": "descriptions",
-    "cables": "câbles",
-    "aggregates": "agrégats, MLAG et HA",
-    "states": "états",
-    "contract": "contrat d'entrée",
-    "other": "autre règle"
+  "sections": {
+    "cables": "Câbles",
+    "aggregates": "Agrégats, MLAG et HA",
+    "states": "États",
+    "neighbors": "Voisins",
+    "remotePorts": "Ports distants",
+    "descriptions": "Descriptions",
+    "contract": "Contrat d'entrée",
+    "other": "Autre règle"
   },
   "codes": {
     "neighbor_name_case_differs_one": "{{count, number}} voisin reconnu seulement en ignorant la casse de son nom",
@@ -165,7 +169,6 @@
   },
   "coverage": {
     "title": "Couverture de la collecte",
-    "large": "Ouvrir en grand",
     "facts": {
       "label": "Couverture",
       "scope": "En périmètre",
@@ -208,7 +211,6 @@
   },
   "sources": {
     "title": "Câbles et sources",
-    "all": "Tous les câbles",
     "columns": {
       "sources": "Sources",
       "status": "Statut",
@@ -234,7 +236,6 @@
   },
   "delivery": {
     "title": "Livraison",
-    "report": "Rapport d'ingestion",
     "label": "Livraison",
     "exporter": "Exportateur",
     "contract": "Contrat",

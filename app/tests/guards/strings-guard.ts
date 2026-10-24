@@ -28,6 +28,8 @@ export const ALLOWED: ReadonlyMap<string, string> = new Map([
   ["src/ui/Select.tsx:Enter", "a KeyboardEvent key name compared, never shown"],
   ["src/ui/Table.tsx:Enter", "a KeyboardEvent key name compared, never shown"],
   ["src/ui/Register.tsx:Enter", "a KeyboardEvent key name compared, never shown"],
+  ["src/ui/Tiles.tsx:button, input, a, [role='group']", "a selector (what keeps its own gesture inside a tile's header), never shown"],
+  ["src/ui/Tiles.tsx:.react-resizable-handle", "a selector (the layout library's resize handle a gesture starts from), never shown"],
   ["src/state/edit-keys.ts:Enter", "a KeyboardEvent key name compared, never shown"],
   ["src/state/edit-keys.ts:Delete", "a KeyboardEvent key name compared, never shown (the word comes from edit:bar.delete)"],
   ["src/state/edit-keys.ts:Tab", "a KeyboardEvent key name compared, never shown"],

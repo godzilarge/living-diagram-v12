@@ -9,7 +9,8 @@
 // the keyboard of edit mode before the shell's. It renders `useDiagram`'s state and sends its commands; the canvas
 // is mounted by `Canvas` alone, once a collection is read. Check (brick 7a, `#mode=control`): the same top row over the
 // ground and the page of verdicts (`ControlView`); no canvas, no canvas controls, no band, no panel, no pencil; the
-// canvas's keys do nothing there, Ctrl+K stays, and a verdict's target or a search result opens the Diagram on it.
+// canvas's keys do nothing there, Ctrl+K stays (with two actions of its own on the tiles), and a verdict's target or a
+// search result opens the Diagram on it; its tiles are a browser preference this page reads and writes.
 // The Log view (brick 7, `#mode=journal`): the ground over the canvas, which stays mounted and inert, the top row kept,
 // the panel, the band, the canvas controls and the context menu gone; its pages (`useJournal`) are held here, so they
 // survive the trip to the Diagram. The context menu opens in reading too, with the History of the object first.
@@ -58,6 +59,8 @@ import { useSearch } from "./useSearch";
 import { useShellKeys } from "./useShellKeys";
 import { ViewsIsland } from "./ViewsIsland";
 import { ControlView } from "../control/ControlView";
+import { DEFAULT_TILES, tighten } from "../state/tiles";
+import type { Tiles as TilesValue } from "../state/tiles";
 import { blockedOf } from "./words";
 import "./Diagram.css";
 import "../panel/panel.css";
@@ -232,7 +235,13 @@ export function Diagram() {
   const width: Width | null = shown ? (focus ? "focus" : prefs.panel) : null;
   const insets = useMemo(() => chromeWith(width), [width]);
   insetsRef.current = insets;
-  const search = useSearch({ state, model, infrastructures, commands, prefs, setPrefs, onInfrastructure: openInfrastructure, hidden: hiddenCount, stubs });
+  // Check's tiles: a gesture, "Tighten the tiles" and "Reset the tiles' layout" (the palette) write the preference
+  const onTiles = useCallback((checkTiles: TilesValue) => setPrefs({ ...prefs, checkTiles }), [prefs, setPrefs]);
+  const searchCommands = useMemo(
+    () => ({ ...commands, tilesTighten: () => onTiles(tighten(prefs.checkTiles)), tilesReset: () => onTiles(DEFAULT_TILES) }),
+    [commands, onTiles, prefs.checkTiles],
+  );
+  const search = useSearch({ state, model, infrastructures, commands: searchCommands, prefs, setPrefs, onInfrastructure: openInfrastructure, hidden: hiddenCount, stubs });
   const panel: PanelControl = { shown, focus, setFocus, onSearch: search.control.onOpen };
   // edit mode's keys first (they stop there), then the shell's
   const clipboard = useMemo(
@@ -331,7 +340,9 @@ export function Diagram() {
           showFromJournal={commands.showFromJournal}
         />
       ) : null}
-      {control && model && !blocked ? <ControlView model={model} address={state.address} view={state.view} runs={state.runs} now={now} /> : null}
+      {control && model && !blocked ? (
+        <ControlView model={model} address={state.address} view={state.view} runs={state.runs} now={now} tiles={prefs.checkTiles} onTiles={onTiles} />
+      ) : null}
       {/* the panel of the selected element, before the canvas in the DOM: Tab reaches it before the cards */}
       {model && width ? (
         <div className="diagram-panel" data-width={width}>

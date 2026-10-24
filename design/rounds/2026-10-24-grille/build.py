@@ -1,0 +1,133 @@
+"""Extracts the approved Check mockup (design/comps/shell/control.html) into the bench's sources.
+
+Writes `index.html` (the mockup's tokens and CSS, its icon sprite, its top row, the bench bar, the React root) and
+`src/mockup.js` (the four widgets' HTML, one string each). Then `npm run build` bundles the page into
+`bac-a-sable/grille/` (served at /grille/ by the sandbox server). Run from this folder: python3 build.py
+"""
+import json
+import re
+import shutil
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SHELL = HERE.parent.parent / "design" / "comps" / "shell"
+SPRITE_EXTRA = (
+    '<symbol id="i-minimize-2" viewBox="0 0 24 24"><path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/>'
+    '<path d="M4 14h6v6"/></symbol>'
+    '<symbol id="i-lock-open" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>'
+    '<path d="M7 11V7a5 5 0 0 1 9.9-1"/></symbol>'
+    '<symbol id="i-grip" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="19" cy="5" r="1"/><circle cx="5" cy="5" r="1"/>'
+    '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'
+    '<circle cx="19" cy="19" r="1"/><circle cx="5" cy="19" r="1"/></symbol>'
+)
+
+
+def sections(page: str) -> dict[str, str]:
+    ids = re.findall(r'<section class="surf w[^"]*" data-float="(\w+)".*?</section>', page, re.S)
+    blocks = re.findall(r'(<section class="surf w[^"]*" data-float="\w+".*?</section>)', page, re.S)
+    return dict(zip(ids, blocks, strict=True))
+
+
+def adapt(wid: str, html: str) -> str:
+    """One header grammar for the four widgets: the title, its count, then on the right 'Agrandir'; the verdicts
+    keep their filter. The three disabled 'in progress' buttons and the settings button of the mockup go."""
+    html = html.replace('class="surf w grow"', 'class="surf w"', 1)
+    wraps = " wraps" if wid == "verdicts" else ""
+    html = re.sub(r'<header class="w-head"[^>]*>', f'<header class="w-head{wraps}" data-drag-handle>', html, count=1)
+    # the right-hand actions: keep the filter of the verdicts, drop every button; the React side adds 'Agrandir'
+    act_start = html.index('<span class="act">')
+    act_end = html.index("</span></header>", act_start) + len("</span>")
+    act = html[act_start:act_end]
+    keep = ""
+    if '<span class="filter">' in act:
+        f0 = act.index('<span class="filter">')
+        f1 = act.index("</span>", act.index("<input", f0)) + len("</span>")
+        keep = act[f0:f1] + (
+            '<button class="btn icon has-tip filter-ico" aria-label="Filtrer les verdicts">'
+            '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>'
+            '<span class="tip end" role="tooltip">Filtrer les verdicts</span></button>'
+        )
+    html = html[:act_start] + '<span class="act">' + keep + '<span data-actions></span></span>' + html[act_end:]
+    if wid == "verdicts":
+        html = register_of_the_app(html)
+    return html
+
+
+def register_of_the_app(html: str) -> str:
+    """The mockup's register (44 px rows, a Rule column) becomes the application's (brick 7a after Orhan's remark of
+    2026-10-21): two lines per row, the sentence then the code chip and the rule's family, no Rule column."""
+    html = html.replace("<th>Règle</th>", "", 1)
+    html = re.sub(
+        r'<td><div class="what"><b>(.*?)</b><span class="code">(.*?)</span></div></td><td class="rule">(.*?)</td>',
+        r'<td><div class="what"><b>\1</b><span class="meta"><span class="code">\2</span><span class="family">\3</span></span></div></td>',
+        html,
+    )
+    return html.replace('colspan="5"', 'colspan="4"')
+
+
+SEVERITY = {"err": "error", "warn": "warning", "info": "info"}
+
+
+def verdicts_data(html: str) -> list[dict]:
+    """The mockup's register as data: one verdict per row (severity, sentence, code, family, count, targets)."""
+    out: list[dict] = []
+    rows = re.findall(r'<tr class="(?:open)?"><td class="sev"><span class="mark (\w+)"></span></td>(.*?)</tr>(?:<tr class="detail">(.*?)</tr>)?', html, re.S)
+    for sev, cells, detail in rows:
+        m = re.search(r'<b>(.*?)</b><span class="code">(.*?)</span></div></td><td class="rule">(.*?)</td><td class="r">(\d+)</td>', cells)
+        targets = re.findall(r'<use href="#i-([\w-]+)"/></svg><a class="lnk" href="#">(.*?)</a>', detail or "")
+        out.append({
+            "severity": SEVERITY[sev],
+            "sentence": m.group(1).replace("&#x27;", "'"),
+            "code": m.group(2),
+            "family": m.group(3).replace("&#x27;", "'"),
+            "count": int(m.group(4)),
+            "targets": [{"icon": icon, "text": text} for icon, text in targets],
+        })
+    return out
+
+
+def main() -> None:
+    mockup = (SHELL / "control.html").read_text()
+    verdicts = verdicts_data(sections(mockup)["verdicts"])
+    (HERE / "src").mkdir(exist_ok=True)
+    (HERE / "src" / "verdicts.js").write_text(
+        "// Generated by build.py from design/comps/shell/control.html: the verdicts of the approved Check mockup, as data.\n"
+        "export const VERDICTS = " + json.dumps(verdicts, ensure_ascii=False, indent=1) + ";\n"
+    )
+    style = re.search(r"<style>(.*?)</style>", mockup, re.S).group(1)
+    sprite = re.search(r'(<svg width="0" height="0".*?</svg>)', mockup, re.S).group(1)
+    sprite = sprite.replace("</svg>", SPRITE_EXTRA + "</svg>", 1)
+    toprow = mockup[mockup.index('<div class="toprow">'):mockup.index('<div class="space">')]
+    widgets = {wid: adapt(wid, html) for wid, html in sections(mockup).items()}
+
+    (HERE / "src").mkdir(exist_ok=True)
+    (HERE / "src" / "mockup.js").write_text(
+        "// Generated by build.py from design/comps/shell/control.html: the four widgets of the approved Check mockup.\n"
+        "export const WIDGETS = " + json.dumps(widgets, ensure_ascii=False, indent=1) + ";\n"
+    )
+    fonts = HERE / "public" / "fonts"
+    fonts.mkdir(parents=True, exist_ok=True)
+    shutil.copy(SHELL / "fonts" / "archivo-latin.woff2", fonts / "archivo-latin.woff2")
+
+    page = f"""<!doctype html>
+<html lang="fr" data-theme="light" data-accent="a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Living Diagram, banc grille, Contrôle</title>
+<style>{style}</style>
+<link rel="stylesheet" href="./src/bench.css">
+</head>
+<body class="register">
+{sprite}
+{toprow}<div id="root"></div>
+<script type="module" src="./src/main.jsx"></script>
+</body>
+</html>
+"""
+    (HERE / "index.html").write_text(page)
+    print(f"index.html, src/mockup.js ({len(verdicts)} verdicts), public/fonts/")
+
+
+if __name__ == "__main__":
+    main()

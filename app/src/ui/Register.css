@@ -1,21 +1,29 @@
-/* The register (DESIGN.md, Register): on top of the Table's relaxed density (56 px rows, the 32 px widget head,
-   the hover fill of a clickable row). */
+/* The register (DESIGN.md, Register, V3 by rule): on top of the Table's relaxed density (the 32 px widget head, the
+   hover fill of a clickable row, 8 px before the first cell), rows of 44 px on one line. */
 
-/* a group heading in the body: label size ink-3 and its count 8 px after, 8 px of air above a 28 px line (36 px, the
-   approved mockup's `.sevhead`) */
+.ui-table.ui-register td {
+  height: var(--table-row-height);
+}
+
+/* a section per rule: its words in body strong ink, its count in label ink-3 8 px after, 16 px of air above a 32 px
+   line (48 px), the hairline below; never hovered */
 .ui-register-group th {
-  height: calc(var(--table-head-height) + var(--space-sm));
-  padding: var(--space-sm) 0 0 var(--space-sm);
+  height: var(--register-section-height);
+  padding: var(--register-section-air) 0 0 var(--space-sm);
   border-bottom: 1px solid var(--color-line);
-  color: var(--color-ink-3);
-  font-size: var(--text-label-size);
-  font-weight: var(--text-label-weight);
-  line-height: var(--text-label-leading);
+  color: var(--color-ink);
+  font-size: var(--text-body-strong-size);
+  font-weight: var(--text-body-strong-weight);
+  line-height: var(--text-body-strong-leading);
   text-align: left;
 }
 
 .ui-register-group-count {
   margin-left: var(--space-sm);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-leading);
   font-variant-numeric: tabular-nums;
 }
 
@@ -26,32 +34,23 @@
   line-height: 0;
 }
 
-.ui-register td[data-key="count"] {
-  padding-right: var(--space-sm);
-}
-
-/* two lines: the sentence at 500 on its 20 px line, then 2 px under it the code and the family in label size */
-.ui-register-what {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  min-width: 0;
+/* the sentence takes what the code and the chevron leave, on one line, cut at its end */
+.ui-register td[data-key="verdict"] {
+  width: 100%;
+  max-width: 0;
 }
 
 .ui-register-title {
-  overflow: hidden;
-  font-weight: var(--register-font-weight);
   line-height: var(--text-body-line-leading);
-  text-overflow: ellipsis;
 }
 
-.ui-register-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  color: var(--color-ink-3);
-  font-size: var(--text-label-size);
-  line-height: var(--text-label-leading);
+/* the code in its own column, left-aligned (the chips start on one line, under the head), 12 px before the chevron */
+.ui-register td[data-key="code"] {
+  line-height: 0;
+}
+
+.ui-register td[data-key="open"] {
+  line-height: 0;
 }
 
 .ui-register-chevron {
@@ -70,11 +69,18 @@
 }
 
 /* the detail: aligned on the sentence (8 + 8 + 12 px in), its own height, 12 px of paper below, never hovered; the
-   selectors outweigh the relaxed density's first cell and row height (Table.css) */
+   selectors outweigh the relaxed density's first cell and the row height */
 .ui-table.ui-register tr.ui-register-detail > td {
   height: auto;
   padding: 0 0 var(--space-md) calc(var(--space-sm) + var(--mark-size) + var(--space-md));
   white-space: normal;
+}
+
+/* the code at the head of the detail: only where its column gave way (a narrow tile) */
+.ui-register-detail-code {
+  display: none;
+  align-items: center;
+  min-height: var(--register-target-height);
 }
 
 /* an open row and its detail are one thing: neither takes the hover fill (the mockup's `.reg tr.open:hover td`) */
@@ -106,3 +112,19 @@
   color: var(--color-ink-3);
 }
 
+/* narrow (a tile under 640 px): the code column gives way to the detail, the sentence may wrap and the row grow */
+@container tile (max-width: 640px) {
+  .ui-register :is(th, td)[data-key="code"] {
+    display: none;
+  }
+
+  .ui-register-detail-code {
+    display: flex;
+  }
+
+  .ui-table.ui-register td[data-key="verdict"] {
+    padding-top: var(--space-md);
+    padding-bottom: var(--space-md);
+    white-space: normal;
+  }
+}

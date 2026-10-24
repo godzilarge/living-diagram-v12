@@ -1,7 +1,7 @@
 // What the Check view reads of a collection (brick 7a, design/comps/shell/control.html, direction A "the register"),
 // as values, never as words: the verdicts (B1's checks grouped by severity and code, the most severe first, then by
 // count and code; each group's targets, every thing once in the snapshot's order, with the selection that shows it in
-// the Diagram view), the severity toggles and the filter over them, the coverage of the collection (its band of facts
+// the Diagram view), their sections by rule (DESIGN.md, Register, V3), the severity toggles and the filter over them, the coverage of the collection (its band of facts
 // and one row per device in scope), the source combinations of the cables, and the facts of the delivery. Everything
 // comes from the run's model (`Model`) and the archived runs; nothing is invented. Pure, tested under Node; the
 // components put the words on these values (`control/words.ts`).
@@ -248,18 +248,22 @@ export function matches(group: VerdictGroup, query: string, sentenceOf: Sentence
   return terms.every((term) => haystack.includes(term));
 }
 
-export type Section = Readonly<{ severity: Severity; count: number; groups: readonly VerdictGroup[] }>;
+/** The rule families in the order of the rules (DESIGN.md, Register): Cables (R3), Aggregates, MLAG and HA (R4), States
+ *  (R5), Neighbours (R0), Remote ports (R1), Descriptions (R2), the input contract, then another rule. */
+export const FAMILIES: readonly Family[] = ["cables", "aggregates", "states", "neighbors", "remotePorts", "descriptions", "contract", "other"];
 
-/** The register's sections: the severities shown, each with the groups the filter keeps and their checks (a heading
- *  counts checks, as its toggle; a row counts its things);
- *  a severity hidden by its toggle or left empty by the filter has no section. */
-export function sections(groups: readonly VerdictGroup[], shown: Shown, query: string, sentenceOf: SentenceOf): readonly Section[] {
-  return SEVERITIES.filter((severity) => shown[severity])
-    .map((severity) => {
-      const kept = groups.filter((group) => group.severity === severity && matches(group, query, sentenceOf));
-      return { severity, count: kept.reduce((sum, group) => sum + group.checks, 0), groups: kept };
-    })
-    .filter((section) => section.groups.length > 0);
+export type Section = Readonly<{ family: Family; count: number; groups: readonly VerdictGroup[] }>;
+
+/** The register's sections (V3, by rule): one per family, in the order of the rules, each with the groups the
+ *  severity toggles and the filter keep (the most severe first, then the largest, then by code: `verdictGroups`' order)
+ *  and their checks (a heading counts checks, as the toggles; a row counts its things); a family left without a group
+ *  has no section. */
+export function sectionsByRule(groups: readonly VerdictGroup[], shown: Shown, query: string, sentenceOf: SentenceOf): readonly Section[] {
+  const kept = groups.filter((group) => shown[group.severity] && matches(group, query, sentenceOf));
+  return FAMILIES.map((family) => {
+    const own = kept.filter((group) => group.family === family);
+    return Object.freeze({ family, count: own.reduce((sum, group) => sum + group.checks, 0), groups: Object.freeze(own) });
+  }).filter((section) => section.groups.length > 0);
 }
 
 /** The opened rows (transient): one more, one less. */

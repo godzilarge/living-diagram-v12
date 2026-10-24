@@ -257,11 +257,21 @@ body:has(.page) {
   width: 100%;
 }
 
-/* Check's coverage at the width of the view's right column */
+/* Check's coverage at the width of the view's former right column (480 px) */
 .page-check-side {
-  width: var(--check-view-side-width);
+  width: 480px;
+}
+
+/* Check's tiles: four of 3 × 3 on a grid as wide as the register's specimen */
+.page-check-tiles {
+  width: 1200px;
+}
+
+.page-check-tiles .ui-tiles {
+  width: 100%;
 }
 
 .page-check-side .ui-widget {
+  width: 100%;
   height: auto;
 }

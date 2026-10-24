@@ -1,5 +1,5 @@
 // The Check view's words on the values of `state/control.ts`: a verdict's sentence (one per code, absolute, with its
-// count), the rule's family, a target's name, the coverage's facts and words, a combination of sources and a cable's
+// count), the rule's family (a section of the register), a target's name, the coverage's facts and words, a combination of sources and a cable's
 // status, the facts of the delivery. Every sentence comes from the catalogue `control`, values interpolated, never
 // assembled here; identifiers (hostnames, ports, codes, versions) stay as the data says them.
 import { shortPort } from "@engine/canvas/format";
@@ -17,7 +17,8 @@ export function verdictWords(t: Translate, group: Pick<VerdictGroup, "code" | "c
   return t("control:codes.other", { count: group.count });
 }
 
-export const familyWords = (t: Translate, family: Family): string => t(`control:rules.${family}`);
+/** A rule family as the register's section names it ("Aggregates, MLAG and HA"). */
+export const familyWords = (t: Translate, family: Family): string => t(`control:sections.${family}`);
 
 const portWords = (t: Translate, host: string, port: string): string => t("control:targets.port", { host, port });
 

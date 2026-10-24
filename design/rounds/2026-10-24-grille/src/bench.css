@@ -1,0 +1,155 @@
+@import "react-grid-layout/css/styles.css";
+/* ================= bench « grille » : the Check view as a free grid (react-grid-layout) ================= */
+/* The page is fluid (the mockup was fixed at 1440 × 900): the top row keeps its places, the space fills the rest. */
+html, body { width: auto; height: auto; min-height: 100vh; overflow: hidden; }
+body[data-dir="g2"], body[data-dir="g3"] { overflow: auto; }
+.space { display: block; left: 16px; right: 16px; top: 80px; width: auto; height: auto; }
+/* G1: the grid is bounded to the window: 16 px above the bottom edge, never scrolls */
+body[data-dir="g1"] .space { bottom: 16px; }
+/* G2: the page scrolls; the grid is as tall as its rows */
+body[data-dir="g2"] .space, body[data-dir="g3"] .space { position: relative; margin: 80px 16px 16px; left: auto; right: auto; top: auto; }
+body[data-dir="g2"] .toprow, body[data-dir="g2"] .tools, body[data-dir="g3"] .toprow, body[data-dir="g3"] .tools { position: fixed; z-index: 20; }
+/* G3: the board grows with its tiles and keeps a free row below the lowest one, so there is always room to drop */
+body[data-dir="g3"] .react-grid-layout { padding-bottom: 64px; }
+
+/* ---------- the grid ---------- */
+.react-grid-layout { position: relative; }
+body[data-dir="g1"] .react-grid-layout { height: 100%; }
+.react-grid-item {
+  container: w / inline-size;
+  transition: transform 240ms var(--ease), width 240ms var(--ease), height 240ms var(--ease);
+}
+.react-grid-item.react-draggable-dragging, .react-grid-item.resizing { transition: none; z-index: 3; }
+.react-grid-layout:has(.react-draggable-dragging, .resizing) .react-grid-item { transition: none; }
+.react-grid-item.react-draggable-dragging > .w { box-shadow: var(--shadow-lg); }
+.react-grid-item.resizing > .w { box-shadow: var(--shadow-lg); }
+/* the place a widget will take: a line-2 dashed frame on the ground, never a red block (the library's default) */
+.react-grid-item.react-grid-placeholder {
+  background: transparent; opacity: 1; border: 1px dashed var(--line-2); border-radius: var(--r-surf);
+  box-sizing: border-box; transition: none; z-index: 2;
+}
+/* the drop will be refused (G1, G3: the place is taken): the frame says it before the pointer lets go */
+.space[data-refused] .react-grid-item.react-grid-placeholder { border-color: var(--err); border-style: solid; }
+.react-grid-item > .w-host > .w { position: absolute; inset: 0; width: auto; height: auto; }
+
+/* ---------- the header is the handle; the widget's whole frame carries the resize handles ---------- */
+.w-head[data-drag-handle] { user-select: none; }
+[data-free] .w-head[data-drag-handle] { cursor: grab; }
+[data-free] .react-draggable-dragging .w-head[data-drag-handle] { cursor: grabbing; }
+.react-grid-item > .react-resizable-handle { position: absolute; z-index: 4; opacity: 0; transition: opacity 150ms var(--ease); width: auto; height: auto; margin: 0; transform: none; top: auto; right: auto; bottom: auto; left: auto; }
+.react-grid-item > .react-resizable-handle::after { display: none; }
+:root:not([data-free]) .react-resizable-handle { display: none; }
+.react-grid-item:hover > .react-resizable-handle, .react-grid-item.resizing > .react-resizable-handle { opacity: 1; }
+/* edges: an 8 px strip astride the hairline, the cursor says the gesture */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e, .react-grid-item > .react-resizable-handle.react-resizable-handle-w { top: 16px; bottom: 16px; width: 8px; height: auto; margin: 0; transform: none; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e { right: -4px; cursor: ew-resize; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w { left: -4px; cursor: ew-resize; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n, .react-grid-item > .react-resizable-handle.react-resizable-handle-s { left: 16px; right: 16px; width: auto; height: 8px; margin: 0; transform: none; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n { top: -4px; cursor: ns-resize; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s { bottom: -4px; cursor: ns-resize; }
+/* corners: a 16 px square with a small L in ink-3 (ink-2 on hover), the one visible affordance */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se, .react-grid-item > .react-resizable-handle.react-resizable-handle-sw, .react-grid-item > .react-resizable-handle.react-resizable-handle-ne, .react-grid-item > .react-resizable-handle.react-resizable-handle-nw { width: 16px; height: 16px; margin: 0; transform: none; top: auto; left: auto; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se { right: 2px; bottom: 2px; cursor: nwse-resize; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-sw { left: 2px; bottom: 2px; cursor: nesw-resize; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-ne { right: 2px; top: 2px; cursor: nesw-resize; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-nw { left: 2px; top: 2px; cursor: nwse-resize; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se::before, .react-grid-item > .react-resizable-handle.react-resizable-handle-sw::before, .react-grid-item > .react-resizable-handle.react-resizable-handle-ne::before, .react-grid-item > .react-resizable-handle.react-resizable-handle-nw::before {
+  content: ""; position: absolute; width: 7px; height: 7px; border: 0 solid var(--ink-3); border-radius: 1px;
+}
+.react-resizable-handle:hover::before { border-color: var(--ink); }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se::before { right: 3px; bottom: 3px; border-right-width: 2px; border-bottom-width: 2px; border-bottom-right-radius: 3px; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-sw::before { left: 3px; bottom: 3px; border-left-width: 2px; border-bottom-width: 2px; border-bottom-left-radius: 3px; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-ne::before { right: 3px; top: 3px; border-right-width: 2px; border-top-width: 2px; border-top-right-radius: 3px; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-nw::before { left: 3px; top: 3px; border-left-width: 2px; border-top-width: 2px; border-top-left-radius: 3px; }
+
+/* ---------- a widget adapts its header and its columns to the width of its place ---------- */
+.w-body:not([data-overflow]) { -webkit-mask-image: none; mask-image: none; }
+.w-head .filter-ico { display: none; }
+@container w (max-width: 640px) {
+  .w-head.wraps { flex-wrap: wrap; height: auto; padding-top: 12px; padding-bottom: 12px; row-gap: 8px; }
+  .w-head.wraps > h2, .w-head.wraps > .muted, .w-head.wraps > .act { height: 32px; display: flex; align-items: center; }
+  .w-head.wraps .seg { order: 5; flex-basis: 100%; margin-left: -10px; }
+  .w-head .filter { display: none; }
+  .w-head .filter-ico { display: inline-flex; }
+  .reg td:nth-child(2) { white-space: normal; padding-top: 8px; padding-bottom: 8px; }
+}
+@container w (min-width: 641px) {
+  .mini th.topic, .mini td.topic { width: 72px; }
+}
+/* ---------- the register as the application draws it (brick 7a): 56 px rows on two lines, the rule folded ---------- */
+.reg td { height: 56px; }
+.reg .what { gap: 2px; }
+.reg .what .meta { display: flex; align-items: center; gap: 8px; font-size: var(--t-xs); color: var(--ink-3); line-height: 16px; }
+.reg .what .code { align-self: auto; }
+.sevhead td { height: 36px; padding-top: 8px; }
+.reg tr.detail td { padding: 0 0 12px 20px; }
+/* density B, airier: 64 px rows, 4 px between the two lines, 44 px group headings, 32 px targets, 16 px under them */
+:root[data-density="b"] .reg td { height: 64px; }
+:root[data-density="b"] .reg .what { gap: 4px; }
+:root[data-density="b"] .sevhead td { height: 44px; padding-top: 16px; }
+:root[data-density="b"] .reg tr.detail td { padding-bottom: 16px; }
+:root[data-density="b"] .targets li { height: 32px; }
+:root[data-density="b"] .reg thead th { height: 36px; }
+
+/* narrow: the strip of facts wraps instead of overflowing */
+.strip { flex-wrap: wrap; row-gap: 8px; }
+
+/* ---------- enlarge: one widget takes the whole space, over a scrim, 240 ms from its place ---------- */
+.space[data-focus]::before { content: ""; position: absolute; inset: 0; z-index: 5; background: var(--scrim); border-radius: var(--r-surf); }
+body[data-dir="g2"] .space[data-focus]::before, body[data-dir="g3"] .space[data-focus]::before { position: fixed; border-radius: 0; }
+.react-grid-item[data-focus] { z-index: 6 !important; transform: none !important; width: 100% !important; height: 100% !important; }
+body[data-dir="g2"] .react-grid-item[data-focus], body[data-dir="g3"] .react-grid-item[data-focus] { position: fixed; left: 16px; right: 16px; top: 80px; bottom: 16px; width: auto !important; height: auto !important; transition: none; }
+.react-grid-item[data-focus] > .w-host > .w { box-shadow: var(--shadow-lg); }
+.react-grid-item[data-focus] > .react-resizable-handle { display: none; }
+.react-grid-item[data-focus] .w-head[data-drag-handle] { cursor: default; }
+
+/* ---------- the bench bar ---------- */
+.bench.on-bench { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 90; }
+.bench.on-bench { gap: 4px; }
+.bench .chk { padding: 0 8px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.bench .chk[data-ok="false"] { color: var(--err); }
+.bench .dim { color: var(--ink-3); font-weight: 500; padding: 0 6px; white-space: nowrap; }
+.bench a { height: 28px; padding: 0 8px; border-radius: 5px; color: var(--ink-3); display: inline-flex; align-items: center; font-size: 11.5px; }
+.bench a[aria-pressed="true"] { background: var(--sunken); color: var(--ink); font-weight: 600; }
+:root[data-clean] .bench { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .react-grid-item, .react-grid-placeholder { transition-duration: 1ms !important; }
+}
+
+/* ================= the four registers (register.jsx), on top of the mockup's atoms ================= */
+.rg { width: 100%; border-collapse: collapse; }
+.rg thead th { position: sticky; top: 0; z-index: 1; background: var(--paper); height: 32px; text-align: left; font-size: var(--t-xs); color: var(--ink-3); font-weight: 500; border-bottom: 1px solid var(--line); padding: 0 12px 0 0; white-space: nowrap; }
+.rg thead th.r, .rg td.r { text-align: right; padding-right: 8px; font-variant-numeric: tabular-nums; }
+.rg td { height: 48px; padding: 0 12px 0 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.rg td.sev, .rg th.sev { width: 8px; padding-right: 12px; }
+.rg td.chev-col, .rg th.chev { width: 32px; padding-right: 4px; }
+.rg .chev { color: var(--ink-3); transition: transform 150ms var(--ease); }
+.rg .chev.on { transform: rotate(90deg); }
+.rg tbody tr.rg-row { cursor: pointer; }
+.rg tbody tr.rg-row:hover td { background: var(--ground); }
+.rg tr.rg-row.open td { border-bottom: 0; }
+.rg tr.rg-row.open:hover td, .rg tr.rg-detail:hover td { background: transparent; }
+.rg td.what { white-space: normal; }
+.rg td.rule { color: var(--ink-3); font-size: var(--t-xs); white-space: nowrap; width: 160px; }
+.rg td.code-col, .rg th.code-h { width: 1%; white-space: nowrap; }
+.rg td.r { width: 56px; }
+.rg tr.rg-detail td { height: auto; padding: 0 0 12px 20px; }
+.rg .rg-detail-body { display: flex; flex-direction: column; gap: 8px; }
+.rg .rg-meta { display: flex; align-items: center; gap: 12px; font-size: var(--t-xs); color: var(--ink-3); }
+.rg .targets { margin: 0; padding-left: 0; }
+.rg .rg-none { margin: 0; font-size: var(--t-xs); color: var(--ink-4); }
+/* group headings: by severity (V1, V2) in label ink-3 as the application; by family (V3, V4) a section title,
+   body size at 600 in ink, 16 px of air above, its count in label ink-3 */
+.rg tr.rg-group th { height: 36px; padding: 8px 0 0 0; text-align: left; font-size: var(--t-xs); color: var(--ink-3); font-weight: 500; border-bottom: 1px solid var(--line); }
+.rg .rg-group-count { margin-left: 8px; font-variant-numeric: tabular-nums; }
+.rg[data-variant="v3"] tr.rg-group th, .rg[data-variant="v4"] tr.rg-group th { height: 48px; padding-top: 16px; font-size: var(--t-s); color: var(--ink); font-weight: 600; }
+.rg[data-variant="v3"] .rg-group-count, .rg[data-variant="v4"] .rg-group-count { font-size: var(--t-xs); color: var(--ink-3); font-weight: 500; }
+/* V2: the number first, 17 px at 600, tabular, in a 56 px column */
+.rg[data-variant="v2"] td { height: 56px; }
+.rg[data-variant="v2"] td.n, .rg[data-variant="v2"] th.n { width: 40px; text-align: right; padding-right: 16px; font-size: var(--t-l); font-weight: 600; font-variant-numeric: tabular-nums; }
+.rg[data-variant="v2"] th.n { font-size: var(--t-xs); font-weight: 500; }
+.rg[data-variant="v2"] tr.rg-detail td { padding-left: 76px; }
+/* V3: one line, 44 px, the code at right */
+.rg[data-variant="v3"] td { height: 44px; }
+/* V1: a real table at 48 px, the first column of the group heading over the mark */

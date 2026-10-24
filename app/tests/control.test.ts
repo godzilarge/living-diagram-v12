@@ -11,7 +11,7 @@ import type { Coverage } from "@engine/contracts/snapshot";
 import { parseSnapshot } from "../src/api/run";
 import { DEFAULT_VIEW, parseHash } from "../src/state/address";
 import {
-  ALL_SHOWN, coverageFacts, coverageRows, deliveryOf, familyOf, matches, sections, severityTotals, sortCoverage, sourceRows, targetHref,
+  ALL_SHOWN, coverageFacts, coverageRows, deliveryOf, familyOf, FAMILIES, matches, sectionsByRule, severityTotals, sortCoverage, sourceRows, targetHref,
   toggleOpen, toggleSeverity, verdictGroups,
 } from "../src/state/control";
 import type { VerdictGroup } from "../src/state/control";
@@ -131,14 +131,26 @@ describe("the verdicts", () => {
     expect(said).toEqual([["device_unreachable", null], ["neighbor_unknown", null]]);
   });
 
-  it("show the severities toggled on, each with the groups the filter keeps and the checks they count", () => {
-    expect(sections(groups, ALL_SHOWN, "", words).map((s) => [s.severity, s.count, s.groups.length])).toEqual([["error", 1, 1], ["warning", 7, 3], ["info", 18, 5]]);
+  it("show a section per rule, in the order of the rules, each with its groups, most severe first, and its checks", () => {
+    const by = (sections: ReturnType<typeof sectionsByRule>) => sections.map((s) => [s.family, s.count, s.groups.map((g) => `${g.severity}:${g.code}`)]);
+    expect(by(sectionsByRule(groups, ALL_SHOWN, "", words))).toEqual([
+      ["cables", 12, ["warning:multiple_observed_neighbors", "warning:documented_not_observed", "info:documented_not_observed"]],
+      ["aggregates", 3, ["error:aggregate_below_min_links", "warning:aggregate_member_not_bundled"]],
+      ["states", 2, ["info:device_partial_collection", "info:link_down"]],
+      ["neighbors", 6, ["info:neighbor_unknown"]],
+      ["remotePorts", 3, ["info:remote_port_is_mac"]],
+    ]);
+    expect(FAMILIES).toEqual(["cables", "aggregates", "states", "neighbors", "remotePorts", "descriptions", "contract", "other"]);
+    expect(Object.isFrozen(sectionsByRule(groups, ALL_SHOWN, "", words)[0])).toBe(true);
+  });
+
+  it("let the severity toggles and the filter take rows away, and a section without a row leave", () => {
     const noNotes = toggleSeverity(ALL_SHOWN, "info");
     expect(noNotes).toEqual({ error: true, warning: true, info: false });
-    expect(sections(groups, noNotes, "", words).map((s) => s.severity)).toEqual(["error", "warning"]);
-    expect(sections(groups, { error: false, warning: false, info: false }, "", words)).toEqual([]);
-    expect(sections(groups, ALL_SHOWN, "link_down", words).flatMap((s) => s.groups.map((g) => g.code))).toEqual(["link_down"]);
-    expect(sections(groups, ALL_SHOWN, "nothing like this", words)).toEqual([]);
+    expect(sectionsByRule(groups, noNotes, "", words).map((s) => [s.family, s.count])).toEqual([["cables", 5], ["aggregates", 3]]);
+    expect(sectionsByRule(groups, { error: false, warning: false, info: false }, "", words)).toEqual([]);
+    expect(sectionsByRule(groups, ALL_SHOWN, "link_down", words).map((s) => [s.family, s.groups.map((g) => g.code)])).toEqual([["states", ["link_down"]]]);
+    expect(sectionsByRule(groups, ALL_SHOWN, "nothing like this", words)).toEqual([]);
   });
 
   it("filter on the sentence, the code and the targets' names, whole or short, every word typed", () => {

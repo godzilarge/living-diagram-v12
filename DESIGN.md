@@ -245,10 +245,20 @@ components:
   source-line:
     width: "16px"
   register:
-    fontWeight: 500
     target-height: "28px"
+    section-height: "48px"
+    section-air: "16px"
+  tiles:
+    gap: "16px"
+    row-height: "32px"
+    handle-size: "16px"
+    edge-size: "8px"
+    corner-mark: "7px"
+    corner-stroke: "2px"
+    corner-inset: "5px"
+    corner-rounded: "3px"
   check-view:
-    side-width: "480px"
+    topic-width: "72px"
   grid:
     step: "24px"
     dot: "1px"
@@ -447,6 +457,10 @@ bench page Orhan chose writes it), the period, the search (280 px, giving way do
 cut with an ellipsis), the export and the help. A group or an annotation the sentence cites
 by its name is set in quotes ("modified the table « Core addressing »"); a device or a connector is not.
 
+**The Check view** (brick 7a, then the tiles of 2026-10-24): the ground covers the map (the canvas is unmounted), the
+top row stays; under it the space of the tiles scrolls inside (the top row never moves), the one surface of the
+shell that scrolls as a page does. See Check view.
+
 Responsive: the shell is built for 1280 to 2560 px wide; below 1200 px the context island collapses to the
 infrastructure and the run, and the panel docks to the full height of the right edge. Phone and tablet are not
 targeted.
@@ -552,21 +566,37 @@ handle. Borders are 1 px hairlines; the selection outline is 2 px in the accent.
   `count`, 6 px between the word and the number, the view tabs' rhythm), 4 px apart, the rail under each one that is
   on; they show or hide part of the body, they are not a choice among several (never a `Segmented`). Transient.
 - **Widget caption** in place of the count: a short date in the same ink-3 12 px (Livraison's day).
+- **Widget handle** (Check's tiles): the header is the handle that moves the widget (`handle`): `cursor: grab`
+  (grabbing during the move), no text selection; its controls (buttons, fields, toggles) keep their own gesture.
+- **Enlarge** (Check): the last icon button of a tile's header is "Agrandir" (`Maximize2`); enlarged, the widget
+  covers the whole space of the view (16 px from the sides, 80 px from the top, 16 px from the bottom) over the
+  scrim, with the layer shadow, its body scrolling inside; the button becomes "Réduire" (`Minimize2`), Escape
+  reduces too; it travels from its place in 240 ms (`motion.layer`). Transient: neither stored nor in the address.
+  The grid's gestures are off while a widget is enlarged, and the other tiles are inert (Tab never reaches what the
+  enlarged widget covers).
 - **Free slot:** not an island; a line-2 frame with the surface radius on the ground, no fill, no shadow, holding the
   outlined "+", a 13.5 px / 600 title and a 12 px ink-3 sentence.
 
 ### Register
-The verdicts of Check, from the approved mockup's `.reg` (Orhan, 2026-10-21: the 44 px rows were "too condensed";
-they take the relaxed density of a list one opens): a table on the widget's paper, its 32 px head sticking, columns
-**severity mark | verdict | count | chevron**.
-- **Group row:** a section heading inside the body: the group's words in label size ink-3 and its count 8 px after,
-  8 px of air above, the hairline below (the mockup's `.sevhead`: 36 px, a 28 px line under 8 px of air); never hovered.
-- **Row:** 56 px (`table-row.height-relaxed`), two lines: the sentence in body size at 500 (`register` weight) on a
-  20 px line, then 2 px
-  under it, in label size, the `Code` chip and the rule's family in ink-3, 8 px apart; the state mark of its
-  severity 8 px from the row's start (the mockup's 8 px column and 12 px after it); the count in body size,
-  tabular, on the right; the chevron (`ChevronRight`, ink-3, `fit`) last. The whole row opens and closes (a click,
-  Enter or Space when it has the focus; `aria-expanded`, `aria-controls`); the hover fill as every clickable row.
+The verdicts of Check, **grouped by rule** (Orhan, 2026-10-24, chosen at the bench among five structures,
+`design/rounds/2026-10-24-grille/`, V3: "the data lacks structure between the elements"; the grouping by severity
+scattered one subject, the number was said twice, the second line mixed an identifier and a category): a table on
+the widget's paper, its 32 px head sticking (columns **severity mark | verdict | code | chevron**; the mark and the
+chevron said, not shown).
+- **Section:** one per rule family, in the order of the rules: Cables (R3), Aggregates, MLAG and HA (R4), States
+  (R5), Neighbours (R0), Remote ports (R1), Descriptions (R2), Input contract, then Another rule; its heading is a
+  section title: the family's words in body strong (13.5 px, 600) in ink, its count of checks 8 px after in label
+  size ink-3, on a 48 px row (`register.section-height`: 16 px of air above a 32 px line, `register.section-air`),
+  the hairline below; never hovered. A section without a row (every row hidden by the severity toggles or the
+  filter) leaves with its heading.
+- **Row:** 44 px (`table-row.height`), one line: the state mark of its severity 8 px from the row's start and 12 px
+  before the sentence (error, the warning mark, grey for a note); the sentence in body size at 400, **its number
+  inside it** (the catalogue's sentence, tabular figures; no count column: the number is said once); then, in its own
+  column before the chevron, the `Code` chip, the column **left-aligned** so the chips start on one line (the bench's
+  V3; eight ragged left edges were what "nothing aligns" meant); the chevron (`ChevronRight`, ink-3, `fit`) last. Inside
+  a section the rows go most severe first, then by count (descending), then code. The whole row opens and closes (a
+  click, Enter or Space when it has the focus; `aria-expanded`, `aria-controls`); the hover fill as every clickable
+  row.
 - **Open:** the chevron turns 90° (the hover motion), the row loses its hairline and its hover fill (the row and its
   detail are one thing), and a detail row without a fixed height follows, its content aligned on the sentence
   (8 + 8 + 12 px in), 12 px of paper below the last target, then the hairline.
@@ -575,6 +605,8 @@ they take the relaxed density of a list one opens): a table on the widget's pape
   Diagram view ("dc01-core-01 · port-channel101": the middle dot belongs to the datum, a port of a device, never a
   joiner of metadata); a target the run cannot select stays as words in ink-2.
 - **Nothing matches:** a sentence in ink-3 in place of the table.
+- **Narrow** (a tile under 640 px): the code column gives way to the detail (the chip shows once the row is open),
+  the sentence may wrap on two lines, the row growing with it.
 
 ### Link
 - **Style:** the only `<a>` of the application, a real address (Ctrl+click, middle click and the status bar work).
@@ -805,46 +837,70 @@ width: port, state, speed and neighbour in compact; mode and VLANs and the descr
 columns are and which icon shows them.
 
 ### Check view
-The page of `#mode=control` (the approved mockup `design/comps/shell/control.html`, direction A "the register",
-Orhan 2026-10-17): **a page of widgets on the ground**; the map gives way (no canvas, no canvas controls, no run band,
-no panel) and the top row stays the diagram's (logo, context with the collection choice and the changes, views and
-layers, tools). Read-only: what B1 said about the collection, with its codes.
-- **Grid:** from y = 80 (16 + a 48 px island + 16) to 16 px above the bottom edge, 16 px from the sides, two columns
-  16 px apart: the verdicts take the rest, the right column is **480 px** (`check-view.side-width`; 912 / 480 at
-  1440). The page never scrolls, the widgets do.
-- **Verdicts** (left, the column's height): the header holds the title, the total of checks (always the total), the
-  three **severity toggles** (Errors, Warnings, Notes, each with its count in the state colour, on by default), then
-  on the right a filter field with the search icon ("device, port, code…": the sentence, the code and every name its
-  checks carry), `fluid`: under 1280 px it gives way down to 64 px, never over the coverage. The body is the
-  `Register`: one row per (severity, code), the most severe group first, then by count (descending), then code; a
-  group hidden by its toggle leaves with its heading. Toggles and filter are transient.
-- **Two counts, two units** (review 2026-10-21, H1): **a verdict's row counts the things it names, each once** (the
-  targets its open row lists: the neighbours, the ports, the cables, the aggregates, the bundles, the devices, the
-  clusters, the findings, as each code's sentence says them; B1 writes several checks for one thing: one per
+The page of `#mode=control`: **a free grid of tiles on the ground** (Orhan, 2026-10-24, chosen at the bench
+`design/rounds/2026-10-24-grille/`, direction G3 "free, the page scrolls", after G1 bounded and G2 compacted: "a
+grid, or a canvas, on which I can resize the tiles, something personal to each taste"); the map gives way (no canvas,
+no canvas controls, no run band, no panel) and the top row stays the diagram's (logo, context with the collection
+choice and the changes, views and layers, tools). The four widgets keep their content (the approved mockup
+`design/comps/shell/control.html`, direction A): Verdicts, Collection coverage, Cables and sources, Delivery. Read-only.
+- **Grid** (`Tiles`): the space under the top row (from y = 80, 16 px from the sides) holds **12 columns** of equal
+  width with **16 px gutters** (`tiles.gap`) and **rows of 32 px** (`tiles.row-height`; 48 px with the gutter); it has
+  no bottom edge: the space scrolls under the top row when the tiles go below the window (the grid grows while a
+  tile is dragged or stretched past its last row, so there is always room to drop; nothing is added under the lowest
+  tile at rest). The window's width decides the column; the rows stay in pixels (a 13-inch screen shows the same
+  layout and scrolls more).
+- **Default layout** (the mockup's): Verdicts columns 0–7, rows 0–16 (800 px); Coverage columns 8–11, rows 0–4;
+  Cables and sources rows 5–10; Delivery rows 11–16. Minimum **3 columns × 3 rows** for any tile.
+- **Move:** by the widget's header (`handle`); the tile follows the pointer with the layer shadow, nothing else moves,
+  nothing animates during the gesture; the **place it would take** is a frame on the ground, 1 px line-2 dashed with
+  the surface radius (the placeholder), which turns **solid error red** where the drop would be refused. On release
+  the tile travels to its cells in 240 ms (`motion.layer`, the ease; 1 ms under reduced motion), or back to its place
+  when refused. **Never an overlap, never a compaction**: a drop on occupied cells snaps back; the other tiles are
+  never pushed.
+- **Resize:** eight handles shown while the pointer is over the tile (the hover motion), hidden during a drag: the
+  four corners, 16 px squares (`tiles.handle-size`) marked by a 7 px L (`tiles.corner-mark`) with straight legs, a
+  2 px stroke (`tiles.corner-stroke`), its outer corner rounded 3 px (`tiles.corner-rounded`), set 5 px inside the
+  tile's corner (`tiles.corner-inset`), ink-3, ink under the pointer; and the four edges, 8 px strips astride the
+  hairline (`tiles.edge-size`) with the resize cursor and no mark. A resize stops at a neighbour or at the sides: its height gives way first, then its width;
+  a pull on a side changes one dimension only.
+- **Commands** (the search palette's Actions in Check): **"Resserrer les tuiles"** moves every tile up as far as it
+  goes, in reading order, without overlap (gaps close once, on demand, never on their own); **"Réinitialiser la
+  disposition"** returns to the default layout.
+- **Preference:** the layout is a **browser preference** (`ld-prefs.checkTiles`: for each tile its column, row,
+  width and height in cells), never an intent, never in the address, never shared; an unreadable or incomplete value
+  gives the default for what is missing. Written on every release of a gesture.
+- **Width:** a tile adapts to the width of its cells (a container query on the tile, never on the window): under
+  640 px the Verdicts header wraps (the toggles on a second line, their words starting where the title starts: the
+  button's 10 px of padding compensated, the filter giving way as `fluid` says) and the register's code column gives
+  way to the detail; from 641 px the coverage's topic columns take 72 px (`check-view.topic-width`).
+- **Enlarge:** every tile's header ends with "Agrandir" (Widget, Enlarge). The three "in progress" buttons of the
+  mockup are gone.
+- **Verdicts:** the header holds the title, the total of checks (always the total), the three **severity toggles**
+  (Errors, Warnings, Notes, each with its count in the state colour, on by default), then on the right a filter field
+  with the search icon ("device, port, code…": the sentence, the code and every name its checks carry), `fluid`. The
+  body is the `Register`, by rule. Toggles and filter are transient.
+- **Two counts, two units** (review 2026-10-21, H1): **a verdict's sentence counts the things it names, each once**
+  (the targets its open row lists: the neighbours, the ports, the cables, the aggregates, the bundles, the devices,
+  the clusters, the findings, as each code's sentence says them; B1 writes several checks for one thing: one per
   announcement and source in R0, one per protocol for a cable seen from one side, one per member for a cluster
-  described differently); **the header's total, the toggles, the group headings, the Check tab's count and the
-  panel's alerts count checks** (B1's verdicts as written). On the fixture the register's "5 neighbours unknown to
-  the inventory" agrees with the delivery's "5 unresolved neighbours".
-- **Collection coverage** (right, the free height, a quarter of the column at least): the header's count is the
-  devices in scope; a band of facts (in scope, answered, partial, unreachable, and failed when there is one), then a
-  compact table (32 px rows under a 28 px head, the mockup's `.mini`): device (cut first), collection (a mark and its
-  word), one centred column per topic (interfaces, aggregates, LLDP, CDP, system, HA) holding a mark alone: grey for
-  a success, the warning mark for a failure, **hollow** for a topic not asked.
-  The topic headers never touch at 480 px (a centred column pads 2 px on both sides: 4 px between two headers at
-  least, so the device keeps its name in English); the device cedes first (cut); device and collection sort.
-- **Cables and sources** (right, its content's height): the header's count is the run's cables; a compact table
-  (32 px, the mockup's `.mini`), sources (the `SourceLine`
-  of the cable's status before the sources in words, never the raw combination), status in words, cables (tabular).
-- **Delivery** (right, its content's height: its eight facts whole at 1440 × 900): the collection's day as the
-  header's caption; facts (exporter, contract, received, devices, findings of the input contract, normalizations,
-  unread descriptions, unresolved neighbours), a fact without a value left out. Cables and sources and delivery give
-  way (scroll inside, faded) only once the coverage is down to its quarter.
-- **Header buttons** that wait for the bench (Orhan, 2026-10-21: widgets resizable, "Couverture" to be put forward):
-  "Open large" and "All cables" (`Maximize2`, the mockup's), "Ingestion report" (`FileText`) are present, disabled,
-  "in progress".
+  described differently); **the header's total, the toggles, the section headings, the Check tab's count and the
+  panel's alerts count checks** (B1's verdicts as written).
+- **Collection coverage:** the header's count is the devices in scope; a band of facts (in scope, answered, partial,
+  unreachable, and failed when there is one), then a compact table (32 px rows under a 28 px head): device (cut
+  first), collection (a mark and its word), one centred column per topic (interfaces, aggregates, LLDP, CDP, system,
+  HA) holding a mark alone: grey for a success, the warning mark for a failure, **hollow** for a topic not asked. The
+  topic headers never touch (4 px between two headers at least); device and collection sort.
+- **Cables and sources:** the header's count is the run's cables; a compact table, sources (the `SourceLine` of the
+  cable's status before the sources in words, never the raw combination), status in words, cables (tabular).
+- **Delivery:** the collection's day as the header's caption; facts (exporter, contract, received, devices, findings
+  of the input contract, normalizations, unread descriptions, unresolved neighbours), a fact without a value left out.
 - **Codes live here:** the only surface of the shell that shows a check code (`Code`), always next to its sentence.
 - **Targets open the Diagram:** a target is a real address (`#node=`, `#link=`, `#aggregate=`, `#cluster=`; a port
   selects its device) without `mode`, so a click shows the Diagram view on the element and Ctrl+click opens a tab.
+- **The library's geometry:** the tiles are placed by react-grid-layout (its legacy API: no compaction, overlaps left
+  to the view's rule), which positions each tile by computed style (`transform`, `width`, `height`, `position`) on the
+  DOM: accepted as geometry, the one exception to "no inline style"; it never sets a colour, a size of text, a radius
+  or a shadow, which stay in the tokens.
 
 ### Avatar
 A 22 px square, 5 px radius, sunken fill with a 1 px line-2 inset, the author's initial at 11.5 px / 650 in ink-2;
@@ -879,6 +935,6 @@ A 20 px mark of two squares, ink and accent, alone in its island; never the prod
 - **Don't** show a check code (`aggregate_below_min_links`) in the Diagram view; verdicts live in Contrôle, where a
   code is always a `Code` chip next to its sentence.
 - **Don't** hard-code a colour, size, radius, shadow or font outside the token file, nor a visible string outside the
-  catalogues.
+  catalogues; a layout library may place a tile by computed style (Check view), never a design value.
 - **Don't** let anything move on its own: motion answers an action, 150–260 ms, `cubic-bezier(.16, 1, .3, 1)`,
   1 ms under reduced motion.
