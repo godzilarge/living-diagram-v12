@@ -3,7 +3,9 @@
 Une page, tenue à jour en fin de chaque session (skill `livraison`). Première lecture d'une session. Le détail d'une
 ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
 
-**Dernière mise à jour : 2026-10-20** (refonte UI : brique 7, **la vue Journal (J1) livrée et revue** ; la vue Contrôle attend le choix d'Orhan parmi les trois directions du banc).
+**Dernière mise à jour : 2026-10-24** (refonte UI : brique 7 **Journal (J1)** et brique 7a **Contrôle (A)** livrées, revues et
+**réconciliées** : les deux branches avaient divergé depuis le banc ; fusion faite, pas encore commitée. Attendent Orhan : la
+lettre T1 / T2 / T3 des widgets redimensionnables, et ses retours sur les planches).
 
 ## Fait
 
@@ -177,15 +179,46 @@ ligne se trouve dans `docs/journal.md` par recherche sur sa date ou son titre.
   un lien `~/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/chrome-headless-shell` vers le headless
   shell du conteneur) ; contrats 98 %. Captures `.impeccable/planche-journal/` (non versionnées, remises à Orhan). **Commité a0f36c0, puis 58aef0e (Historique sur la sélection), 207eb45 (rails) et les voisins inconnus, poussés** sur
   `claude/inspiring-noether-darrm2` (branche partie de `claude/keen-dirac-d907ei`, la brique 6 et le banc).
-  **Prochaine session : `/brique-ui controle`**, en commençant par le choix d'Orhan (A, B ou C) et ses remarques sur la
-  planche du Journal : écrire d'abord dans `DESIGN.md` et la page vivante les primitives que la direction demande (puce
-  `Code` réservée à Contrôle ; îlot gauche pour B ou bascules mot + compte pour C), un catalogue `control:codes` d'une
-  phrase par code avec son compte (`panel:checks` parle par équipement), puis construire. À savoir : l'onglet Contrôle
-  est désactivé dans `app/src/diagram/ViewsIsland.tsx` ; `SHOWN_MODES` de `app/src/state/diagram.ts` laisse passer
-  `diagram` et `journal` ; `pushView` de `app/src/diagram/Canvas.tsx` force `control` à faux ; la v1 dessinait les
-  statuts et les contrôles sur la toile en vue Contrôle (`toile.state.control`) ; le Journal montre comment une vue
-  couvre la toile sans la démonter (`app/src/journal/Journal.tsx`, `Diagram.tsx`) ; `/view` reste gelé, ses onglets
-  Contrôles, Qualité, Sources sont absorbés par la vue ; rien de nouveau côté API ; `npm run e2e` dure ~4 min. **La toile
+  **Brique 7a, la vue Contrôle, livrée le 2026-10-21 sur la branche sœur `claude/laughing-planck-8em58b`** (Orhan a choisi **A, le registre**, et le prototype est
+  **versionné comme maquette approuvée : `design/comps/shell/control.html`**, captures et `DIRECTION.md` § Check
+  view) : `#mode=control` montre une page de widgets sur le fond sous la rangée du haut du diagramme (toile, commandes,
+  bande et fiche démontées) : **Verdicts** (le total, trois bascules de sévérité avec leurs comptes, un filtre ; le
+  registre groupé par sévérité puis code, une ligne par code avec sa phrase, sa puce `Code` et sa famille de règle, son
+  compte, un chevron ; dépliée, ses cibles en liens qui ouvrent le Diagramme sur l'élément), **Couverture de la
+  collecte** (bande de faits, tableau par équipement avec une marque par topic, creuse quand non demandé), **Câbles et
+  sources** (une ligne par combinaison de sources avec le trait de la toile), **Livraison** (exportateur, contrat,
+  reçu le, équipements, constats, normalisations, non lues, non résolus). **Remarque d'Orhan appliquée** (« tableau
+  trop condensé ») : lignes à 56 px sur deux lignes, colonne Règle repliée sous la phrase. Catalogue `control` (une
+  phrase absolue par code, les 40 codes, fr et en ; `RULE_OF` tenu face à `codes.py` par un test). Primitives écrites
+  dans `DESIGN.md` et sur la page vivante : `Code` (réservée à Contrôle), `Register`, `Mark` creuse, `SourceLine`,
+  `Zero`, extensions de `Widget` (bascules, bande, légende, fondu), `Button` (`count`), `Table` (colonne centrée) ;
+  section « Check view ». Logique `app/src/state/control.ts`, composants `app/src/control/`, mesure
+  `app/e2e/control.spec.ts`. Revue `docs/revues/2026-10-21-controle.md` (0 critique, 1 haut, 3 moyens, 10 bas) **traitée le jour même en entier** (§ Traitement : le compte d'un verdict devient le nombre de choses nommées, `SUBJECT_OF` par code ; ligne dépliée alignée sur la phrase ; tableaux de droite à 32 px ; `interface_member_unknown` corrigé dans les deux catalogues ; dix bas faits, B6 assumé : les commandes du Diagramme restent actives en Contrôle). Sept points dans `docs/a-juger-a-l-usage.md` (toile démontée, bascules
+  transitoires, port ⇒ équipement, comptes, collecte `failed`, colonne droite à 900 px, en-têtes de topic). Suites :
+  `app` check 276 (35 fichiers), e2e 86 réussites et les 12 échecs connus de `measure` / `settings` (Chromium 1194, identiques sur `main`), aucun dans `control.spec` ; moteur vert ; backend 643 dont 1 échec propre à la machine (`test_the_viewer_passes_its_node_tests`, Node 22.22 refuse `node --test <dossier>`) ; contrats 637, 98 %, ruff propre. **Sa seconde remarque, redimensionner les widgets pour mettre « Couverture de la collecte » au premier
+  plan, est au banc** : `design/rounds/2026-10-21-tuiles/` (versionné ; `bac-a-sable/tuiles/` le temps de la
+  session), trois pages remises à Orhan : **T1 les poignées** (on tire les gouttières), **T2 les tailles** (Compacte /
+  Normale / Grande et « Mettre en premier » dans les réglages du widget), **T3 les places** (quatre places fixes, on
+  tire un widget par son en-tête ou le bouton « Mettre en avant »). Mesuré : Couverture en avant montre 4 lignes sur
+  30 dans la maquette, 12 en T1, 20 en T2 et T3. Avis de l'agent `ui` : T3 par son bouton seul ; et trier la
+  couverture avec les injoignables et les partielles en tête. En attendant, « Ouvrir en grand », « Tous les câbles »
+  et « Rapport d'ingestion » sont désactivés « en cours ». **Fusion des deux branches le 2026-10-24** : la brique 7 (Journal) et la brique 7a (Contrôle) ont été
+  construites en parallèle depuis le commit du banc (`a9ed676`), chaque session croyant l'autre vue en attente ; 15 fichiers
+  en conflit, tous additifs, résolus : `SHOWN_MODES` porte les trois modes ; quitter le Diagramme ferme le mode édition ;
+  Contrôle met la sélection de côté (`wanted`, sa toile est démontée), le Journal la garde (sa toile reste montée, inerte) ;
+  la page vivante montre Contrôle puis Journal. Suites après fusion : app check 300 (37 fichiers), moteur vert ; e2e 106 verts (Chromium 1228 : les 12 écarts
+  sous-pixel du 1194 ont disparu ; deux attentes périmées de `diagram.spec.ts` corrigées, « Journal désactivé » et
+  « `#mode=journal` se lit Diagramme »). **Non commitée** à l'écriture de cette ligne.
+  **Prochaine session : `/brique-ui tuiles`**, en commençant par **le choix d'Orhan** : une lettre T1 / T2 / T3 (et le
+  glissé de T3 oui ou non) pour les widgets de Contrôle, et ses remarques sur les captures du panneau, de la recherche,
+  des réglages, de l'édition, du Journal et de Contrôle. Pour les tuiles : écrire d'abord dans `DESIGN.md` la préférence
+  `ld-prefs` par vue (jamais une intention), la règle de recomposition de la grille et la primitive du geste s'il y en a un
+  (poignée T1, en-tête saisissable et place cible T3 ; aucune pour T2), puis construire sur `app/src/control/ControlView.tsx` ;
+  les trois boutons « en cours » prennent alors leur sens ou disparaissent. Puis la **brique 8** (bascule de `/`, suppression
+  de `engine/src/app/`). À savoir : `npm run e2e` dure ~4 min ; sur la machine de session, `LD_CHROMIUM=<chemin>` choisit le
+  binaire si Playwright 1.61 n'a pas le sien (`/opt/pw-browsers/`), et les tests navigateur du backend cherchent
+  `~/.cache/ms-playwright/chromium_headless_shell-*/*/chrome-headless-shell` (un lien symbolique suffit) ; `/view` reste
+  gelé, ses onglets Contrôles, Qualité, Sources sont absorbés par la vue Contrôle ; rien de nouveau côté API. **La toile
   (cartes, câbles) est une autre surface** : tour de directions à part, en repartant des cartes v1. **Aucune fonctionnalité nouvelle pendant la
   refonte.**
 - **Lots 16 bis et 4 bis, interrompus** (2026-10-15) : sur la branche `lots-16bis-4bis` (85f9b2b, poussée), jamais

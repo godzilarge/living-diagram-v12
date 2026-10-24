@@ -1,0 +1,19 @@
+/* ---------- T1, the handles: the gutter is the handle, it lights up as the rail does ---------- */
+.grip {
+  position: absolute; z-index: 5; left: var(--x); top: var(--y); width: var(--w); height: var(--h);
+  transition: left 240ms var(--ease), top 240ms var(--ease), width 240ms var(--ease), height 240ms var(--ease);
+  touch-action: none;
+}
+.space[data-still] > .grip { transition: none; }
+.grip.col { cursor: col-resize; }
+.grip.row { cursor: row-resize; }
+.grip::after {
+  content: ""; position: absolute; background: var(--acc); border-radius: 1px; opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+.grip.col::after { left: 7px; top: 0; bottom: 0; width: 2px; }
+.grip.row::after { top: 7px; left: 0; right: 0; height: 2px; }
+.grip:hover::after, .grip:focus-visible::after, .grip[data-active]::after { opacity: 1; }
+.grip:focus-visible { outline: none; }
+:root[data-drag="col"], :root[data-drag="col"] * { cursor: col-resize !important; user-select: none; }
+:root[data-drag="row"], :root[data-drag="row"] * { cursor: row-resize !important; user-select: none; }

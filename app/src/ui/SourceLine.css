@@ -1,0 +1,25 @@
+.ui-source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  white-space: nowrap;
+}
+
+/* a hairline 16 px long, the cable's stroke: solid in ink-2, dotted and dashed in ink-3 */
+.ui-source-line {
+  display: inline-block;
+  flex: none;
+  width: var(--source-line-width);
+  height: 0;
+  border-top: 1px solid var(--color-ink-2);
+}
+
+.ui-source-line[data-line="dotted"] {
+  border-top-style: dotted;
+  border-top-color: var(--color-ink-3);
+}
+
+.ui-source-line[data-line="dashed"] {
+  border-top-style: dashed;
+  border-top-color: var(--color-ink-3);
+}

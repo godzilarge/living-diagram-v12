@@ -4,6 +4,7 @@
 import i18next from "i18next";
 import { useTranslation } from "react-i18next";
 import { setLanguage as setEngineLanguage } from "@engine/i18n";
+import enControl from "./locales/en/control.json";
 import enDiagram from "./locales/en/diagram.json";
 import enEdit from "./locales/en/edit.json";
 import enHome from "./locales/en/home.json";
@@ -13,6 +14,7 @@ import enPrimitives from "./locales/en/primitives.json";
 import enSearch from "./locales/en/search.json";
 import enShell from "./locales/en/shell.json";
 import enUi from "./locales/en/ui.json";
+import frControl from "./locales/fr/control.json";
 import frDiagram from "./locales/fr/diagram.json";
 import frEdit from "./locales/fr/edit.json";
 import frHome from "./locales/fr/home.json";
@@ -27,11 +29,11 @@ export const LANGUAGES = ["en", "fr"] as const;
 export type Language = (typeof LANGUAGES)[number];
 /** The language of a browser that announces none we speak. */
 export const DEFAULT_LANGUAGE: Language = "en";
-export const NAMESPACES = ["ui", "shell", "home", "diagram", "panel", "search", "edit", "journal", "primitives"] as const;
+export const NAMESPACES = ["ui", "shell", "home", "diagram", "panel", "search", "edit", "control", "journal", "primitives"] as const;
 
 export const resources = {
-  en: { ui: enUi, shell: enShell, home: enHome, diagram: enDiagram, panel: enPanel, search: enSearch, edit: enEdit, journal: enJournal, primitives: enPrimitives },
-  fr: { ui: frUi, shell: frShell, home: frHome, diagram: frDiagram, panel: frPanel, search: frSearch, edit: frEdit, journal: frJournal, primitives: frPrimitives },
+  en: { ui: enUi, shell: enShell, home: enHome, diagram: enDiagram, panel: enPanel, search: enSearch, edit: enEdit, control: enControl, journal: enJournal, primitives: enPrimitives },
+  fr: { ui: frUi, shell: frShell, home: frHome, diagram: frDiagram, panel: frPanel, search: frSearch, edit: frEdit, control: frControl, journal: frJournal, primitives: frPrimitives },
 } as const;
 
 type Catalogue = (typeof resources)["en"];

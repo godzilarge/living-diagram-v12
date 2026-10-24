@@ -118,3 +118,8 @@
 .diagram-bottom[hidden] {
   display: none;
 }
+
+/* Check (brick 7a): the page of widgets on the ground, no map under the islands */
+.diagram[data-mode="control"] {
+  background: var(--color-ground);
+}

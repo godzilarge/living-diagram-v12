@@ -1,0 +1,17 @@
+/* the approved Check mockup's `.code`: a chip that reads as data, not as a control */
+.ui-code {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  height: var(--code-chip-height);
+  padding: var(--code-chip-padding);
+  border: 1px solid var(--color-line-2);
+  border-radius: var(--code-chip-radius);
+  color: var(--code-chip-text-color);
+  font-size: var(--code-chip-font-size);
+  font-weight: var(--code-chip-font-weight);
+  line-height: var(--code-chip-font-leading);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

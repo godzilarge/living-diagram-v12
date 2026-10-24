@@ -67,9 +67,9 @@ export type Action =
   | Readonly<{ type: "editRequest"; request: EditRequestState | null }>
   | Readonly<{ type: "touched" }>;
 
-/** The modes the shell can show: Check waits for its direction (brick 7, Orhan still judging the bench); until then an
- *  address naming it reads as the Diagram, and the address is rewritten so it says what the page shows. */
-export const SHOWN_MODES: readonly ViewState["mode"][] = ["diagram", "journal"];
+/** The modes the shell can show: the Diagram, Check (brick 7a) and the Log (brick 7); an address naming another mode
+ *  reads as the Diagram, and the address is rewritten so it says what the page shows. */
+export const SHOWN_MODES: readonly ViewState["mode"][] = ["diagram", "control", "journal"];
 export const shownView = (view: ViewState): ViewState => (SHOWN_MODES.includes(view.mode) ? view : { ...view, mode: "diagram" });
 
 export function initialState(token: TokenState, address: Address, view: ViewState = DEFAULT_VIEW, wanted: SelectionToken | null = null): DiagramState {
@@ -89,6 +89,16 @@ export function selectionTokenOf(state: DiagramState): SelectionToken | null {
     return token ? { kind: token[0], token: token[1] } : null;
   }
   return state.wanted;
+}
+
+/** A view patch. Leaving the Diagram leaves edit mode with what it opened (Check and the Log are read only). Check
+ *  unmounts the canvas: the selection goes aside as the selection awaited (the address keeps it, the canvas shows it
+ *  again when it comes back). The Log keeps the canvas mounted and inert under it: the selection stays. */
+function withView(state: DiagramState, patch: Partial<ViewState>): DiagramState {
+  const view = { ...state.view, ...patch };
+  if (view.mode === state.view.mode || view.mode === "diagram") return { ...state, view };
+  const aside = view.mode === "control" ? { selection: null, hosts: [], wanted: state.wanted ?? selectionTokenOf(state) } : {};
+  return { ...state, view, editing: false, tool: null, context: null, editRequest: null, ...aside };
 }
 
 export function reducer(state: DiagramState, action: Action): DiagramState {
@@ -116,13 +126,8 @@ export function reducer(state: DiagramState, action: Action): DiagramState {
         runsCause: action.runs ? null : state.runsCause,
         hosts: [],
       };
-    case "view": {
-      const view = { ...state.view, ...action.patch };
-      // another view than the Diagram closes edit mode (the Log is read only), with what it opened
-      const leaves = view.mode !== "diagram" && state.editing;
-      if (leaves) return { ...state, view, editing: false, tool: null, context: null, editRequest: null };
-      return { ...state, view, context: view.mode === "diagram" ? state.context : null };
-    }
+    case "view":
+      return withView(state, action.patch);
     case "select": {
       const same = sameSelection(state.selection, action.selection) && sameHosts(state.hosts, action.hosts);
       if (same) return state.wanted ? { ...state, wanted: null } : state; // the canvas answered, even without a change
@@ -133,9 +138,10 @@ export function reducer(state: DiagramState, action: Action): DiagramState {
     case "zoom":
       return state.zoom === action.zoom ? state : { ...state, zoom: action.zoom };
     case "edit":
-      // leaving edit mode puts the tool away and closes what it opened
+      // leaving edit mode puts the tool away and closes what it opened; entering it from Check shows the Diagram
       if (action.editing === state.editing) return state;
-      return action.editing ? { ...state, editing: true } : { ...state, editing: false, tool: null, context: null, editRequest: null };
+      if (action.editing) return state.view.mode === "diagram" ? { ...state, editing: true } : { ...withView(state, { mode: "diagram" }), editing: true };
+      return { ...state, editing: false, tool: null, context: null, editRequest: null };
     case "tool":
       // a tool arms in edit mode only; arming closes the menu
       return { ...state, tool: action.tool && state.editing ? action.tool : null, context: null };

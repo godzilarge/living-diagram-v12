@@ -1,0 +1,5 @@
+one_way_observation: 2 contrôles -> la phrase dit « 2 câbles observés d'un seul côté » ; choses distinctes : 1 ["kind='link' a=Endpoint(hostname='sw-core-01', interface='Ethernet1/1') b=Endpoint(hostname='sw-core-02', interface='Ethernet1/1')"]
+neighbor_unknown: 2 contrôles -> la phrase dit « 2 voisins inconnus de l'inventaire » ; choses distinctes : 1 ['ghost-01']
+   Livraison « Non résolus » lit report.unresolved_names : ['ghost-01', 'srv-hyp-07']
+self_observation: 2 contrôles -> la phrase dit « 2 ports qui se désignent eux-mêmes » ; choses distinctes : 1 [('sw-core-01', 'Ethernet1/5')]
+ha_view_mismatch: 3 contrôles -> la phrase dit « 3 grappes décrites différemment par leurs membres » ; choses distinctes : 1 [('fw-edge-01', 'fw-edge-02')]

@@ -1,0 +1,5 @@
+/* a sentence in place of the data, in ink-3 */
+.shell-note {
+  margin: 0 0 var(--space-xs);
+  color: var(--color-ink-3);
+}

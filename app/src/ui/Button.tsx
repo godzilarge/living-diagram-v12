@@ -1,10 +1,13 @@
 // A button with words (DESIGN.md, Buttons): `plain` (a choice in a bar), `line` (a bordered control that must read as
 // one), `primary` (the accent fill, one per surface at most). An optional leading icon, a trailing chevron for a choice
-// that opens a list; the same states as every control. A tooltip only when `tooltip` is given.
+// that opens a list; the same states as every control. A tooltip only when `tooltip` is given. A toggle may carry a
+// count after its word (Check's severity toggles: the word and its number in the state colour, 6 px apart).
 import { useMergeRefs } from "@floating-ui/react";
 import { ChevronDown } from "lucide-react";
 import type { Placement } from "@floating-ui/react";
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode, Ref } from "react";
+import { Count } from "./Count";
+import type { Tone } from "./Count";
 import { Icon, Spinner } from "./Icon";
 import { useTooltip } from "./Tooltip";
 import "./control.css";
@@ -17,6 +20,8 @@ export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "disable
   variant?: ButtonVariant;
   icon?: ReactNode;
   chevron?: boolean;
+  /** A count after the word, in its state colour (a toggle over a list). */
+  count?: Readonly<{ value: number; tone?: Tone }>;
   tooltip?: string;
   shortcut?: ReactNode;
   pressed?: boolean;
@@ -31,7 +36,7 @@ export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "disable
 };
 
 export function Button(props: ButtonProps) {
-  const { children, variant = "plain", icon, chevron, tooltip, shortcut, pressed, current, disabled, danger, loading,
+  const { children, variant = "plain", icon, chevron, count, tooltip, shortcut, pressed, current, disabled, danger, loading,
     tooltipOpen, tooltipPlacement, ref, onClick, className, ...rest } = props;
   // a control whose popover is open says nothing more: its tooltip would cover the popover
   const expanded = rest["aria-expanded"] === true || rest["aria-expanded"] === "true";
@@ -60,6 +65,7 @@ export function Button(props: ButtonProps) {
       >
         {loading ? <Spinner /> : icon ? <Icon>{icon}</Icon> : null}
         <span className="ui-button-text">{children}</span>
+        {count ? <Count value={count.value} tone={count.tone} /> : null}
         {chevron ? (
           <span className="ui-button-chevron">
             <Icon>

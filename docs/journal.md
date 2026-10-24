@@ -7,6 +7,47 @@ tête de la section « Entrées » (skill `livraison`).
 
 ## Entrées
 
+- **The Log and Check branches merged** (2026-10-24). Brick 7 (the Log, J1) and brick 7a (Check, A) were built in two
+  sessions from the same bench commit (`a9ed676`), each believing the other view still waited for Orhan: 15 files in
+  conflict, all additive. Decisions: `SHOWN_MODES` = Diagram, Check, Log; one `withView` for both: leaving the
+  Diagram closes edit mode with what it opened, Check puts the selection aside as `wanted` (its canvas unmounts), the
+  Log keeps it (its canvas stays mounted, inert); the canvas's keys are silent in both, Ctrl+K stays; the primitives
+  page shows Check then Log, in the strip's order; the `ViewsIsland` keeps Check's guard (a click on the current tab
+  does nothing). Two stale e2e assertions of the Check branch (`diagram.spec.ts`: the Log tab disabled, `#mode=journal`
+  reading as the Diagram) rewritten: the three tabs live, an unknown mode reads as the Diagram. Suites: app check 300,
+  e2e 106 green (Chromium 1228 on this machine: the twelve sub-pixel deviations of the 1194 are gone), engine green.
+  No commit without Orhan's word.
+
+- **Brick 7a of the v2 migration: the Check view, delivered and reviewed; the widgets' sizing at the bench**
+  (2026-10-21, `/brique-ui controle`; Orhan chose **A, the register** among the three directions of 2026-10-17, with
+  two remarks: the verdicts table "too condensed, compacted, not easy to read", and "being able to resize the tiles /
+  widgets so that the important information comes to the front, such as Coverage of the collection"). **The chosen
+  prototype is versioned as the approved mockup** (`design/comps/shell/control.html`, its captures, `DIRECTION.md`
+  § Check view; B and C are not kept). **The brick** (`ui` agent): `#mode=control` is a page of widgets on the ground
+  under the diagram's top row, the canvas unmounted (no controls, band, panel or pencil); Verdicts (total, three
+  severity toggles with counts, a filter, the register by severity then code, each row its sentence, `Code` chip and
+  rule family, its count, a chevron; open, its targets as links that open the Diagram on the element), Coverage of
+  the collection (a strip of facts, a table with a mark per topic, hollow when not asked), Cables and sources (one
+  row per combination of sources with the canvas's stroke), Delivery (exporter, contract, received, devices,
+  findings, normalizations, unread, unresolved). **His first remark applied**: rows at the relaxed density (56 px) on
+  two lines, the Rule column folded under the sentence; he judges on the captures. A catalogue `control` with one
+  absolute sentence per code (40 codes, fr and en; `RULE_OF` held to `codes.py` by a test). Primitives written into
+  `DESIGN.md` and the primitives page before use: `Code` (reserved to Check), `Register`, the hollow `Mark`,
+  `SourceLine`, `Zero`; `Widget` toggles, band, caption and fade; `Button` `count`; `Table` centred column; six
+  tokens; a "Check view" section. Decisions to judge in use (seven lines in `docs/a-juger-a-l-usage.md`): the canvas
+  unmounted and the view framed anew, transient toggles and filter, a port's target selects its device, a verdict
+  counts checks (one check = one thing in every sentence), a `failed` collection as its own fact, the right column at
+  900 px (coverage keeps 40 %), topic headers 4 px apart (the mockup's touched). Review `docs/revues/2026-10-21-controle.md` (0 critical, 1 high, 3 medium, 10 low; probes in `-sondes/`), treated the same day in full: a verdict counts the things it names, each once (`SUBJECT_OF` per code; the total, toggles, tab and panel keep counting checks: "two counts, two units" in `DESIGN.md`), the open row's detail aligned on the sentence, the right tables at 32 px (the mockup's `.mini`, the delivery whole at 900 px), `interface_member_unknown` set right in both catalogues, the ten low points done (one `Note`, a guard reserving `Code`, `Field` `fluid` under 1280 px), B6 assumed (the Diagram's commands stay live in Check, to judge in use). **His second
+  remark is a new interaction, so a bench** (`ui` agent, `bac-a-sable/tuiles/`, versioned as
+  `design/rounds/2026-10-21-tuiles/`, three working pages given to him): **T1 the handles** (drag the gutters, 8 px
+  steps, keyboard, double-click resets), **T2 the sizes** (Compact / Normal / Large and "Put first" in each widget's
+  settings popover, the grid recomposes), **T3 the places** (four fixed slots, drag a widget by its header to swap, or
+  a "Bring to front" button). Measured with Coverage to the front at 1440 × 900: 4 rows of 30 in the mockup, 12 in
+  T1, 20 in T2 and T3 (the same layout; the gesture differs). The agent's view, for the record: T3 by its button
+  alone, no drag; and sorting the coverage with the unreachable and partial devices first. Until his verdict the
+  three header buttons ("Open large", "All cables", "Ingestion report") are disabled "in progress". The Log view
+  (J1 / J2) still waits for his letter. Suites: `app` check 276, e2e 86 passed and the 12 known `measure` / `settings` failures of this machine's Chromium 1194 (none in the brick); engine green; backend 643 with 1 machine-specific failure (Node 22.22 and `node --test <dir>`); contracts 637 at 98 %. Committed and pushed on `claude/laughing-planck-8em58b` (the mockup and the bench round first, the brick after its review).
+
 - **Unknown neighbours back in the shell, and a cross on the hidden rules** (2026-10-20, Orhan: "what the v1 had and
   the v2 lost: showing the unknown neighbours or not; a section for them in Hidden devices", then "a row click lifts
   the rule, but it is not clear: a small cross on the right of each row"). The engine already hid the stubs (announced

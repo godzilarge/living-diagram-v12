@@ -3,7 +3,9 @@
 // and what a chosen result does here: an element is selected and its panel opens, or it is selected and centred (a
 // removed device, a neighbour never collected, "centre the view"); another infrastructure opens its page; an action
 // runs the shell's command; the query's own action hides the devices the expression designates (the view's rule), and
-// "show the hidden devices" lifts every rule, "show (hide) the unknown neighbours" toggles them. Sources are memoised; the search runs on every keystroke without another cache.
+// "show the hidden devices" lifts every rule, "show (hide) the unknown neighbours" toggles them. From Check (no canvas),
+// an element chosen opens the Diagram view on it and an action on the view (show everything, centre, 100 %) opens the
+// Diagram view. Sources are memoised; the search runs on every keystroke without another cache.
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Model, Selection } from "@engine/canvas/types";
 import { useText } from "../i18n";
@@ -62,8 +64,11 @@ export function useSearch({ state, model, infrastructures, commands, prefs, setP
     () => ({ model, infrastructures, current: state.address.infrastructure, actions }),
     [model, infrastructures, state.address.infrastructure, actions],
   );
+  const inCheck = state.view.mode === "control";
   const onChoose = useCallback(
     ({ hit, how }: Choice) => {
+      if (inCheck && hit.kind === "action" && (hit.id === "fit" || hit.id === "center" || hit.id === "zoomReset")) return commands.setView({ mode: "diagram" });
+      if (inCheck && hit.kind !== "action" && hit.kind !== "infrastructure") return commands.showInDiagram(hit.selection);
       switch (hit.kind) {
         case "infrastructure":
           if (!hit.current) onInfrastructure(hit.name);
@@ -84,7 +89,7 @@ export function useSearch({ state, model, infrastructures, commands, prefs, setP
         }
       }
     },
-    [commands, prefs, setPrefs, onInfrastructure, showStubs],
+    [commands, prefs, setPrefs, onInfrastructure, showStubs, inCheck],
   );
   const onOpen = useCallback(() => closeOpenLayers(() => setOpen(true)), []);
   const onClose = useCallback(() => setOpen(false), []);

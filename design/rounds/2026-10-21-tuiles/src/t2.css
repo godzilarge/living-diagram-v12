@@ -1,0 +1,8 @@
+/* ---------- T2, the sizes: the widget's settings popover ---------- */
+.rail[aria-expanded="true"]::after { transform: scaleX(1); }
+.btn.icon[aria-expanded="true"] { color: var(--ink); }
+.popover.wset { top: var(--top, 0); right: var(--right, 16px); }
+.popover.wset[data-open] { opacity: 1; visibility: visible; transform: none; transition: opacity 160ms var(--ease), transform 200ms var(--ease); }
+.popover.wset .btn[aria-disabled="true"] { color: var(--ink-4); }
+.popover.wset .btn .tip { font-weight: 500; }
+.popover.wset .btn:not(.has-tip) .tip { display: none; }

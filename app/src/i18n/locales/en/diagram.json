@@ -39,7 +39,6 @@
     "label": "View",
     "diagram": "Diagram",
     "control": "Check",
-    "controlSoon": "Check: in progress",
     "errors_one": "{{count, number}} open error",
     "errors_other": "{{count, number}} open errors",
     "warnings_one": "{{count, number}} open warning",

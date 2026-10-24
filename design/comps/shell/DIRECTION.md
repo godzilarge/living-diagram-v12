@@ -44,6 +44,20 @@ underline | alignment, text colour, title position | below, above (rail on the c
 delete. **Placement**: a bar sits 12 px above its element, centred on it; its volet 12 px above the bar, under its
 trigger; never over the element. If the bar would come within 12 px of the top islands (top < 76 px), it flips 12 px
 below the element and its volets open downward.
+## Check view (`control.html`, 2026-10-21)
+`#mode=control`: the map goes, the page is the home's ground with the diagram's top row kept (logo, context with the
+run choice and the changes, views and layers, tools); no run band, no canvas controls, no panel. A grid from y = 80
+to 16 px above the bottom edge, 912 / 480 at 1440, 16 px between widgets. **Verdicts** on the left, the whole height:
+the total, three severity toggles with their counts (word and count, the rail says on), a filter field; the register
+groups the checks by severity then code, one row per code with its sentence, its `Code` chip (codes are allowed in
+this view only) and its rule family, its count, a chevron; a row unfolds the things it names, each a link that opens
+the Diagram on the element. On the right, stacked: **Coverage of the collection** (a strip of counts, then a table of
+the devices in scope with a mark per topic: filled when collected, hollow when absent, amber when partial, red when
+unreachable), **Cables and sources** (one row per combination of sources with the canvas's line style, its status in
+words and its count), **Delivery** (exporter, contract, received at, devices, findings, normalizations, unparsed
+descriptions, unresolved neighbours). Orhan's remark on the mockup: the verdicts table is too dense; the brick gives
+its rows the relaxed density (56 px) and folds the rule column under the sentence. The sizing of the widgets (his
+request) is at the bench.
 ## Tooltip, icons, motion
 One `.tip`, `[role=tooltip]`: black, white 12 / 500, padding 6 × 8, radius 5, one shadow, optional shortcut in
 `#A9ACB1`, dark adds a `#3A3C40` outline; toward the canvas, 350 ms delay. Icons (Lucide, 1.75, 16 px) for every

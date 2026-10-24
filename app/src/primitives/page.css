@@ -247,3 +247,21 @@ body:has(.page) {
 .page-feed .ui-island {
   width: calc(2 * var(--journal-facets));
 }
+
+/* Check's register, wide enough for a verdict on its line */
+.page-check-register {
+  width: 720px;
+}
+
+.page-check-register .ui-widget {
+  width: 100%;
+}
+
+/* Check's coverage at the width of the view's right column */
+.page-check-side {
+  width: var(--check-view-side-width);
+}
+
+.page-check-side .ui-widget {
+  height: auto;
+}

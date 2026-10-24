@@ -189,10 +189,8 @@ test("without a token the page asks for one; a refused token asks again; the API
   await expect.poll(() => address(page)).toBe("?infrastructure=demo-dc&run_id=demo-0119");
   await expect(page.getByRole("group", { name: "Collections" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /changes/ })).toHaveCount(0);
-  // the views and layers to come are reached, say why, and change nothing
-  await expect(page.getByRole("tab", { name: "Check" })).toHaveAttribute("aria-disabled", "true");
-  await page.getByRole("tab", { name: "Check" }).hover();
-  await expect(page.getByRole("tooltip", { name: /Check: in progress/ })).toBeVisible({ timeout: 2000 });
+  // the three views are live (Check with brick 7a, the Log with brick 7); the layers to come are reached and say why
+  for (const name of ["Diagram", "Check", "Log"]) await expect(page.getByRole("tab", { name })).not.toHaveAttribute("aria-disabled", "true");
   await expect(page.getByRole("tab", { name: "Diagram" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("button", { name: "L2" }).hover();
   await expect(page.getByRole("tooltip", { name: /in progress/ })).toBeVisible({ timeout: 2000 });
@@ -255,9 +253,9 @@ test("the overview is an island above the controls; a hundred collections scroll
   expect(report.floats.flags, "floating surfaces").toEqual([]);
 });
 
-test("Escape closes an open popover and nothing else; the list of collections being read is said; a v1 mode reads as Diagram; a lone first run says why it compares with nothing", async ({ page }) => {
+test("Escape closes an open popover and nothing else; the list of collections being read is said; an unknown mode reads as Diagram; a lone first run says why it compares with nothing", async ({ page }) => {
   await mockApi(page, { delayRuns: 1500 });
-  await open(page, "/next/?infrastructure=demo-dc#mode=control", LIGHT, { token: TOKEN });
+  await open(page, "/next/?infrastructure=demo-dc#mode=l2", LIGHT, { token: TOKEN });
   // listing: the collection choice is busy, no controls on an empty map
   await expect(page.getByRole("combobox", { name: "Collection", exact: true })).toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("button", { name: /\d+%$/ })).toHaveCount(0);

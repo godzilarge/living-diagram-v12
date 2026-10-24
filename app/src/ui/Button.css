@@ -38,3 +38,8 @@
 .ui-button.ui-rail[aria-pressed="true"] .ui-button-text {
   font-weight: var(--text-headline-weight);
 }
+
+/* a toggle with its count: the word and the number 6 px apart, as a view tab (Rail.css) */
+.ui-button:has(> .ui-count) {
+  gap: calc(var(--space-xs) + var(--space-2xs));
+}

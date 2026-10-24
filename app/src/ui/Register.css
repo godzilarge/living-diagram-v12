@@ -1,0 +1,108 @@
+/* The register (DESIGN.md, Register): on top of the Table's relaxed density (56 px rows, the 32 px widget head,
+   the hover fill of a clickable row). */
+
+/* a group heading in the body: label size ink-3 and its count 8 px after, 8 px of air above a 28 px line (36 px, the
+   approved mockup's `.sevhead`) */
+.ui-register-group th {
+  height: calc(var(--table-head-height) + var(--space-sm));
+  padding: var(--space-sm) 0 0 var(--space-sm);
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  font-weight: var(--text-label-weight);
+  line-height: var(--text-label-leading);
+  text-align: left;
+}
+
+.ui-register-group-count {
+  margin-left: var(--space-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the mark's column: 8 px wide, 12 px before the sentence (the mockup's `.sev`) */
+.ui-register td[data-key="mark"] {
+  width: var(--mark-size);
+  padding-right: var(--space-md);
+  line-height: 0;
+}
+
+.ui-register td[data-key="count"] {
+  padding-right: var(--space-sm);
+}
+
+/* two lines: the sentence at 500 on its 20 px line, then 2 px under it the code and the family in label size */
+.ui-register-what {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.ui-register-title {
+  overflow: hidden;
+  font-weight: var(--register-font-weight);
+  line-height: var(--text-body-line-leading);
+  text-overflow: ellipsis;
+}
+
+.ui-register-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-ink-3);
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-leading);
+}
+
+.ui-register-chevron {
+  display: inline-flex;
+  color: var(--color-ink-3);
+  transition: transform var(--motion-hover) var(--motion-ease);
+}
+
+.ui-register-row[data-open] .ui-register-chevron {
+  transform: rotate(90deg);
+}
+
+/* the open row gives its hairline to its detail */
+.ui-register-row[data-open] td {
+  border-bottom: 0;
+}
+
+/* the detail: aligned on the sentence (8 + 8 + 12 px in), its own height, 12 px of paper below, never hovered; the
+   selectors outweigh the relaxed density's first cell and row height (Table.css) */
+.ui-table.ui-register tr.ui-register-detail > td {
+  height: auto;
+  padding: 0 0 var(--space-md) calc(var(--space-sm) + var(--mark-size) + var(--space-md));
+  white-space: normal;
+}
+
+/* an open row and its detail are one thing: neither takes the hover fill (the mockup's `.reg tr.open:hover td`) */
+.ui-table.ui-register tbody tr.ui-register-detail:hover td,
+.ui-table.ui-register tbody tr.ui-register-row[data-open]:hover td,
+.ui-table.ui-register tbody tr.ui-register-group:hover th {
+  background: transparent;
+}
+
+.ui-register-targets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-register-targets li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--register-target-height);
+  color: var(--color-ink-2);
+}
+
+.ui-register-target-icon {
+  display: inline-flex;
+  color: var(--color-ink-3);
+}
+

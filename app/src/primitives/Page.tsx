@@ -12,6 +12,7 @@ import { LogSection } from "./sections/Log";
 import { SearchSection } from "./sections/Search";
 import { Surfaces } from "./sections/Surfaces";
 import { Widgets } from "./sections/Widgets";
+import { CheckSection } from "./sections/Check";
 import "./page.css";
 
 export function Page() {
@@ -39,6 +40,7 @@ export function Page() {
       <SearchSection />
       <EditSection />
       <Widgets />
+      <CheckSection />
       <LogSection />
       <ToastHost name="toast" closeLabel={t("ui:close")} />
     </div>
